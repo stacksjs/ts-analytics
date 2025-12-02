@@ -1,0 +1,23 @@
+import process from 'node:process'
+import { dts } from 'bun-plugin-dtsx'
+
+console.log('Building...')
+
+const result = await Bun.build({
+  entrypoints: ['src/index.ts'],
+  target: 'bun',
+  outdir: './dist',
+  sourcemap: 'inline',
+  plugins: [dts()],
+})
+
+if (!result.success) {
+  console.error('Build failed')
+  for (const message of result.logs) {
+    console.error(message)
+  }
+  process.exit(1)
+}
+
+console.log('Build successful!')
+process.exit(0)

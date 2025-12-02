@@ -1,0 +1,60 @@
+{
+  "name": "@stacksjs/analytics",
+  "type": "module",
+  "version": "0.1.0",
+  "description": "A privacy-first analytics toolkit for web applications.",
+  "author": "Chris Breuer <chris@stacksjs.org>",
+  "license": "MIT",
+  "homepage": "https://github.com/stacksjs/analytics#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stacksjs/analytics.git"
+  },
+  "bugs": {
+    "url": "https://github.com/stacksjs/analytics/issues"
+  },
+  "keywords": ["analytics", "privacy", "typescript", "bun", "dynamodb"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./*": {
+      "import": "./dist/*"
+    }
+  },
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "bun --bun build.ts",
+    "fresh": "bunx rimraf node_modules/ bun.lock && bun i",
+    "lint": "bunx --bun eslint .",
+    "lint:fix": "bunx --bun eslint . --fix",
+    "changelog": "bunx logsmith --verbose",
+    "changelog:generate": "bunx logsmith --output CHANGELOG.md",
+    "release": "bun run changelog:generate && bunx bumpx prompt --recursive",
+    "postinstall": "bunx git-hooks",
+    "prepublishOnly": "bun --bun run build",
+    "test": "bun test",
+    "typecheck": "bun --bun tsc --noEmit"
+  },
+  "devDependencies": {
+    "@stacksjs/bumpx": "^0.2.4",
+    "@stacksjs/eslint-config": "^4.8.2-beta.1",
+    "@stacksjs/gitlint": "^0.1.5",
+    "@stacksjs/logsmith": "^0.2.1",
+    "@types/bun": "^1.3.3",
+    "bun-git-hooks": "^0.3.1",
+    "bun-plugin-dtsx": "^0.21.17",
+    "typescript": "^5.9.3"
+  },
+  "git-hooks": {
+    "pre-commit": {
+      "staged-lint": {
+        "*.{js,ts,json,yaml,yml,md}": "bunx --bun eslint --fix"
+      }
+    },
+    "commit-msg": "bunx gitlint --edit .git/COMMIT_EDITMSG"
+  }
+}
