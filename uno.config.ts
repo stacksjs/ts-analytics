@@ -100,25 +100,48 @@ const config: UserConfig = defineConfig({
 
   // Safelist classes that are dynamically generated
   safelist: [
+    // Animations
     'animate-pulse',
     'animate-spin',
     'animate-ping',
+    // Status colors
     'text-green-600',
+    'text-green-700',
     'text-red-600',
+    'bg-green-50',
+    'bg-green-500',
+    'bg-red-50',
+    // Device/Browser colors
     'bg-blue-100',
     'bg-blue-500',
     'text-blue-600',
     'bg-green-100',
-    'bg-green-500',
     'text-green-600',
     'bg-purple-100',
     'bg-purple-500',
     'text-purple-600',
     'bg-gray-100',
+    'bg-gray-400',
     'text-gray-600',
+    'bg-yellow-100',
+    'text-yellow-600',
+    'bg-orange-100',
+    'text-orange-600',
+    'bg-cyan-100',
+    'text-cyan-600',
+    'bg-red-100',
+    'text-red-600',
+    // Primary/Indigo
     'bg-indigo-50',
     'bg-indigo-500',
     'text-indigo-600',
+    'border-primary-500',
+    'text-primary-500',
+    'text-primary-600',
+    'bg-primary-50',
+    'bg-primary-500',
+    'bg-primary-600',
+    'focus:ring-primary-500',
   ],
 })
 
