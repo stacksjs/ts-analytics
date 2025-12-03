@@ -1,0 +1,108 @@
+<script setup lang="ts">
+/**
+ * EmptyState Component
+ *
+ * Placeholder for empty data states with customizable icon and actions.
+ */
+
+export type EmptyStateVariant = 'default' | 'no-data' | 'no-results' | 'error' | 'no-access'
+
+const props = withDefaults(defineProps<{
+  title?: string
+  description?: string
+  variant?: EmptyStateVariant
+  actionLabel?: string
+  showIcon?: boolean
+}>(), {
+  title: 'No data',
+  description: 'There is no data to display at this time.',
+  variant: 'default',
+  showIcon: true,
+})
+
+const emit = defineEmits<{
+  (e: 'action'): void
+}>()
+
+const variantConfig: Record<EmptyStateVariant, { icon: string, defaultTitle: string, defaultDesc: string }> = {
+  'default': {
+    icon: 'M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4',
+    defaultTitle: 'No data',
+    defaultDesc: 'There is no data to display at this time.',
+  },
+  'no-data': {
+    icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+    defaultTitle: 'No analytics data',
+    defaultDesc: 'Start tracking your website to see analytics data here.',
+  },
+  'no-results': {
+    icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+    defaultTitle: 'No results found',
+    defaultDesc: 'Try adjusting your search or filter criteria.',
+  },
+  'error': {
+    icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+    defaultTitle: 'Something went wrong',
+    defaultDesc: 'We encountered an error loading this data. Please try again.',
+  },
+  'no-access': {
+    icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
+    defaultTitle: 'Access restricted',
+    defaultDesc: 'You don\'t have permission to view this data.',
+  },
+}
+
+const config = variantConfig[props.variant]
+const displayTitle = props.title || config.defaultTitle
+const displayDesc = props.description || config.defaultDesc
+</script>
+
+<template>
+  <div class="empty-state flex flex-col items-center justify-center py-12 px-4 text-center">
+    <!-- Icon -->
+    <div
+      v-if="showIcon"
+      class="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+      :class="variant === 'error' ? 'bg-red-100' : 'bg-gray-100'"
+    >
+      <svg
+        class="w-8 h-8"
+        :class="variant === 'error' ? 'text-red-400' : 'text-gray-400'"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="config.icon" />
+      </svg>
+    </div>
+
+    <!-- Title -->
+    <h3 class="text-lg font-medium text-gray-900 mb-1">
+      {{ displayTitle }}
+    </h3>
+
+    <!-- Description -->
+    <p class="text-sm text-gray-500 max-w-sm mb-6">
+      {{ displayDesc }}
+    </p>
+
+    <!-- Action button -->
+    <button
+      v-if="actionLabel"
+      type="button"
+      class="btn-primary"
+      @click="emit('action')"
+    >
+      {{ actionLabel }}
+    </button>
+
+    <!-- Custom slot -->
+    <slot />
+  </div>
+</template>
+
+<style scoped>
+.empty-state {
+  min-height: 200px;
+}
+</style>
