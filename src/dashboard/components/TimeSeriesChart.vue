@@ -236,19 +236,12 @@ watch(() => props.metrics, drawChart)
 </script>
 
 <template>
-  <div
-    ref="containerRef"
-    class="time-series-chart bg-white rounded-lg border border-gray-200 p-6 shadow-sm"
-  >
+  <div ref="containerRef" class="time-series-chart">
     <!-- Legend -->
-    <div v-if="showLegend" class="flex items-center gap-4 mb-4">
-      <div
-        v-for="metric in metrics"
-        :key="metric"
-        class="flex items-center gap-2 text-sm"
-      >
+    <div v-if="showLegend" class="chart-legend">
+      <div v-for="metric in metrics" :key="metric" class="chart-legend-item">
         <div
-          class="w-3 h-3 rounded-full"
+          class="chart-legend-dot"
           :style="{ backgroundColor: chartColors[metric as keyof typeof chartColors] }"
         />
         <span class="text-gray-600 capitalize">
@@ -258,10 +251,7 @@ watch(() => props.metrics, drawChart)
     </div>
 
     <!-- Tooltip -->
-    <div
-      v-if="hoveredPoint"
-      class="mb-2 p-2 bg-gray-50 rounded text-sm"
-    >
+    <div v-if="hoveredPoint" class="mb-2 p-2 bg-gray-50 rounded text-sm">
       <div class="font-medium">{{ formatDate(hoveredPoint.date, 'long') }}</div>
       <div class="flex gap-4 mt-1">
         <span v-for="metric in metrics" :key="metric">
@@ -276,7 +266,7 @@ watch(() => props.metrics, drawChart)
 
     <!-- Loading state -->
     <div v-if="loading" class="animate-pulse" :style="{ height: `${height}px` }">
-      <div class="h-full bg-gray-200 rounded" />
+      <div class="skeleton h-full" />
     </div>
 
     <!-- Empty state -->
@@ -301,10 +291,7 @@ watch(() => props.metrics, drawChart)
 
 <style scoped>
 .time-series-chart {
-  transition: box-shadow 0.2s ease;
-}
-.time-series-chart:hover {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  @apply chart-container;
 }
 canvas {
   display: block;

@@ -126,7 +126,7 @@ const hasData = computed(() => stats.value !== null)
 <template>
   <div class="analytics-dashboard min-h-screen bg-gray-50 p-6">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
+    <header class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">
           Analytics Dashboard
@@ -141,7 +141,7 @@ const hasData = computed(() => stats.value !== null)
 
         <button
           type="button"
-          class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+          class="btn-icon"
           title="Refresh"
           :disabled="loading"
           @click="fetchData"
@@ -157,7 +157,7 @@ const hasData = computed(() => stats.value !== null)
           </svg>
         </button>
       </div>
-    </div>
+    </header>
 
     <!-- Error state -->
     <div
@@ -176,7 +176,7 @@ const hasData = computed(() => stats.value !== null)
     </div>
 
     <!-- Realtime counter -->
-    <div class="mb-6">
+    <section class="mb-6">
       <RealtimeCounter
         :count="realtime?.currentVisitors ?? 0"
         :loading="!realtime"
@@ -187,10 +187,10 @@ const hasData = computed(() => stats.value !== null)
           </p>
         </template>
       </RealtimeCounter>
-    </div>
+    </section>
 
     <!-- Stats cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <section class="dashboard-grid mb-6">
       <StatCard
         title="Page Views"
         :value="stats?.pageViews ?? 0"
@@ -221,21 +221,20 @@ const hasData = computed(() => stats.value !== null)
         format="duration"
         :loading="loading"
       />
-    </div>
+    </section>
 
     <!-- Time series chart -->
-    <div class="mb-6">
+    <section class="mb-6">
       <TimeSeriesChart
         :data="timeSeries"
         :loading="loading"
         :height="350"
         :metrics="['pageViews', 'uniqueVisitors']"
       />
-    </div>
+    </section>
 
     <!-- Bottom grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Top pages -->
+    <section class="dashboard-grid-3">
       <TopList
         title="Top Pages"
         :items="topPages"
@@ -243,7 +242,6 @@ const hasData = computed(() => stats.value !== null)
         empty-message="No page views yet"
       />
 
-      <!-- Top referrers -->
       <TopList
         title="Top Referrers"
         :items="topReferrers"
@@ -251,12 +249,11 @@ const hasData = computed(() => stats.value !== null)
         empty-message="No referrer data"
       />
 
-      <!-- Devices -->
       <DeviceBreakdown
         :devices="devices"
         :loading="loading"
       />
-    </div>
+    </section>
 
     <!-- Slot for additional content -->
     <slot name="footer" />

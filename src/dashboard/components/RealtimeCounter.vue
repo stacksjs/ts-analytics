@@ -18,23 +18,17 @@ const formattedCount = computed(() => formatCompact(props.count))
 </script>
 
 <template>
-  <div class="realtime-counter bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+  <div class="realtime-counter">
     <div class="flex items-center gap-3">
       <!-- Pulsing indicator -->
       <div class="relative">
-        <div
-          class="w-3 h-3 rounded-full animate-pulse"
-          :style="{ backgroundColor: pulseColor }"
-        />
-        <div
-          class="absolute inset-0 w-3 h-3 rounded-full animate-ping opacity-75"
-          :style="{ backgroundColor: pulseColor }"
-        />
+        <div class="pulse-dot animate-pulse" :style="{ backgroundColor: pulseColor }" />
+        <div class="pulse-ring" :style="{ backgroundColor: pulseColor }" />
       </div>
 
       <div v-if="loading" class="animate-pulse">
-        <div class="h-10 bg-gray-200 rounded w-16" />
-        <div class="h-4 bg-gray-200 rounded w-24 mt-1" />
+        <div class="skeleton h-10 w-16" />
+        <div class="skeleton h-4 w-24 mt-1" />
       </div>
 
       <div v-else>
@@ -53,9 +47,6 @@ const formattedCount = computed(() => formatCompact(props.count))
 
 <style scoped>
 .realtime-counter {
-  transition: box-shadow 0.2s ease;
-}
-.realtime-counter:hover {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  @apply card-hover p-6;
 }
 </style>

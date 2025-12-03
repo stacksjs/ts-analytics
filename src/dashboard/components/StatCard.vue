@@ -53,9 +53,9 @@ const formattedChange = computed(() => {
 </script>
 
 <template>
-  <div class="stat-card bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+  <div class="stat-card">
     <div class="flex items-center justify-between">
-      <h3 class="text-sm font-medium text-gray-500">
+      <h3 class="stat-title">
         {{ title }}
       </h3>
       <span v-if="icon" class="text-gray-400">
@@ -68,12 +68,12 @@ const formattedChange = computed(() => {
     <div class="mt-2">
       <template v-if="loading">
         <div class="animate-pulse">
-          <div class="h-8 bg-gray-200 rounded w-24" />
-          <div class="h-4 bg-gray-200 rounded w-16 mt-2" />
+          <div class="skeleton h-8 w-24" />
+          <div class="skeleton h-4 w-16 mt-2" />
         </div>
       </template>
       <template v-else>
-        <p class="text-3xl font-semibold text-gray-900">
+        <p class="stat-value">
           {{ formattedValue }}
         </p>
         <p v-if="change !== undefined" class="mt-1 text-sm" :class="changeClass">
@@ -87,9 +87,6 @@ const formattedChange = computed(() => {
 
 <style scoped>
 .stat-card {
-  transition: box-shadow 0.2s ease;
-}
-.stat-card:hover {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  @apply card-hover p-6;
 }
 </style>

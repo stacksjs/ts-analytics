@@ -45,7 +45,7 @@ function getDeviceColor(name: string): string {
 </script>
 
 <template>
-  <div class="device-breakdown bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+  <div class="device-breakdown">
     <h3 class="text-sm font-medium text-gray-900 mb-4">
       Devices
     </h3>
@@ -53,10 +53,10 @@ function getDeviceColor(name: string): string {
     <!-- Loading state -->
     <div v-if="loading" class="space-y-4">
       <div v-for="i in 3" :key="i" class="animate-pulse flex items-center gap-4">
-        <div class="w-12 h-12 bg-gray-200 rounded-lg" />
+        <div class="skeleton w-12 h-12 rounded-lg" />
         <div class="flex-1">
-          <div class="h-4 bg-gray-200 rounded w-20 mb-2" />
-          <div class="h-3 bg-gray-200 rounded w-12" />
+          <div class="skeleton h-4 w-20 mb-2" />
+          <div class="skeleton h-3 w-12" />
         </div>
       </div>
     </div>
@@ -83,9 +83,9 @@ function getDeviceColor(name: string): string {
             <span class="font-medium text-gray-900 capitalize">{{ device.name }}</span>
             <span class="text-sm text-gray-600">{{ formatPercentage(device.percentage) }}</span>
           </div>
-          <div class="mt-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div class="progress-bar mt-1">
             <div
-              class="h-full rounded-full transition-all duration-300"
+              class="progress-fill"
               :class="getDeviceColor(device.name).replace('bg-', 'bg-').replace('-100', '-500')"
               :style="{ width: `${device.percentage * 100}%` }"
             />
@@ -98,9 +98,6 @@ function getDeviceColor(name: string): string {
 
 <style scoped>
 .device-breakdown {
-  transition: box-shadow 0.2s ease;
-}
-.device-breakdown:hover {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  @apply card-hover p-6;
 }
 </style>

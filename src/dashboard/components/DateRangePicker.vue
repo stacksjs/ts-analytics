@@ -49,7 +49,7 @@ if (typeof window !== 'undefined') {
   <div class="date-range-picker relative">
     <button
       type="button"
-      class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      class="btn-secondary flex items-center gap-2 focus:ring-2 focus:ring-primary-500"
       @click.stop="toggleDropdown"
     >
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -69,19 +69,12 @@ if (typeof window !== 'undefined') {
       leave-from-class="transform opacity-100 scale-100"
       leave-to-class="transform opacity-0 scale-95"
     >
-      <div
-        v-if="isOpen"
-        class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
-      >
+      <div v-if="isOpen" class="dropdown w-48">
         <button
           v-for="preset in dateRangePresets"
           :key="preset.value"
           type="button"
-          class="w-full px-4 py-2 text-left text-sm hover:bg-gray-50"
-          :class="{
-            'text-indigo-600 bg-indigo-50': modelValue.preset === preset.value,
-            'text-gray-700': modelValue.preset !== preset.value,
-          }"
+          :class="modelValue.preset === preset.value ? 'dropdown-item-active' : 'dropdown-item'"
           @click="selectPreset(preset)"
         >
           {{ preset.label }}

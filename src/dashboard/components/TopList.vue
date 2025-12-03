@@ -25,7 +25,7 @@ const maxValue = computed(() =>
 </script>
 
 <template>
-  <div class="top-list bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+  <div class="top-list">
     <h3 class="text-sm font-medium text-gray-900 mb-4">
       {{ title }}
     </h3>
@@ -34,10 +34,10 @@ const maxValue = computed(() =>
     <div v-if="loading" class="space-y-3">
       <div v-for="i in 5" :key="i" class="animate-pulse">
         <div class="flex justify-between mb-1">
-          <div class="h-4 bg-gray-200 rounded w-32" />
-          <div class="h-4 bg-gray-200 rounded w-12" />
+          <div class="skeleton h-4 w-32" />
+          <div class="skeleton h-4 w-12" />
         </div>
-        <div class="h-2 bg-gray-200 rounded" />
+        <div class="skeleton h-2" />
       </div>
     </div>
 
@@ -48,16 +48,12 @@ const maxValue = computed(() =>
 
     <!-- Items list -->
     <div v-else class="space-y-3">
-      <div
-        v-for="(item, index) in displayItems"
-        :key="index"
-        class="group"
-      >
-        <div class="flex items-center justify-between text-sm mb-1">
-          <span class="text-gray-900 truncate flex-1 mr-2" :title="item.name">
+      <div v-for="(item, index) in displayItems" :key="index" class="group">
+        <div class="list-item mb-1">
+          <span class="list-label" :title="item.name">
             {{ item.name }}
           </span>
-          <span class="text-gray-600 tabular-nums flex-shrink-0">
+          <span class="list-value">
             {{ formatCompact(item.value) }}
             <span v-if="showPercentage" class="text-gray-400 ml-1">
               ({{ formatPercentage(item.percentage) }})
@@ -66,9 +62,9 @@ const maxValue = computed(() =>
         </div>
 
         <!-- Progress bar -->
-        <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div class="progress-bar">
           <div
-            class="h-full bg-indigo-500 rounded-full transition-all duration-300"
+            class="progress-fill bg-indigo-500"
             :style="{ width: `${(item.value / maxValue) * 100}%` }"
           />
         </div>
@@ -82,9 +78,6 @@ const maxValue = computed(() =>
 
 <style scoped>
 .top-list {
-  transition: box-shadow 0.2s ease;
-}
-.top-list:hover {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  @apply card-hover p-6;
 }
 </style>
