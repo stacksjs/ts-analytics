@@ -131,6 +131,8 @@ const config: UserConfig = defineConfig({
     'text-cyan-600',
     'bg-red-100',
     'text-red-600',
+    'bg-amber-100',
+    'text-amber-600',
     // Primary/Indigo
     'bg-indigo-50',
     'bg-indigo-500',
