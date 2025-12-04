@@ -25,8 +25,12 @@
   },
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist", "src"],
+  "bin": {
+    "analytics": "./bin/cli.ts"
+  },
+  "files": ["bin", "dist", "src"],
   "scripts": {
+    "analytics": "bun ./bin/cli.ts",
     "build": "bun --bun build.ts",
     "fresh": "bunx rimraf node_modules/ bun.lock && bun i",
     "lint": "bunx --bun eslint .",

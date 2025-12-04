@@ -1,41 +1,3 @@
-// DynamoDB Utilities
-export {
-  buildGSI1PK,
-  buildPeriodSK,
-  buildPK,
-  buildSiteQuery,
-  buildSK,
-  buildTimeRangeQuery,
-  buildTimestampKey,
-  determinePeriod,
-  fromDynamoValue,
-  generateId,
-  generateSessionId,
-  getDailySalt,
-  getPeriodStart,
-  hashVisitorId,
-  KeyPatterns,
-  marshal,
-  toDynamoValue,
-  unmarshal,
-} from './dynamodb'
-
-// Configuration
-export {
-  defaultAnalyticsConfig,
-  defaultConfig,
-  defaultGSIs,
-  defaultSingleTableConfig,
-  defineConfig,
-  getConfig,
-  getTableConfig,
-  getTtlForEntity,
-  resetConfig,
-  setConfig,
-  type AnalyticsConfig,
-  type UserAnalyticsConfig,
-} from './config'
-
 export {
   // Types
   type AggregatedStats,
@@ -94,6 +56,22 @@ export {
   type SessionStore,
 } from './api'
 
+// Configuration
+export {
+  type AnalyticsConfig,
+  defaultAnalyticsConfig,
+  defaultConfig,
+  defaultGSIs,
+  defaultSingleTableConfig,
+  defineConfig,
+  getConfig,
+  getTableConfig,
+  getTtlForEntity,
+  resetConfig,
+  setConfig,
+  type UserAnalyticsConfig,
+} from './config'
+
 // Dashboard UI Components
 export {
   // Types
@@ -137,6 +115,28 @@ export {
   useAnalytics,
 } from './dashboard'
 
+// DynamoDB Utilities
+export {
+  buildGSI1PK,
+  buildPeriodSK,
+  buildPK,
+  buildSiteQuery,
+  buildSK,
+  buildTimeRangeQuery,
+  buildTimestampKey,
+  determinePeriod,
+  fromDynamoValue,
+  generateId,
+  generateSessionId,
+  getDailySalt,
+  getPeriodStart,
+  hashVisitorId,
+  KeyPatterns,
+  marshal,
+  toDynamoValue,
+  unmarshal,
+} from './dynamodb'
+
 // Infrastructure (CloudFormation, CDK, Setup)
 export {
   type AnalyticsApiProps,
@@ -165,6 +165,19 @@ export {
   type SetupConfig,
   type SetupResult,
 } from './infrastructure'
+
+// Local Development
+export {
+  defaultLocalConfig,
+  defaultSeedOptions,
+  generateAwsCliCommand,
+  generateDockerCompose,
+  generateLocalCreateTableInput,
+  generateSeedData,
+  type LocalDynamoDBConfig,
+  printLocalSetupInstructions,
+  type SeedDataOptions,
+} from './local'
 
 // Model Connector (Single-Table Design Integration)
 export {
