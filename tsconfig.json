@@ -22,6 +22,10 @@
   },
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    ".storybook",
+    "**/*.stories.ts",
+    "**/demo/**",
+    "**/useDashboardData.ts"
   ]
 }

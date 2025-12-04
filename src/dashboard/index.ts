@@ -21,15 +21,46 @@
  * ```
  */
 
-// Components
+// Components - All 31 dashboard components
 export {
+  // Alert & activity
+  AlertCard,
+  // Main dashboards
   AnalyticsDashboard,
+  AnimatedNumber,
+  BarChart,
+  BrowserBreakdown,
+  CampaignBreakdown,
+  CountryList,
+  DataTable,
   DateRangePicker,
+  // Breakdown components
   DeviceBreakdown,
+  DonutChart,
+  EmptyState,
+  EngagementMetrics,
+  FilterBar,
+  FullAnalyticsDashboard,
+  FunnelChart,
+  // Conversion & engagement
+  GoalsPanel,
+  HeatmapChart,
+  LiveActivityFeed,
+  MetricComparison,
+  MiniStats,
+  OSBreakdown,
+  PageDetailCard,
+  ProgressRing,
   RealtimeCounter,
+  SparklineChart,
+  // Core components
   StatCard,
+  ThemeSwitcher,
+  // Chart components
   TimeSeriesChart,
+  // List & table components
   TopList,
+  TrendIndicator,
 } from './components'
 
 // Composables
