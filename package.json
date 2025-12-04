@@ -45,7 +45,7 @@
     "vue": "^3.5.0"
   },
   "dependencies": {
-    "dynamodb-tooling": "link:dynamodb-tooling"
+    "dynamodb-tooling": "^0.3.2"
   },
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.2",
