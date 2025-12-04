@@ -1,3 +1,19 @@
+// Configuration
+export {
+  defaultAnalyticsConfig,
+  defaultConfig,
+  defaultGSIs,
+  defaultSingleTableConfig,
+  defineConfig,
+  getConfig,
+  getTableConfig,
+  getTtlForEntity,
+  resetConfig,
+  setConfig,
+  type AnalyticsConfig,
+  type UserAnalyticsConfig,
+} from './config'
+
 export {
   // Types
   type AggregatedStats,
