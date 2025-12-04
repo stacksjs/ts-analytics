@@ -1,3 +1,25 @@
+// DynamoDB Utilities
+export {
+  buildGSI1PK,
+  buildPeriodSK,
+  buildPK,
+  buildSiteQuery,
+  buildSK,
+  buildTimeRangeQuery,
+  buildTimestampKey,
+  determinePeriod,
+  fromDynamoValue,
+  generateId,
+  generateSessionId,
+  getDailySalt,
+  getPeriodStart,
+  hashVisitorId,
+  KeyPatterns,
+  marshal,
+  toDynamoValue,
+  unmarshal,
+} from './dynamodb'
+
 // Configuration
 export {
   defaultAnalyticsConfig,
