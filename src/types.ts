@@ -5,8 +5,187 @@
  * in the ./models directory. They provide TypeScript typing for
  * the analytics system.
  *
+ * Uses dynamodb-tooling for single-table design patterns.
+ *
  * @see ./models for Stacks model definitions
+ * @see https://github.com/stacksjs/dynamodb-tooling
  */
+
+// ============================================================================
+// DynamoDB Single-Table Design Types (compatible with dynamodb-tooling)
+// ============================================================================
+
+/**
+ * DynamoDB billing mode
+ */
+export type BillingMode = 'PAY_PER_REQUEST' | 'PROVISIONED'
+
+/**
+ * Projection type for indexes
+ */
+export type ProjectionType = 'ALL' | 'KEYS_ONLY' | 'INCLUDE'
+
+/**
+ * GSI projection configuration
+ */
+export interface IndexProjection {
+  type: ProjectionType
+  attributes?: string[]
+}
+
+/**
+ * Global Secondary Index definition
+ */
+export interface GSIDefinition {
+  name: string
+  partitionKey: string
+  sortKey?: string
+  projection: IndexProjection
+  readCapacity?: number
+  writeCapacity?: number
+}
+
+/**
+ * Local Secondary Index definition
+ */
+export interface LSIDefinition {
+  name: string
+  sortKey: string
+  projection: IndexProjection
+}
+
+/**
+ * Single-table design configuration (compatible with dynamodb-tooling)
+ */
+export interface SingleTableDesignConfig {
+  enabled: boolean
+  partitionKeyName: string
+  sortKeyName: string
+  gsi1pkName: string
+  gsi1skName: string
+  gsi2pkName: string
+  gsi2skName: string
+  entityTypeAttribute: string
+  pkPrefix: string
+  skPrefix: string
+  gsiCount: number
+  keyDelimiter: string
+}
+
+/**
+ * Analytics DynamoDB table configuration
+ */
+export interface AnalyticsTableConfig {
+  tableName: string
+  billingMode: BillingMode
+  singleTable: SingleTableDesignConfig
+  globalSecondaryIndexes: GSIDefinition[]
+  localSecondaryIndexes: LSIDefinition[]
+  ttlAttributeName?: string
+}
+
+// ============================================================================
+// Analytics Single-Table Key Patterns
+// ============================================================================
+
+/**
+ * Analytics entity types for single-table design
+ */
+export type AnalyticsEntityType =
+  | 'SITE'
+  | 'PAGEVIEW'
+  | 'SESSION'
+  | 'EVENT'
+  | 'GOAL'
+  | 'CONVERSION'
+  | 'STATS_AGG'
+  | 'STATS_PAGE'
+  | 'STATS_REF'
+  | 'STATS_GEO'
+  | 'STATS_DEVICE'
+  | 'STATS_CAMPAIGN'
+  | 'STATS_EVENT'
+  | 'STATS_GOAL'
+  | 'REALTIME'
+
+/**
+ * Key pattern templates for analytics entities
+ *
+ * Single-table design following Alex DeBrie patterns:
+ * - PK: ENTITY#id (for direct lookups)
+ * - SK: ENTITY#id or composite for hierarchical data
+ * - GSI1: For access patterns like site-based queries
+ * - GSI2: For time-based queries
+ */
+export interface AnalyticsKeyPatterns {
+  // Sites
+  site: {
+    pk: `SITE#${string}` // SITE#siteId
+    sk: `SITE#${string}` // SITE#siteId
+  }
+
+  // Page views (raw events)
+  pageView: {
+    pk: `SITE#${string}` // SITE#siteId
+    sk: `PV#${string}#${string}` // PV#timestamp#pageViewId
+    gsi1pk: `SESSION#${string}` // SESSION#sessionId
+    gsi1sk: `PV#${string}` // PV#timestamp
+  }
+
+  // Sessions
+  session: {
+    pk: `SITE#${string}` // SITE#siteId
+    sk: `SESSION#${string}` // SESSION#sessionId
+    gsi1pk: `VISITOR#${string}` // VISITOR#visitorId
+    gsi1sk: `SESSION#${string}` // SESSION#timestamp
+  }
+
+  // Custom events
+  event: {
+    pk: `SITE#${string}` // SITE#siteId
+    sk: `EVENT#${string}#${string}` // EVENT#timestamp#eventId
+    gsi1pk: `SESSION#${string}` // SESSION#sessionId
+    gsi1sk: `EVENT#${string}` // EVENT#timestamp
+  }
+
+  // Goals
+  goal: {
+    pk: `SITE#${string}` // SITE#siteId
+    sk: `GOAL#${string}` // GOAL#goalId
+  }
+
+  // Conversions
+  conversion: {
+    pk: `SITE#${string}` // SITE#siteId
+    sk: `CONV#${string}#${string}` // CONV#goalId#timestamp
+    gsi1pk: `GOAL#${string}` // GOAL#goalId
+    gsi1sk: `CONV#${string}` // CONV#timestamp
+  }
+
+  // Aggregated stats
+  aggregatedStats: {
+    pk: `SITE#${string}` // SITE#siteId
+    sk: `STATS#${string}#${string}` // STATS#period#periodStart
+  }
+
+  // Page stats
+  pageStats: {
+    pk: `SITE#${string}` // SITE#siteId
+    sk: `PSTATS#${string}#${string}#${string}` // PSTATS#period#periodStart#pathHash
+  }
+
+  // Referrer stats
+  referrerStats: {
+    pk: `SITE#${string}` // SITE#siteId
+    sk: `RSTATS#${string}#${string}#${string}` // RSTATS#period#periodStart#source
+  }
+
+  // Realtime stats
+  realtimeStats: {
+    pk: `SITE#${string}` // SITE#siteId
+    sk: `RT#${string}` // RT#minute
+  }
+}
 
 // ============================================================================
 // Core Entity Types
