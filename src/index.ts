@@ -225,3 +225,57 @@ export {
   DynamoDBAnalyticsDriver,
   type StacksAnalyticsOptions,
 } from './stacks-integration'
+
+// Framework Integrations
+export {
+  analyticsMiddleware,
+  type AnalyticsMiddlewareOptions,
+  type CloudflareEnv,
+  type CloudflareHandlerOptions,
+  createAnalyticsHandler,
+  createAnalyticsRoutes,
+  createD1Adapter,
+  mountAnalyticsRoutes,
+  type StorageAdapter,
+} from './integrations'
+
+// Batching Utilities
+export {
+  type BatchItem,
+  type BatchQueueOptions,
+  type BatchWriteResult,
+  chunk,
+  createBatchProcessor,
+  type DynamoDBBatchClient,
+  EventBatchQueue,
+  parallelProcess,
+  withRetry,
+} from './batching'
+
+// Funnel Analysis
+export {
+  calculateDropOffRate,
+  contentEngagementFunnel,
+  createFunnel,
+  ecommerceCheckoutFunnel,
+  formatFunnelReport,
+  type Funnel,
+  type FunnelAnalysis,
+  FunnelAnalyzer,
+  type FunnelStep,
+  type FunnelStepAnalysis,
+  type FunnelStepMatcher,
+  identifyDropOffPoints,
+  saasSignupFunnel,
+  type UserJourney,
+} from './funnels'
+
+// Tracking Script Generator
+export {
+  generateFullTrackingScript,
+  generateGA4StyleScript,
+  generateInlineTrackingScript,
+  generateMinimalTrackingScript,
+  generateTrackingSnippet,
+  type TrackingScriptConfig,
+} from './tracking-script'
