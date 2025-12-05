@@ -320,40 +320,40 @@ export function printLocalSetupInstructions(): void {
 
 1. Start DynamoDB Local:
 
-   Option A: Using Docker
-   ────────────────────────
-   docker run -p 8000:8000 amazon/dynamodb-local
+  Option A: Using Docker
+  ────────────────────────
+  docker run -p 8000:8000 amazon/dynamodb-local
 
-   Option B: Using docker-compose
-   ────────────────────────
-   Save the docker-compose.yml and run:
-   docker-compose up -d
+  Option B: Using docker-compose
+  ────────────────────────
+  Save the docker-compose.yml and run:
+  docker-compose up -d
 
-   Option C: Using dynamodb-tooling (if installed globally)
-   ────────────────────────
-   dbtooling local start
+  Option C: Using dynamodb-tooling (if installed globally)
+  ────────────────────────
+  dbtooling local start
 
 2. Create the analytics table:
 
-   ${generateAwsCliCommand()}
+  ${generateAwsCliCommand()}
 
 3. Verify the table was created:
 
-   aws dynamodb list-tables --endpoint-url http://localhost:8000
+  aws dynamodb list-tables --endpoint-url http://localhost:8000
 
 4. Configure your analytics:
 
-   import { setConfig } from '@stacksjs/analytics'
+  import { setConfig } from '@stacksjs/analytics'
 
-   setConfig({
-     table: { tableName: 'AnalyticsTable' },
-     endpoint: 'http://localhost:8000',
-     region: 'us-east-1',
-   })
+  setConfig({
+    table: { tableName: 'AnalyticsTable' },
+    endpoint: 'http://localhost:8000',
+    region: 'us-east-1',
+  })
 
 5. Run the seed script (optional):
 
-   bun run examples/seed-local.ts
+  bun run examples/seed-local.ts
 
 Happy developing! 🚀
 `)
