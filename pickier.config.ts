@@ -1,6 +1,6 @@
 import type { PickierConfig } from 'pickier'
 
-const config: PickierConfig = {
+const config: Partial<PickierConfig> = {
   ignores: ['**/node_modules/**', '**/dist/**', '**/build/**'],
 
   lint: {
