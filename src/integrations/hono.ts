@@ -41,7 +41,7 @@ interface HonoContext {
   json: (data: unknown, status?: number) => Response
   text: (data: string, status?: number) => Response
   body: (data: unknown, status?: number) => Response
-  set: (name: string, value: string) => void
+  set: (name: string, value: unknown) => void
   get: (name: string) => unknown
 }
 

@@ -74,28 +74,62 @@ export {
 
 // Dashboard UI Components
 export {
-  // Types
-  type AnalyticsApiConfig,
+  // Main dashboards
+  AnalyticsDashboard,
+  FullAnalyticsDashboard,
+
+  // Core components
+  StatCard,
+  RealtimeCounter,
+  ThemeSwitcher,
+
+  // Chart components
+  TimeSeriesChart,
+  DonutChart,
+  BarChart,
+  FunnelChart,
+  SparklineChart,
+  ProgressRing,
+  HeatmapChart,
+  MetricComparison,
+
+  // Breakdown components
+  DeviceBreakdown,
+  BrowserBreakdown,
+  OSBreakdown,
+  CampaignBreakdown,
+  CountryList,
+
+  // Data & interaction
+  DataTable,
+  TopList,
+  FilterBar,
+  DateRangePicker,
+  PageDetailCard,
+  GoalsPanel,
+
+  // Real-time & activity
+  LiveActivityFeed,
+  EngagementMetrics,
+  TrendIndicator,
+  AnimatedNumber,
+  MiniStats,
+  EmptyState,
+
+  // Alert
+  AlertCard,
+
   // Composables
   AnalyticsClient,
-  // Components
-  AnalyticsDashboard,
+  createAnalyticsComposable,
+  createRealtimePoller,
+  fetchDashboardData,
+  useAnalytics,
+
   // Utilities
   calculateAxisTicks,
   calculateChange,
   calculatePercentageChange,
-  type ChartProps,
-  createAnalyticsComposable,
-  createRealtimePoller,
-  darkTheme,
-  type DashboardTheme,
-  DateRangePicker,
-  type DateRangePreset,
-  dateRangePresets,
-  // Theme
-  defaultTheme,
-  DeviceBreakdown,
-  fetchDashboardData,
   formatCompact,
   formatDate,
   formatDateRange,
@@ -104,15 +138,21 @@ export {
   formatPercentage,
   getDateRangeFromPreset,
   getDateRangePreset,
-  RealtimeCounter,
+  dateRangePresets,
+
+  // Theme
+  defaultTheme,
+  darkTheme,
+
+  // Types
+  type AnalyticsApiConfig,
+  type ChartProps,
+  type DashboardTheme,
+  type DateRangePreset,
   type RealtimeCounterProps,
-  StatCard,
   type StatCardProps,
-  TimeSeriesChart,
   type TimeSeriesDataPoint,
-  TopList,
   type TopListProps,
-  useAnalytics,
 } from './dashboard'
 
 // DynamoDB Utilities

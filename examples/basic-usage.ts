@@ -5,7 +5,7 @@
  * with DynamoDB for a privacy-first analytics solution.
  */
 
-import type { PageView, Site } from '@stacksjs/analytics'
+import type { PageView, Site } from '../src'
 import {
   // Core Analytics
   AnalyticsAPI,
@@ -25,7 +25,7 @@ import {
   marshal,
   setConfig,
 
-} from '@stacksjs/analytics'
+} from '../src'
 
 // ============================================================================
 // 9. Tracking Script Generation
@@ -158,10 +158,12 @@ async function recordPageView(siteId: string): Promise<PageView> {
 
 async function getStats(siteId: string): Promise<void> {
   const period = 'day'
-  const periodStart = getPeriodStart(new Date(), period)
+  const now = new Date()
+  const periodStart = getPeriodStart(now, period)
+  const periodEnd = getPeriodStart(now, period) // Same as start for single day query
 
   // Get aggregated stats command
-  const statsCommand = store.getAggregatedStatsCommand(siteId, period, periodStart)
+  const statsCommand = store.getAggregatedStatsCommand(siteId, period, periodStart, periodEnd)
   console.log('Get stats command:', statsCommand)
 
   // Get top pages command

@@ -427,7 +427,7 @@ export class FunnelAnalyzer {
 /**
  * Common e-commerce checkout funnel
  */
-export const ecommerceCheckoutFunnel = createFunnel('ecommerce-checkout')
+export const ecommerceCheckoutFunnel: Funnel = createFunnel('ecommerce-checkout')
   .name('E-commerce Checkout')
   .step('view_product', 'View Product', { path: '/products/*' })
   .step('add_to_cart', 'Add to Cart', { eventName: 'add_to_cart' })
@@ -440,7 +440,7 @@ export const ecommerceCheckoutFunnel = createFunnel('ecommerce-checkout')
 /**
  * SaaS signup funnel
  */
-export const saasSignupFunnel = createFunnel('saas-signup')
+export const saasSignupFunnel: Funnel = createFunnel('saas-signup')
   .name('SaaS Signup')
   .step('landing', 'Landing Page', { path: '/' })
   .step('pricing', 'View Pricing', { path: '/pricing' })
@@ -452,7 +452,7 @@ export const saasSignupFunnel = createFunnel('saas-signup')
 /**
  * Content engagement funnel
  */
-export const contentEngagementFunnel = createFunnel('content-engagement')
+export const contentEngagementFunnel: Funnel = createFunnel('content-engagement')
   .name('Content Engagement')
   .step('article_view', 'View Article', { path: '/blog/*' })
   .step('scroll_50', 'Scroll 50%', { eventName: 'scroll_depth', custom: e => 'properties' in e && (e as CustomEvent).properties?.depth === 50 })

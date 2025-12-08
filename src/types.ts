@@ -324,6 +324,8 @@ export interface CustomEvent {
   sessionId: string
   /** Event name */
   name: string
+  /** Event category (optional, for grouping events) */
+  category?: string
   /** Event value (optional, for revenue tracking etc.) */
   value?: number
   /** Event properties */

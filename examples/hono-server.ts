@@ -10,6 +10,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 
+import type { Session, SessionStore } from '../src'
 import {
   analyticsMiddleware,
   defineConfig,
@@ -75,10 +76,10 @@ async function executeCommand(cmd: { command: string, input: Record<string, unkn
 // Session Store (in-memory for example)
 // ============================================================================
 
-const sessionCache = new Map<string, { session: unknown, expires: number }>()
+const sessionCache = new Map<string, { session: Session, expires: number }>()
 
-const sessionStore = {
-  async get(key: string) {
+const sessionStore: SessionStore = {
+  async get(key: string): Promise<Session | null> {
     const entry = sessionCache.get(key)
     if (!entry) return null
     if (Date.now() > entry.expires) {
@@ -87,11 +88,14 @@ const sessionStore = {
     }
     return entry.session
   },
-  async set(key: string, session: unknown, ttlSeconds = 1800) {
+  async set(key: string, session: Session, ttlSeconds = 1800): Promise<void> {
     sessionCache.set(key, {
       session,
       expires: Date.now() + ttlSeconds * 1000,
     })
+  },
+  async delete(key: string): Promise<void> {
+    sessionCache.delete(key)
   },
 }
 
@@ -226,14 +230,8 @@ console.log(`
 
 `)
 
-// For Bun
-export default {
+// For Bun - start the server
+Bun.serve({
   port,
   fetch: app.fetch,
-}
-
-// Or start with Bun.serve directly:
-// Bun.serve({
-//   port,
-//   fetch: app.fetch,
-// })
+})

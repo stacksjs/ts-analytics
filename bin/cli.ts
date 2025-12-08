@@ -127,7 +127,7 @@ async function main(): Promise<void> {
 
     case 'tracking-script': {
       const siteId = getArg('site-id')
-      const apiEndpoint = getArg('api-endpoint', 'https://api.example.com/analytics')
+      const apiEndpoint = getArg('api-endpoint', 'https://api.example.com/analytics')!
 
       if (!siteId) {
         console.error('Error: --site-id is required')

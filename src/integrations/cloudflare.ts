@@ -198,7 +198,7 @@ async function handleCollect(
   sessionStore: SessionStore | null,
 ): Promise<Response> {
   try {
-    const payload = await request.json<CollectPayload>()
+    const payload = await request.json() as CollectPayload
 
     if (!payload?.s || !payload?.e || !payload?.u) {
       return jsonResponse({ error: 'Missing required fields: s, e, u' }, 400)
@@ -420,7 +420,7 @@ async function handleListSites(url: URL, storage: StorageAdapter): Promise<Respo
 async function handleCreateSite(request: Request, storage: StorageAdapter): Promise<Response> {
   try {
     const config = getConfig()
-    const body = await request.json<{ name: string, domains: string[], ownerId?: string }>()
+    const body = await request.json() as { name: string, domains: string[], ownerId?: string }
 
     if (!body.name || !body.domains?.length) {
       return jsonResponse({ error: 'Missing required fields: name, domains' }, 400)
