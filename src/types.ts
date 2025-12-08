@@ -5,14 +5,17 @@
  * in the ./models directory. They provide TypeScript typing for
  * the analytics system.
  *
- * Uses dynamodb-tooling for single-table design patterns.
+ * TODO: When dynamodb-tooling v0.4.0+ is released with fixed type exports,
+ * re-export SingleTableDesignConfig, BillingMode, GSIDefinition, etc. from there
+ * instead of duplicating them here.
  *
  * @see ./models for Stacks model definitions
  * @see https://github.com/stacksjs/dynamodb-tooling
  */
 
 // ============================================================================
-// DynamoDB Single-Table Design Types (compatible with dynamodb-tooling)
+// DynamoDB Single-Table Design Types
+// These types are compatible with dynamodb-tooling's SingleTableDesignConfig
 // ============================================================================
 
 /**
