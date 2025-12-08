@@ -1,4 +1,6 @@
 import type { StorybookConfig } from '@storybook/vue3-vite'
+import vue from '@vitejs/plugin-vue'
+import UnoCSS from 'unocss/vite'
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
@@ -10,6 +12,12 @@ const config: StorybookConfig = {
   framework: {
     name: '@storybook/vue3-vite',
     options: {},
+  },
+  viteFinal: async (config) => {
+    config.plugins = config.plugins || []
+    config.plugins.push(vue())
+    config.plugins.push(UnoCSS())
+    return config
   },
 }
 
