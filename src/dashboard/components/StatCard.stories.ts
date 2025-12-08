@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
-import StatCard from './StatCard.vue'
+import StatCard from './StatCard.stx'
 
 const meta = {
   title: 'Components/Core/StatCard',

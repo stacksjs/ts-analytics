@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
-import RealtimeCounter from './RealtimeCounter.vue'
+import RealtimeCounter from './RealtimeCounter.stx'
 
 const meta = {
   title: 'Components/Core/RealtimeCounter',

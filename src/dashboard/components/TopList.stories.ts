@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
-import TopList from './TopList.vue'
+import TopList from './TopList.stx'
 
 const meta = {
   title: 'Components/Lists/TopList',

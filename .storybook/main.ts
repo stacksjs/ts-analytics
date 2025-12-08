@@ -15,7 +15,10 @@ const config: StorybookConfig = {
   },
   viteFinal: async (config) => {
     config.plugins = config.plugins || []
-    config.plugins.push(vue())
+    // Configure Vue plugin to handle .stx files as Vue SFCs
+    config.plugins.push(vue({
+      include: [/\.vue$/, /\.stx$/],
+    }))
     config.plugins.push(UnoCSS())
     return config
   },

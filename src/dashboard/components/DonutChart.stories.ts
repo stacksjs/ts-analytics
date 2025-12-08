@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
-import DonutChart from './DonutChart.vue'
+import DonutChart from './DonutChart.stx'
 
 const meta = {
   title: 'Components/Charts/DonutChart',

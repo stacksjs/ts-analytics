@@ -14,12 +14,12 @@ import type {
   TopItem,
 } from '../types'
 import { createAnalyticsComposable, createRealtimePoller } from '../composables/useAnalytics'
-import DateRangePicker from './DateRangePicker.vue'
-import DeviceBreakdown from './DeviceBreakdown.vue'
-import RealtimeCounter from './RealtimeCounter.vue'
-import StatCard from './StatCard.vue'
-import TimeSeriesChart from './TimeSeriesChart.vue'
-import TopList from './TopList.vue'
+import DateRangePicker from './DateRangePicker.stx'
+import DeviceBreakdown from './DeviceBreakdown.stx'
+import RealtimeCounter from './RealtimeCounter.stx'
+import StatCard from './StatCard.stx'
+import TimeSeriesChart from './TimeSeriesChart.stx'
+import TopList from './TopList.stx'
 
 const props = withDefaults(defineProps<{
   config: AnalyticsApiConfig
