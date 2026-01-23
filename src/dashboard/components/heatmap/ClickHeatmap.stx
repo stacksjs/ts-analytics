@@ -1,0 +1,192 @@
+<script>
+/**
+ * ClickHeatmap Component
+ *
+ * Canvas-based click density overlay for page heatmap visualization.
+ * Uses a canvas element to render a heat map based on click coordinates.
+ */
+export const clicks = $props.clicks || []
+export const width = $props.width || 800
+export const height = $props.height || 600
+export const radius = $props.radius || 25
+export const blur = $props.blur || 15
+export const maxOpacity = $props.maxOpacity || 0.6
+export const loading = $props.loading || false
+export const onHover = $props.onHover
+export const onClick = $props.onClick
+
+// Calculate max click count for normalization
+const maxCount = clicks.length > 0 ? Math.max(...clicks.map(c => c.count)) : 1
+
+// Store hovered point for tooltip
+let hoveredPoint = null
+
+// Initialize canvas on mount
+export function initCanvas() {
+  const canvas = document.getElementById('heatmap-canvas')
+  if (!canvas) return
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  // Clear canvas
+  ctx.clearRect(0, 0, width, height)
+
+  // Draw all points with intensity based on count
+  for (const point of clicks) {
+    const intensity = (point.count / maxCount) * maxOpacity
+    drawPoint(ctx, point.x, point.y, intensity)
+  }
+
+  // Apply blur
+  if (blur > 0) {
+    ctx.filter = `blur(${blur}px)`
+    ctx.drawImage(canvas, 0, 0)
+    ctx.filter = 'none'
+  }
+
+  // Colorize using gradient
+  colorizeHeatmap(ctx)
+}
+
+function drawPoint(ctx, x, y, intensity) {
+  const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius)
+  gradient.addColorStop(0, `rgba(0, 0, 0, ${intensity})`)
+  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
+  ctx.fillStyle = gradient
+  ctx.beginPath()
+  ctx.arc(x, y, radius, 0, Math.PI * 2)
+  ctx.fill()
+}
+
+function colorizeHeatmap(ctx) {
+  const palette = createGradientPalette()
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const data = imageData.data
+
+  for (let i = 0; i < data.length; i += 4) {
+    const alpha = data[i + 3]
+    if (alpha > 0) {
+      const paletteIndex = Math.min(255, Math.floor((alpha / 255) * 255)) * 4
+      data[i] = palette[paletteIndex]
+      data[i + 1] = palette[paletteIndex + 1]
+      data[i + 2] = palette[paletteIndex + 2]
+      data[i + 3] = alpha * 2
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0)
+}
+
+function createGradientPalette() {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 1
+  const ctx = canvas.getContext('2d')
+  const gradient = ctx.createLinearGradient(0, 0, 256, 0)
+
+  gradient.addColorStop(0.0, 'rgba(0, 0, 255, 0)')
+  gradient.addColorStop(0.25, 'rgba(0, 0, 255, 0.5)')
+  gradient.addColorStop(0.5, 'rgba(0, 255, 0, 0.5)')
+  gradient.addColorStop(0.75, 'rgba(255, 255, 0, 0.75)')
+  gradient.addColorStop(1.0, 'rgba(255, 0, 0, 1)')
+
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, 256, 1)
+  return ctx.getImageData(0, 0, 256, 1).data
+}
+
+export function handleMouseMove(event) {
+  const canvas = event.target
+  const rect = canvas.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+
+  // Find nearest point within threshold
+  const threshold = radius * 2
+  let nearest = null
+  let minDistance = threshold
+
+  for (const point of clicks) {
+    const distance = Math.sqrt((point.x - x) ** 2 + (point.y - y) ** 2)
+    if (distance < minDistance) {
+      minDistance = distance
+      nearest = point
+    }
+  }
+
+  hoveredPoint = nearest
+  onHover?.(nearest)
+
+  // Update tooltip position
+  const tooltip = document.getElementById('heatmap-tooltip')
+  if (tooltip) {
+    if (nearest) {
+      tooltip.style.display = 'block'
+      tooltip.style.left = `${nearest.x + 15}px`
+      tooltip.style.top = `${nearest.y - 10}px`
+      tooltip.innerHTML = `<strong class="text-yellow-400">${nearest.count}</strong> clicks${nearest.topElement ? `<div class="text-[10px] text-gray-400 font-mono mt-1 truncate max-w-[200px]">${nearest.topElement.selector}</div>` : ''}`
+    } else {
+      tooltip.style.display = 'none'
+    }
+  }
+}
+
+export function handleMouseLeave() {
+  hoveredPoint = null
+  onHover?.(null)
+  const tooltip = document.getElementById('heatmap-tooltip')
+  if (tooltip) tooltip.style.display = 'none'
+}
+
+export function handleClick() {
+  if (hoveredPoint) {
+    onClick?.(hoveredPoint)
+  }
+}
+
+// Call initCanvas after render
+if (typeof window !== 'undefined') {
+  setTimeout(initCanvas, 0)
+}
+</script>
+
+<div class="click-heatmap relative overflow-hidden" style="width: {{ width }}px; height: {{ height }}px">
+  <!-- Loading overlay -->
+  @if(loading)
+    <div class="absolute inset-0 flex flex-col items-center justify-center bg-white/90 z-20 gap-3 text-gray-500 text-sm">
+      <div class="w-8 h-8 border-2 border-gray-200 border-t-indigo-600 rounded-full animate-spin" />
+      <span>Loading heatmap data...</span>
+    </div>
+  @endif
+
+  <!-- Main heatmap canvas -->
+  <canvas
+    id="heatmap-canvas"
+    width="{{ width }}"
+    height="{{ height }}"
+    class="absolute top-0 left-0 pointer-events-none"
+  />
+
+  <!-- Interaction overlay -->
+  <canvas
+    id="heatmap-interaction"
+    width="{{ width }}"
+    height="{{ height }}"
+    class="absolute top-0 left-0 cursor-crosshair bg-transparent"
+    @mousemove="handleMouseMove"
+    @mouseleave="handleMouseLeave"
+    @click="handleClick"
+  />
+
+  <!-- Tooltip -->
+  <div
+    id="heatmap-tooltip"
+    class="absolute z-30 pointer-events-none hidden"
+    style="transform: translateY(-100%)"
+  >
+    <div class="bg-gray-800 text-white px-3 py-2 rounded-md text-xs whitespace-nowrap shadow-lg">
+      <!-- Content filled dynamically -->
+    </div>
+  </div>
+</div>

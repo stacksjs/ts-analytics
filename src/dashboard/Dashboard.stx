@@ -5,14 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ siteName }} - Analytics</title>
   <script>
-    // Dashboard data - populated by server
-    const siteName = "My Site"
-    const siteId = ""
-    const dateRange = "Last 30 days"
-    const comparison = "No comparison"
+    // Configuration - auto-detect from current URL or use overrides
+    const urlParams = new URLSearchParams(window.location.search)
+    const API_ENDPOINT = window.ANALYTICS_API_ENDPOINT || urlParams.get('api') || window.location.origin
+    const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
+
+    // Dashboard state
+    let siteName = "Analytics Dashboard"
+    let siteId = SITE_ID
+    let dateRange = "Last 30 days"
 
     // Summary stats
-    const stats = {
+    let stats = {
       realtime: 0,
       people: 0,
       views: 0,
@@ -21,27 +25,257 @@
       events: 0
     }
 
-    // Time series data for chart
-    const timeSeriesData = []
-
     // Table data
-    const pages = []
-    const referrers = []
-    const sources = []
-    const deviceTypes = []
-    const operatingSystems = []
-    const browsers = []
-    const countries = []
-    const regions = []
-    const cities = []
-    const campaigns = []
-    const events = []
+    let pages = []
+    let referrers = []
+    let deviceTypes = []
+    let operatingSystems = []
+    let browsers = []
+    let countries = []
+    let campaigns = []
+    let events = []
+    let timeSeriesData = []
 
-    // Active tabs
-    const activeReferrerTab = "referrers"
-    const activeDeviceTab = "types"
-    const activeGeoTab = "countries"
-    const activeCampaignTab = "campaign"
+    // Fetch data from API
+    async function fetchDashboardData() {
+      if (!siteId) {
+        console.error('No siteId configured. Add ?siteId=YOUR_SITE_ID to the URL.')
+        return
+      }
+
+      const baseUrl = `${API_ENDPOINT}/api/sites/${siteId}`
+      const now = new Date()
+      const thirtyDaysAgo = new Date(now)
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      const params = `?startDate=${thirtyDaysAgo.toISOString()}&endDate=${now.toISOString()}`
+
+      try {
+        // Fetch all data in parallel
+        const [statsRes, realtimeRes, pagesRes, referrersRes, devicesRes, browsersRes, countriesRes, timeseriesRes, eventsRes, campaignsRes] = await Promise.all([
+          fetch(`${baseUrl}/stats${params}`).then(r => r.json()).catch(() => ({})),
+          fetch(`${baseUrl}/realtime`).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
+          fetch(`${baseUrl}/pages${params}`).then(r => r.json()).catch(() => ({ pages: [] })),
+          fetch(`${baseUrl}/referrers${params}`).then(r => r.json()).catch(() => ({ referrers: [] })),
+          fetch(`${baseUrl}/devices${params}`).then(r => r.json()).catch(() => ({ deviceTypes: [], operatingSystems: [] })),
+          fetch(`${baseUrl}/browsers${params}`).then(r => r.json()).catch(() => ({ browsers: [] })),
+          fetch(`${baseUrl}/countries${params}`).then(r => r.json()).catch(() => ({ countries: [] })),
+          fetch(`${baseUrl}/timeseries${params}`).then(r => r.json()).catch(() => ({ timeSeries: [] })),
+          fetch(`${baseUrl}/events${params}`).then(r => r.json()).catch(() => ({ events: [] })),
+          fetch(`${baseUrl}/campaigns${params}`).then(r => r.json()).catch(() => ({ campaigns: [] })),
+        ])
+
+        // Update stats
+        stats = {
+          realtime: realtimeRes.currentVisitors || 0,
+          people: statsRes.people || 0,
+          views: statsRes.views || 0,
+          avgTime: statsRes.avgTime || "00:00",
+          bounceRate: statsRes.bounceRate || 0,
+          events: statsRes.events || 0
+        }
+
+        // Update tables
+        pages = pagesRes.pages || []
+        referrers = referrersRes.referrers || []
+        deviceTypes = devicesRes.deviceTypes || []
+        operatingSystems = devicesRes.operatingSystems || []
+        browsers = browsersRes.browsers || []
+        countries = countriesRes.countries || []
+        campaigns = campaignsRes.campaigns || []
+        events = eventsRes.events || []
+        timeSeriesData = timeseriesRes.timeSeries || []
+
+        // Re-render the dashboard
+        renderDashboard()
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error)
+      }
+    }
+
+    function formatNumber(num) {
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
+      return String(num)
+    }
+
+    function renderDashboard() {
+      // Update stats
+      document.getElementById('stat-realtime').textContent = formatNumber(stats.realtime)
+      document.getElementById('stat-people').textContent = formatNumber(stats.people)
+      document.getElementById('stat-views').textContent = formatNumber(stats.views)
+      document.getElementById('stat-avgtime').textContent = stats.avgTime
+      document.getElementById('stat-bounce').textContent = stats.bounceRate + '%'
+      document.getElementById('stat-events').textContent = formatNumber(stats.events)
+      document.getElementById('realtime-count').textContent = stats.realtime + ' current visitors'
+
+      // Update pages table
+      const pagesBody = document.getElementById('pages-body')
+      pagesBody.innerHTML = pages.length ? pages.map(p => `
+        <tr>
+          <td class="name" title="${p.path}">${p.path}</td>
+          <td class="value">${formatNumber(p.entries || 0)}</td>
+          <td class="value">${formatNumber(p.visitors || 0)}</td>
+          <td class="value">${formatNumber(p.views || 0)}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1rem">No data</td></tr>'
+
+      // Update referrers table
+      const referrersBody = document.getElementById('referrers-body')
+      referrersBody.innerHTML = referrers.length ? referrers.map(r => `
+        <tr>
+          <td class="name" title="${r.source}">${r.source}</td>
+          <td class="value">${formatNumber(r.visitors || 0)}</td>
+          <td class="value">${formatNumber(r.views || 0)}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:1rem">No data</td></tr>'
+
+      // Update devices table
+      const devicesBody = document.getElementById('devices-body')
+      devicesBody.innerHTML = deviceTypes.length ? deviceTypes.map(d => `
+        <tr>
+          <td class="name">${d.type}</td>
+          <td class="value">${formatNumber(d.visitors || 0)}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:1rem">No data</td></tr>'
+
+      // Update browsers table
+      const browsersBody = document.getElementById('browsers-body')
+      browsersBody.innerHTML = browsers.length ? browsers.map(b => `
+        <tr>
+          <td class="name">${b.name}</td>
+          <td class="value">${formatNumber(b.visitors || 0)}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:1rem">No data</td></tr>'
+
+      // Update countries table
+      const countriesBody = document.getElementById('countries-body')
+      countriesBody.innerHTML = countries.length ? countries.map(c => `
+        <tr>
+          <td class="name">${c.name}</td>
+          <td class="value">${formatNumber(c.visitors || 0)}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:1rem">No data</td></tr>'
+
+      // Update campaigns table
+      const campaignsBody = document.getElementById('campaigns-body')
+      campaignsBody.innerHTML = campaigns.length ? campaigns.map(c => `
+        <tr>
+          <td class="name" title="${c.name}">${c.name}</td>
+          <td class="value">${formatNumber(c.visitors || 0)}</td>
+          <td class="value">${formatNumber(c.views || 0)}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:1rem">No data</td></tr>'
+
+      // Update events section
+      const eventsContainer = document.getElementById('events-container')
+      eventsContainer.innerHTML = events.length ? `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Event Name</th>
+              <th style="text-align:right">Count</th>
+              <th style="text-align:right">Unique</th>
+              <th style="text-align:right">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${events.map(e => `
+              <tr>
+                <td class="name">${e.name}</td>
+                <td class="value">${formatNumber(e.count || 0)}</td>
+                <td class="value">${formatNumber(e.unique || 0)}</td>
+                <td class="value">${e.totalValue ? formatNumber(e.totalValue) : '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      ` : `
+        <div class="empty-state">
+          <p>You haven't created any events yet.</p>
+          <a href="#">Learn how to use events</a>
+        </div>
+      `
+
+      // Render time series chart if data available
+      renderChart()
+    }
+
+    function renderChart() {
+      const canvas = document.getElementById('timeSeriesChart')
+      if (!canvas || !timeSeriesData.length) return
+
+      const ctx = canvas.getContext('2d')
+      const rect = canvas.parentElement.getBoundingClientRect()
+      canvas.width = rect.width - 48
+      canvas.height = 200
+
+      const padding = { top: 20, right: 20, bottom: 30, left: 50 }
+      const width = canvas.width - padding.left - padding.right
+      const height = canvas.height - padding.top - padding.bottom
+
+      const maxViews = Math.max(...timeSeriesData.map(d => d.views), 1)
+      const xScale = width / (timeSeriesData.length - 1 || 1)
+      const yScale = height / maxViews
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      // Draw grid lines
+      ctx.strokeStyle = '#374151'
+      ctx.lineWidth = 1
+      for (let i = 0; i <= 4; i++) {
+        const y = padding.top + (height / 4) * i
+        ctx.beginPath()
+        ctx.moveTo(padding.left, y)
+        ctx.lineTo(padding.left + width, y)
+        ctx.stroke()
+      }
+
+      // Draw line
+      ctx.beginPath()
+      ctx.strokeStyle = '#818cf8'
+      ctx.lineWidth = 2
+      timeSeriesData.forEach((d, i) => {
+        const x = padding.left + i * xScale
+        const y = padding.top + height - d.views * yScale
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      })
+      ctx.stroke()
+
+      // Draw area fill
+      ctx.beginPath()
+      ctx.fillStyle = 'rgba(129, 140, 248, 0.1)'
+      timeSeriesData.forEach((d, i) => {
+        const x = padding.left + i * xScale
+        const y = padding.top + height - d.views * yScale
+        if (i === 0) {
+          ctx.moveTo(x, padding.top + height)
+          ctx.lineTo(x, y)
+        } else {
+          ctx.lineTo(x, y)
+        }
+      })
+      ctx.lineTo(padding.left + (timeSeriesData.length - 1) * xScale, padding.top + height)
+      ctx.closePath()
+      ctx.fill()
+
+      // Draw Y axis labels
+      ctx.fillStyle = '#6b7280'
+      ctx.font = '10px sans-serif'
+      ctx.textAlign = 'right'
+      for (let i = 0; i <= 4; i++) {
+        const value = Math.round(maxViews - (maxViews / 4) * i)
+        const y = padding.top + (height / 4) * i
+        ctx.fillText(formatNumber(value), padding.left - 10, y + 3)
+      }
+    }
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchDashboardData()
+      // Refresh realtime every 30 seconds
+      setInterval(fetchDashboardData, 30000)
+    })
   </script>
   <style>
     :root {
@@ -379,7 +613,7 @@
       <div class="header-actions">
         <div class="realtime-badge">
           <span class="pulse-dot"></span>
-          <span>{{ stats.realtime }} current visitors</span>
+          <span id="realtime-count">0 current visitors</span>
         </div>
         <button class="icon-btn" title="Notifications">
           <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -422,40 +656,34 @@
     <!-- Summary Stats -->
     <div class="summary-stats">
       <div class="stat-card">
-        <div class="stat-value">{{ stats.realtime }}</div>
+        <div class="stat-value" id="stat-realtime">0</div>
         <div class="stat-label">Realtime</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.people }}</div>
+        <div class="stat-value" id="stat-people">0</div>
         <div class="stat-label">People</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.views }}</div>
+        <div class="stat-value" id="stat-views">0</div>
         <div class="stat-label">Views</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.avgTime }}</div>
+        <div class="stat-value" id="stat-avgtime">00:00</div>
         <div class="stat-label">Avg time</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.bounceRate }}%</div>
+        <div class="stat-value" id="stat-bounce">0%</div>
         <div class="stat-label">Bounce</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.events }}</div>
+        <div class="stat-value" id="stat-events">0</div>
         <div class="stat-label">Events</div>
       </div>
     </div>
 
     <!-- Time Series Chart -->
     <div class="chart-container">
-      @if(timeSeriesData.length > 0)
-        <canvas id="timeSeriesChart"></canvas>
-      @else
-        <div class="chart-placeholder">
-          No data available for selected period
-        </div>
-      @endif
+      <canvas id="timeSeriesChart"></canvas>
     </div>
 
     <!-- Data Grid - Row 1 -->
@@ -474,19 +702,10 @@
               <th style="text-align:right">Views</th>
             </tr>
           </thead>
-          <tbody>
-            @forelse(pages as page)
-              <tr>
-                <td class="name" title="{{ page.path }}">{{ page.path }}</td>
-                <td class="value">{{ page.entries }}</td>
-                <td class="value">{{ page.visitors }}</td>
-                <td class="value">{{ page.views }}</td>
-              </tr>
-            @empty
-              <tr>
-                <td colspan="4" style="text-align:center;color:var(--text-muted);padding:1rem">No data</td>
-              </tr>
-            @endforelse
+          <tbody id="pages-body">
+            <tr>
+              <td colspan="4" style="text-align:center;color:var(--text-muted);padding:1rem">Loading...</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -505,18 +724,10 @@
               <th style="text-align:right">Views</th>
             </tr>
           </thead>
-          <tbody>
-            @forelse(referrers as ref)
-              <tr>
-                <td class="name" title="{{ ref.source }}">{{ ref.source }}</td>
-                <td class="value">{{ ref.visitors }}</td>
-                <td class="value">{{ ref.views }}</td>
-              </tr>
-            @empty
-              <tr>
-                <td colspan="3" style="text-align:center;color:var(--text-muted);padding:1rem">No data</td>
-              </tr>
-            @endforelse
+          <tbody id="referrers-body">
+            <tr>
+              <td colspan="3" style="text-align:center;color:var(--text-muted);padding:1rem">Loading...</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -537,17 +748,10 @@
               <th style="text-align:right">Visitors</th>
             </tr>
           </thead>
-          <tbody>
-            @forelse(deviceTypes as device)
-              <tr>
-                <td class="name">{{ device.type }}</td>
-                <td class="value">{{ device.visitors }}</td>
-              </tr>
-            @empty
-              <tr>
-                <td colspan="2" style="text-align:center;color:var(--text-muted);padding:1rem">No data</td>
-              </tr>
-            @endforelse
+          <tbody id="devices-body">
+            <tr>
+              <td colspan="2" style="text-align:center;color:var(--text-muted);padding:1rem">Loading...</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -564,17 +768,10 @@
               <th style="text-align:right">Visitors</th>
             </tr>
           </thead>
-          <tbody>
-            @forelse(browsers as browser)
-              <tr>
-                <td class="name">{{ browser.name }}</td>
-                <td class="value">{{ browser.visitors }}</td>
-              </tr>
-            @empty
-              <tr>
-                <td colspan="2" style="text-align:center;color:var(--text-muted);padding:1rem">No data</td>
-              </tr>
-            @endforelse
+          <tbody id="browsers-body">
+            <tr>
+              <td colspan="2" style="text-align:center;color:var(--text-muted);padding:1rem">Loading...</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -596,17 +793,10 @@
               <th style="text-align:right">Visitors</th>
             </tr>
           </thead>
-          <tbody>
-            @forelse(countries as country)
-              <tr>
-                <td class="name">{{ country.name }}</td>
-                <td class="value">{{ country.visitors }}</td>
-              </tr>
-            @empty
-              <tr>
-                <td colspan="2" style="text-align:center;color:var(--text-muted);padding:1rem">No data</td>
-              </tr>
-            @endforelse
+          <tbody id="countries-body">
+            <tr>
+              <td colspan="2" style="text-align:center;color:var(--text-muted);padding:1rem">Loading...</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -628,18 +818,10 @@
               <th style="text-align:right">Views</th>
             </tr>
           </thead>
-          <tbody>
-            @forelse(campaigns as campaign)
-              <tr>
-                <td class="name" title="{{ campaign.name }}">{{ campaign.name }}</td>
-                <td class="value">{{ campaign.visitors }}</td>
-                <td class="value">{{ campaign.views }}</td>
-              </tr>
-            @empty
-              <tr>
-                <td colspan="3" style="text-align:center;color:var(--text-muted);padding:1rem">No data</td>
-              </tr>
-            @endforelse
+          <tbody id="campaigns-body">
+            <tr>
+              <td colspan="3" style="text-align:center;color:var(--text-muted);padding:1rem">Loading...</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -650,33 +832,11 @@
       <div class="events-header">
         <span class="events-title">Events</span>
       </div>
-      @if(events.length > 0)
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Event Name</th>
-              <th style="text-align:right">Count</th>
-              <th style="text-align:right">Unique</th>
-              <th style="text-align:right">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach(events as event)
-              <tr>
-                <td class="name">{{ event.name }}</td>
-                <td class="value">{{ event.count }}</td>
-                <td class="value">{{ event.unique }}</td>
-                <td class="value">{{ event.value }}</td>
-              </tr>
-            @endforeach
-          </tbody>
-        </table>
-      @else
+      <div id="events-container">
         <div class="empty-state">
-          <p>You haven't created any events yet.</p>
-          <a href="#">Learn how to use events</a>
+          <p>Loading events...</p>
         </div>
-      @endif
+      </div>
     </div>
   </div>
 
@@ -690,6 +850,11 @@
           btn.classList.add('active')
         })
       })
+    })
+
+    // Handle window resize for chart
+    window.addEventListener('resize', () => {
+      if (timeSeriesData.length) renderChart()
     })
   </script>
 </body>

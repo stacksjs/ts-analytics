@@ -1,0 +1,255 @@
+<script>
+/**
+ * PageHeatmap Component
+ *
+ * Main container for page heatmap visualization with iframe/screenshot
+ * and overlay controls.
+ */
+export const siteId = $props.siteId
+export const pageUrl = $props.pageUrl
+export const apiEndpoint = $props.apiEndpoint || ''
+export const screenshotUrl = $props.screenshotUrl
+export const initialStartDate = $props.initialStartDate
+export const initialEndDate = $props.initialEndDate
+
+// State
+let viewMode = 'click'
+let deviceFilter = 'all'
+let startDate = initialStartDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+let endDate = initialEndDate || new Date().toISOString().slice(0, 10)
+let loading = false
+let error = null
+
+// Heatmap data
+let clickData = []
+let topElements = []
+let totalClicks = 0
+let scrollData = []
+let avgScrollDepth = 0
+let totalScrollSessions = 0
+
+// Container dimensions
+let containerWidth = 800
+let containerHeight = 600
+
+const apiBaseUrl = `${apiEndpoint}/api/sites/${siteId}/heatmap`
+
+// Fetch click heatmap data
+export async function fetchClickData() {
+  loading = true
+  error = null
+
+  try {
+    const params = new URLSearchParams({
+      path: pageUrl,
+      startDate: new Date(startDate).toISOString(),
+      endDate: new Date(endDate).toISOString(),
+      device: deviceFilter,
+    })
+
+    const response = await fetch(`${apiBaseUrl}/clicks?${params}`)
+    if (!response.ok) throw new Error('Failed to fetch click data')
+
+    const data = await response.json()
+    clickData = data.clicks || []
+    topElements = data.topElements || []
+    totalClicks = data.totalClicks || 0
+  } catch (err) {
+    error = err.message || 'Unknown error'
+    console.error('Heatmap fetch error:', err)
+  } finally {
+    loading = false
+  }
+}
+
+// Fetch scroll heatmap data
+export async function fetchScrollData() {
+  loading = true
+  error = null
+
+  try {
+    const params = new URLSearchParams({
+      path: pageUrl,
+      startDate: new Date(startDate).toISOString(),
+      endDate: new Date(endDate).toISOString(),
+      device: deviceFilter,
+    })
+
+    const response = await fetch(`${apiBaseUrl}/scroll?${params}`)
+    if (!response.ok) throw new Error('Failed to fetch scroll data')
+
+    const data = await response.json()
+    scrollData = data.scrollDepths || []
+    avgScrollDepth = data.avgMaxDepth || 0
+    totalScrollSessions = data.totalSessions || 0
+  } catch (err) {
+    error = err.message || 'Unknown error'
+    console.error('Scroll data fetch error:', err)
+  } finally {
+    loading = false
+  }
+}
+
+// Fetch data based on view mode
+export async function fetchData() {
+  if (viewMode === 'click') {
+    await fetchClickData()
+  } else if (viewMode === 'scroll') {
+    await fetchScrollData()
+  }
+}
+
+// Handle view mode change
+export function handleViewModeChange(mode) {
+  viewMode = mode
+  fetchData()
+}
+
+// Handle device filter change
+export function handleDeviceChange(device) {
+  deviceFilter = device
+  fetchData()
+}
+
+// Handle date range change
+export function handleDateRangeChange(range) {
+  startDate = range.start.toISOString().slice(0, 10)
+  endDate = range.end.toISOString().slice(0, 10)
+  fetchData()
+}
+
+// Handle element highlight
+export function handleHighlight(selector) {
+  console.log('Highlight:', selector)
+}
+
+// Handle element click
+export function handleElementClick(element) {
+  console.log('Element clicked:', element)
+}
+
+// Handle refresh
+export function handleRefresh() {
+  fetchData()
+}
+
+// Initialize
+if (typeof window !== 'undefined') {
+  setTimeout(fetchData, 0)
+}
+
+export { viewMode, deviceFilter, startDate, endDate, loading, error, clickData, topElements, totalClicks, scrollData, avgScrollDepth, totalScrollSessions, containerWidth, containerHeight }
+</script>
+
+<div class="page-heatmap flex flex-col gap-4 h-full">
+  <!-- Header -->
+  <div class="flex justify-between items-center">
+    <div class="flex flex-col gap-1">
+      <h2 class="text-xl font-semibold text-gray-900">Page Heatmap</h2>
+      <span class="text-sm text-gray-500 font-mono">{{ pageUrl }}</span>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  @include('heatmap/HeatmapControls', {
+    viewMode: viewMode,
+    deviceFilter: deviceFilter,
+    startDate: startDate,
+    endDate: endDate,
+    loading: loading,
+    onViewModeChange: handleViewModeChange,
+    onDeviceChange: handleDeviceChange,
+    onDateRangeChange: handleDateRangeChange,
+    onRefresh: handleRefresh
+  })
+
+  <!-- Error state -->
+  @if(error)
+    <div class="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+      <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span>{{ error }}</span>
+      <button type="button" class="ml-auto px-3 py-1 text-xs font-medium text-red-600 bg-white border border-red-200 rounded hover:bg-red-50" @click="fetchData">
+        Retry
+      </button>
+    </div>
+  @endif
+
+  <!-- Main content -->
+  <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 flex-1 min-h-0">
+    <!-- Visualization area -->
+    <div class="flex flex-col gap-4 bg-white rounded-lg border border-gray-200 p-4 overflow-hidden">
+      <!-- Click heatmap view -->
+      @if(viewMode === 'click')
+        <div class="relative flex-1 min-h-[400px] border border-gray-200 rounded-md overflow-hidden bg-gray-50">
+          <!-- Page iframe or screenshot -->
+          @if(!screenshotUrl)
+            <iframe
+              src="{{ pageUrl }}"
+              class="w-full h-full border-none pointer-events-none"
+              sandbox="allow-same-origin"
+              loading="lazy"
+            />
+          @else
+            <img
+              src="{{ screenshotUrl }}"
+              alt="Screenshot of {{ pageUrl }}"
+              class="w-full h-full object-cover object-top"
+            />
+          @endif
+
+          <!-- Heatmap overlay -->
+          @include('heatmap/ClickHeatmap', {
+            clicks: clickData,
+            width: containerWidth,
+            height: containerHeight,
+            loading: loading
+          })
+        </div>
+
+        <!-- Legend -->
+        <div class="flex justify-between items-center pt-3 border-t border-gray-200">
+          @include('heatmap/HeatmapLegend', {
+            showValues: true,
+            maxValue: totalClicks
+          })
+          <span class="text-xs text-gray-500">{{ totalClicks.toLocaleString() }} total clicks</span>
+        </div>
+
+      @elseif(viewMode === 'scroll')
+        <!-- Scroll heatmap view -->
+        @include('heatmap/ScrollHeatmap', {
+          data: scrollData,
+          avgMaxDepth: avgScrollDepth,
+          totalSessions: totalScrollSessions,
+          height: containerHeight,
+          loading: loading
+        })
+
+      @else
+        <!-- Movement heatmap view (placeholder) -->
+        <div class="flex flex-col items-center justify-center h-full text-gray-500 text-center">
+          <svg class="w-12 h-12 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          </svg>
+          <h3 class="text-base font-semibold text-gray-600 mb-2">Movement Tracking</h3>
+          <p class="text-sm">Mouse movement heatmaps coming soon</p>
+        </div>
+      @endif
+    </div>
+
+    <!-- Sidebar -->
+    @if(viewMode === 'click')
+      <div class="flex flex-col gap-4 min-h-0 overflow-y-auto lg:max-h-none max-h-[300px]">
+        @include('heatmap/ElementClickList', {
+          elements: topElements,
+          loading: loading,
+          maxItems: 15,
+          onHighlight: handleHighlight,
+          onClick: handleElementClick
+        })
+      </div>
+    @endif
+  </div>
+</div>

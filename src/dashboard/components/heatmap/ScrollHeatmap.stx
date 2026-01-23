@@ -1,0 +1,127 @@
+<script>
+/**
+ * ScrollHeatmap Component
+ *
+ * Visualizes scroll depth as horizontal bands showing reach percentage.
+ */
+export const data = $props.data || []
+export const avgMaxDepth = $props.avgMaxDepth || 0
+export const totalSessions = $props.totalSessions || 0
+export const height = $props.height || 400
+export const loading = $props.loading || false
+
+// Generate color based on reach percentage
+export function getColor(percentage) {
+  if (percentage >= 80) return '#10b981' // Green - high engagement
+  if (percentage >= 60) return '#34d399' // Light green
+  if (percentage >= 40) return '#fbbf24' // Yellow - medium engagement
+  if (percentage >= 20) return '#f97316' // Orange
+  return '#ef4444' // Red - low engagement
+}
+
+export function formatTime(ms) {
+  if (ms < 1000) return `${ms}ms`
+  const seconds = Math.floor(ms / 1000)
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return `${minutes}m ${remainingSeconds}s`
+}
+
+// Create depth buckets from 0 to 100 in increments of 10
+const depthBuckets = []
+for (let depth = 0; depth <= 90; depth += 10) {
+  const dataPoint = data.find(d => d.depth === depth)
+  depthBuckets.push({
+    depth,
+    label: `${depth}%`,
+    reachPercentage: dataPoint?.reachPercentage ?? (depth === 0 ? 100 : 0),
+    avgTimeMs: dataPoint?.avgTimeMs ?? 0,
+    sessions: dataPoint?.sessions ?? 0,
+  })
+}
+
+export { depthBuckets }
+</script>
+
+<div class="scroll-heatmap bg-white rounded-lg border border-gray-200 p-6 relative">
+  <!-- Loading state -->
+  @if(loading)
+    <div class="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+      <div class="w-8 h-8 border-2 border-gray-200 border-t-indigo-600 rounded-full animate-spin" />
+    </div>
+  @endif
+
+  <!-- Summary stats -->
+  <div class="flex gap-8 mb-6">
+    <div class="flex flex-col">
+      <span class="text-2xl font-bold text-gray-900">{{ avgMaxDepth }}%</span>
+      <span class="text-xs text-gray-500">Avg. Scroll Depth</span>
+    </div>
+    <div class="flex flex-col">
+      <span class="text-2xl font-bold text-gray-900">{{ totalSessions.toLocaleString() }}</span>
+      <span class="text-xs text-gray-500">Total Sessions</span>
+    </div>
+  </div>
+
+  <!-- Scroll visualization -->
+  <div class="flex gap-8" style="height: {{ height }}px">
+    <!-- Page representation -->
+    <div class="w-[120px] flex-shrink-0">
+      <div class="h-full border-2 border-gray-300 rounded-md overflow-hidden bg-gray-50">
+        <div class="p-2 border-b border-gray-200 bg-white">
+          <div class="h-1.5 bg-gray-300 rounded mb-1" />
+          <div class="h-1.5 w-3/5 bg-gray-300 rounded" />
+        </div>
+        <div class="flex flex-col h-[calc(100%-2.5rem)]">
+          @each(bucket in depthBuckets)
+            <div
+              class="flex-1 flex items-center justify-center border-b border-dashed border-black/10 last:border-b-0"
+              style="background-color: {{ getColor(bucket.reachPercentage) }}; opacity: {{ bucket.reachPercentage / 100 }}"
+            >
+              <span class="text-[10px] font-semibold text-black/60">{{ bucket.label }}</span>
+            </div>
+          @endeach
+        </div>
+      </div>
+    </div>
+
+    <!-- Data column -->
+    <div class="flex-1">
+      <div class="flex flex-col h-full">
+        @each(bucket in depthBuckets)
+          <div class="flex-1 flex items-center gap-3">
+            <div class="flex-1 h-6 bg-gray-100 rounded overflow-hidden">
+              <div
+                class="h-full rounded transition-all duration-300"
+                style="width: {{ bucket.reachPercentage }}%; background-color: {{ getColor(bucket.reachPercentage) }}"
+              />
+            </div>
+            <div class="flex items-center gap-2 w-24 flex-shrink-0">
+              <span class="text-sm font-semibold text-gray-900 w-10">{{ bucket.reachPercentage }}%</span>
+              @if(bucket.avgTimeMs > 0)
+                <span class="text-xs text-gray-500">{{ formatTime(bucket.avgTimeMs) }}</span>
+              @endif
+            </div>
+          </div>
+        @endeach
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="flex justify-center gap-6 mt-6 pt-4 border-t border-gray-200">
+    <div class="flex items-center gap-1.5 text-xs text-gray-500">
+      <span class="w-3 h-3 rounded-sm" style="background: #10b981" />
+      <span>80%+ reach</span>
+    </div>
+    <div class="flex items-center gap-1.5 text-xs text-gray-500">
+      <span class="w-3 h-3 rounded-sm" style="background: #fbbf24" />
+      <span>40-60% reach</span>
+    </div>
+    <div class="flex items-center gap-1.5 text-xs text-gray-500">
+      <span class="w-3 h-3 rounded-sm" style="background: #ef4444" />
+      <span>&lt;20% reach</span>
+    </div>
+  </div>
+</div>

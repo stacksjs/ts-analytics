@@ -51,6 +51,7 @@
     "typecheck": "bun --bun tsc --noEmit"
   },
   "dependencies": {
+    "bun-query-builder": "file:../bun-query-builder/packages/bun-query-builder",
     "bun-router": "file:../bun-router/packages/bun-router",
     "dynamodb-tooling": "^0.3.2"
   },

@@ -1,0 +1,138 @@
+<script>
+/**
+ * HeatmapControls Component
+ *
+ * Filter controls for heatmap visualization: date range, device type, view mode.
+ */
+export const viewMode = $props.viewMode || 'click'
+export const deviceFilter = $props.deviceFilter || 'all'
+export const startDate = $props.startDate || ''
+export const endDate = $props.endDate || ''
+export const loading = $props.loading || false
+export const onViewModeChange = $props.onViewModeChange
+export const onDeviceChange = $props.onDeviceChange
+export const onDateRangeChange = $props.onDateRangeChange
+export const onRefresh = $props.onRefresh
+
+const viewModes = [
+  { value: 'click', label: 'Clicks' },
+  { value: 'scroll', label: 'Scroll' },
+  { value: 'movement', label: 'Movement' },
+]
+
+const deviceFilters = [
+  { value: 'all', label: 'All Devices' },
+  { value: 'desktop', label: 'Desktop' },
+  { value: 'mobile', label: 'Mobile' },
+  { value: 'tablet', label: 'Tablet' },
+]
+
+export function handleViewMode(mode) {
+  onViewModeChange?.(mode)
+}
+
+export function handleDevice(e) {
+  onDeviceChange?.(e.target.value)
+}
+
+export function handleDateChange(type, e) {
+  const value = e.target.value
+  if (type === 'start') {
+    onDateRangeChange?.({ start: new Date(value), end: new Date(endDate) })
+  } else {
+    onDateRangeChange?.({ start: new Date(startDate), end: new Date(value) })
+  }
+}
+
+export function handleRefresh() {
+  onRefresh?.()
+}
+</script>
+
+<div class="heatmap-controls flex flex-wrap items-end gap-4 p-4 bg-white rounded-lg border border-gray-200">
+  <!-- View Mode Toggle -->
+  <div class="flex flex-col gap-1">
+    <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">View</label>
+    <div class="flex gap-1 bg-gray-100 p-1 rounded-lg">
+      @each(mode in viewModes)
+        <button
+          type="button"
+          class="flex items-center gap-1.5 px-3 py-2 text-sm rounded-md transition-all {{ viewMode === mode.value ? 'text-indigo-600 bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700' }}"
+          @if(loading)disabled@endif
+          @click="handleViewMode('{{ mode.value }}')"
+        >
+          @if(mode.value === 'click')
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+            </svg>
+          @elseif(mode.value === 'scroll')
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+            </svg>
+          @else
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+          @endif
+          <span>{{ mode.label }}</span>
+        </button>
+      @endeach
+    </div>
+  </div>
+
+  <!-- Device Filter -->
+  <div class="flex flex-col gap-1">
+    <label class="text-xs font-medium text-gray-500 uppercase tracking-wider" for="device-filter">Device</label>
+    <select
+      id="device-filter"
+      class="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+      @if(loading)disabled@endif
+      @change="handleDevice"
+    >
+      @each(device in deviceFilters)
+        <option value="{{ device.value }}" @if(deviceFilter === device.value)selected@endif>
+          {{ device.label }}
+        </option>
+      @endeach
+    </select>
+  </div>
+
+  <!-- Date Range -->
+  <div class="flex flex-col gap-1">
+    <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">Date Range</label>
+    <div class="flex items-center gap-2">
+      <input
+        type="date"
+        value="{{ startDate }}"
+        class="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        @if(loading)disabled@endif
+        @change="handleDateChange('start', event)"
+      />
+      <span class="text-sm text-gray-400">to</span>
+      <input
+        type="date"
+        value="{{ endDate }}"
+        class="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        @if(loading)disabled@endif
+        @change="handleDateChange('end', event)"
+      />
+    </div>
+  </div>
+
+  <!-- Refresh Button -->
+  <button
+    type="button"
+    class="flex items-center justify-center w-10 h-10 text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200 hover:text-gray-700 transition-all"
+    @if(loading)disabled@endif
+    @click="handleRefresh"
+  >
+    <svg
+      class="w-4 h-4 {{ loading ? 'animate-spin' : '' }}"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
+  </button>
+</div>

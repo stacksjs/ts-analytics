@@ -42,6 +42,23 @@ export interface TrackingScriptConfig {
   excludeQueryParams?: boolean
   /** Minify the output */
   minify?: boolean
+  /** Heatmap tracking configuration */
+  heatmap?: HeatmapTrackingConfig
+}
+
+export interface HeatmapTrackingConfig {
+  /** Enable click tracking for heatmaps */
+  trackClicks?: boolean
+  /** Enable mouse movement tracking for heatmaps */
+  trackMovements?: boolean
+  /** Movement sampling interval in ms (default: 100) */
+  movementSampleInterval?: number
+  /** Maximum movement points per page before flush (default: 500) */
+  maxMovementPoints?: number
+  /** Enable scroll position tracking for heatmaps */
+  trackScrollPositions?: boolean
+  /** Flush interval for batched data in ms (default: 5000) */
+  flushInterval?: number
 }
 
 // ============================================================================
@@ -143,6 +160,12 @@ function buildScript(config: TrackingScriptConfig): string {
   // Outbound link tracking
   if (config.trackOutboundLinks) {
     parts.push(buildOutboundLinkTracking(config.dataAttributePrefix))
+    parts.push('')
+  }
+
+  // Heatmap tracking
+  if (config.heatmap && (config.heatmap.trackClicks || config.heatmap.trackMovements || config.heatmap.trackScrollPositions)) {
+    parts.push(buildHeatmapTrackingSection(config.heatmap, config.debug))
     parts.push('')
   }
 
@@ -578,6 +601,239 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }`
+}
+
+// ============================================================================
+// Heatmap Tracking
+// ============================================================================
+
+function buildHeatmapTrackingSection(config: HeatmapTrackingConfig, debug?: boolean): string {
+  const parts: string[] = []
+
+  parts.push(`// Heatmap Tracking
+var HEATMAP = {
+  trackClicks: ${config.trackClicks ?? true},
+  trackMovements: ${config.trackMovements ?? false},
+  trackScrollPositions: ${config.trackScrollPositions ?? true},
+  movementSampleInterval: ${config.movementSampleInterval ?? 100},
+  maxMovementPoints: ${config.maxMovementPoints ?? 500},
+  flushInterval: ${config.flushInterval ?? 5000}
+};
+
+function hmLog() {
+  if (${debug ?? false} && console && console.log) {
+    console.log.apply(console, ['[Heatmap]'].concat(Array.prototype.slice.call(arguments)));
+  }
+}
+
+// CSS Selector Generator
+function getSelector(el, maxDepth) {
+  maxDepth = maxDepth || 5;
+  var path = [];
+  var depth = 0;
+
+  while (el && el.nodeType === 1 && depth < maxDepth) {
+    var selector = el.nodeName.toLowerCase();
+
+    if (el.id) {
+      path.unshift('#' + el.id);
+      break;
+    }
+
+    var testId = el.getAttribute('data-testid') || el.getAttribute('data-analytics-id');
+    if (testId) {
+      path.unshift('[data-testid="' + testId + '"]');
+      break;
+    }
+
+    var classes = el.className;
+    if (typeof classes === 'string' && classes.trim()) {
+      var classList = classes.trim().split(/\\s+/).slice(0, 2);
+      selector += '.' + classList.join('.');
+    }
+
+    var parent = el.parentNode;
+    if (parent && parent.children) {
+      var siblings = parent.children;
+      var index = 1;
+      for (var i = 0; i < siblings.length; i++) {
+        if (siblings[i] === el) break;
+        if (siblings[i].nodeName === el.nodeName) index++;
+      }
+      if (siblings.length > 1) {
+        selector += ':nth-of-type(' + index + ')';
+      }
+    }
+
+    path.unshift(selector);
+    el = el.parentNode;
+    depth++;
+  }
+
+  return path.join(' > ');
+}`)
+
+  // Click tracking
+  if (config.trackClicks !== false) {
+    parts.push(`
+
+// Click Tracking
+document.addEventListener('click', function(event) {
+  var el = event.target;
+  if (!el || el.nodeType !== 1) return;
+
+  var clickData = {
+    vx: event.clientX,
+    vy: event.clientY,
+    dx: event.pageX,
+    dy: event.pageY,
+    selector: getSelector(el),
+    tag: el.tagName.toLowerCase(),
+    vw: window.innerWidth,
+    vh: window.innerHeight
+  };
+
+  var text = (el.textContent || el.innerText || '').trim().substring(0, 50);
+  if (text) clickData.text = text;
+
+  sendBeacon({
+    s: CONFIG.siteId,
+    sid: session.id,
+    e: 'hm_click',
+    u: window.location.pathname,
+    p: clickData,
+    ts: Date.now()
+  });
+
+  hmLog('Click:', clickData.selector);
+}, true);`)
+  }
+
+  // Movement tracking
+  if (config.trackMovements) {
+    parts.push(`
+
+// Movement Tracking
+var movementBuffer = [];
+var lastMoveTime = 0;
+var moveFlushTimer = null;
+
+function flushMovements() {
+  if (movementBuffer.length === 0) return;
+
+  sendBeacon({
+    s: CONFIG.siteId,
+    sid: session.id,
+    e: 'hm_move',
+    u: window.location.pathname,
+    p: {
+      points: movementBuffer.slice(),
+      vw: window.innerWidth,
+      vh: window.innerHeight
+    },
+    ts: Date.now()
+  });
+
+  hmLog('Flushed', movementBuffer.length, 'movement points');
+  movementBuffer = [];
+}
+
+document.addEventListener('mousemove', function(event) {
+  var now = Date.now();
+  if (now - lastMoveTime < HEATMAP.movementSampleInterval) return;
+  lastMoveTime = now;
+
+  var x = Math.round((event.clientX / window.innerWidth) * 100);
+  var y = Math.round((event.clientY / window.innerHeight) * 100);
+  movementBuffer.push([x, y, now]);
+
+  if (movementBuffer.length >= HEATMAP.maxMovementPoints) {
+    flushMovements();
+  } else if (!moveFlushTimer) {
+    moveFlushTimer = setTimeout(function() {
+      moveFlushTimer = null;
+      flushMovements();
+    }, HEATMAP.flushInterval);
+  }
+}, { passive: true });`)
+  }
+
+  // Scroll position tracking
+  if (config.trackScrollPositions) {
+    parts.push(`
+
+// Scroll Position Tracking
+var scrollDepthTimes = {};
+var maxScrollDepth = 0;
+var scrollStartTime = Date.now();
+var lastScrollDepth = 0;
+
+function updateHeatmapScroll() {
+  var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+  var docHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - window.innerHeight;
+  if (docHeight <= 0) return;
+
+  var depth = Math.min(100, Math.round((scrollTop / docHeight) * 100));
+  var bucket = Math.floor(depth / 10) * 10;
+
+  if (bucket > 0 && lastScrollDepth > 0) {
+    var prevBucket = Math.floor(lastScrollDepth / 10) * 10;
+    scrollDepthTimes[prevBucket] = (scrollDepthTimes[prevBucket] || 0) + (Date.now() - scrollStartTime);
+    scrollStartTime = Date.now();
+  }
+
+  lastScrollDepth = depth;
+  if (depth > maxScrollDepth) maxScrollDepth = depth;
+}
+
+var hmScrollThrottle = null;
+window.addEventListener('scroll', function() {
+  if (hmScrollThrottle) return;
+  hmScrollThrottle = setTimeout(function() {
+    hmScrollThrottle = null;
+    updateHeatmapScroll();
+  }, 100);
+}, { passive: true });
+
+// Flush scroll data on unload
+window.addEventListener('beforeunload', function() {
+  if (maxScrollDepth > 0) {
+    if (lastScrollDepth > 0) {
+      var bucket = Math.floor(lastScrollDepth / 10) * 10;
+      scrollDepthTimes[bucket] = (scrollDepthTimes[bucket] || 0) + (Date.now() - scrollStartTime);
+    }
+    sendBeacon({
+      s: CONFIG.siteId,
+      sid: session.id,
+      e: 'hm_scroll',
+      u: window.location.pathname,
+      p: {
+        depths: scrollDepthTimes,
+        maxDepth: maxScrollDepth,
+        docHeight: Math.max(document.body.scrollHeight, document.documentElement.scrollHeight),
+        vh: window.innerHeight
+      },
+      ts: Date.now()
+    });
+    hmLog('Scroll data sent:', maxScrollDepth + '%');
+  }
+});`)
+  }
+
+  // Movement flush on unload
+  if (config.trackMovements) {
+    parts.push(`
+
+window.addEventListener('beforeunload', function() {
+  if (movementBuffer.length > 0) flushMovements();
+});`)
+  }
+
+  parts.push(`
+
+hmLog('Heatmap tracking initialized');`)
+
+  return parts.join('')
 }
 
 // ============================================================================

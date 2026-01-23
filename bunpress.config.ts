@@ -8,11 +8,10 @@ const config: BunPressConfig = {
   theme: 'vitepress',
 
   // Self-hosted analytics using ts-analytics
-  // Update apiEndpoint once your analytics backend is deployed
-  selfHostedAnalytics: {
+  analytics: {
     enabled: true,
     siteId: 'ts-analytics-docs',
-    apiEndpoint: 'https://kat522bgse.execute-api.us-east-1.amazonaws.com/collect',
+    apiEndpoint: 'https://analytics.stacksjs.com/collect',
     honorDNT: true,
     trackHashChanges: false,
     trackOutboundLinks: true,

@@ -1,0 +1,69 @@
+<script>
+/**
+ * HeatmapLegend Component
+ *
+ * Displays a color scale legend for heatmap visualization.
+ */
+export const colorStart = $props.colorStart || 'rgba(79, 70, 229, 0.1)'
+export const colorEnd = $props.colorEnd || 'rgba(79, 70, 229, 1)'
+export const minLabel = $props.minLabel || 'Less'
+export const maxLabel = $props.maxLabel || 'More'
+export const showValues = $props.showValues || false
+export const minValue = $props.minValue || 0
+export const maxValue = $props.maxValue || 100
+
+// Generate gradient stops
+const gradientStops = [0, 0.25, 0.5, 0.75, 1]
+
+function interpolateColor(ratio) {
+  const startMatch = colorStart.match(/[\d.]+/g)
+  const endMatch = colorEnd.match(/[\d.]+/g)
+
+  if (!startMatch || !endMatch) return colorStart
+
+  const [sr, sg, sb, sa] = startMatch.map(Number)
+  const [er, eg, eb, ea] = endMatch.map(Number)
+
+  const r = Math.round(sr + (er - sr) * ratio)
+  const g = Math.round(sg + (eg - sg) * ratio)
+  const b = Math.round(sb + (eb - sb) * ratio)
+  const a = (sa + (ea - sa) * ratio).toFixed(2)
+
+  return `rgba(${r}, ${g}, ${b}, ${a})`
+}
+
+function formatValue(ratio) {
+  const value = minValue + (maxValue - minValue) * ratio
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}k`
+  }
+  return Math.round(value).toString()
+}
+
+export const stops = gradientStops.map(stop => ({
+  ratio: stop,
+  color: interpolateColor(stop),
+  value: formatValue(stop)
+}))
+</script>
+
+<div class="heatmap-legend flex items-center gap-2 text-xs">
+  <span class="text-gray-500">{{ minLabel }}</span>
+  <div class="flex gap-0.5">
+    @each(stop in stops)
+      <div
+        class="w-4 h-4 rounded-sm"
+        style="background-color: {{ stop.color }}"
+        @if(showValues)title="{{ stop.value }}"@endif
+      />
+    @endeach
+  </div>
+  <span class="text-gray-500">{{ maxLabel }}</span>
+
+  @if(showValues)
+    <div class="flex justify-between mt-1 text-[10px] text-gray-400">
+      <span>{{ formatValue(0) }}</span>
+      <span>{{ formatValue(1) }}</span>
+    </div>
+  @endif
+</div>

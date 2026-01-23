@@ -10,11 +10,12 @@
 import { CloudFormationClient } from '../../ts-cloud/packages/ts-cloud/src/aws/cloudformation'
 import { S3Client } from '../../ts-cloud/packages/ts-cloud/src/aws/s3'
 import { Route53Client } from '../../ts-cloud/packages/ts-cloud/src/aws/route53'
+import { ACMClient, ACMDnsValidator } from '../../ts-cloud/packages/ts-cloud/src/aws/acm'
 
 const SERVICE_NAME = process.env.API_SERVICE_NAME || 'ts-analytics-api'
 const STACK_NAME = `${SERVICE_NAME}-lambda-stack`
 const REGION = process.env.AWS_REGION || 'us-east-1'
-const DOMAIN = process.env.API_DOMAIN || 'analytics-api.stacksjs.com'
+const DOMAIN = process.env.API_DOMAIN || 'analytics.stacksjs.com'
 const BASE_DOMAIN = process.env.BASE_DOMAIN || 'stacksjs.com'
 const TABLE_NAME = process.env.ANALYTICS_TABLE_NAME || 'ts-analytics'
 const BUCKET_NAME = `${SERVICE_NAME}-deployment-${REGION}`
@@ -29,6 +30,42 @@ async function deployLambdaAPI() {
   const cfn = new CloudFormationClient(REGION)
   const s3 = new S3Client(REGION)
   const route53 = new Route53Client(REGION)
+  const acm = new ACMClient('us-east-1') // ACM certs must be in us-east-1 for API Gateway
+  const acmValidator = new ACMDnsValidator('us-east-1')
+
+  // Step 0: Get or create SSL certificate for custom domain
+  console.log('\n0. Setting up SSL certificate...')
+  let certificateArn: string | undefined
+
+  if (DOMAIN && BASE_DOMAIN) {
+    try {
+      // Check for existing certificate
+      const existingCert = await acm.findCertificateByDomain(DOMAIN)
+      if (existingCert && existingCert.Status === 'ISSUED') {
+        certificateArn = existingCert.CertificateArn
+        console.log(`   Using existing certificate: ${certificateArn}`)
+      } else {
+        // Get hosted zone for validation
+        const hostedZone = await route53.findHostedZoneForDomain(DOMAIN)
+        if (hostedZone) {
+          const hostedZoneId = hostedZone.Id.replace('/hostedzone/', '')
+          console.log(`   Requesting certificate for ${DOMAIN}...`)
+          const certResult = await acmValidator.requestAndValidate({
+            domainName: DOMAIN,
+            hostedZoneId,
+            waitForValidation: true,
+            maxWaitMinutes: 10,
+          })
+          certificateArn = certResult.certificateArn
+          console.log(`   Certificate issued: ${certificateArn}`)
+        } else {
+          console.log(`   Warning: No hosted zone found for ${BASE_DOMAIN}`)
+        }
+      }
+    } catch (error) {
+      console.log(`   Warning: Could not setup certificate: ${error}`)
+    }
+  }
 
   // Step 1: Create S3 bucket for deployment artifacts
   console.log('\n1. Setting up deployment bucket...')
@@ -127,6 +164,8 @@ async function deployLambdaAPI() {
       S3Bucket: { Type: 'String', Default: BUCKET_NAME },
       S3Key: { Type: 'String', Default: s3Key },
       TableName: { Type: 'String', Default: TABLE_NAME },
+      CertificateArn: { Type: 'String', Default: certificateArn || '' },
+      CustomDomain: { Type: 'String', Default: DOMAIN || '' },
     },
 
     Resources: {
@@ -254,6 +293,31 @@ async function deployLambdaAPI() {
           SourceArn: { 'Fn::Sub': 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*' },
         },
       },
+
+      // Custom Domain (conditional on certificate being available)
+      ...(certificateArn ? {
+        ApiDomainName: {
+          Type: 'AWS::ApiGatewayV2::DomainName',
+          Properties: {
+            DomainName: { Ref: 'CustomDomain' },
+            DomainNameConfigurations: [
+              {
+                CertificateArn: { Ref: 'CertificateArn' },
+                EndpointType: 'REGIONAL',
+              },
+            ],
+          },
+        },
+        ApiMapping: {
+          Type: 'AWS::ApiGatewayV2::ApiMapping',
+          DependsOn: ['ApiDomainName', 'ApiStage'],
+          Properties: {
+            ApiId: { Ref: 'HttpApi' },
+            DomainName: { Ref: 'CustomDomain' },
+            Stage: '$default',
+          },
+        },
+      } : {}),
     },
 
     Outputs: {
@@ -265,6 +329,16 @@ async function deployLambdaAPI() {
         Description: 'Lambda function ARN',
         Value: { 'Fn::GetAtt': ['LambdaFunction', 'Arn'] },
       },
+      ...(certificateArn ? {
+        CustomDomainTarget: {
+          Description: 'Custom domain target for Route53',
+          Value: { 'Fn::GetAtt': ['ApiDomainName', 'RegionalDomainName'] },
+        },
+        CustomDomainHostedZoneId: {
+          Description: 'Custom domain hosted zone ID',
+          Value: { 'Fn::GetAtt': ['ApiDomainName', 'RegionalHostedZoneId'] },
+        },
+      } : {}),
     },
   })
 
@@ -333,52 +407,63 @@ async function deployLambdaAPI() {
       console.log('   Health check failed (Lambda may still be initializing)')
     }
 
-    // Step 4: Create Route53 CNAME for custom domain (optional)
-    if (DOMAIN && BASE_DOMAIN) {
-      console.log('\n5. Setting up custom domain...')
+    // Step 4: Create Route53 A record for custom domain
+    if (DOMAIN && BASE_DOMAIN && certificateArn) {
+      console.log('\n5. Setting up custom domain DNS...')
 
-      // Extract the hostname from the API endpoint
-      const apiHostname = apiEndpoint.replace('https://', '').replace(/\/$/, '')
+      const customDomainTarget = outputs.CustomDomainTarget
+      const customDomainHostedZoneId = outputs.CustomDomainHostedZoneId
 
-      // Get hosted zone for base domain
-      const hostedZones = await route53.listHostedZones()
-      const hostedZone = hostedZones.HostedZones.find(
-        (hz: { Name: string }) => hz.Name === `${BASE_DOMAIN}.`,
-      )
+      if (customDomainTarget && customDomainHostedZoneId) {
+        // Get hosted zone for base domain
+        const hostedZone = await route53.findHostedZoneForDomain(DOMAIN)
 
-      if (hostedZone) {
-        const hostedZoneId = hostedZone.Id.replace('/hostedzone/', '')
+        if (hostedZone) {
+          const hostedZoneId = hostedZone.Id.replace('/hostedzone/', '')
 
-        try {
-          await route53.createCnameRecord({
-            hostedZoneId: hostedZoneId,
-            name: DOMAIN,
-            value: apiHostname,
-            ttl: 300,
-          })
-          console.log(`   Created CNAME: ${DOMAIN} -> ${apiHostname}`)
+          try {
+            // Create A record alias pointing to API Gateway custom domain
+            await route53.createAliasRecord({
+              HostedZoneId: hostedZoneId,
+              Name: DOMAIN,
+              Type: 'A',
+              TargetHostedZoneId: customDomainHostedZoneId,
+              TargetDNSName: customDomainTarget,
+              EvaluateTargetHealth: false,
+            })
+            console.log(`   Created A record: ${DOMAIN} -> ${customDomainTarget}`)
+          }
+          catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error)
+            if (message.includes('already exists') || message.includes('it already exists')) {
+              console.log(`   A record already exists: ${DOMAIN}`)
+            }
+            else {
+              console.log(`   Warning: Could not create A record: ${message}`)
+            }
+          }
         }
-        catch (error: unknown) {
-          const message = error instanceof Error ? error.message : String(error)
-          if (message.includes('already exists') || message.includes('it already exists')) {
-            console.log(`   CNAME already exists: ${DOMAIN}`)
-          }
-          else {
-            console.log(`   Warning: Could not create CNAME: ${message}`)
-          }
+        else {
+          console.log(`   Warning: Hosted zone for ${BASE_DOMAIN} not found`)
         }
       }
       else {
-        console.log(`   Warning: Hosted zone for ${BASE_DOMAIN} not found`)
-        console.log(`   Please manually create a CNAME: ${DOMAIN} -> ${apiHostname}`)
+        console.log('   Warning: Custom domain outputs not available')
       }
     }
 
+    const dashboardUrl = certificateArn ? `https://${DOMAIN}/dashboard` : `${apiEndpoint}/dashboard`
+    const collectUrl = certificateArn ? `https://${DOMAIN}/collect` : `${apiEndpoint}/collect`
+
     console.log('\n🎉 Analytics API deployed successfully!')
-    console.log(`\nCollect endpoint: ${apiEndpoint}/collect`)
+    console.log(`\nDashboard: ${dashboardUrl}?siteId=YOUR_SITE_ID`)
+    console.log(`Collect endpoint: ${collectUrl}`)
     console.log(`Script endpoint: ${apiEndpoint}/sites/{siteId}/script`)
+    if (certificateArn) {
+      console.log(`\nCustom domain: https://${DOMAIN}`)
+    }
     console.log(`\nUpdate your bunpress.config.ts apiEndpoint to:`)
-    console.log(`   ${apiEndpoint}/collect`)
+    console.log(`   ${collectUrl}`)
   }
   catch (error) {
     console.error('Deployment failed:', error)
