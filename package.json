@@ -32,6 +32,13 @@
   "scripts": {
     "analytics": "bun ./bin/cli.ts",
     "build": "bun --bun build.ts",
+    "dev": "bun --watch ./server/index.ts",
+    "server": "bun ./server/index.ts",
+    "deploy:db": "bun ./deploy/dynamodb.ts",
+    "deploy:api": "bun ./deploy/api-lambda.ts",
+    "deploy:api:container": "bun ./deploy/api.ts",
+    "deploy": "bun run deploy:db && bun run deploy:api",
+    "deploy:docs": "bunx bunpress deploy",
     "fresh": "bunx rimraf node_modules/ bun.lock && bun i",
     "lint": "bunx --bun pickier lint",
     "lint:fix": "bunx --bun pickier lint --fix",
@@ -44,6 +51,7 @@
     "typecheck": "bun --bun tsc --noEmit"
   },
   "dependencies": {
+    "bun-router": "file:../bun-router/packages/bun-router",
     "dynamodb-tooling": "^0.3.2"
   },
   "devDependencies": {
