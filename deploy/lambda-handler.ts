@@ -12,7 +12,7 @@ import {
   hashVisitorId,
   getDailySalt,
 } from '../src/index'
-import type { PageView, Session, AggregationPeriod } from '../src/types'
+import type { PageView, Session, CustomEvent } from '../src/types'
 
 // Configuration
 const TABLE_NAME = process.env.ANALYTICS_TABLE_NAME || 'ts-analytics'
@@ -233,6 +233,25 @@ function marshalSession(s: Session): Record<string, { S: string } | { N: string 
   }
 }
 
+function marshalCustomEvent(e: CustomEvent): Record<string, { S: string } | { N: string }> {
+  return {
+    pk: { S: `SITE#${e.siteId}` },
+    sk: { S: `EVENT#${e.timestamp.toISOString()}#${e.id}` },
+    gsi1pk: { S: `SITE#${e.siteId}#DATE#${e.timestamp.toISOString().slice(0, 10)}` },
+    gsi1sk: { S: `EVENT#${e.name}` },
+    id: { S: e.id },
+    siteId: { S: e.siteId },
+    visitorId: { S: e.visitorId },
+    sessionId: { S: e.sessionId },
+    name: { S: e.name },
+    ...(e.category && { category: { S: e.category } }),
+    ...(e.value !== undefined && { value: { N: String(e.value) } }),
+    ...(e.properties && { properties: { S: JSON.stringify(e.properties) } }),
+    path: { S: e.path },
+    timestamp: { S: e.timestamp.toISOString() },
+  }
+}
+
 // Response helper
 function response(body: unknown, statusCode = 200, headers: Record<string, string> = {}) {
   return {
@@ -347,6 +366,76 @@ async function handleCollect(event: LambdaEvent) {
       })
 
       setSession(sessionKey, session)
+    }
+    else if (payload.e === 'event') {
+      // Handle custom events (e.g., button clicks, form submissions)
+      const props = payload.p || {}
+      const eventName = props.name || 'unnamed'
+      const eventValue = typeof props.value === 'number' ? props.value : undefined
+
+      const customEvent: CustomEvent = {
+        id: generateId(),
+        siteId: payload.s,
+        visitorId,
+        sessionId,
+        name: eventName,
+        value: eventValue,
+        path: parsedUrl.pathname,
+        timestamp,
+      }
+
+      await dynamodb.putItem({
+        TableName: TABLE_NAME,
+        Item: marshalCustomEvent(customEvent),
+      })
+
+      // Update session event count
+      if (session) {
+        session.eventCount += 1
+        session.endedAt = timestamp
+        session.duration = timestamp.getTime() - session.startedAt.getTime()
+
+        await dynamodb.putItem({
+          TableName: TABLE_NAME,
+          Item: marshalSession(session),
+        })
+
+        setSession(sessionKey, session)
+      }
+    }
+    else if (payload.e === 'outbound') {
+      // Handle outbound link clicks
+      const props = payload.p || {}
+
+      const customEvent: CustomEvent = {
+        id: generateId(),
+        siteId: payload.s,
+        visitorId,
+        sessionId,
+        name: 'outbound',
+        properties: { url: props.url || '' },
+        path: parsedUrl.pathname,
+        timestamp,
+      }
+
+      await dynamodb.putItem({
+        TableName: TABLE_NAME,
+        Item: marshalCustomEvent(customEvent),
+      })
+
+      // Update session event count
+      if (session) {
+        session.eventCount += 1
+        session.endedAt = timestamp
+        session.duration = timestamp.getTime() - session.startedAt.getTime()
+
+        await dynamodb.putItem({
+          TableName: TABLE_NAME,
+          Item: marshalSession(session),
+        })
+
+        setSession(sessionKey, session)
+      }
     }
 
     return response(null, 204)

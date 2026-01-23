@@ -1,0 +1,187 @@
+{{-- ReferrersTable Component --}}
+{{-- Props: referrers, sources, activeTab --}}
+<div class="data-panel">
+  <div class="tabs">
+    <button class="tab-btn @if(activeTab === 'referrers') active @endif" data-tab="referrers" type="button">
+      Referrers
+    </button>
+    <button class="tab-btn @if(activeTab === 'sources') active @endif" data-tab="sources" type="button">
+      Sources
+    </button>
+  </div>
+
+  <div class="tab-content" data-content="referrers" @if(activeTab !== 'referrers') style="display:none" @endif>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Referrer</th>
+          <th class="text-right">Visitors</th>
+          <th class="text-right">Views</th>
+        </tr>
+      </thead>
+      <tbody>
+        @forelse(referrers as ref)
+          <tr>
+            <td class="name" title="{{ ref.url }}">
+              @if(ref.favicon)
+                <img src="{{ ref.favicon }}" alt="" class="favicon" />
+              @endif
+              {{ ref.source }}
+            </td>
+            <td class="value">{{ formatNumber(ref.visitors) }}</td>
+            <td class="value">{{ formatNumber(ref.views) }}</td>
+          </tr>
+        @empty
+          <tr>
+            <td colspan="3" class="empty-cell">No referrer data</td>
+          </tr>
+        @endforelse
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tab-content" data-content="sources" @if(activeTab !== 'sources') style="display:none" @endif>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Source</th>
+          <th class="text-right">Visitors</th>
+          <th class="text-right">Views</th>
+        </tr>
+      </thead>
+      <tbody>
+        @forelse(sources as src)
+          <tr>
+            <td class="name">{{ src.name }}</td>
+            <td class="value">{{ formatNumber(src.visitors) }}</td>
+            <td class="value">{{ formatNumber(src.views) }}</td>
+          </tr>
+        @empty
+          <tr>
+            <td colspan="3" class="empty-cell">No source data</td>
+          </tr>
+        @endforelse
+      </tbody>
+    </table>
+  </div>
+</div>
+
+@ts
+function formatNumber(num: number): string {
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
+  return num.toString()
+}
+@endts
+
+<script>
+  document.querySelectorAll('.data-panel').forEach(panel => {
+    const tabs = panel.querySelectorAll('.tab-btn')
+    const contents = panel.querySelectorAll('.tab-content')
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetTab = tab.dataset.tab
+        tabs.forEach(t => t.classList.remove('active'))
+        tab.classList.add('active')
+        contents.forEach(c => {
+          c.style.display = c.dataset.content === targetTab ? 'block' : 'none'
+        })
+      })
+    })
+  })
+</script>
+
+<style>
+.data-panel {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.data-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.data-table th.text-right {
+  text-align: right;
+}
+
+.data-table td {
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--bg-tertiary);
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table .name {
+  color: var(--text-primary);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+}
+
+.data-table .value {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.empty-cell {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 1.5rem 0;
+}
+</style>

@@ -1,0 +1,183 @@
+{{-- GeoTable Component --}}
+{{-- Props: countries, regions, cities, activeTab --}}
+<div class="data-panel">
+  <div class="tabs">
+    <button class="tab-btn @if(activeTab === 'countries') active @endif" data-tab="countries" type="button">
+      Countries
+    </button>
+    <button class="tab-btn @if(activeTab === 'regions') active @endif" data-tab="regions" type="button">
+      Regions
+    </button>
+    <button class="tab-btn @if(activeTab === 'cities') active @endif" data-tab="cities" type="button">
+      Cities
+    </button>
+  </div>
+
+  <div class="tab-content" data-content="countries" @if(activeTab !== 'countries') style="display:none" @endif>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Country</th>
+          <th class="text-right">Visitors</th>
+        </tr>
+      </thead>
+      <tbody>
+        @forelse(countries as country)
+          <tr>
+            <td class="name">
+              <span class="flag" data-country="{{ country.code }}">{{ country.flag }}</span>
+              {{ country.name }}
+            </td>
+            <td class="value">{{ formatNumber(country.visitors) }}</td>
+          </tr>
+        @empty
+          <tr>
+            <td colspan="2" class="empty-cell">No country data</td>
+          </tr>
+        @endforelse
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tab-content" data-content="regions" @if(activeTab !== 'regions') style="display:none" @endif>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Region</th>
+          <th class="text-right">Visitors</th>
+        </tr>
+      </thead>
+      <tbody>
+        @forelse(regions as region)
+          <tr>
+            <td class="name">{{ region.name }}</td>
+            <td class="value">{{ formatNumber(region.visitors) }}</td>
+          </tr>
+        @empty
+          <tr>
+            <td colspan="2" class="empty-cell">No region data</td>
+          </tr>
+        @endforelse
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tab-content" data-content="cities" @if(activeTab !== 'cities') style="display:none" @endif>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>City</th>
+          <th class="text-right">Visitors</th>
+        </tr>
+      </thead>
+      <tbody>
+        @forelse(cities as city)
+          <tr>
+            <td class="name">{{ city.name }}</td>
+            <td class="value">{{ formatNumber(city.visitors) }}</td>
+          </tr>
+        @empty
+          <tr>
+            <td colspan="2" class="empty-cell">No city data</td>
+          </tr>
+        @endforelse
+      </tbody>
+    </table>
+  </div>
+</div>
+
+@ts
+function formatNumber(num: number): string {
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
+  return num.toString()
+}
+@endts
+
+<style>
+.data-panel {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.data-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.data-table th.text-right {
+  text-align: right;
+}
+
+.data-table td {
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--bg-tertiary);
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table .name {
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.flag {
+  font-size: 1rem;
+}
+
+.data-table .value {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.empty-cell {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 1.5rem 0;
+}
+</style>

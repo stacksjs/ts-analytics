@@ -1,0 +1,132 @@
+{{-- BrowsersTable Component --}}
+{{-- Props: browsers (array of {name, visitors}) --}}
+<div class="data-panel">
+  <div class="panel-header">
+    <span class="panel-title">Browsers</span>
+  </div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Browser</th>
+        <th class="text-right">Visitors</th>
+      </tr>
+    </thead>
+    <tbody>
+      @forelse(browsers as browser)
+        <tr>
+          <td class="name">
+            <span class="browser-icon" data-browser="{{ browser.name.toLowerCase() }}"></span>
+            {{ browser.name }}
+          </td>
+          <td class="value">{{ formatNumber(browser.visitors) }}</td>
+        </tr>
+      @empty
+        <tr>
+          <td colspan="2" class="empty-cell">No browser data</td>
+        </tr>
+      @endforelse
+    </tbody>
+  </table>
+</div>
+
+@ts
+function formatNumber(num: number): string {
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
+  return num.toString()
+}
+@endts
+
+<style>
+.data-panel {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.panel-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.data-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.data-table th.text-right {
+  text-align: right;
+}
+
+.data-table td {
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--bg-tertiary);
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table .name {
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.browser-icon {
+  width: 16px;
+  height: 16px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  border-radius: 2px;
+}
+
+.browser-icon[data-browser="chrome"] {
+  background-color: #4285F4;
+}
+
+.browser-icon[data-browser="firefox"] {
+  background-color: #FF7139;
+}
+
+.browser-icon[data-browser="safari"] {
+  background-color: #006CFF;
+}
+
+.browser-icon[data-browser="edge"] {
+  background-color: #0078D7;
+}
+
+.data-table .value {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.empty-cell {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 1.5rem 0;
+}
+</style>

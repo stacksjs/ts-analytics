@@ -1,0 +1,63 @@
+{{-- TabNav Component --}}
+{{-- Props: tabs (array of {id, label}), activeTab --}}
+<div class="tabs" data-tab-group="{{ tabGroup || 'default' }}">
+  @foreach(tabs as tab)
+    <button
+      class="tab-btn @if(tab.id === activeTab) active @endif"
+      data-tab="{{ tab.id }}"
+      type="button"
+    >
+      {{ tab.label }}
+    </button>
+  @endforeach
+</div>
+
+<script>
+  document.querySelectorAll('.tabs').forEach(tabContainer => {
+    const buttons = tabContainer.querySelectorAll('.tab-btn')
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        buttons.forEach(b => b.classList.remove('active'))
+        btn.classList.add('active')
+
+        const tabId = btn.dataset.tab
+        const group = tabContainer.dataset.tabGroup
+        const event = new CustomEvent('tabchange', {
+          detail: { tabId, group },
+          bubbles: true
+        })
+        tabContainer.dispatchEvent(event)
+      })
+    })
+  })
+</script>
+
+<style>
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+</style>

@@ -1,0 +1,92 @@
+{{-- SummaryStats Component --}}
+{{-- Props: stats (object with realtime, people, views, avgTime, bounceRate, events) --}}
+<div class="summary-stats">
+  <div class="stat-card">
+    <div class="stat-value">{{ stats.realtime }}</div>
+    <div class="stat-label">Realtime</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ formatNumber(stats.people) }}</div>
+    <div class="stat-label">People</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ formatNumber(stats.views) }}</div>
+    <div class="stat-label">Views</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ stats.avgTime }}</div>
+    <div class="stat-label">Avg time</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ stats.bounceRate }}%</div>
+    <div class="stat-label">Bounce</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ formatNumber(stats.events) }}</div>
+    <div class="stat-label">Events</div>
+  </div>
+</div>
+
+@ts
+function formatNumber(num: number): string {
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M'
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k'
+  }
+  return num.toString()
+}
+@endts
+
+<style>
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  background: var(--bg-secondary);
+  padding: 1.25rem;
+  border-radius: 8px;
+  text-align: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 1024px) {
+  .summary-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .summary-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+}
+</style>
