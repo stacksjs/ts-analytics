@@ -155,22 +155,58 @@ function getDashboardHtml(): string {
 
     let siteName = "Analytics Dashboard"
     let siteId = SITE_ID
+    let availableSites = []
     let stats = { realtime: 0, people: 0, views: 0, avgTime: "00:00", bounceRate: 0, events: 0 }
     let pages = [], referrers = [], deviceTypes = [], browsers = [], countries = [], campaigns = [], events = [], timeSeriesData = []
 
-    async function fetchDashboardData() {
-      if (!siteId) {
-        document.getElementById('no-site-warning').style.display = 'block'
+    async function fetchSites() {
+      const container = document.getElementById('site-list')
+      container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading sites...</p></div>'
+      try {
+        const res = await fetch(\`\${API_ENDPOINT}/api/sites\`)
+        if (!res.ok) throw new Error('Failed to fetch')
+        const data = await res.json()
+        availableSites = data.sites || []
+        renderSiteSelector()
+      } catch (err) {
+        container.innerHTML = '<div class="error"><p>Failed to load sites</p><button onclick="fetchSites()">Retry</button></div>'
+      }
+    }
+
+    function renderSiteSelector() {
+      const container = document.getElementById('site-list')
+      if (availableSites.length === 0) {
+        container.innerHTML = '<div class="empty"><p>No sites found. Create a site to start tracking.</p></div>'
         return
       }
-      document.getElementById('no-site-warning').style.display = 'none'
+      container.innerHTML = availableSites.map(s => \`
+        <button class="site-card" onclick="selectSite('\${s.id}', '\${(s.name || '').replace(/'/g, "\\\\'")}')">
+          <div class="site-icon"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg></div>
+          <div class="site-info"><span class="site-name">\${s.name || 'Unnamed'}</span><span class="site-domain">\${s.domains?.[0] || s.id}</span></div>
+          <svg class="arrow" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      \`).join('')
+    }
 
+    function selectSite(id, name) {
+      siteId = id
+      siteName = name || 'Analytics Dashboard'
+      document.getElementById('site-selector').style.display = 'none'
+      document.getElementById('dashboard').style.display = 'block'
+      document.getElementById('current-site-name').textContent = siteName
+      const url = new URL(window.location.href)
+      url.searchParams.set('siteId', id)
+      window.history.pushState({}, '', url)
+      fetchDashboardData()
+      setInterval(fetchDashboardData, 30000)
+    }
+
+    async function fetchDashboardData() {
       const baseUrl = \`\${API_ENDPOINT}/api/sites/\${siteId}\`
       const now = new Date()
       const thirtyDaysAgo = new Date(now)
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
       const params = \`?startDate=\${thirtyDaysAgo.toISOString()}&endDate=\${now.toISOString()}\`
-
       try {
         const [statsRes, realtimeRes, pagesRes, referrersRes, devicesRes, browsersRes, countriesRes, timeseriesRes, eventsRes, campaignsRes] = await Promise.all([
           fetch(\`\${baseUrl}/stats\${params}\`).then(r => r.json()).catch(() => ({})),
@@ -184,7 +220,6 @@ function getDashboardHtml(): string {
           fetch(\`\${baseUrl}/events\${params}\`).then(r => r.json()).catch(() => ({ events: [] })),
           fetch(\`\${baseUrl}/campaigns\${params}\`).then(r => r.json()).catch(() => ({ campaigns: [] })),
         ])
-
         stats = { realtime: realtimeRes.currentVisitors || 0, people: statsRes.people || 0, views: statsRes.views || 0, avgTime: statsRes.avgTime || "00:00", bounceRate: statsRes.bounceRate || 0, events: statsRes.events || 0 }
         pages = pagesRes.pages || []
         referrers = referrersRes.referrers || []
@@ -244,20 +279,46 @@ function getDashboardHtml(): string {
       for (let i = 0; i <= 4; i++) { ctx.fillText(fmt(Math.round(maxV - (maxV/4)*i)), pad.left-10, pad.top+(h/4)*i+3) }
     }
 
-    document.addEventListener('DOMContentLoaded', () => { fetchDashboardData(); setInterval(fetchDashboardData, 30000) })
+    document.addEventListener('DOMContentLoaded', () => {
+      if (siteId) {
+        document.getElementById('site-selector').style.display = 'none'
+        document.getElementById('dashboard').style.display = 'block'
+        fetchDashboardData()
+        setInterval(fetchDashboardData, 30000)
+      } else {
+        document.getElementById('site-selector').style.display = 'flex'
+        document.getElementById('dashboard').style.display = 'none'
+        fetchSites()
+      }
+    })
     window.addEventListener('resize', () => { if (timeSeriesData.length) renderChart() })
   </script>
   <style>
     :root { --bg: #1a1f2e; --bg2: #242938; --bg3: #2d3344; --text: #fff; --text2: #9ca3af; --muted: #6b7280; --accent: #818cf8; --success: #10b981; --border: #374151 }
     * { box-sizing: border-box; margin: 0; padding: 0 }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh }
+    .site-selector { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem }
+    .site-selector h1 { font-size: 1.5rem; margin-bottom: 0.5rem }
+    .site-selector p { color: var(--text2); margin-bottom: 2rem }
+    .site-list { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 0.75rem }
+    .site-card { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; text-align: left; width: 100%; transition: all 0.15s }
+    .site-card:hover { background: var(--bg3); border-color: var(--accent) }
+    .site-icon { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: var(--bg3); border-radius: 8px; color: var(--accent) }
+    .site-info { flex: 1; display: flex; flex-direction: column; gap: 0.25rem }
+    .site-info .site-name { font-weight: 500; color: var(--text) }
+    .site-info .site-domain { font-size: 0.75rem; color: var(--muted); font-family: monospace }
+    .site-card .arrow { color: var(--muted) }
+    .site-card:hover .arrow { color: var(--accent) }
+    .loading, .error, .empty { display: flex; flex-direction: column; align-items: center; padding: 3rem; color: var(--muted); gap: 1rem }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite }
+    @keyframes spin { to { transform: rotate(360deg) } }
+    .error button { background: var(--accent); color: white; border: none; padding: 0.5rem 1.5rem; border-radius: 6px; cursor: pointer }
     .dash { max-width: 1400px; margin: 0 auto; padding: 1rem }
     .header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--border); margin-bottom: 1rem }
-    .site-name { font-size: 1.25rem; font-weight: 600 }
+    .site-name-header { font-size: 1.25rem; font-weight: 600 }
     .realtime-badge { display: flex; align-items: center; gap: 0.5rem; background: var(--bg2); padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.875rem }
     .pulse { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite }
     @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.5 } }
-    .warning { background: #7c2d12; color: #fed7aa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: none }
     .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; margin-bottom: 1.5rem }
     .stat { background: var(--bg2); padding: 1.25rem; border-radius: 8px; text-align: center }
     .stat-val { font-size: 1.75rem; font-weight: 600 }
@@ -279,12 +340,16 @@ function getDashboardHtml(): string {
   </style>
 </head>
 <body>
-  <div class="dash">
+  <div id="site-selector" class="site-selector" style="display:none">
+    <h1>Analytics Dashboard</h1>
+    <p>Select a site to view analytics</p>
+    <div id="site-list" class="site-list"></div>
+  </div>
+  <div id="dashboard" class="dash" style="display:none">
     <header class="header">
-      <span class="site-name">Analytics Dashboard</span>
+      <span id="current-site-name" class="site-name-header">Analytics Dashboard</span>
       <div class="realtime-badge"><span class="pulse"></span><span id="realtime-count">0 current visitors</span></div>
     </header>
-    <div id="no-site-warning" class="warning">No siteId specified. Add <code>?siteId=YOUR_SITE_ID</code> to the URL.</div>
     <div class="stats">
       <div class="stat"><div class="stat-val" id="stat-realtime">0</div><div class="stat-lbl">Realtime</div></div>
       <div class="stat"><div class="stat-val" id="stat-people">0</div><div class="stat-lbl">People</div></div>
@@ -1360,6 +1425,44 @@ async function handleGetHeatmapPages(siteId: string, event: LambdaEvent) {
   }
 }
 
+// Handler to list all sites
+async function handleGetSites() {
+  try {
+    // Query all Site records from DynamoDB
+    // Sites have PK and SK both starting with SITE#
+    const result = await dynamodb.scan({
+      TableName: TABLE_NAME,
+      FilterExpression: 'begins_with(pk, :sitePrefix) AND begins_with(sk, :sitePrefix)',
+      ExpressionAttributeValues: {
+        ':sitePrefix': { S: 'SITE#' },
+      },
+      ProjectionExpression: 'id, #n, domains, isActive, createdAt',
+      ExpressionAttributeNames: {
+        '#n': 'name',
+      },
+    })
+
+    const sites = (result.Items || []).map((item: any) => ({
+      id: item.id?.S || '',
+      name: item.name?.S || 'Unnamed Site',
+      domains: item.domains?.L?.map((d: any) => d.S) || [],
+      isActive: item.isActive?.BOOL ?? true,
+      createdAt: item.createdAt?.S || '',
+    })).filter((site: any) => site.id && site.isActive)
+
+    // Sort by name
+    sites.sort((a: any, b: any) => a.name.localeCompare(b.name))
+
+    return response({
+      sites,
+      total: sites.length,
+    })
+  } catch (error) {
+    console.error('Get sites error:', error)
+    return response({ error: 'Failed to fetch sites' }, 500)
+  }
+}
+
 // Types for API Gateway HTTP API (v2) format
 interface LambdaEvent {
   version?: string
@@ -1439,6 +1542,11 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
 
   // Dashboard API routes
   if (method === 'GET') {
+    // /api/sites - list all sites
+    if (path === '/api/sites') {
+      return handleGetSites()
+    }
+
     const siteId = extractSiteId(path)
 
     if (siteId) {

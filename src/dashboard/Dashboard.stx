@@ -10,10 +10,28 @@
     const API_ENDPOINT = window.ANALYTICS_API_ENDPOINT || urlParams.get('api') || window.location.origin
     const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
 
+    // Sites list
+    let availableSites = []
+    let sitesLoading = true
+    let sitesError = null
+
     // Dashboard state
     let siteName = "Analytics Dashboard"
     let siteId = SITE_ID
     let dateRange = "Last 30 days"
+    let activeView = 'dashboard' // 'dashboard' or 'heatmap'
+
+    // Heatmap state
+    let heatmapPages = []
+    let selectedHeatmapPage = ''
+    let heatmapViewMode = 'click' // 'click' or 'scroll'
+    let heatmapClicks = []
+    let heatmapTopElements = []
+    let heatmapTotalClicks = 0
+    let heatmapScrollData = []
+    let heatmapAvgScrollDepth = 0
+    let heatmapTotalSessions = 0
+    let heatmapLoading = false
 
     // Summary stats
     let stats = {
@@ -35,6 +53,101 @@
     let campaigns = []
     let events = []
     let timeSeriesData = []
+
+    // Fetch available sites
+    async function fetchAvailableSites() {
+      sitesLoading = true
+      sitesError = null
+      try {
+        const res = await fetch(`${API_ENDPOINT}/api/sites`)
+        if (!res.ok) throw new Error('Failed to fetch sites')
+        const data = await res.json()
+        availableSites = data.sites || []
+        sitesLoading = false
+        renderSiteSelector()
+      } catch (err) {
+        sitesError = err.message || 'Failed to load sites'
+        sitesLoading = false
+        renderSiteSelector()
+      }
+    }
+
+    function renderSiteSelector() {
+      const container = document.getElementById('site-selector-container')
+      if (!container) return
+
+      if (sitesLoading) {
+        container.innerHTML = `
+          <div class="site-selector-loading">
+            <div class="spinner"></div>
+            <p>Loading sites...</p>
+          </div>
+        `
+        return
+      }
+
+      if (sitesError) {
+        container.innerHTML = `
+          <div class="site-selector-error">
+            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p>${sitesError}</p>
+            <button onclick="fetchAvailableSites()">Try Again</button>
+          </div>
+        `
+        return
+      }
+
+      if (availableSites.length === 0) {
+        container.innerHTML = `
+          <div class="site-selector-empty">
+            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+            </svg>
+            <h2>No Sites Found</h2>
+            <p>Create a site to start tracking analytics.</p>
+          </div>
+        `
+        return
+      }
+
+      container.innerHTML = `
+        <div class="site-selector-grid">
+          ${availableSites.map(site => `
+            <button class="site-card" onclick="selectSite('${site.id}', '${site.name.replace(/'/g, "\\'")}')">
+              <div class="site-card-icon">
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                </svg>
+              </div>
+              <div class="site-card-info">
+                <span class="site-card-name">${site.name}</span>
+                <span class="site-card-domain">${site.domains?.[0] || site.id}</span>
+              </div>
+              <svg class="site-card-arrow" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+          `).join('')}
+        </div>
+      `
+    }
+
+    function selectSite(id, name) {
+      siteId = id
+      siteName = name
+      document.getElementById('site-selector-screen').style.display = 'none'
+      document.getElementById('dashboard-content').style.display = 'block'
+      // Update URL without reload
+      const url = new URL(window.location.href)
+      url.searchParams.set('siteId', id)
+      window.history.pushState({}, '', url)
+      // Update site name in header
+      document.querySelector('.site-selector select').innerHTML = `<option>${name}</option>`
+      // Fetch dashboard data
+      fetchDashboardData()
+    }
 
     // Fetch data from API
     async function fetchDashboardData() {
@@ -96,6 +209,322 @@
       if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
       if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
       return String(num)
+    }
+
+    // Heatmap functions
+    async function fetchHeatmapPages() {
+      if (!siteId) return
+      try {
+        const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/heatmap/pages`)
+        const data = await res.json()
+        heatmapPages = data.pages || []
+        renderHeatmapPageSelector()
+      } catch (err) {
+        console.error('Failed to fetch heatmap pages:', err)
+      }
+    }
+
+    async function fetchHeatmapData() {
+      if (!siteId || !selectedHeatmapPage) return
+      heatmapLoading = true
+      renderHeatmapLoading()
+
+      const now = new Date()
+      const thirtyDaysAgo = new Date(now)
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      const params = `path=${encodeURIComponent(selectedHeatmapPage)}&startDate=${thirtyDaysAgo.toISOString()}&endDate=${now.toISOString()}`
+
+      try {
+        if (heatmapViewMode === 'click') {
+          const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/heatmap/clicks?${params}`)
+          const data = await res.json()
+          heatmapClicks = data.clicks || []
+          heatmapTopElements = data.topElements || []
+          heatmapTotalClicks = data.totalClicks || 0
+        } else {
+          const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/heatmap/scroll?${params}`)
+          const data = await res.json()
+          heatmapScrollData = data.scrollDepths || []
+          heatmapAvgScrollDepth = data.avgMaxDepth || 0
+          heatmapTotalSessions = data.totalSessions || 0
+        }
+        renderHeatmap()
+      } catch (err) {
+        console.error('Failed to fetch heatmap data:', err)
+      } finally {
+        heatmapLoading = false
+      }
+    }
+
+    function renderHeatmapPageSelector() {
+      const selector = document.getElementById('heatmap-page-select')
+      if (!selector) return
+      selector.innerHTML = '<option value="">Select a page...</option>' +
+        heatmapPages.map(p => `<option value="${p.path}">${p.path} (${p.clickCount || 0} clicks)</option>`).join('')
+    }
+
+    function renderHeatmapLoading() {
+      const container = document.getElementById('heatmap-viz')
+      if (!container) return
+      container.innerHTML = `
+        <div class="heatmap-loading">
+          <div class="spinner"></div>
+          <span>Loading heatmap data...</span>
+        </div>
+      `
+    }
+
+    function renderHeatmap() {
+      if (heatmapViewMode === 'click') {
+        renderClickHeatmap()
+      } else {
+        renderScrollHeatmap()
+      }
+      renderHeatmapSidebar()
+    }
+
+    function renderClickHeatmap() {
+      const container = document.getElementById('heatmap-viz')
+      if (!container) return
+
+      if (heatmapClicks.length === 0) {
+        container.innerHTML = `
+          <div class="heatmap-empty">
+            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+            </svg>
+            <p>No click data for this page yet</p>
+          </div>
+        `
+        return
+      }
+
+      // Create canvas-based heatmap
+      const width = container.offsetWidth
+      const height = 500
+      const maxCount = Math.max(...heatmapClicks.map(c => c.count), 1)
+
+      container.innerHTML = `
+        <div class="heatmap-canvas-container" style="position:relative;width:100%;height:${height}px;background:#1a1f2e;border-radius:8px;overflow:hidden;">
+          <canvas id="heatmap-canvas" width="${width}" height="${height}"></canvas>
+          <div class="heatmap-stats">
+            <span>${heatmapTotalClicks.toLocaleString()} total clicks</span>
+          </div>
+        </div>
+      `
+
+      const canvas = document.getElementById('heatmap-canvas')
+      const ctx = canvas.getContext('2d')
+
+      // Draw click points as heat
+      for (const click of heatmapClicks) {
+        const intensity = click.count / maxCount
+        const x = (click.x / 100) * width
+        const y = (click.y / 100) * height
+        drawHeatPoint(ctx, x, y, intensity, 30)
+      }
+
+      // Colorize
+      colorizeHeatmap(ctx, width, height)
+    }
+
+    function drawHeatPoint(ctx, x, y, intensity, radius) {
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius)
+      gradient.addColorStop(0, `rgba(255, 255, 255, ${intensity * 0.6})`)
+      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
+      ctx.fillStyle = gradient
+      ctx.beginPath()
+      ctx.arc(x, y, radius, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    function colorizeHeatmap(ctx, width, height) {
+      const imageData = ctx.getImageData(0, 0, width, height)
+      const data = imageData.data
+
+      for (let i = 0; i < data.length; i += 4) {
+        const alpha = data[i + 3]
+        if (alpha > 0) {
+          const ratio = alpha / 255
+          // Blue -> Green -> Yellow -> Red gradient
+          if (ratio < 0.25) {
+            data[i] = 0
+            data[i + 1] = Math.floor(ratio * 4 * 255)
+            data[i + 2] = 255
+          } else if (ratio < 0.5) {
+            data[i] = 0
+            data[i + 1] = 255
+            data[i + 2] = Math.floor((1 - (ratio - 0.25) * 4) * 255)
+          } else if (ratio < 0.75) {
+            data[i] = Math.floor((ratio - 0.5) * 4 * 255)
+            data[i + 1] = 255
+            data[i + 2] = 0
+          } else {
+            data[i] = 255
+            data[i + 1] = Math.floor((1 - (ratio - 0.75) * 4) * 255)
+            data[i + 2] = 0
+          }
+          data[i + 3] = Math.min(255, alpha * 2)
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0)
+    }
+
+    function renderScrollHeatmap() {
+      const container = document.getElementById('heatmap-viz')
+      if (!container) return
+
+      if (heatmapScrollData.length === 0) {
+        container.innerHTML = `
+          <div class="heatmap-empty">
+            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+            </svg>
+            <p>No scroll data for this page yet</p>
+          </div>
+        `
+        return
+      }
+
+      const getColor = (pct) => {
+        if (pct >= 80) return '#10b981'
+        if (pct >= 60) return '#34d399'
+        if (pct >= 40) return '#fbbf24'
+        if (pct >= 20) return '#f97316'
+        return '#ef4444'
+      }
+
+      // Create depth buckets 0-100 in 10% increments
+      const buckets = []
+      for (let d = 0; d <= 90; d += 10) {
+        const dataPoint = heatmapScrollData.find(s => s.depth === d)
+        buckets.push({
+          depth: d,
+          reachPercentage: dataPoint?.reachPercentage ?? (d === 0 ? 100 : 0),
+          avgTimeMs: dataPoint?.avgTimeMs ?? 0
+        })
+      }
+
+      container.innerHTML = `
+        <div class="scroll-heatmap">
+          <div class="scroll-stats">
+            <div class="scroll-stat">
+              <span class="scroll-stat-value">${Math.round(heatmapAvgScrollDepth)}%</span>
+              <span class="scroll-stat-label">Avg. Scroll Depth</span>
+            </div>
+            <div class="scroll-stat">
+              <span class="scroll-stat-value">${heatmapTotalSessions.toLocaleString()}</span>
+              <span class="scroll-stat-label">Total Sessions</span>
+            </div>
+          </div>
+          <div class="scroll-bars">
+            ${buckets.map(b => `
+              <div class="scroll-bar-row">
+                <span class="scroll-depth-label">${b.depth}%</span>
+                <div class="scroll-bar-track">
+                  <div class="scroll-bar-fill" style="width:${b.reachPercentage}%;background:${getColor(b.reachPercentage)}"></div>
+                </div>
+                <span class="scroll-reach-label">${b.reachPercentage}%</span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="scroll-legend">
+            <span><span class="legend-dot" style="background:#10b981"></span>80%+ reach</span>
+            <span><span class="legend-dot" style="background:#fbbf24"></span>40-60% reach</span>
+            <span><span class="legend-dot" style="background:#ef4444"></span>&lt;20% reach</span>
+          </div>
+        </div>
+      `
+    }
+
+    function renderHeatmapSidebar() {
+      const sidebar = document.getElementById('heatmap-sidebar')
+      if (!sidebar) return
+
+      if (heatmapViewMode === 'click' && heatmapTopElements.length > 0) {
+        const maxClicks = heatmapTopElements[0]?.clicks || 1
+        sidebar.innerHTML = `
+          <div class="heatmap-panel">
+            <h3>Top Clicked Elements</h3>
+            <div class="element-list">
+              ${heatmapTopElements.slice(0, 15).map(el => `
+                <div class="element-item">
+                  <div class="element-info">
+                    <span class="element-tag">&lt;${el.tag}&gt;</span>
+                    <span class="element-selector" title="${el.selector}">${el.selector}</span>
+                  </div>
+                  <div class="element-stats">
+                    <div class="element-bar-track">
+                      <div class="element-bar-fill" style="width:${(el.clicks / maxClicks) * 100}%"></div>
+                    </div>
+                    <span class="element-clicks">${el.clicks}</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `
+      } else if (heatmapViewMode === 'scroll') {
+        sidebar.innerHTML = `
+          <div class="heatmap-panel">
+            <h3>Scroll Insights</h3>
+            <div class="insight-list">
+              <div class="insight-item">
+                <span class="insight-label">Average scroll depth</span>
+                <span class="insight-value">${Math.round(heatmapAvgScrollDepth)}%</span>
+              </div>
+              <div class="insight-item">
+                <span class="insight-label">Sessions analyzed</span>
+                <span class="insight-value">${heatmapTotalSessions.toLocaleString()}</span>
+              </div>
+              <div class="insight-item">
+                <span class="insight-label">Reached 50%</span>
+                <span class="insight-value">${heatmapScrollData.find(s => s.depth === 50)?.reachPercentage || 0}%</span>
+              </div>
+              <div class="insight-item">
+                <span class="insight-label">Reached bottom</span>
+                <span class="insight-value">${heatmapScrollData.find(s => s.depth === 90)?.reachPercentage || 0}%</span>
+              </div>
+            </div>
+          </div>
+        `
+      } else {
+        sidebar.innerHTML = `
+          <div class="heatmap-panel">
+            <h3>No Data</h3>
+            <p class="text-muted">Select a page to view heatmap data</p>
+          </div>
+        `
+      }
+    }
+
+    function switchView(view) {
+      activeView = view
+      document.getElementById('dashboard-view').style.display = view === 'dashboard' ? 'block' : 'none'
+      document.getElementById('heatmap-view').style.display = view === 'heatmap' ? 'block' : 'none'
+      document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'))
+      document.querySelector(`.view-tab[data-view="${view}"]`)?.classList.add('active')
+
+      if (view === 'heatmap' && heatmapPages.length === 0) {
+        fetchHeatmapPages()
+      }
+    }
+
+    function switchHeatmapMode(mode) {
+      heatmapViewMode = mode
+      document.querySelectorAll('.heatmap-mode-btn').forEach(b => b.classList.remove('active'))
+      document.querySelector(`.heatmap-mode-btn[data-mode="${mode}"]`)?.classList.add('active')
+      if (selectedHeatmapPage) {
+        fetchHeatmapData()
+      }
+    }
+
+    function selectHeatmapPage(path) {
+      selectedHeatmapPage = path
+      if (path) {
+        fetchHeatmapData()
+      }
     }
 
     function renderDashboard() {
@@ -272,9 +701,19 @@
 
     // Initial load
     document.addEventListener('DOMContentLoaded', () => {
-      fetchDashboardData()
-      // Refresh realtime every 30 seconds
-      setInterval(fetchDashboardData, 30000)
+      if (siteId) {
+        // Site ID provided - show dashboard directly
+        document.getElementById('site-selector-screen').style.display = 'none'
+        document.getElementById('dashboard-content').style.display = 'block'
+        fetchDashboardData()
+        // Refresh realtime every 30 seconds
+        setInterval(fetchDashboardData, 30000)
+      } else {
+        // No site ID - show site selector
+        document.getElementById('site-selector-screen').style.display = 'flex'
+        document.getElementById('dashboard-content').style.display = 'none'
+        fetchAvailableSites()
+      }
     })
   </script>
   <style>
@@ -580,6 +1019,470 @@
       text-decoration: underline;
     }
 
+    /* View Tabs */
+    .view-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .view-tab {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .view-tab:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .view-tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    /* Heatmap Section */
+    .heatmap-container {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1rem;
+    }
+
+    .heatmap-main {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .heatmap-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: var(--bg-secondary);
+      padding: 1rem;
+      border-radius: 8px;
+    }
+
+    .heatmap-controls select {
+      flex: 1;
+      max-width: 400px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+    }
+
+    .heatmap-mode-btns {
+      display: flex;
+      gap: 0.25rem;
+      background: var(--bg-tertiary);
+      padding: 0.25rem;
+      border-radius: 6px;
+    }
+
+    .heatmap-mode-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      font-size: 0.8125rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .heatmap-mode-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .heatmap-mode-btn.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .heatmap-viz-container {
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 540px;
+    }
+
+    .heatmap-loading, .heatmap-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 500px;
+      color: var(--text-muted);
+      gap: 1rem;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .heatmap-canvas-container {
+      position: relative;
+    }
+
+    .heatmap-stats {
+      position: absolute;
+      bottom: 1rem;
+      right: 1rem;
+      background: rgba(0,0,0,0.7);
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: white;
+    }
+
+    /* Scroll Heatmap */
+    .scroll-heatmap {
+      padding: 1rem;
+    }
+
+    .scroll-stats {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .scroll-stat {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .scroll-stat-value {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .scroll-stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .scroll-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .scroll-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .scroll-depth-label {
+      width: 40px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    .scroll-bar-track {
+      flex: 1;
+      height: 24px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .scroll-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .scroll-reach-label {
+      width: 50px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .scroll-legend {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .legend-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 0.375rem;
+    }
+
+    /* Heatmap Sidebar */
+    .heatmap-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .heatmap-panel {
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .heatmap-panel h3 {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+    }
+
+    .element-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .element-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+    }
+
+    .element-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .element-tag {
+      font-size: 0.6875rem;
+      font-family: monospace;
+      color: var(--accent);
+      background: var(--bg-tertiary);
+      padding: 0.125rem 0.375rem;
+      border-radius: 3px;
+    }
+
+    .element-selector {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 200px;
+    }
+
+    .element-stats {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .element-bar-track {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .element-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+    }
+
+    .element-clicks {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .insight-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .insight-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--bg-tertiary);
+    }
+
+    .insight-item:last-child {
+      border-bottom: none;
+    }
+
+    .insight-label {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+    }
+
+    .insight-value {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .text-muted {
+      color: var(--text-muted);
+      font-size: 0.8125rem;
+    }
+
+    /* Site Selector Screen */
+    .site-selector-screen {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .site-selector-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .site-selector-header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .site-selector-header p {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .site-selector-container {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .site-selector-loading,
+    .site-selector-error,
+    .site-selector-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      text-align: center;
+      color: var(--text-muted);
+      gap: 1rem;
+    }
+
+    .site-selector-error button,
+    .site-selector-empty button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.5rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+
+    .site-selector-empty h2 {
+      font-size: 1.125rem;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .site-selector-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .site-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+      width: 100%;
+    }
+
+    .site-card:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--accent);
+    }
+
+    .site-card-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      color: var(--accent);
+    }
+
+    .site-card-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .site-card-name {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .site-card-domain {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
+    .site-card-arrow {
+      color: var(--text-muted);
+    }
+
+    .site-card:hover .site-card-arrow {
+      color: var(--accent);
+    }
+
     /* Responsive */
     @media (max-width: 1024px) {
       .summary-stats {
@@ -587,6 +1490,12 @@
       }
       .data-grid {
         grid-template-columns: 1fr;
+      }
+      .heatmap-container {
+        grid-template-columns: 1fr;
+      }
+      .heatmap-sidebar {
+        order: -1;
       }
     }
 
@@ -598,11 +1507,33 @@
         flex-direction: column;
         gap: 1rem;
       }
+      .heatmap-controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .heatmap-controls select {
+        max-width: none;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="dashboard">
+  <!-- Site Selector Screen (shown when no siteId) -->
+  <div id="site-selector-screen" class="site-selector-screen" style="display:none">
+    <div class="site-selector-header">
+      <h1>Analytics Dashboard</h1>
+      <p>Select a site to view analytics</p>
+    </div>
+    <div id="site-selector-container" class="site-selector-container">
+      <div class="site-selector-loading">
+        <div class="spinner"></div>
+        <p>Loading sites...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div id="dashboard-content" class="dashboard" style="display:none">
     <!-- Header -->
     <header class="header">
       <div class="site-selector">
@@ -628,6 +1559,26 @@
         </button>
       </div>
     </header>
+
+    <!-- View Tabs -->
+    <div class="view-tabs">
+      <button class="view-tab active" data-view="dashboard" onclick="switchView('dashboard')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline;vertical-align:middle;margin-right:0.375rem">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        Dashboard
+      </button>
+      <button class="view-tab" data-view="heatmap" onclick="switchView('heatmap')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline;vertical-align:middle;margin-right:0.375rem">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"/>
+        </svg>
+        Heatmaps
+      </button>
+    </div>
+
+    <!-- Dashboard View -->
+    <div id="dashboard-view">
 
     <!-- Date Range Bar -->
     <div class="date-bar">
@@ -838,7 +1789,63 @@
         </div>
       </div>
     </div>
-  </div>
+
+    </div><!-- End Dashboard View -->
+
+    <!-- Heatmap View -->
+    <div id="heatmap-view" style="display:none">
+      <div class="heatmap-container">
+        <div class="heatmap-main">
+          <!-- Controls -->
+          <div class="heatmap-controls">
+            <select id="heatmap-page-select" onchange="selectHeatmapPage(this.value)">
+              <option value="">Select a page...</option>
+            </select>
+            <div class="heatmap-mode-btns">
+              <button class="heatmap-mode-btn active" data-mode="click" onclick="switchHeatmapMode('click')">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline;vertical-align:middle;margin-right:0.25rem">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+                </svg>
+                Clicks
+              </button>
+              <button class="heatmap-mode-btn" data-mode="scroll" onclick="switchHeatmapMode('scroll')">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline;vertical-align:middle;margin-right:0.25rem">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                </svg>
+                Scroll
+              </button>
+            </div>
+            <button class="icon-btn" title="Refresh" onclick="fetchHeatmapData()">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Visualization -->
+          <div class="heatmap-viz-container">
+            <div id="heatmap-viz">
+              <div class="heatmap-empty">
+                <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
+                </svg>
+                <p>Select a page to view its heatmap</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="heatmap-sidebar" id="heatmap-sidebar">
+          <div class="heatmap-panel">
+            <h3>Getting Started</h3>
+            <p class="text-muted">Select a page from the dropdown to view click or scroll heatmaps. Heatmap data is collected from user interactions on your site.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- End dashboard-content -->
 
   <script>
     // Tab switching logic
