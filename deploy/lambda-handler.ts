@@ -448,25 +448,24 @@ function getDashboardHtml(): string {
 
     // Animate number transitions
     function animateValue(element, start, end, duration, formatter) {
-      if (start === end) {
-        element.textContent = formatter ? formatter(end) : end
+      // Ensure numeric values for comparison and animation
+      const startNum = typeof start === 'number' ? start : (parseFloat(start) || 0)
+      const endNum = typeof end === 'number' ? end : (parseFloat(end) || 0)
+
+      if (startNum === endNum) {
+        element.textContent = formatter ? formatter(endNum) : endNum
         return
       }
+
       const startTime = performance.now()
-      const isNumber = typeof end === 'number'
 
       function update(currentTime) {
         const elapsed = currentTime - startTime
         const progress = Math.min(elapsed / duration, 1)
         // Ease out cubic for smooth deceleration
         const easeProgress = 1 - Math.pow(1 - progress, 3)
-
-        if (isNumber) {
-          const current = Math.round(start + (end - start) * easeProgress)
-          element.textContent = formatter ? formatter(current) : current
-        } else {
-          element.textContent = end
-        }
+        const current = Math.round(startNum + (endNum - startNum) * easeProgress)
+        element.textContent = formatter ? formatter(current) : current
 
         if (progress < 1) {
           requestAnimationFrame(update)
@@ -738,7 +737,17 @@ function getDashboardHtml(): string {
         : '<tr><td colspan="4" class="empty-cell">No page data</td></tr>'
 
       document.getElementById('referrers-body').innerHTML = referrers.length
-        ? referrers.slice(0,10).map(r => \`<tr><td class="name">\${r.source || 'Direct'}</td><td class="value">\${fmt(r.visitors||0)}</td><td class="value">\${fmt(r.views||0)}</td></tr>\`).join('')
+        ? referrers.slice(0,10).map(r => {
+            const source = r.source || 'Direct'
+            const sourceLower = source.toLowerCase()
+            const isLink = sourceLower !== 'direct' && !source.includes('(') && source.includes('.')
+            const domain = source.replace(/^https?:\\/\\//, '').split('/')[0]
+            const favicon = isLink ? \`<img src="https://www.google.com/s2/favicons?domain=\${domain}&sz=16" width="14" height="14" style="vertical-align:middle;margin-right:6px;border-radius:2px" onerror="this.style.display='none'">\` : ''
+            const linkHtml = isLink
+              ? \`<a href="\${source.startsWith('http') ? source : 'https://' + source}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px">\${favicon}\${source}<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a>\`
+              : source
+            return \`<tr><td class="name">\${linkHtml}</td><td class="value">\${fmt(r.visitors||0)}</td><td class="value">\${fmt(r.views||0)}</td></tr>\`
+          }).join('')
         : '<tr><td colspan="3" class="empty-cell">No referrer data</td></tr>'
 
       document.getElementById('devices-body').innerHTML = deviceTypes.length
@@ -967,6 +976,15 @@ function getDashboardHtml(): string {
         currentSite = { id: siteId }
         document.getElementById('site-selector').style.display = 'none'
         document.getElementById('dashboard').style.display = 'block'
+
+        // Load and display cached stats immediately before fetching
+        const cached = loadCachedStats()
+        if (cached) {
+          stats = cached
+          previousStats = null
+          renderDashboard(false)
+        }
+
         fetchDashboardData()
         refreshInterval = setInterval(fetchDashboardData, 30000)
       } else {
@@ -1023,7 +1041,8 @@ function getDashboardHtml(): string {
     .last-updated { font-size: 0.75rem; color: var(--muted) }
     .refresh-btn { background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 0.5rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s }
     .refresh-btn:hover { border-color: var(--accent); color: var(--text) }
-    .refresh-btn.spinning svg { animation: spin 1s linear infinite }
+    .refresh-btn.spinning svg { animation: spinReverse 1s linear infinite }
+    @keyframes spinReverse { to { transform: rotate(-360deg) } }
 
     /* Stats */
     .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; margin-bottom: 1.5rem }
@@ -1136,13 +1155,35 @@ function getDashboardHtml(): string {
     </div>
 
     <div class="stats">
-      <div class="stat highlight"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg><div class="stat-val" id="stat-realtime">0</div><div class="stat-lbl">Realtime</div></div>
-      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="stat-val" id="stat-sessions">0</div><div class="stat-lbl">Sessions</div></div>
-      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg><div class="stat-val" id="stat-people">0</div><div class="stat-lbl">Visitors</div></div>
-      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg><div class="stat-val" id="stat-views">0</div><div class="stat-lbl">Pageviews</div></div>
-      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="stat-val" id="stat-avgtime">00:00</div><div class="stat-lbl">Avg Time</div></div>
-      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg><div class="stat-val" id="stat-bounce">0%</div><div class="stat-lbl">Bounce Rate</div></div>
+      <div class="stat highlight"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg><div class="stat-val" id="stat-realtime">—</div><div class="stat-lbl">Realtime</div></div>
+      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="stat-val" id="stat-sessions">—</div><div class="stat-lbl">Sessions</div></div>
+      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg><div class="stat-val" id="stat-people">—</div><div class="stat-lbl">Visitors</div></div>
+      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg><div class="stat-val" id="stat-views">—</div><div class="stat-lbl">Pageviews</div></div>
+      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="stat-val" id="stat-avgtime">—</div><div class="stat-lbl">Avg Time</div></div>
+      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg><div class="stat-val" id="stat-bounce">—</div><div class="stat-lbl">Bounce Rate</div></div>
     </div>
+    <script>
+      // Immediately populate from cache before any other JS runs
+      (function() {
+        try {
+          var urlParams = new URLSearchParams(window.location.search);
+          var siteId = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || '';
+          if (!siteId) return;
+          var cached = localStorage.getItem('ts-analytics-stats-' + siteId);
+          if (!cached) return;
+          var data = JSON.parse(cached);
+          if (!data.timestamp || Date.now() - data.timestamp > 24 * 60 * 60 * 1000) return;
+          var s = data.stats;
+          var fmt = function(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : String(n); };
+          if (s.realtime !== undefined) document.getElementById('stat-realtime').textContent = fmt(s.realtime);
+          if (s.sessions !== undefined) document.getElementById('stat-sessions').textContent = fmt(s.sessions);
+          if (s.people !== undefined) document.getElementById('stat-people').textContent = fmt(s.people);
+          if (s.views !== undefined) document.getElementById('stat-views').textContent = fmt(s.views);
+          if (s.avgTime !== undefined) document.getElementById('stat-avgtime').textContent = s.avgTime;
+          if (s.bounceRate !== undefined) document.getElementById('stat-bounce').textContent = s.bounceRate + '%';
+        } catch(e) {}
+      })();
+    </script>
 
     <div id="no-data-msg" class="no-data" style="display:none">
       <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--warning);margin-bottom:1rem"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
@@ -1315,6 +1356,30 @@ async function handleCollect(event: LambdaEvent) {
 
     const sessionKey = `${payload.s}:${sessionId}`
     let session = getSession(sessionKey)
+
+    // If not in memory cache, try to load from DynamoDB
+    if (!session) {
+      try {
+        const sessionResult = await dynamodb.getItem({
+          TableName: TABLE_NAME,
+          Key: {
+            pk: { S: `SITE#${payload.s}` },
+            sk: { S: `SESSION#${sessionId}` },
+          },
+        })
+        if (sessionResult.Item) {
+          session = unmarshall(sessionResult.Item) as SessionType
+          // Ensure startedAt is a Date
+          if (typeof session.startedAt === 'string') {
+            session.startedAt = new Date(session.startedAt)
+          }
+          setSession(sessionKey, session)
+        }
+      } catch (e) {
+        console.log('[Collect] Failed to load session from DB:', e)
+      }
+    }
+
     const isNewSession = !session
 
     if (payload.e === 'pageview') {
@@ -1359,7 +1424,9 @@ async function handleCollect(event: LambdaEvent) {
         session.exitPath = parsedUrl.pathname
         session.endedAt = timestamp
         session.isBounce = false
-        session.duration = timestamp.getTime() - session.startedAt.getTime()
+        // Ensure startedAt is a Date object for duration calculation
+        const startedAt = session.startedAt instanceof Date ? session.startedAt : new Date(session.startedAt)
+        session.duration = timestamp.getTime() - startedAt.getTime()
       }
       else {
         session = {
@@ -1386,7 +1453,7 @@ async function handleCollect(event: LambdaEvent) {
         }
       }
 
-      // Upsert session using Eloquent model
+      // Upsert session using ORM
       await SessionModel.upsert(session)
       setSession(sessionKey, session)
 
@@ -1426,7 +1493,9 @@ async function handleCollect(event: LambdaEvent) {
       if (session) {
         session.eventCount += 1
         session.endedAt = timestamp
-        session.duration = timestamp.getTime() - session.startedAt.getTime()
+        // Ensure startedAt is a Date object for duration calculation
+        const startedAt = session.startedAt instanceof Date ? session.startedAt : new Date(session.startedAt)
+        session.duration = timestamp.getTime() - startedAt.getTime()
 
         await SessionModel.upsert(session)
         setSession(sessionKey, session)
@@ -1466,7 +1535,9 @@ async function handleCollect(event: LambdaEvent) {
       if (session) {
         session.eventCount += 1
         session.endedAt = timestamp
-        session.duration = timestamp.getTime() - session.startedAt.getTime()
+        // Ensure startedAt is a Date object for duration calculation
+        const startedAt = session.startedAt instanceof Date ? session.startedAt : new Date(session.startedAt)
+        session.duration = timestamp.getTime() - startedAt.getTime()
 
         await SessionModel.upsert(session)
         setSession(sessionKey, session)
@@ -1553,7 +1624,7 @@ async function handleDashboard() {
     statusCode: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
     },
     body: getDashboardHtml(),
   }
@@ -1579,7 +1650,7 @@ async function handleScript(event: LambdaEvent) {
     statusCode: 200,
     headers: {
       'Content-Type': 'application/javascript',
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'no-cache, must-revalidate',
       'Access-Control-Allow-Origin': '*',
     },
     body: script,
@@ -1617,8 +1688,8 @@ async function handleGetStats(siteId: string, event: LambdaEvent) {
       },
     }) as { Items?: any[]; Count?: number }
 
-    // Query realtime visitors (last 5 minutes)
-    const realtimeCutoff = new Date(Date.now() - 5 * 60 * 1000)
+    // Query realtime visitors (last 2 minutes)
+    const realtimeCutoff = new Date(Date.now() - 2 * 60 * 1000)
     const realtimeResult = await dynamodb.query({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
@@ -1666,7 +1737,7 @@ async function handleGetStats(siteId: string, event: LambdaEvent) {
 
 async function handleGetRealtime(siteId: string, event: LambdaEvent) {
   try {
-    const minutes = Number(event.queryStringParameters?.minutes) || 5
+    const minutes = Number(event.queryStringParameters?.minutes) || 2
     const cutoff = new Date(Date.now() - minutes * 60 * 1000)
 
     // Query recent pageviews
@@ -2173,16 +2244,24 @@ async function handleGetGoals(siteId: string, event: LambdaEvent) {
     const includeInactive = event.queryStringParameters?.includeInactive === 'true'
     const { startDate, endDate } = parseDateRange(event.queryStringParameters)
 
-    // Get goals
-    const allGoals = await Goal.forSite(siteId).get()
-    const goals = includeInactive ? allGoals : allGoals.filter(g => g.isActive)
+    // Query goals using ORM
+    const queryBuilder = Goal.forSite(siteId)
+    if (!includeInactive) {
+      queryBuilder.active()
+    }
+    const goals = await queryBuilder.get()
 
-    // Get conversion counts for each goal
+    // Get conversion counts for each goal using ORM
     const goalsWithStats = await Promise.all(goals.map(async (goal) => {
-      const conversions = await Conversion.forGoal(siteId, goal.id)
-        .since(startDate)
-        .until(endDate)
-        .get()
+      let conversions: Conversion[] = []
+      try {
+        conversions = await Conversion.forGoal(siteId, goal.id)
+          .since(startDate)
+          .until(endDate)
+          .get()
+      } catch (e) {
+        console.log('[GetGoals] Conversion query failed:', e)
+      }
 
       const uniqueVisitors = new Set(conversions.map(c => c.visitorId)).size
       const totalValue = conversions.reduce((sum, c) => sum + (c.value || 0), 0)
@@ -2754,23 +2833,9 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
       if (path.endsWith('/goals/stats')) {
         return handleGetGoalStats(siteId, event)
       }
-      // /api/sites/{siteId}/goals
-      if (path.endsWith('/goals') && method === 'GET') {
+      // /api/sites/{siteId}/goals (GET only - POST/PUT/DELETE handled below)
+      if (path.endsWith('/goals')) {
         return handleGetGoals(siteId, event)
-      }
-      if (path.endsWith('/goals') && method === 'POST') {
-        return handleCreateGoal(siteId, event)
-      }
-      // /api/sites/{siteId}/goals/{goalId}
-      const goalIdMatch = path.match(/\/goals\/([^/]+)$/)
-      if (goalIdMatch) {
-        const goalId = goalIdMatch[1]
-        if (method === 'PUT') {
-          return handleUpdateGoal(siteId, goalId, event)
-        }
-        if (method === 'DELETE') {
-          return handleDeleteGoal(siteId, goalId)
-        }
       }
       // /api/sites/{siteId}/heatmap/clicks
       if (path.includes('/heatmap/clicks')) {
@@ -2783,6 +2848,26 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
       // /api/sites/{siteId}/heatmap/pages
       if (path.includes('/heatmap/pages')) {
         return handleGetHeatmapPages(siteId, event)
+      }
+    }
+  }
+
+  // Goal CRUD routes (POST/PUT/DELETE)
+  const siteId = extractSiteId(path)
+  if (siteId) {
+    // /api/sites/{siteId}/goals
+    if (path.endsWith('/goals') && method === 'POST') {
+      return handleCreateGoal(siteId, event)
+    }
+    // /api/sites/{siteId}/goals/{goalId}
+    const goalIdMatch = path.match(/\/goals\/([^/]+)$/)
+    if (goalIdMatch) {
+      const goalId = goalIdMatch[1]
+      if (method === 'PUT') {
+        return handleUpdateGoal(siteId, goalId, event)
+      }
+      if (method === 'DELETE') {
+        return handleDeleteGoal(siteId, goalId)
       }
     }
   }

@@ -2872,7 +2872,7 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
   var d=document,w=window,n=navigator,s=d.currentScript;
   var site=s.dataset.site,api=s.dataset.api;
   ${options.honorDnt ? 'if(n.doNotTrack==="1")return;' : ''}
-  var q=[],sid=Math.random().toString(36).slice(2);
+  var q=[],sk='_tsa_sid',sid;try{sid=sessionStorage.getItem(sk)}catch(e){}if(!sid){sid=Math.random().toString(36).slice(2);try{sessionStorage.setItem(sk,sid)}catch(e){}}
   function t(e,p){
     var x=new XMLHttpRequest();
     x.open('POST',api+'/collect',true);

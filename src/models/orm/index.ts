@@ -45,7 +45,16 @@ import type { DeviceType } from '../../types'
 // Configuration
 // ============================================================================
 
-let tableName = process.env.ANALYTICS_TABLE_NAME || 'ts-analytics'
+// Use a config object for reliable bundling - object reference is preserved
+const analyticsConfig = {
+  tableName: process.env.ANALYTICS_TABLE_NAME || 'ts-analytics',
+}
+
+// Getter function that always returns current config value
+export function getTableName(): string {
+  return analyticsConfig.tableName
+}
+
 
 export interface AnalyticsConfig {
   tableName?: string
@@ -63,7 +72,8 @@ export interface AnalyticsConfig {
  */
 export function configureAnalytics(config: AnalyticsConfig): void {
   if (config.tableName) {
-    tableName = config.tableName
+    analyticsConfig.tableName = config.tableName
+    console.log('[ORM] Configured tableName:', analyticsConfig.tableName)
   }
 
   configureModels({
@@ -87,7 +97,7 @@ export function configureAnalytics(config: AnalyticsConfig): void {
  * - GSI1SK: PATH#{path}
  */
 export class PageView extends Model {
-  static get tableName() { return tableName }
+  static get tableName() { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'PAGEVIEW'
   static primaryKey = 'id'
@@ -167,7 +177,7 @@ export class PageView extends Model {
     })
 
     await client.putItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Item: marshall(item),
     })
 
@@ -242,7 +252,7 @@ class PageViewQueryBuilder {
       : 'PAGEVIEW#\uffff'
 
     const result = await client.query({
-      TableName: tableName,
+      TableName: getTableName(),
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${this.siteId}` },
@@ -269,7 +279,7 @@ class PageViewQueryBuilder {
       : 'PAGEVIEW#\uffff'
 
     const result = await client.query({
-      TableName: tableName,
+      TableName: getTableName(),
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${this.siteId}` },
@@ -295,7 +305,7 @@ class PageViewQueryBuilder {
  * - SK: SESSION#{sessionId}
  */
 export class Session extends Model {
-  static get tableName() { return tableName }
+  static get tableName() { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'SESSION'
   static primaryKey = 'id'
@@ -332,7 +342,7 @@ export class Session extends Model {
     })
 
     const result = await client.getItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Key: {
         pk: { S: `SITE#${siteId}` },
         sk: { S: `SESSION#${sessionId}` },
@@ -368,7 +378,7 @@ export class Session extends Model {
     })
 
     await client.putItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Item: marshall(item),
     })
 
@@ -402,7 +412,7 @@ export class Session extends Model {
 
     if (setParts.length > 0) {
       await client.updateItem({
-        TableName: tableName,
+        TableName: getTableName(),
         Key: {
           pk: { S: `SITE#${this.siteId}` },
           sk: { S: `SESSION#${this.id}` },
@@ -470,7 +480,7 @@ class SessionQueryBuilder {
     })
 
     const result = await client.query({
-      TableName: tableName,
+      TableName: getTableName(),
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${this.siteId}` },
@@ -514,7 +524,7 @@ class SessionQueryBuilder {
  * - GSI1SK: EVENT#{name}
  */
 export class CustomEvent extends Model {
-  static get tableName() { return tableName }
+  static get tableName() { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'EVENT'
   static primaryKey = 'id'
@@ -566,7 +576,7 @@ export class CustomEvent extends Model {
     })
 
     await client.putItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Item: marshall(item),
     })
 
@@ -631,7 +641,7 @@ class EventQueryBuilder {
       : 'EVENT#\uffff'
 
     const result = await client.query({
-      TableName: tableName,
+      TableName: getTableName(),
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${this.siteId}` },
@@ -772,7 +782,7 @@ function unmarshallValue(value: any): any {
  * - GSI1SK: HMCLICK#{timestamp}
  */
 export class HeatmapClick extends Model {
-  static get tableName() { return tableName }
+  static get tableName() { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'HMCLICK'
   static primaryKey = 'id'
@@ -825,7 +835,7 @@ export class HeatmapClick extends Model {
     })
 
     await client.putItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Item: marshall(item),
     })
 
@@ -905,7 +915,7 @@ class HeatmapClickQueryBuilder {
         : 'HMCLICK#\uffff'
 
       const result = await client.query({
-        TableName: tableName,
+        TableName: getTableName(),
         IndexName: 'gsi1',
         KeyConditionExpression: 'gsi1pk = :pk AND gsi1sk BETWEEN :start AND :end',
         ExpressionAttributeValues: {
@@ -935,7 +945,7 @@ class HeatmapClickQueryBuilder {
       : 'HMCLICK#\uffff'
 
     const result = await client.query({
-      TableName: tableName,
+      TableName: getTableName(),
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${this.siteId}` },
@@ -1014,7 +1024,7 @@ interface HeatmapAggregation {
  * - SK: HMMOVE#{sessionId}#{path}#{timestamp}
  */
 export class HeatmapMovement extends Model {
-  static get tableName() { return tableName }
+  static get tableName() { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'HMMOVE'
   static primaryKey = 'id'
@@ -1062,7 +1072,7 @@ export class HeatmapMovement extends Model {
     })
 
     await client.putItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Item: marshall(item),
     })
 
@@ -1120,7 +1130,7 @@ class HeatmapMovementQueryBuilder {
     })
 
     const result = await client.query({
-      TableName: tableName,
+      TableName: getTableName(),
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${this.siteId}` },
@@ -1174,7 +1184,7 @@ class HeatmapMovementQueryBuilder {
  * - SK: HMSCROLL#{sessionId}#{path}
  */
 export class HeatmapScroll extends Model {
-  static get tableName() { return tableName }
+  static get tableName() { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'HMSCROLL'
   static primaryKey = 'id'
@@ -1221,7 +1231,7 @@ export class HeatmapScroll extends Model {
     })
 
     await client.putItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Item: marshall(item),
     })
 
@@ -1244,7 +1254,7 @@ export class HeatmapScroll extends Model {
     const sk = `HMSCROLL#${data.sessionId}#${encodedPath}`
 
     const existing = await client.getItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Key: { pk: { S: pk }, sk: { S: sk } },
     })
 
@@ -1265,7 +1275,7 @@ export class HeatmapScroll extends Model {
       const maxDepth = Math.max(existingData.maxScrollDepth || 0, data.maxScrollDepth)
 
       await client.updateItem({
-        TableName: tableName,
+        TableName: getTableName(),
         Key: { pk: { S: pk }, sk: { S: sk } },
         UpdateExpression: 'SET scrollDepths = :depths, maxScrollDepth = :max, #ts = :ts',
         ExpressionAttributeNames: { '#ts': 'timestamp' },
@@ -1340,7 +1350,7 @@ class HeatmapScrollQueryBuilder {
     })
 
     const result = await client.query({
-      TableName: tableName,
+      TableName: getTableName(),
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${this.siteId}` },
@@ -1435,7 +1445,7 @@ interface ScrollAggregation {
  * - SK: GOAL#{goalId}
  */
 export class Goal extends Model {
-  static get tableName() { return tableName }
+  static get tableName() { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'GOAL'
   static primaryKey = 'id'
@@ -1490,7 +1500,7 @@ export class Goal extends Model {
     })
 
     await client.putItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Item: marshall(item),
     })
 
@@ -1506,7 +1516,7 @@ export class Goal extends Model {
     })
 
     const result = await client.getItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Key: {
         pk: { S: `SITE#${siteId}` },
         sk: { S: `GOAL#${goalId}` },
@@ -1552,7 +1562,7 @@ export class Goal extends Model {
     }
 
     await client.updateItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Key: {
         pk: { S: `SITE#${siteId}` },
         sk: { S: `GOAL#${goalId}` },
@@ -1576,7 +1586,7 @@ export class Goal extends Model {
     })
 
     await client.deleteItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Key: {
         pk: { S: `SITE#${siteId}` },
         sk: { S: `GOAL#${goalId}` },
@@ -1624,7 +1634,7 @@ class GoalQueryBuilder {
     })
 
     const result = await client.query({
-      TableName: tableName,
+      TableName: getTableName(),
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${this.siteId}` },
@@ -1657,7 +1667,7 @@ class GoalQueryBuilder {
  * - GSI1SK: CONVERSION#{timestamp}
  */
 export class Conversion extends Model {
-  static get tableName() { return tableName }
+  static get tableName() { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'CONVERSION'
   static primaryKey = 'id'
@@ -1730,7 +1740,7 @@ export class Conversion extends Model {
     })
 
     await client.putItem({
-      TableName: tableName,
+      TableName: getTableName(),
       Item: marshall(item),
     })
 
@@ -1794,7 +1804,7 @@ class ConversionQueryBuilder {
       : 'CONVERSION#\uffff'
 
     const result = await client.query({
-      TableName: tableName,
+      TableName: getTableName(),
       IndexName: 'gsi1',
       KeyConditionExpression: 'gsi1pk = :pk AND gsi1sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
@@ -1822,7 +1832,7 @@ class ConversionQueryBuilder {
       : 'CONVERSION#\uffff'
 
     const result = await client.query({
-      TableName: tableName,
+      TableName: getTableName(),
       IndexName: 'gsi1',
       KeyConditionExpression: 'gsi1pk = :pk AND gsi1sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
@@ -1875,7 +1885,7 @@ class ConversionSiteQueryBuilder {
       : 'CONVERSION#\uffff'
 
     const result = await client.query({
-      TableName: tableName,
+      TableName: getTableName(),
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${this.siteId}` },
