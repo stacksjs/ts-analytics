@@ -10,8 +10,8 @@ const config: BunPressConfig = {
   // Self-hosted analytics using ts-analytics
   analytics: {
     enabled: true,
-    siteId: 'ts-analytics-docs',
-    apiEndpoint: 'https://analytics.stacksjs.com/collect',
+    siteId: 'mkqiay2c2l1zcvca',
+    apiEndpoint: 'https://analytics.stacksjs.com',
     honorDNT: true,
     trackHashChanges: false,
     trackOutboundLinks: true,
