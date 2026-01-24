@@ -20,6 +20,8 @@ import {
   HeatmapClick,
   HeatmapMovement,
   HeatmapScroll,
+  Goal,
+  Conversion,
   configureAnalytics,
   createClient,
   marshall,
@@ -57,6 +59,153 @@ function setSession(key: string, session: SessionType, ttlSeconds = 1800): void 
     session,
     expires: Date.now() + ttlSeconds * 1000,
   })
+}
+
+// ============================================================================
+// Goal Caching & Matching
+// ============================================================================
+
+// Goal cache - stores goals per site for fast lookup during collect
+const goalCache = new Map<string, { goals: Goal[]; expires: number }>()
+const GOAL_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+// Session conversion deduplication - prevents same goal from converting multiple times per session
+const sessionConversions = new Map<string, Set<string>>()
+
+async function getGoalsForSite(siteId: string): Promise<Goal[]> {
+  const cached = goalCache.get(siteId)
+  if (cached && cached.expires > Date.now()) {
+    return cached.goals
+  }
+
+  try {
+    const goals = await Goal.forSite(siteId).active().get()
+    goalCache.set(siteId, {
+      goals,
+      expires: Date.now() + GOAL_CACHE_TTL,
+    })
+    return goals
+  } catch (err) {
+    console.error('[Goals] Failed to fetch goals:', err)
+    return []
+  }
+}
+
+function invalidateGoalCache(siteId: string): void {
+  goalCache.delete(siteId)
+}
+
+interface GoalMatchContext {
+  path: string
+  eventName?: string
+  sessionDurationMinutes?: number
+}
+
+function matchGoal(goal: Goal, context: GoalMatchContext): boolean {
+  if (!goal.isActive) return false
+
+  switch (goal.type) {
+    case 'pageview':
+      return matchPattern(goal.pattern, context.path, goal.matchType)
+
+    case 'event':
+      if (!context.eventName) return false
+      return matchPattern(goal.pattern, context.eventName, goal.matchType)
+
+    case 'duration':
+      if (context.sessionDurationMinutes === undefined) return false
+      const threshold = goal.durationMinutes || 0
+      return context.sessionDurationMinutes >= threshold
+
+    default:
+      return false
+  }
+}
+
+function matchPattern(pattern: string, value: string, matchType: string): boolean {
+  if (!pattern || !value) return false
+
+  switch (matchType) {
+    case 'exact':
+      return value === pattern
+
+    case 'contains':
+      return value.includes(pattern)
+
+    case 'regex':
+      try {
+        const regex = new RegExp(pattern)
+        return regex.test(value)
+      } catch {
+        console.warn(`[Goals] Invalid regex pattern: ${pattern}`)
+        return false
+      }
+
+    default:
+      return value === pattern
+  }
+}
+
+interface ConversionMetadata {
+  referrerSource?: string
+  utmSource?: string
+  utmMedium?: string
+  utmCampaign?: string
+}
+
+async function checkAndRecordConversions(
+  siteId: string,
+  visitorId: string,
+  sessionId: string,
+  context: GoalMatchContext,
+  metadata: ConversionMetadata
+): Promise<void> {
+  try {
+    const goals = await getGoalsForSite(siteId)
+    if (goals.length === 0) return
+
+    const timestamp = new Date()
+
+    // Track which goals this session has already converted (prevent duplicates)
+    const sessionKey = `${siteId}:${sessionId}`
+    const convertedGoals = sessionConversions.get(sessionKey) || new Set<string>()
+
+    for (const goal of goals) {
+      // Skip if already converted in this session
+      if (convertedGoals.has(goal.id)) continue
+
+      if (matchGoal(goal, context)) {
+        // Record conversion
+        await Conversion.record({
+          id: generateId(),
+          siteId,
+          goalId: goal.id,
+          visitorId,
+          sessionId,
+          value: goal.value,
+          path: context.path,
+          referrerSource: metadata.referrerSource,
+          utmSource: metadata.utmSource,
+          utmMedium: metadata.utmMedium,
+          utmCampaign: metadata.utmCampaign,
+          timestamp,
+        })
+
+        convertedGoals.add(goal.id)
+        console.log(`[Goals] Conversion recorded: ${goal.name} for session ${sessionId}`)
+      }
+    }
+
+    sessionConversions.set(sessionKey, convertedGoals)
+
+    // Clean up old session conversion entries (keep last 1000)
+    if (sessionConversions.size > 1000) {
+      const keysToDelete = Array.from(sessionConversions.keys()).slice(0, 100)
+      keysToDelete.forEach(k => sessionConversions.delete(k))
+    }
+  } catch (err) {
+    console.error('[Goals] Error checking conversions:', err)
+  }
 }
 
 function parseUserAgent(ua: string) {
@@ -133,7 +282,7 @@ function getCountryFromHeaders(headers: Record<string, string> | undefined): str
 const ipGeoCache = new Map<string, { country: string; expires: number }>()
 
 async function getCountryFromIP(ip: string): Promise<string | undefined> {
-  if (!ip || ip === 'unknown' || ip === '127.0.0.1' || ip.startsWith('10.') || ip.startsWith('192.168.')) {
+  if (!ip || ip === 'unknown' || ip === '127.0.0.1' || ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('172.')) {
     return undefined
   }
 
@@ -143,25 +292,47 @@ async function getCountryFromIP(ip: string): Promise<string | undefined> {
     return cached.country
   }
 
-  try {
-    // Use ip-api.com (free, no API key required, 45 req/min limit)
-    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode`, {
-      signal: AbortSignal.timeout(2000), // 2 second timeout
-    })
-
-    if (!response.ok) return undefined
-
-    const data = await response.json() as { status: string; country?: string; countryCode?: string }
-
-    if (data.status === 'success' && data.country) {
-      // Cache for 24 hours
-      ipGeoCache.set(ip, { country: data.country, expires: Date.now() + 24 * 60 * 60 * 1000 })
+  // Try multiple geolocation services
+  const services = [
+    // ipapi.co - HTTPS, free tier 1000/day
+    async () => {
+      const response = await fetch(`https://ipapi.co/${ip}/json/`, {
+        signal: AbortSignal.timeout(3000),
+        headers: { 'User-Agent': 'ts-analytics/1.0' },
+      })
+      if (!response.ok) return null
+      const data = await response.json() as { country_name?: string; error?: boolean }
+      if (data.error) return null
+      return data.country_name
+    },
+    // ip-api.com - HTTP only, 45/min
+    async () => {
+      const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country`, {
+        signal: AbortSignal.timeout(2000),
+      })
+      if (!response.ok) return null
+      const data = await response.json() as { status: string; country?: string }
+      if (data.status !== 'success') return null
       return data.country
+    },
+  ]
+
+  for (const service of services) {
+    try {
+      const country = await service()
+      if (country) {
+        // Cache for 24 hours
+        ipGeoCache.set(ip, { country, expires: Date.now() + 24 * 60 * 60 * 1000 })
+        console.log(`[GeoIP] Resolved ${ip} to ${country}`)
+        return country
+      }
+    } catch (err) {
+      // Try next service
+      console.log(`[GeoIP] Service failed for ${ip}:`, err)
     }
-  } catch {
-    // Silently fail - geolocation is not critical
   }
 
+  console.log(`[GeoIP] Failed to resolve country for ${ip}`)
   return undefined
 }
 
@@ -249,8 +420,116 @@ function getDashboardHtml(): string {
     let isLoading = false
     let lastUpdated = null
     let refreshInterval = null
-    let stats = { realtime: 0, sessions: 0, people: 0, views: 0, avgTime: "00:00", bounceRate: 0, events: 0 }
+    let previousStats = null
+
+    // Load cached stats from localStorage
+    function loadCachedStats() {
+      try {
+        const cached = localStorage.getItem('ts-analytics-stats-' + siteId)
+        if (cached) {
+          const data = JSON.parse(cached)
+          // Only use cache if less than 24 hours old
+          if (data.timestamp && Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
+            return data.stats
+          }
+        }
+      } catch (e) {}
+      return null
+    }
+
+    function saveCachedStats(statsData) {
+      try {
+        localStorage.setItem('ts-analytics-stats-' + siteId, JSON.stringify({
+          stats: statsData,
+          timestamp: Date.now()
+        }))
+      } catch (e) {}
+    }
+
+    // Animate number transitions
+    function animateValue(element, start, end, duration, formatter) {
+      if (start === end) {
+        element.textContent = formatter ? formatter(end) : end
+        return
+      }
+      const startTime = performance.now()
+      const isNumber = typeof end === 'number'
+
+      function update(currentTime) {
+        const elapsed = currentTime - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        // Ease out cubic for smooth deceleration
+        const easeProgress = 1 - Math.pow(1 - progress, 3)
+
+        if (isNumber) {
+          const current = Math.round(start + (end - start) * easeProgress)
+          element.textContent = formatter ? formatter(current) : current
+        } else {
+          element.textContent = end
+        }
+
+        if (progress < 1) {
+          requestAnimationFrame(update)
+        }
+      }
+      requestAnimationFrame(update)
+    }
+
+    const cachedStats = loadCachedStats()
+    let stats = cachedStats || { realtime: 0, sessions: 0, people: 0, views: 0, avgTime: "00:00", bounceRate: 0, events: 0 }
     let pages = [], referrers = [], deviceTypes = [], browsers = [], countries = [], campaigns = [], events = [], timeSeriesData = []
+    let goals = [], goalStats = null
+    let siteHostname = null
+    let showGoalModal = false
+    let editingGoal = null
+
+    // Browser icons (SVG)
+    const browserIcons = {
+      'Chrome': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:6px"><circle cx="12" cy="12" r="10" stroke="#4285F4" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#4285F4"/><path d="M12 2v6" stroke="#EA4335" stroke-width="2"/><path d="M5 17l5-3" stroke="#FBBC05" stroke-width="2"/><path d="M19 17l-5-3" stroke="#34A853" stroke-width="2"/></svg>',
+      'Safari': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:6px"><circle cx="12" cy="12" r="10" stroke="#0FB5EE" stroke-width="2"/><path d="M12 2L14 12L12 22" stroke="#FF5722" stroke-width="1"/><path d="M2 12L12 10L22 12" stroke="#0FB5EE" stroke-width="1"/></svg>',
+      'Firefox': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:6px"><circle cx="12" cy="12" r="10" stroke="#FF6611" stroke-width="2" fill="#FFBD4F"/><path d="M8 8c2-2 6-2 8 0s2 6 0 8" stroke="#FF6611" stroke-width="2"/></svg>',
+      'Edge': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:6px"><circle cx="12" cy="12" r="10" stroke="#0078D7" stroke-width="2"/><path d="M6 12c0-4 3-6 6-6s6 2 6 6" stroke="#0078D7" stroke-width="2"/></svg>',
+      'Opera': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:6px"><ellipse cx="12" cy="12" rx="6" ry="10" stroke="#FF1B2D" stroke-width="2"/></svg>',
+      'Brave': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:6px"><path d="M12 2L4 6v6c0 5.5 3.5 10.7 8 12 4.5-1.3 8-6.5 8-12V6l-8-4z" stroke="#FB542B" stroke-width="2"/></svg>',
+      'IE': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:6px"><circle cx="12" cy="12" r="10" stroke="#0076D6" stroke-width="2"/><path d="M4 12h16" stroke="#0076D6" stroke-width="2"/></svg>',
+      'Bot': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" style="vertical-align:middle;margin-right:6px"><rect x="4" y="8" width="16" height="12" rx="2"/><circle cx="9" cy="14" r="2"/><circle cx="15" cy="14" r="2"/><path d="M12 2v4M6 6l2 2M18 6l-2 2"/></svg>',
+    }
+    function getBrowserIcon(name) {
+      return browserIcons[name] || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;opacity:0.5"><circle cx="12" cy="12" r="10"/></svg>'
+    }
+
+    // Country name to flag emoji (ISO 3166-1)
+    const countryFlags = {
+      'United States': '\u{1F1FA}\u{1F1F8}', 'United Kingdom': '\u{1F1EC}\u{1F1E7}', 'Canada': '\u{1F1E8}\u{1F1E6}',
+      'Australia': '\u{1F1E6}\u{1F1FA}', 'Germany': '\u{1F1E9}\u{1F1EA}', 'France': '\u{1F1EB}\u{1F1F7}',
+      'Japan': '\u{1F1EF}\u{1F1F5}', 'China': '\u{1F1E8}\u{1F1F3}', 'India': '\u{1F1EE}\u{1F1F3}',
+      'Brazil': '\u{1F1E7}\u{1F1F7}', 'Mexico': '\u{1F1F2}\u{1F1FD}', 'Spain': '\u{1F1EA}\u{1F1F8}',
+      'Italy': '\u{1F1EE}\u{1F1F9}', 'Netherlands': '\u{1F1F3}\u{1F1F1}', 'Sweden': '\u{1F1F8}\u{1F1EA}',
+      'Norway': '\u{1F1F3}\u{1F1F4}', 'Denmark': '\u{1F1E9}\u{1F1F0}', 'Finland': '\u{1F1EB}\u{1F1EE}',
+      'Switzerland': '\u{1F1E8}\u{1F1ED}', 'Austria': '\u{1F1E6}\u{1F1F9}', 'Belgium': '\u{1F1E7}\u{1F1EA}',
+      'Poland': '\u{1F1F5}\u{1F1F1}', 'Russia': '\u{1F1F7}\u{1F1FA}', 'South Korea': '\u{1F1F0}\u{1F1F7}',
+      'Singapore': '\u{1F1F8}\u{1F1EC}', 'Hong Kong': '\u{1F1ED}\u{1F1F0}', 'Taiwan': '\u{1F1F9}\u{1F1FC}',
+      'New Zealand': '\u{1F1F3}\u{1F1FF}', 'Ireland': '\u{1F1EE}\u{1F1EA}', 'Portugal': '\u{1F1F5}\u{1F1F9}',
+      'Czech Republic': '\u{1F1E8}\u{1F1FF}', 'Greece': '\u{1F1EC}\u{1F1F7}', 'Israel': '\u{1F1EE}\u{1F1F1}',
+      'South Africa': '\u{1F1FF}\u{1F1E6}', 'Argentina': '\u{1F1E6}\u{1F1F7}', 'Chile': '\u{1F1E8}\u{1F1F1}',
+      'Colombia': '\u{1F1E8}\u{1F1F4}', 'Philippines': '\u{1F1F5}\u{1F1ED}', 'Thailand': '\u{1F1F9}\u{1F1ED}',
+      'Malaysia': '\u{1F1F2}\u{1F1FE}', 'Indonesia': '\u{1F1EE}\u{1F1E9}', 'Vietnam': '\u{1F1FB}\u{1F1F3}',
+      'UAE': '\u{1F1E6}\u{1F1EA}', 'Saudi Arabia': '\u{1F1F8}\u{1F1E6}', 'Turkey': '\u{1F1F9}\u{1F1F7}',
+      'Ukraine': '\u{1F1FA}\u{1F1E6}', 'Romania': '\u{1F1F7}\u{1F1F4}', 'Hungary': '\u{1F1ED}\u{1F1FA}',
+    }
+    function getCountryFlag(name) {
+      return countryFlags[name] || '\u{1F30D}'
+    }
+
+    // Device icons
+    const deviceIcons = {
+      'desktop': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+      'mobile': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>',
+      'tablet': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M12 18h.01"/></svg>',
+    }
+    function getDeviceIcon(type) {
+      return deviceIcons[type?.toLowerCase()] || deviceIcons['desktop']
+    }
 
     async function fetchSites() {
       const container = document.getElementById('site-list')
@@ -296,6 +575,15 @@ function getDashboardHtml(): string {
       const url = new URL(window.location.href)
       url.searchParams.set('siteId', id)
       window.history.pushState({}, '', url)
+
+      // Load and display cached stats immediately
+      const cached = loadCachedStats()
+      if (cached) {
+        stats = cached
+        previousStats = null
+        renderDashboard(false)
+      }
+
       fetchDashboardData()
       if (refreshInterval) clearInterval(refreshInterval)
       refreshInterval = setInterval(fetchDashboardData, 30000)
@@ -343,7 +631,7 @@ function getDashboardHtml(): string {
       const params = getDateRangeParams()
 
       try {
-        const [statsRes, realtimeRes, pagesRes, referrersRes, devicesRes, browsersRes, countriesRes, timeseriesRes, eventsRes, campaignsRes] = await Promise.all([
+        const [statsRes, realtimeRes, pagesRes, referrersRes, devicesRes, browsersRes, countriesRes, timeseriesRes, eventsRes, campaignsRes, goalsRes] = await Promise.all([
           fetch(\`\${baseUrl}/stats\${params}\`).then(r => r.json()).catch(() => ({})),
           fetch(\`\${baseUrl}/realtime\`).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
           fetch(\`\${baseUrl}/pages\${params}\`).then(r => r.json()).catch(() => ({ pages: [] })),
@@ -354,8 +642,10 @@ function getDashboardHtml(): string {
           fetch(\`\${baseUrl}/timeseries\${params}\`).then(r => r.json()).catch(() => ({ timeSeries: [] })),
           fetch(\`\${baseUrl}/events\${params}\`).then(r => r.json()).catch(() => ({ events: [] })),
           fetch(\`\${baseUrl}/campaigns\${params}\`).then(r => r.json()).catch(() => ({ campaigns: [] })),
+          fetch(\`\${baseUrl}/goals\${params}\`).then(r => r.json()).catch(() => ({ goals: [] })),
         ])
 
+        previousStats = { ...stats }
         stats = {
           realtime: realtimeRes.currentVisitors || 0,
           sessions: statsRes.sessions || 0,
@@ -365,17 +655,20 @@ function getDashboardHtml(): string {
           bounceRate: statsRes.bounceRate || 0,
           events: statsRes.events || 0
         }
+        saveCachedStats(stats)
         pages = pagesRes.pages || []
+        siteHostname = pagesRes.hostname || null
         referrers = referrersRes.referrers || []
         deviceTypes = devicesRes.deviceTypes || []
         browsers = browsersRes.browsers || []
         countries = countriesRes.countries || []
         campaigns = campaignsRes.campaigns || []
         events = eventsRes.events || []
+        goals = goalsRes.goals || []
         timeSeriesData = timeseriesRes.timeSeries || []
         lastUpdated = new Date()
 
-        renderDashboard()
+        renderDashboard(true)
       } catch (error) {
         console.error('Failed to fetch:', error)
       } finally {
@@ -393,14 +686,25 @@ function getDashboardHtml(): string {
       return stats.views > 0 || stats.sessions > 0 || stats.people > 0 || pages.length > 0
     }
 
-    function renderDashboard() {
-      // Update stats
-      document.getElementById('stat-realtime').textContent = fmt(stats.realtime)
-      document.getElementById('stat-sessions').textContent = fmt(stats.sessions)
-      document.getElementById('stat-people').textContent = fmt(stats.people)
-      document.getElementById('stat-views').textContent = fmt(stats.views)
-      document.getElementById('stat-avgtime').textContent = stats.avgTime
-      document.getElementById('stat-bounce').textContent = stats.bounceRate + '%'
+    function renderDashboard(animate = false) {
+      const duration = 600 // Animation duration in ms
+
+      // Update stats with animation
+      if (animate && previousStats) {
+        animateValue(document.getElementById('stat-realtime'), previousStats.realtime, stats.realtime, duration, fmt)
+        animateValue(document.getElementById('stat-sessions'), previousStats.sessions, stats.sessions, duration, fmt)
+        animateValue(document.getElementById('stat-people'), previousStats.people, stats.people, duration, fmt)
+        animateValue(document.getElementById('stat-views'), previousStats.views, stats.views, duration, fmt)
+        animateValue(document.getElementById('stat-bounce'), previousStats.bounceRate, stats.bounceRate, duration, v => v + '%')
+        document.getElementById('stat-avgtime').textContent = stats.avgTime
+      } else {
+        document.getElementById('stat-realtime').textContent = fmt(stats.realtime)
+        document.getElementById('stat-sessions').textContent = fmt(stats.sessions)
+        document.getElementById('stat-people').textContent = fmt(stats.people)
+        document.getElementById('stat-views').textContent = fmt(stats.views)
+        document.getElementById('stat-bounce').textContent = stats.bounceRate + '%'
+        document.getElementById('stat-avgtime').textContent = stats.avgTime
+      }
       document.getElementById('realtime-count').textContent = stats.realtime === 1 ? '1 visitor online' : stats.realtime + ' visitors online'
 
       // Update last updated time
@@ -424,7 +728,13 @@ function getDashboardHtml(): string {
 
       // Render tables
       document.getElementById('pages-body').innerHTML = pages.length
-        ? pages.slice(0,10).map(p => \`<tr><td class="name" title="\${p.path}">\${p.path}</td><td class="value">\${fmt(p.entries||0)}</td><td class="value">\${fmt(p.visitors||0)}</td><td class="value">\${fmt(p.views||0)}</td></tr>\`).join('')
+        ? pages.slice(0,10).map(p => {
+            const pageUrl = siteHostname ? \`https://\${siteHostname}\${p.path}\` : p.path
+            const linkHtml = siteHostname
+              ? \`<a href="\${pageUrl}" target="_blank" rel="noopener" class="page-link" title="Visit \${pageUrl}">\${p.path}<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px;opacity:0.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a>\`
+              : p.path
+            return \`<tr><td class="name" title="\${p.path}">\${linkHtml}</td><td class="value">\${fmt(p.entries||0)}</td><td class="value">\${fmt(p.visitors||0)}</td><td class="value">\${fmt(p.views||0)}</td></tr>\`
+          }).join('')
         : '<tr><td colspan="4" class="empty-cell">No page data</td></tr>'
 
       document.getElementById('referrers-body').innerHTML = referrers.length
@@ -432,15 +742,15 @@ function getDashboardHtml(): string {
         : '<tr><td colspan="3" class="empty-cell">No referrer data</td></tr>'
 
       document.getElementById('devices-body').innerHTML = deviceTypes.length
-        ? deviceTypes.map(d => \`<tr><td class="name">\${d.type}</td><td class="value">\${fmt(d.visitors||0)}</td><td class="value">\${d.percentage || 0}%</td></tr>\`).join('')
+        ? deviceTypes.map(d => \`<tr><td class="name">\${getDeviceIcon(d.type)}\${d.type}</td><td class="value">\${fmt(d.visitors||0)}</td><td class="value">\${d.percentage || 0}%</td></tr>\`).join('')
         : '<tr><td colspan="3" class="empty-cell">No device data</td></tr>'
 
       document.getElementById('browsers-body').innerHTML = browsers.length
-        ? browsers.slice(0,8).map(b => \`<tr><td class="name">\${b.name}</td><td class="value">\${fmt(b.visitors||0)}</td><td class="value">\${b.percentage || 0}%</td></tr>\`).join('')
+        ? browsers.slice(0,8).map(b => \`<tr><td class="name">\${getBrowserIcon(b.name)}\${b.name}</td><td class="value">\${fmt(b.visitors||0)}</td><td class="value">\${b.percentage || 0}%</td></tr>\`).join('')
         : '<tr><td colspan="3" class="empty-cell">No browser data</td></tr>'
 
       document.getElementById('countries-body').innerHTML = countries.length
-        ? countries.slice(0,8).map(c => \`<tr><td class="name">\${c.name || c.code || 'Unknown'}</td><td class="value">\${fmt(c.visitors||0)}</td></tr>\`).join('')
+        ? countries.slice(0,8).map(c => \`<tr><td class="name"><span style="margin-right:6px">\${getCountryFlag(c.name)}</span>\${c.name || c.code || 'Unknown'}</td><td class="value">\${fmt(c.visitors||0)}</td></tr>\`).join('')
         : '<tr><td colspan="2" class="empty-cell">No location data</td></tr>'
 
       document.getElementById('campaigns-body').innerHTML = campaigns.length
@@ -452,6 +762,133 @@ function getDashboardHtml(): string {
         : '<div class="empty-cell" style="padding:1rem">No custom events tracked</div>'
 
       renderChart()
+      renderGoals()
+    }
+
+    function renderGoals() {
+      const container = document.getElementById('goals-container')
+      if (!container) return
+
+      if (!goals.length) {
+        container.innerHTML = '<div class="empty-cell" style="padding:1rem">No goals configured. Click "+ Add Goal" to create one.</div>'
+        return
+      }
+
+      container.innerHTML = \`
+        <table class="data-table">
+          <thead><tr>
+            <th>Goal</th>
+            <th>Type</th>
+            <th style="text-align:right">Conversions</th>
+            <th style="text-align:right">Value</th>
+            <th style="text-align:right">Actions</th>
+          </tr></thead>
+          <tbody>
+            \${goals.map(g => \`
+              <tr>
+                <td class="name">\${g.name}</td>
+                <td><span class="goal-type-badge \${g.type}">\${g.type}</span></td>
+                <td class="value">\${fmt(g.conversions || 0)}</td>
+                <td class="value">\${g.totalValue ? '$' + g.totalValue.toFixed(2) : '-'}</td>
+                <td class="value">
+                  <button onclick="editGoal('\${g.id}')" class="icon-btn" title="Edit">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button onclick="deleteGoal('\${g.id}')" class="icon-btn danger" title="Delete">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                  </button>
+                </td>
+              </tr>
+            \`).join('')}
+          </tbody>
+        </table>
+      \`
+    }
+
+    function showCreateGoalModal() {
+      editingGoal = null
+      document.getElementById('goal-modal-title').textContent = 'Create Goal'
+      document.getElementById('goal-form').reset()
+      document.getElementById('goal-modal').style.display = 'flex'
+      updateGoalForm()
+    }
+
+    function editGoal(goalId) {
+      const goal = goals.find(g => g.id === goalId)
+      if (!goal) return
+
+      editingGoal = goal
+      document.getElementById('goal-modal-title').textContent = 'Edit Goal'
+      document.getElementById('goal-name').value = goal.name || ''
+      document.getElementById('goal-type').value = goal.type || 'pageview'
+      document.getElementById('goal-pattern').value = goal.pattern || ''
+      document.getElementById('goal-match-type').value = goal.matchType || 'exact'
+      document.getElementById('goal-duration').value = goal.durationMinutes || 5
+      document.getElementById('goal-value').value = goal.value || ''
+      document.getElementById('goal-modal').style.display = 'flex'
+      updateGoalForm()
+    }
+
+    function updateGoalForm() {
+      const type = document.getElementById('goal-type').value
+      document.getElementById('goal-pattern-group').style.display = type !== 'duration' ? 'block' : 'none'
+      document.getElementById('goal-duration-group').style.display = type === 'duration' ? 'block' : 'none'
+    }
+
+    function closeGoalModal() {
+      document.getElementById('goal-modal').style.display = 'none'
+      editingGoal = null
+    }
+
+    async function saveGoal(e) {
+      e.preventDefault()
+
+      const type = document.getElementById('goal-type').value
+      const data = {
+        name: document.getElementById('goal-name').value,
+        type,
+        pattern: type !== 'duration' ? document.getElementById('goal-pattern').value : '',
+        matchType: type !== 'duration' ? document.getElementById('goal-match-type').value : 'exact',
+        durationMinutes: type === 'duration' ? Number(document.getElementById('goal-duration').value) : undefined,
+        value: document.getElementById('goal-value').value ? Number(document.getElementById('goal-value').value) : undefined,
+        isActive: true,
+      }
+
+      const url = editingGoal
+        ? \`\${API_ENDPOINT}/api/sites/\${siteId}/goals/\${editingGoal.id}\`
+        : \`\${API_ENDPOINT}/api/sites/\${siteId}/goals\`
+      const method = editingGoal ? 'PUT' : 'POST'
+
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        })
+        if (res.ok) {
+          closeGoalModal()
+          fetchDashboardData()
+        } else {
+          const err = await res.json()
+          alert(err.error || 'Failed to save goal')
+        }
+      } catch (err) {
+        console.error('Save goal error:', err)
+        alert('Failed to save goal')
+      }
+    }
+
+    async function deleteGoal(goalId) {
+      if (!confirm('Delete this goal? Conversion data will be preserved.')) return
+
+      try {
+        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/goals/\${goalId}\`, { method: 'DELETE' })
+        if (res.ok) {
+          fetchDashboardData()
+        }
+      } catch (err) {
+        console.error('Delete goal error:', err)
+      }
     }
 
     function renderChart() {
@@ -594,6 +1031,8 @@ function getDashboardHtml(): string {
     .stat-val { font-size: 1.75rem; font-weight: 600; color: var(--text) }
     .stat-lbl { font-size: 0.75rem; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem }
     .stat.highlight { border-color: var(--accent); background: linear-gradient(135deg, var(--bg2) 0%, rgba(99,102,241,0.1) 100%) }
+    .stat-icon { color: var(--accent); margin-bottom: 0.5rem; display: block; margin-left: auto; margin-right: auto }
+    .stat.highlight .stat-icon { color: var(--accent2) }
 
     /* Chart */
     .chart-box { background: var(--bg2); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; min-height: 250px; border: 1px solid var(--border); position: relative }
@@ -613,9 +1052,37 @@ function getDashboardHtml(): string {
     .data-table .name { color: var(--text); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
     .data-table .value { color: var(--text2); text-align: right; white-space: nowrap }
     .empty-cell { text-align: center; color: var(--muted); padding: 1rem }
+    .page-link { color: var(--text); text-decoration: none; display: inline-flex; align-items: center }
+    .page-link:hover { color: var(--accent); text-decoration: underline }
 
     /* Events */
     .events { background: var(--bg2); border-radius: 8px; padding: 1.5rem; border: 1px solid var(--border) }
+
+    /* Goals */
+    .goals-section { background: var(--bg2); border-radius: 8px; padding: 1.5rem; border: 1px solid var(--border); margin-top: 1.5rem }
+    .create-goal-btn { background: var(--accent); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 500 }
+    .create-goal-btn:hover { background: var(--accent2) }
+    .icon-btn { background: none; border: none; color: var(--muted); cursor: pointer; padding: 0.25rem; border-radius: 4px; margin-left: 0.25rem }
+    .icon-btn:hover { background: var(--bg3); color: var(--text) }
+    .icon-btn.danger:hover { color: #ef4444 }
+    .goal-type-badge { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase; font-weight: 500 }
+    .goal-type-badge.pageview { background: rgba(99,102,241,0.2); color: var(--accent) }
+    .goal-type-badge.event { background: rgba(16,185,129,0.2); color: #10b981 }
+    .goal-type-badge.duration { background: rgba(245,158,11,0.2); color: #f59e0b }
+
+    /* Modal */
+    .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000 }
+    .modal-content { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; max-width: 420px; width: 90% }
+    .modal-content h3 { margin-bottom: 1.5rem; font-size: 1.125rem; color: var(--text) }
+    .modal-content label { display: block; margin-bottom: 1rem; font-size: 0.8125rem; color: var(--text2) }
+    .modal-content input, .modal-content select { width: 100%; padding: 0.625rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); margin-top: 0.375rem; font-size: 0.875rem }
+    .modal-content input:focus, .modal-content select:focus { outline: none; border-color: var(--accent) }
+    .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border) }
+    .modal-actions button { padding: 0.625rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500 }
+    .modal-actions button[type="button"] { background: var(--bg3); border: 1px solid var(--border); color: var(--text) }
+    .modal-actions button[type="button"]:hover { background: var(--bg) }
+    .modal-actions button[type="submit"] { background: var(--accent); border: none; color: white }
+    .modal-actions button[type="submit"]:hover { background: var(--accent2) }
 
     /* No Data Message */
     .no-data { background: var(--bg2); border-radius: 8px; padding: 3rem; text-align: center; border: 1px solid var(--border); margin-bottom: 1.5rem }
@@ -669,12 +1136,12 @@ function getDashboardHtml(): string {
     </div>
 
     <div class="stats">
-      <div class="stat highlight"><div class="stat-val" id="stat-realtime">0</div><div class="stat-lbl">Realtime</div></div>
-      <div class="stat"><div class="stat-val" id="stat-sessions">0</div><div class="stat-lbl">Sessions</div></div>
-      <div class="stat"><div class="stat-val" id="stat-people">0</div><div class="stat-lbl">Visitors</div></div>
-      <div class="stat"><div class="stat-val" id="stat-views">0</div><div class="stat-lbl">Pageviews</div></div>
-      <div class="stat"><div class="stat-val" id="stat-avgtime">00:00</div><div class="stat-lbl">Avg Time</div></div>
-      <div class="stat"><div class="stat-val" id="stat-bounce">0%</div><div class="stat-lbl">Bounce Rate</div></div>
+      <div class="stat highlight"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg><div class="stat-val" id="stat-realtime">0</div><div class="stat-lbl">Realtime</div></div>
+      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="stat-val" id="stat-sessions">0</div><div class="stat-lbl">Sessions</div></div>
+      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg><div class="stat-val" id="stat-people">0</div><div class="stat-lbl">Visitors</div></div>
+      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg><div class="stat-val" id="stat-views">0</div><div class="stat-lbl">Pageviews</div></div>
+      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="stat-val" id="stat-avgtime">00:00</div><div class="stat-lbl">Avg Time</div></div>
+      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg><div class="stat-val" id="stat-bounce">0%</div><div class="stat-lbl">Bounce Rate</div></div>
     </div>
 
     <div id="no-data-msg" class="no-data" style="display:none">
@@ -770,6 +1237,49 @@ function getDashboardHtml(): string {
         <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Custom Events</div>
         <div id="events-container"><div class="empty-cell">Loading...</div></div>
       </div>
+
+      <div class="goals-section">
+        <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Goals</span>
+          <button onclick="showCreateGoalModal()" class="create-goal-btn">+ Add Goal</button>
+        </div>
+        <div id="goals-container"><div class="empty-cell">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- Goal Modal -->
+    <div id="goal-modal" class="modal" style="display:none">
+      <div class="modal-content">
+        <h3 id="goal-modal-title">Create Goal</h3>
+        <form id="goal-form" onsubmit="saveGoal(event)">
+          <label>Name<input type="text" id="goal-name" required placeholder="e.g. Sign Up Completed"></label>
+          <label>Type
+            <select id="goal-type" onchange="updateGoalForm()">
+              <option value="pageview">Destination (Page Path)</option>
+              <option value="event">Event</option>
+              <option value="duration">Duration (Time on Site)</option>
+            </select>
+          </label>
+          <div id="goal-pattern-group">
+            <label>Pattern<input type="text" id="goal-pattern" placeholder="/thank-you or /checkout/*"></label>
+            <label>Match Type
+              <select id="goal-match-type">
+                <option value="exact">Exact Match</option>
+                <option value="contains">Contains</option>
+                <option value="regex">Regular Expression</option>
+              </select>
+            </label>
+          </div>
+          <div id="goal-duration-group" style="display:none">
+            <label>Minutes on Site<input type="number" id="goal-duration" min="1" value="5"></label>
+          </div>
+          <label>Value per Conversion (optional)<input type="number" id="goal-value" step="0.01" placeholder="0.00"></label>
+          <div class="modal-actions">
+            <button type="button" onclick="closeGoalModal()">Cancel</button>
+            <button type="submit">Save Goal</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </body>
@@ -786,8 +1296,9 @@ async function handleCollect(event: LambdaEvent) {
     }
 
     // Support both v1 and v2 formats for source IP
-    const ip = event.requestContext?.http?.sourceIp || event.headers?.['x-forwarded-for']?.split(',')[0] || 'unknown'
+    const ip = event.requestContext?.http?.sourceIp || event.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown'
     const userAgent = event.requestContext?.http?.userAgent || event.headers?.['user-agent'] || 'unknown'
+    console.log(`[Collect] IP: ${ip}, UA: ${userAgent?.substring(0, 50)}...`)
     const salt = getDailySalt()
     const visitorId = await hashVisitorId(ip, userAgent, payload.s, salt)
 
@@ -812,8 +1323,10 @@ async function handleCollect(event: LambdaEvent) {
 
       // Get country from headers (CloudFront/Cloudflare) or fallback to IP geolocation
       let country = getCountryFromHeaders(event.headers)
+      console.log(`[Collect] Country from headers: ${country || 'none'}`)
       if (!country) {
         country = await getCountryFromIP(ip)
+        console.log(`[Collect] Country from IP (${ip}): ${country || 'unknown'}`)
       }
 
       // Record page view using Eloquent model
@@ -876,6 +1389,20 @@ async function handleCollect(event: LambdaEvent) {
       // Upsert session using Eloquent model
       await SessionModel.upsert(session)
       setSession(sessionKey, session)
+
+      // Check for destination (pageview) goal conversions
+      await checkAndRecordConversions(
+        payload.s,
+        visitorId,
+        sessionId,
+        { path: parsedUrl.pathname },
+        {
+          referrerSource,
+          utmSource: parsedUrl.searchParams.get('utm_source') || undefined,
+          utmMedium: parsedUrl.searchParams.get('utm_medium') || undefined,
+          utmCampaign: parsedUrl.searchParams.get('utm_campaign') || undefined,
+        }
+      )
     }
     else if (payload.e === 'event') {
       // Handle custom events (e.g., button clicks, form submissions)
@@ -904,6 +1431,20 @@ async function handleCollect(event: LambdaEvent) {
         await SessionModel.upsert(session)
         setSession(sessionKey, session)
       }
+
+      // Check for event goal conversions
+      await checkAndRecordConversions(
+        payload.s,
+        visitorId,
+        sessionId,
+        { path: parsedUrl.pathname, eventName },
+        {
+          referrerSource: session?.referrerSource,
+          utmSource: session?.utmSource,
+          utmMedium: session?.utmMedium,
+          utmCampaign: session?.utmCampaign,
+        }
+      )
     }
     else if (payload.e === 'outbound') {
       // Handle outbound link clicks
@@ -1187,6 +1728,9 @@ async function handleGetPages(siteId: string, event: LambdaEvent) {
 
     const pageviews = (result.Items || []).map(unmarshall)
 
+    // Get the hostname from the first pageview (all should be same site)
+    const siteHostname = pageviews.length > 0 ? pageviews[0].hostname : null
+
     // Aggregate by path
     const pageStats: Record<string, { views: number; visitors: Set<string>; entries: number }> = {}
     for (const pv of pageviews) {
@@ -1208,7 +1752,7 @@ async function handleGetPages(siteId: string, event: LambdaEvent) {
       .sort((a, b) => b.views - a.views)
       .slice(0, limit)
 
-    return response({ pages })
+    return response({ pages, hostname: siteHostname })
   } catch (error) {
     console.error('Pages error:', error)
     return response({ error: 'Failed to fetch pages' }, 500)
@@ -1574,6 +2118,197 @@ async function handleGetCampaigns(siteId: string, event: LambdaEvent) {
   } catch (error) {
     console.error('Campaigns error:', error)
     return response({ error: 'Failed to fetch campaigns' }, 500)
+  }
+}
+
+// ============================================================================
+// Goal CRUD Handlers
+// ============================================================================
+
+async function handleCreateGoal(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+
+    if (!body.name || !body.type) {
+      return response({ error: 'Missing required fields: name, type' }, 400)
+    }
+
+    // Validate type
+    if (!['pageview', 'event', 'duration'].includes(body.type)) {
+      return response({ error: 'Invalid type. Must be: pageview, event, or duration' }, 400)
+    }
+
+    // For pageview/event goals, pattern is required
+    if ((body.type === 'pageview' || body.type === 'event') && !body.pattern) {
+      return response({ error: 'Pattern is required for pageview and event goals' }, 400)
+    }
+
+    // For duration goals, durationMinutes is required
+    if (body.type === 'duration' && (!body.durationMinutes || body.durationMinutes < 1)) {
+      return response({ error: 'durationMinutes is required for duration goals (min: 1)' }, 400)
+    }
+
+    const goal = await Goal.create({
+      id: generateId(),
+      siteId,
+      name: body.name,
+      type: body.type,
+      pattern: body.pattern || '',
+      matchType: body.matchType || 'exact',
+      durationMinutes: body.durationMinutes,
+      value: body.value,
+      isActive: body.isActive ?? true,
+    })
+
+    invalidateGoalCache(siteId)
+    return response({ goal }, 201)
+  } catch (error) {
+    console.error('Create goal error:', error)
+    return response({ error: 'Failed to create goal' }, 500)
+  }
+}
+
+async function handleGetGoals(siteId: string, event: LambdaEvent) {
+  try {
+    const includeInactive = event.queryStringParameters?.includeInactive === 'true'
+    const { startDate, endDate } = parseDateRange(event.queryStringParameters)
+
+    // Get goals
+    const allGoals = await Goal.forSite(siteId).get()
+    const goals = includeInactive ? allGoals : allGoals.filter(g => g.isActive)
+
+    // Get conversion counts for each goal
+    const goalsWithStats = await Promise.all(goals.map(async (goal) => {
+      const conversions = await Conversion.forGoal(siteId, goal.id)
+        .since(startDate)
+        .until(endDate)
+        .get()
+
+      const uniqueVisitors = new Set(conversions.map(c => c.visitorId)).size
+      const totalValue = conversions.reduce((sum, c) => sum + (c.value || 0), 0)
+
+      return {
+        id: goal.id,
+        name: goal.name,
+        type: goal.type,
+        pattern: goal.pattern,
+        matchType: goal.matchType,
+        durationMinutes: goal.durationMinutes,
+        value: goal.value,
+        isActive: goal.isActive,
+        conversions: conversions.length,
+        uniqueConversions: uniqueVisitors,
+        totalValue,
+        createdAt: goal.createdAt,
+      }
+    }))
+
+    return response({ goals: goalsWithStats })
+  } catch (error) {
+    console.error('Get goals error:', error)
+    return response({ error: 'Failed to fetch goals' }, 500)
+  }
+}
+
+async function handleUpdateGoal(siteId: string, goalId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+
+    // Validate type if provided
+    if (body.type && !['pageview', 'event', 'duration'].includes(body.type)) {
+      return response({ error: 'Invalid type. Must be: pageview, event, or duration' }, 400)
+    }
+
+    const goal = await Goal.update(siteId, goalId, {
+      name: body.name,
+      type: body.type,
+      pattern: body.pattern,
+      matchType: body.matchType,
+      durationMinutes: body.durationMinutes,
+      value: body.value,
+      isActive: body.isActive,
+    })
+
+    invalidateGoalCache(siteId)
+    return response({ goal })
+  } catch (error) {
+    console.error('Update goal error:', error)
+    return response({ error: 'Failed to update goal' }, 500)
+  }
+}
+
+async function handleDeleteGoal(siteId: string, goalId: string) {
+  try {
+    await Goal.delete(siteId, goalId)
+    invalidateGoalCache(siteId)
+    return response({ success: true })
+  } catch (error) {
+    console.error('Delete goal error:', error)
+    return response({ error: 'Failed to delete goal' }, 500)
+  }
+}
+
+async function handleGetGoalStats(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = parseDateRange(event.queryStringParameters)
+
+    // Get all goals for this site
+    const goals = await Goal.forSite(siteId).get()
+
+    // Get total sessions for conversion rate calculation
+    const sessionsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':prefix': { S: 'SESSION#' },
+      },
+      Select: 'COUNT',
+    }) as { Count?: number }
+    const totalSessions = sessionsResult.Count || 0
+
+    // Get stats for each goal
+    const goalStats = await Promise.all(goals.map(async (goal) => {
+      const conversions = await Conversion.forGoal(siteId, goal.id)
+        .since(startDate)
+        .until(endDate)
+        .get()
+
+      const uniqueVisitors = new Set(conversions.map(c => c.visitorId)).size
+      const totalValue = conversions.reduce((sum, c) => sum + (c.value || 0), 0)
+
+      return {
+        goalId: goal.id,
+        goalName: goal.name,
+        goalType: goal.type,
+        conversions: conversions.length,
+        uniqueConversions: uniqueVisitors,
+        conversionRate: totalSessions > 0
+          ? Math.round((uniqueVisitors / totalSessions) * 10000) / 100
+          : 0,
+        totalValue,
+        isActive: goal.isActive,
+      }
+    }))
+
+    // Calculate totals
+    const totalConversions = goalStats.reduce((sum, g) => sum + g.conversions, 0)
+    const totalValue = goalStats.reduce((sum, g) => sum + g.totalValue, 0)
+
+    return response({
+      goals: goalStats,
+      summary: {
+        totalGoals: goals.length,
+        activeGoals: goals.filter(g => g.isActive).length,
+        totalConversions,
+        totalValue,
+        totalSessions,
+      },
+      dateRange: { start: startDate.toISOString(), end: endDate.toISOString() },
+    })
+  } catch (error) {
+    console.error('Get goal stats error:', error)
+    return response({ error: 'Failed to fetch goal stats' }, 500)
   }
 }
 
@@ -2014,6 +2749,28 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
       // /api/sites/{siteId}/campaigns
       if (path.endsWith('/campaigns')) {
         return handleGetCampaigns(siteId, event)
+      }
+      // /api/sites/{siteId}/goals/stats
+      if (path.endsWith('/goals/stats')) {
+        return handleGetGoalStats(siteId, event)
+      }
+      // /api/sites/{siteId}/goals
+      if (path.endsWith('/goals') && method === 'GET') {
+        return handleGetGoals(siteId, event)
+      }
+      if (path.endsWith('/goals') && method === 'POST') {
+        return handleCreateGoal(siteId, event)
+      }
+      // /api/sites/{siteId}/goals/{goalId}
+      const goalIdMatch = path.match(/\/goals\/([^/]+)$/)
+      if (goalIdMatch) {
+        const goalId = goalIdMatch[1]
+        if (method === 'PUT') {
+          return handleUpdateGoal(siteId, goalId, event)
+        }
+        if (method === 'DELETE') {
+          return handleDeleteGoal(siteId, goalId)
+        }
       }
       // /api/sites/{siteId}/heatmap/clicks
       if (path.includes('/heatmap/clicks')) {

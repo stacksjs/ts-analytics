@@ -1424,6 +1424,473 @@ interface ScrollAggregation {
 }
 
 // ============================================================================
+// Goal Model
+// ============================================================================
+
+/**
+ * Goal model for tracking conversion goals
+ *
+ * DynamoDB Keys:
+ * - PK: SITE#{siteId}
+ * - SK: GOAL#{goalId}
+ */
+export class Goal extends Model {
+  static get tableName() { return tableName }
+  static pkPrefix = 'SITE'
+  static skPrefix = 'GOAL'
+  static primaryKey = 'id'
+  static timestamps = true
+
+  // Attributes
+  id!: string
+  siteId!: string
+  name!: string
+  type!: 'pageview' | 'event' | 'duration'
+  pattern!: string
+  matchType!: 'exact' | 'contains' | 'regex'
+  durationMinutes?: number // For duration goals
+  value?: number // Revenue/value per conversion
+  isActive!: boolean
+  createdAt!: Date | string
+  updatedAt!: Date | string
+
+  getPk(): string {
+    return `SITE#${this.siteId}`
+  }
+
+  getSk(): string {
+    return `GOAL#${this.id}`
+  }
+
+  /**
+   * Query goals for a specific site
+   */
+  static forSite(siteId: string): GoalQueryBuilder {
+    return new GoalQueryBuilder(siteId)
+  }
+
+  /**
+   * Create a new goal
+   */
+  static async create(data: GoalData): Promise<Goal> {
+    const now = new Date().toISOString()
+
+    const item = {
+      ...data,
+      pk: `SITE#${data.siteId}`,
+      sk: `GOAL#${data.id}`,
+      isActive: data.isActive ?? true,
+      createdAt: data.createdAt || now,
+      updatedAt: data.updatedAt || now,
+      _et: 'Goal',
+    }
+
+    const client = createClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    })
+
+    await client.putItem({
+      TableName: tableName,
+      Item: marshall(item),
+    })
+
+    return new Goal(item)
+  }
+
+  /**
+   * Find a goal by ID
+   */
+  static async findById(siteId: string, goalId: string): Promise<Goal | null> {
+    const client = createClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    })
+
+    const result = await client.getItem({
+      TableName: tableName,
+      Key: {
+        pk: { S: `SITE#${siteId}` },
+        sk: { S: `GOAL#${goalId}` },
+      },
+    })
+
+    if (!result.Item) return null
+    return new Goal(unmarshall(result.Item))
+  }
+
+  /**
+   * Update a goal
+   */
+  static async update(siteId: string, goalId: string, data: Partial<GoalData>): Promise<Goal> {
+    const client = createClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    })
+
+    const updates: string[] = []
+    const exprNames: Record<string, string> = {}
+    const exprValues: Record<string, any> = {}
+
+    const allowedFields = ['name', 'type', 'pattern', 'matchType', 'durationMinutes', 'value', 'isActive']
+    for (const field of allowedFields) {
+      if (data[field as keyof GoalData] !== undefined) {
+        const key = `#${field}`
+        const valueKey = `:${field}`
+        updates.push(`${key} = ${valueKey}`)
+        exprNames[key] = field
+        exprValues[valueKey] = marshallValue(data[field as keyof GoalData])
+      }
+    }
+
+    // Always update updatedAt
+    updates.push('#updatedAt = :updatedAt')
+    exprNames['#updatedAt'] = 'updatedAt'
+    exprValues[':updatedAt'] = { S: new Date().toISOString() }
+
+    if (updates.length === 0) {
+      const existing = await Goal.findById(siteId, goalId)
+      if (!existing) throw new Error('Goal not found')
+      return existing
+    }
+
+    await client.updateItem({
+      TableName: tableName,
+      Key: {
+        pk: { S: `SITE#${siteId}` },
+        sk: { S: `GOAL#${goalId}` },
+      },
+      UpdateExpression: `SET ${updates.join(', ')}`,
+      ExpressionAttributeNames: exprNames,
+      ExpressionAttributeValues: exprValues,
+    })
+
+    const updated = await Goal.findById(siteId, goalId)
+    if (!updated) throw new Error('Goal not found after update')
+    return updated
+  }
+
+  /**
+   * Delete a goal
+   */
+  static async delete(siteId: string, goalId: string): Promise<void> {
+    const client = createClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    })
+
+    await client.deleteItem({
+      TableName: tableName,
+      Key: {
+        pk: { S: `SITE#${siteId}` },
+        sk: { S: `GOAL#${goalId}` },
+      },
+    })
+  }
+}
+
+interface GoalData {
+  id: string
+  siteId: string
+  name: string
+  type: 'pageview' | 'event' | 'duration'
+  pattern: string
+  matchType: 'exact' | 'contains' | 'regex'
+  durationMinutes?: number
+  value?: number
+  isActive?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+class GoalQueryBuilder {
+  private siteId: string
+  private _activeOnly = false
+  private _limit?: number
+
+  constructor(siteId: string) {
+    this.siteId = siteId
+  }
+
+  active(): this {
+    this._activeOnly = true
+    return this
+  }
+
+  limit(count: number): this {
+    this._limit = count
+    return this
+  }
+
+  async get(): Promise<Goal[]> {
+    const client = createClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    })
+
+    const result = await client.query({
+      TableName: tableName,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${this.siteId}` },
+        ':prefix': { S: 'GOAL#' },
+      },
+      ...(this._limit && { Limit: this._limit }),
+    })
+
+    let goals = (result.Items || []).map((item: any) => new Goal(unmarshall(item)))
+
+    if (this._activeOnly) {
+      goals = goals.filter(g => g.isActive)
+    }
+
+    return goals
+  }
+}
+
+// ============================================================================
+// Conversion Model
+// ============================================================================
+
+/**
+ * Conversion model for tracking goal completions
+ *
+ * DynamoDB Keys:
+ * - PK: SITE#{siteId}
+ * - SK: CONVERSION#{timestamp}#{id}
+ * - GSI1PK: SITE#{siteId}#GOAL#{goalId}
+ * - GSI1SK: CONVERSION#{timestamp}
+ */
+export class Conversion extends Model {
+  static get tableName() { return tableName }
+  static pkPrefix = 'SITE'
+  static skPrefix = 'CONVERSION'
+  static primaryKey = 'id'
+  static timestamps = true
+
+  // Attributes
+  id!: string
+  siteId!: string
+  goalId!: string
+  visitorId!: string
+  sessionId!: string
+  value?: number
+  path!: string
+  referrerSource?: string
+  utmSource?: string
+  utmMedium?: string
+  utmCampaign?: string
+  timestamp!: Date | string
+
+  getPk(): string {
+    return `SITE#${this.siteId}`
+  }
+
+  getSk(): string {
+    const ts = this.timestamp instanceof Date ? this.timestamp.toISOString() : this.timestamp
+    return `CONVERSION#${ts}#${this.id}`
+  }
+
+  getGsi1pk(): string {
+    return `SITE#${this.siteId}#GOAL#${this.goalId}`
+  }
+
+  getGsi1sk(): string {
+    const ts = this.timestamp instanceof Date ? this.timestamp.toISOString() : this.timestamp
+    return `CONVERSION#${ts}`
+  }
+
+  /**
+   * Query conversions for a specific goal
+   */
+  static forGoal(siteId: string, goalId: string): ConversionQueryBuilder {
+    return new ConversionQueryBuilder(siteId, goalId)
+  }
+
+  /**
+   * Query all conversions for a site
+   */
+  static forSite(siteId: string): ConversionSiteQueryBuilder {
+    return new ConversionSiteQueryBuilder(siteId)
+  }
+
+  /**
+   * Record a conversion
+   */
+  static async record(data: ConversionData): Promise<Conversion> {
+    const timestamp = data.timestamp instanceof Date ? data.timestamp : new Date(data.timestamp || Date.now())
+
+    const item = {
+      ...data,
+      pk: `SITE#${data.siteId}`,
+      sk: `CONVERSION#${timestamp.toISOString()}#${data.id}`,
+      gsi1pk: `SITE#${data.siteId}#GOAL#${data.goalId}`,
+      gsi1sk: `CONVERSION#${timestamp.toISOString()}`,
+      timestamp: timestamp.toISOString(),
+      _et: 'Conversion',
+    }
+
+    const client = createClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    })
+
+    await client.putItem({
+      TableName: tableName,
+      Item: marshall(item),
+    })
+
+    return new Conversion(item)
+  }
+}
+
+interface ConversionData {
+  id: string
+  siteId: string
+  goalId: string
+  visitorId: string
+  sessionId: string
+  value?: number
+  path: string
+  referrerSource?: string
+  utmSource?: string
+  utmMedium?: string
+  utmCampaign?: string
+  timestamp?: Date | string
+}
+
+class ConversionQueryBuilder {
+  private siteId: string
+  private goalId: string
+  private startDate?: Date
+  private endDate?: Date
+  private _limit?: number
+
+  constructor(siteId: string, goalId: string) {
+    this.siteId = siteId
+    this.goalId = goalId
+  }
+
+  since(date: Date): this {
+    this.startDate = date
+    return this
+  }
+
+  until(date: Date): this {
+    this.endDate = date
+    return this
+  }
+
+  limit(count: number): this {
+    this._limit = count
+    return this
+  }
+
+  async get(): Promise<Conversion[]> {
+    const client = createClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    })
+
+    // Query using GSI1 for goal-specific conversions
+    const startKey = this.startDate
+      ? `CONVERSION#${this.startDate.toISOString()}`
+      : 'CONVERSION#'
+    const endKey = this.endDate
+      ? `CONVERSION#${this.endDate.toISOString()}`
+      : 'CONVERSION#\uffff'
+
+    const result = await client.query({
+      TableName: tableName,
+      IndexName: 'gsi1',
+      KeyConditionExpression: 'gsi1pk = :pk AND gsi1sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${this.siteId}#GOAL#${this.goalId}` },
+        ':start': { S: startKey },
+        ':end': { S: endKey },
+      },
+      ...(this._limit && { Limit: this._limit }),
+      ScanIndexForward: false,
+    })
+
+    return (result.Items || []).map((item: any) => new Conversion(unmarshall(item)))
+  }
+
+  async count(): Promise<number> {
+    const client = createClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    })
+
+    const startKey = this.startDate
+      ? `CONVERSION#${this.startDate.toISOString()}`
+      : 'CONVERSION#'
+    const endKey = this.endDate
+      ? `CONVERSION#${this.endDate.toISOString()}`
+      : 'CONVERSION#\uffff'
+
+    const result = await client.query({
+      TableName: tableName,
+      IndexName: 'gsi1',
+      KeyConditionExpression: 'gsi1pk = :pk AND gsi1sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${this.siteId}#GOAL#${this.goalId}` },
+        ':start': { S: startKey },
+        ':end': { S: endKey },
+      },
+      Select: 'COUNT',
+    })
+
+    return result.Count || 0
+  }
+}
+
+class ConversionSiteQueryBuilder {
+  private siteId: string
+  private startDate?: Date
+  private endDate?: Date
+  private _limit?: number
+
+  constructor(siteId: string) {
+    this.siteId = siteId
+  }
+
+  since(date: Date): this {
+    this.startDate = date
+    return this
+  }
+
+  until(date: Date): this {
+    this.endDate = date
+    return this
+  }
+
+  limit(count: number): this {
+    this._limit = count
+    return this
+  }
+
+  async get(): Promise<Conversion[]> {
+    const client = createClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    })
+
+    const startKey = this.startDate
+      ? `CONVERSION#${this.startDate.toISOString()}`
+      : 'CONVERSION#'
+    const endKey = this.endDate
+      ? `CONVERSION#${this.endDate.toISOString()}`
+      : 'CONVERSION#\uffff'
+
+    const result = await client.query({
+      TableName: tableName,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${this.siteId}` },
+        ':start': { S: startKey },
+        ':end': { S: endKey },
+      },
+      ...(this._limit && { Limit: this._limit }),
+      ScanIndexForward: false,
+    })
+
+    return (result.Items || []).map((item: any) => new Conversion(unmarshall(item)))
+  }
+}
+
+// ============================================================================
 // Re-exports
 // ============================================================================
 
