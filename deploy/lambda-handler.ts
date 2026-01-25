@@ -440,7 +440,7 @@ function getDashboardHtml(): string {
     let siteId = SITE_ID
     let availableSites = []
     let currentSite = null
-    let dateRange = '30d'
+    let dateRange = '6h'
     let isLoading = false
     let lastUpdated = null
     let refreshInterval = null
@@ -1230,8 +1230,8 @@ function getDashboardHtml(): string {
     .panel-title { font-size: 0.875rem; font-weight: 500; margin-bottom: 1rem; color: var(--text2); display: flex; align-items: center; gap: 0.5rem }
     .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem }
     .panel-header .panel-title { margin-bottom: 0 }
-    .view-all { font-size: 0.75rem; color: var(--primary); text-decoration: none; opacity: 0.8; transition: opacity 0.2s }
-    .view-all:hover { opacity: 1; text-decoration: underline }
+    .view-all { font-size: 0.75rem; color: var(--muted); text-decoration: none; opacity: 0.7; transition: all 0.2s }
+    .view-all:hover { opacity: 1; color: var(--text2) }
 
     /* Tables */
     .data-table { width: 100%; font-size: 0.8125rem; border-collapse: collapse }
@@ -1312,11 +1312,11 @@ function getDashboardHtml(): string {
     <div class="controls">
       <div class="date-range">
         <button class="date-btn" data-range="1h" onclick="setDateRange('1h')">1h</button>
-        <button class="date-btn" data-range="6h" onclick="setDateRange('6h')">6h</button>
+        <button class="date-btn active" data-range="6h" onclick="setDateRange('6h')">6h</button>
         <button class="date-btn" data-range="12h" onclick="setDateRange('12h')">12h</button>
         <button class="date-btn" data-range="24h" onclick="setDateRange('24h')">24h</button>
         <button class="date-btn" data-range="7d" onclick="setDateRange('7d')">7d</button>
-        <button class="date-btn active" data-range="30d" onclick="setDateRange('30d')">30d</button>
+        <button class="date-btn" data-range="30d" onclick="setDateRange('30d')">30d</button>
         <button class="date-btn" data-range="90d" onclick="setDateRange('90d')">90d</button>
       </div>
       <div class="refresh-group">
@@ -2014,11 +2014,11 @@ async function handleDetailPage(section: string, event: LambdaEvent) {
     <h1 class="page-title">${sectionIcons[section]}${sectionTitles[section]}</h1>
     <div class="date-range" style="margin-top:1.5rem">
       <button class="date-btn" data-range="1h">1h</button>
-      <button class="date-btn" data-range="6h">6h</button>
+      <button class="date-btn active" data-range="6h">6h</button>
       <button class="date-btn" data-range="12h">12h</button>
       <button class="date-btn" data-range="24h">24h</button>
       <button class="date-btn" data-range="7d">7 days</button>
-      <button class="date-btn active" data-range="30d">30 days</button>
+      <button class="date-btn" data-range="30d">30 days</button>
       <button class="date-btn" data-range="90d">90 days</button>
     </div>
     <div class="panel">
@@ -2028,7 +2028,7 @@ async function handleDetailPage(section: string, event: LambdaEvent) {
   <script>
     const siteId = '${siteId}'
     const section = '${section}'
-    let dateRange = '30d'
+    let dateRange = '6h'
 
     document.querySelectorAll('.date-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2694,17 +2694,17 @@ async function handleGetTimeSeries(siteId: string, event: LambdaEvent) {
       let key: string
       if (period === 'minute') {
         // 5-minute buckets for granular view
-        const mins = Math.floor(current.getMinutes() / 5) * 5
-        key = `${current.toISOString().slice(0, 14)}${mins.toString().padStart(2, '0')}:00`
+        const mins = Math.floor(current.getUTCMinutes() / 5) * 5
+        key = `${current.toISOString().slice(0, 14)}${mins.toString().padStart(2, '0')}:00.000Z`
         current.setMinutes(current.getMinutes() + 5)
       } else if (period === 'hour') {
-        key = `${current.toISOString().slice(0, 13)}:00:00`
+        key = `${current.toISOString().slice(0, 13)}:00:00.000Z`
         current.setHours(current.getHours() + 1)
       } else if (period === 'month') {
-        key = current.toISOString().slice(0, 7)
+        key = `${current.toISOString().slice(0, 7)}-01T00:00:00.000Z`
         current.setMonth(current.getMonth() + 1)
       } else {
-        key = current.toISOString().slice(0, 10)
+        key = `${current.toISOString().slice(0, 10)}T00:00:00.000Z`
         current.setDate(current.getDate() + 1)
       }
       if (!allBuckets.includes(key)) allBuckets.push(key)
@@ -2724,14 +2724,14 @@ async function handleGetTimeSeries(siteId: string, event: LambdaEvent) {
 
       if (period === 'minute') {
         // 5-minute buckets
-        const mins = Math.floor(date.getMinutes() / 5) * 5
-        key = `${date.toISOString().slice(0, 14)}${mins.toString().padStart(2, '0')}:00`
+        const mins = Math.floor(date.getUTCMinutes() / 5) * 5
+        key = `${date.toISOString().slice(0, 14)}${mins.toString().padStart(2, '0')}:00.000Z`
       } else if (period === 'hour') {
-        key = `${date.toISOString().slice(0, 13)}:00:00`
+        key = `${date.toISOString().slice(0, 13)}:00:00.000Z`
       } else if (period === 'month') {
-        key = date.toISOString().slice(0, 7)
+        key = `${date.toISOString().slice(0, 7)}-01T00:00:00.000Z`
       } else {
-        key = date.toISOString().slice(0, 10)
+        key = `${date.toISOString().slice(0, 10)}T00:00:00.000Z`
       }
 
       if (!buckets[key]) {
