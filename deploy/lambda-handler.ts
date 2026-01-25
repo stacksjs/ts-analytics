@@ -631,18 +631,23 @@ function getDashboardHtml(): string {
       fetchDashboardData()
     }
 
-    function getDateRangeParams() {
+    function getDateRangeParams(forTimeseries) {
       const now = new Date()
       const end = now.toISOString()
-      let start
+      let start, period = 'day'
       switch(dateRange) {
-        case '24h': start = new Date(now - 24*60*60*1000); break
+        case '1h': start = new Date(now - 1*60*60*1000); period = 'minute'; break
+        case '6h': start = new Date(now - 6*60*60*1000); period = 'hour'; break
+        case '12h': start = new Date(now - 12*60*60*1000); period = 'hour'; break
+        case '24h': start = new Date(now - 24*60*60*1000); period = 'hour'; break
         case '7d': start = new Date(now - 7*24*60*60*1000); break
         case '30d': start = new Date(now - 30*24*60*60*1000); break
         case '90d': start = new Date(now - 90*24*60*60*1000); break
         default: start = new Date(now - 30*24*60*60*1000)
       }
-      return \`?startDate=\${start.toISOString()}&endDate=\${end}\`
+      let params = \`?startDate=\${start.toISOString()}&endDate=\${end}\`
+      if (forTimeseries) params += \`&period=\${period}\`
+      return params
     }
 
     async function fetchDashboardData() {
@@ -651,7 +656,8 @@ function getDashboardHtml(): string {
       document.getElementById('refresh-btn').classList.add('spinning')
 
       const baseUrl = \`\${API_ENDPOINT}/api/sites/\${siteId}\`
-      const params = getDateRangeParams()
+      const params = getDateRangeParams(false)
+      const tsParams = getDateRangeParams(true)
 
       try {
         const [statsRes, realtimeRes, pagesRes, referrersRes, devicesRes, browsersRes, countriesRes, timeseriesRes, eventsRes, campaignsRes, goalsRes] = await Promise.all([
@@ -662,7 +668,7 @@ function getDashboardHtml(): string {
           fetch(\`\${baseUrl}/devices\${params}\`).then(r => r.json()).catch(() => ({ deviceTypes: [] })),
           fetch(\`\${baseUrl}/browsers\${params}\`).then(r => r.json()).catch(() => ({ browsers: [] })),
           fetch(\`\${baseUrl}/countries\${params}\`).then(r => r.json()).catch(() => ({ countries: [] })),
-          fetch(\`\${baseUrl}/timeseries\${params}\`).then(r => r.json()).catch(() => ({ timeSeries: [] })),
+          fetch(\`\${baseUrl}/timeseries\${tsParams}\`).then(r => r.json()).catch(() => ({ timeSeries: [] })),
           fetch(\`\${baseUrl}/events\${params}\`).then(r => r.json()).catch(() => ({ events: [] })),
           fetch(\`\${baseUrl}/campaigns\${params}\`).then(r => r.json()).catch(() => ({ campaigns: [] })),
           fetch(\`\${baseUrl}/goals\${params}\`).then(r => r.json()).catch(() => ({ goals: [] })),
@@ -967,7 +973,35 @@ function getDashboardHtml(): string {
       function fmtDate(dateStr) {
         const date = new Date(dateStr)
         const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+        // Show time for hourly ranges, date for daily ranges
+        if (dateRange === '1h' || dateRange === '6h' || dateRange === '12h') {
+          const h = date.getHours()
+          const m = date.getMinutes()
+          const ampm = h >= 12 ? 'pm' : 'am'
+          const h12 = h % 12 || 12
+          return h12 + ':' + (m < 10 ? '0' : '') + m + ampm
+        } else if (dateRange === '24h') {
+          const h = date.getHours()
+          const ampm = h >= 12 ? 'pm' : 'am'
+          const h12 = h % 12 || 12
+          return h12 + ampm
+        }
         return months[date.getMonth()] + ' ' + date.getDate()
+      }
+
+      function fmtDateFull(dateStr) {
+        const date = new Date(dateStr)
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+        const h = date.getHours()
+        const m = date.getMinutes()
+        const ampm = h >= 12 ? 'pm' : 'am'
+        const h12 = h % 12 || 12
+        const timeStr = h12 + ':' + (m < 10 ? '0' : '') + m + ampm
+        const dateStr2 = months[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear()
+        if (dateRange === '1h' || dateRange === '6h' || dateRange === '12h' || dateRange === '24h') {
+          return dateStr2 + ' at ' + timeStr
+        }
+        return dateStr2
       }
 
       function draw(hoverIdx) {
@@ -1020,17 +1054,32 @@ function getDashboardHtml(): string {
           ctx.fillText(fmt(Math.round(maxV - (maxV/4)*i)), pad.left-10, pad.top+(h/4)*i+4)
         }
 
-        // X-axis labels
+        // X-axis labels - smart distribution based on data length
         ctx.textAlign = 'center'
-        const labelCount = Math.min(timeSeriesData.length, 7)
-        const step = Math.max(1, Math.floor((timeSeriesData.length - 1) / (labelCount - 1)))
-        for (let i = 0; i < timeSeriesData.length; i += step) {
-          const d = timeSeriesData[i]
-          ctx.fillText(fmtDate(d.date), pad.left + i * xS, logicalH - 10)
-        }
-        if ((timeSeriesData.length - 1) % step !== 0 && timeSeriesData.length > 1) {
-          const d = timeSeriesData[timeSeriesData.length - 1]
-          ctx.fillText(fmtDate(d.date), pad.left + (timeSeriesData.length - 1) * xS, logicalH - 10)
+        const n = timeSeriesData.length
+        let maxLabels = 7
+        // Adjust label count based on time range
+        if (dateRange === '1h') maxLabels = Math.min(n, 7) // 5-min buckets, show ~7 labels
+        else if (dateRange === '6h') maxLabels = Math.min(n, 7)
+        else if (dateRange === '12h') maxLabels = Math.min(n, 7)
+        else if (dateRange === '24h') maxLabels = Math.min(n, 8)
+
+        if (n === 1) {
+          // Single data point: show just that label centered
+          ctx.fillText(fmtDate(timeSeriesData[0].date), pad.left + w / 2, logicalH - 10)
+        } else if (n <= maxLabels) {
+          // Few points: show all labels
+          timeSeriesData.forEach((d, i) => {
+            ctx.fillText(fmtDate(d.date), pad.left + i * xS, logicalH - 10)
+          })
+        } else {
+          // Many points: distribute labels evenly
+          const step = (n - 1) / (maxLabels - 1)
+          for (let j = 0; j < maxLabels; j++) {
+            const i = Math.round(j * step)
+            const d = timeSeriesData[i]
+            ctx.fillText(fmtDate(d.date), pad.left + i * xS, logicalH - 10)
+          }
         }
 
         // Hover line
@@ -1056,7 +1105,7 @@ function getDashboardHtml(): string {
         points.forEach((p, i) => { const d = Math.abs(mx - p.x); if (d < minDist) { minDist = d; closest = i } })
         if (closest >= 0) {
           const p = points[closest], d = p.data
-          tooltip.innerHTML = '<div style="color:#9ca3af;font-size:11px;margin-bottom:6px;font-weight:500">' + fmtDate(d.date) + '</div>' +
+          tooltip.innerHTML = '<div style="color:#9ca3af;font-size:11px;margin-bottom:6px;font-weight:500">' + fmtDateFull(d.date) + '</div>' +
             '<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:8px;height:8px;background:#818cf8;border-radius:2px"></span>Views: <strong style="margin-left:auto">' + fmt(d.views || d.count || 0) + '</strong></div>' +
             '<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:8px;height:8px;background:#10b981;border-radius:2px"></span>Visitors: <strong style="margin-left:auto">' + fmt(d.visitors || 0) + '</strong></div>'
           tooltip.style.display = 'block'
@@ -1245,10 +1294,13 @@ function getDashboardHtml(): string {
 
     <div class="controls">
       <div class="date-range">
+        <button class="date-btn" data-range="1h" onclick="setDateRange('1h')">1h</button>
+        <button class="date-btn" data-range="6h" onclick="setDateRange('6h')">6h</button>
+        <button class="date-btn" data-range="12h" onclick="setDateRange('12h')">12h</button>
         <button class="date-btn" data-range="24h" onclick="setDateRange('24h')">24h</button>
-        <button class="date-btn" data-range="7d" onclick="setDateRange('7d')">7 days</button>
-        <button class="date-btn active" data-range="30d" onclick="setDateRange('30d')">30 days</button>
-        <button class="date-btn" data-range="90d" onclick="setDateRange('90d')">90 days</button>
+        <button class="date-btn" data-range="7d" onclick="setDateRange('7d')">7d</button>
+        <button class="date-btn active" data-range="30d" onclick="setDateRange('30d')">30d</button>
+        <button class="date-btn" data-range="90d" onclick="setDateRange('90d')">90d</button>
       </div>
       <div class="refresh-group">
         <span id="last-updated" class="last-updated"></span>
@@ -2225,14 +2277,48 @@ async function handleGetTimeSeries(siteId: string, event: LambdaEvent) {
 
     const pageviews = (result.Items || []).map(unmarshall)
 
-    // Group by period
+    // Generate all time buckets in the range
+    const allBuckets: string[] = []
+    const current = new Date(startDate)
+    const end = new Date(endDate)
+
+    while (current <= end) {
+      let key: string
+      if (period === 'minute') {
+        // 5-minute buckets for granular view
+        const mins = Math.floor(current.getMinutes() / 5) * 5
+        key = `${current.toISOString().slice(0, 14)}${mins.toString().padStart(2, '0')}:00`
+        current.setMinutes(current.getMinutes() + 5)
+      } else if (period === 'hour') {
+        key = `${current.toISOString().slice(0, 13)}:00:00`
+        current.setHours(current.getHours() + 1)
+      } else if (period === 'month') {
+        key = current.toISOString().slice(0, 7)
+        current.setMonth(current.getMonth() + 1)
+      } else {
+        key = current.toISOString().slice(0, 10)
+        current.setDate(current.getDate() + 1)
+      }
+      if (!allBuckets.includes(key)) allBuckets.push(key)
+    }
+
+    // Group pageviews by period
     const buckets: Record<string, { views: number; visitors: Set<string>; sessions: Set<string> }> = {}
+
+    // Initialize all buckets with zeros
+    for (const key of allBuckets) {
+      buckets[key] = { views: 0, visitors: new Set(), sessions: new Set() }
+    }
 
     for (const pv of pageviews) {
       const date = new Date(pv.timestamp)
       let key: string
 
-      if (period === 'hour') {
+      if (period === 'minute') {
+        // 5-minute buckets
+        const mins = Math.floor(date.getMinutes() / 5) * 5
+        key = `${date.toISOString().slice(0, 14)}${mins.toString().padStart(2, '0')}:00`
+      } else if (period === 'hour') {
         key = `${date.toISOString().slice(0, 13)}:00:00`
       } else if (period === 'month') {
         key = date.toISOString().slice(0, 7)
