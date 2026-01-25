@@ -3116,6 +3116,10 @@ export interface TrackingScriptOptions {
   customDomain?: string
   /** Use stealth mode (shorter endpoint paths, less identifiable) */
   stealthMode?: boolean
+  /** Whether to track Core Web Vitals (LCP, FID, CLS, TTFB, INP) */
+  trackWebVitals?: boolean
+  /** Whether to track JavaScript errors */
+  trackErrors?: boolean
 }
 
 /**
@@ -3123,6 +3127,81 @@ export interface TrackingScriptOptions {
  */
 export function generateTrackingScript(options: TrackingScriptOptions): string {
   const endpoint = options.stealthMode ? '/t' : '/collect'
+  const webVitalsCode = options.trackWebVitals !== false ? `
+  // Core Web Vitals tracking
+  var vitalsSent={};
+  function sendVital(name,value,rating){
+    if(vitalsSent[name])return;
+    vitalsSent[name]=true;
+    t('vitals',{metric:name,value:Math.round(value),rating:rating});
+  }
+  function getRating(name,value){
+    var thresholds={LCP:[2500,4000],FID:[100,300],CLS:[0.1,0.25],TTFB:[800,1800],INP:[200,500]};
+    var t=thresholds[name]||[0,0];
+    return value<=t[0]?'good':value<=t[1]?'needs-improvement':'poor';
+  }
+  // LCP - Largest Contentful Paint
+  if(w.PerformanceObserver){
+    try{
+      new PerformanceObserver(function(l){
+        var entries=l.getEntries();
+        var last=entries[entries.length-1];
+        if(last)sendVital('LCP',last.startTime,getRating('LCP',last.startTime));
+      }).observe({type:'largest-contentful-paint',buffered:true});
+    }catch(e){}
+    // FID - First Input Delay
+    try{
+      new PerformanceObserver(function(l){
+        var entry=l.getEntries()[0];
+        if(entry)sendVital('FID',entry.processingStart-entry.startTime,getRating('FID',entry.processingStart-entry.startTime));
+      }).observe({type:'first-input',buffered:true});
+    }catch(e){}
+    // CLS - Cumulative Layout Shift
+    var clsValue=0;
+    try{
+      new PerformanceObserver(function(l){
+        for(var e of l.getEntries()){if(!e.hadRecentInput)clsValue+=e.value;}
+      }).observe({type:'layout-shift',buffered:true});
+      w.addEventListener('visibilitychange',function(){
+        if(d.visibilityState==='hidden')sendVital('CLS',clsValue*1000,getRating('CLS',clsValue));
+      });
+    }catch(e){}
+    // INP - Interaction to Next Paint
+    var inpValue=0;
+    try{
+      new PerformanceObserver(function(l){
+        for(var e of l.getEntries()){
+          if(e.interactionId&&e.duration>inpValue)inpValue=e.duration;
+        }
+      }).observe({type:'event',buffered:true,durationThreshold:16});
+      w.addEventListener('visibilitychange',function(){
+        if(d.visibilityState==='hidden'&&inpValue>0)sendVital('INP',inpValue,getRating('INP',inpValue));
+      });
+    }catch(e){}
+  }
+  // TTFB - Time to First Byte
+  w.addEventListener('load',function(){
+    var nav=performance.getEntriesByType('navigation')[0];
+    if(nav)sendVital('TTFB',nav.responseStart,getRating('TTFB',nav.responseStart));
+  });` : ''
+
+  const errorTrackingCode = options.trackErrors !== false ? `
+  // Error tracking
+  var errorsSent=new Set();
+  function sendError(msg,source,line,col,stack){
+    var key=msg+source+line;
+    if(errorsSent.has(key))return;
+    errorsSent.add(key);
+    t('error',{message:String(msg).slice(0,500),source:source,line:line,col:col,stack:String(stack||'').slice(0,2000)});
+  }
+  w.addEventListener('error',function(e){
+    sendError(e.message,e.filename,e.lineno,e.colno,e.error&&e.error.stack);
+  });
+  w.addEventListener('unhandledrejection',function(e){
+    var reason=e.reason||{};
+    sendError('Unhandled Promise: '+(reason.message||reason),reason.fileName||'',reason.lineNumber||0,0,reason.stack);
+  });` : ''
+
   return `
 <!-- Analytics -->
 <script data-site="${options.siteId}" data-api="${options.apiEndpoint}" defer>
@@ -3155,7 +3234,7 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
     : ''}
   if(d.readyState==='complete')pv();
   else w.addEventListener('load',pv);
-  w.fathom={track:function(n,v){t('event',{name:n,value:v});}};
+  w.fathom={track:function(n,v){t('event',{name:n,value:v});}};\n${webVitalsCode}${errorTrackingCode}
 })();
 </script>
 `.trim()

@@ -507,6 +507,13 @@ function getDashboardHtml(): string {
     let editingGoal = null
     let siteHasHistoricalData = cachedStats ? true : false // Track if site has ever had data
 
+    // New state for additional features
+    let sessions = [], sessionDetail = null
+    let vitals = [], errors = [], insights = []
+    let activeTab = 'dashboard' // 'dashboard', 'sessions', 'vitals', 'errors', 'insights'
+    let filters = { country: '', device: '', browser: '', referrer: '' }
+    let comparisonStats = null
+
     // Browser icons (SVG)
     const browserIcons = {
       'Chrome': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:6px"><circle cx="12" cy="12" r="10" stroke="#4285F4" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#4285F4"/><path d="M12 2v6" stroke="#EA4335" stroke-width="2"/><path d="M5 17l5-3" stroke="#FBBC05" stroke-width="2"/><path d="M19 17l-5-3" stroke="#34A853" stroke-width="2"/></svg>',
@@ -666,7 +673,7 @@ function getDashboardHtml(): string {
       const tsParams = getDateRangeParams(true)
 
       try {
-        const [statsRes, realtimeRes, pagesRes, referrersRes, devicesRes, browsersRes, countriesRes, timeseriesRes, eventsRes, campaignsRes, goalsRes] = await Promise.all([
+        const [statsRes, realtimeRes, pagesRes, referrersRes, devicesRes, browsersRes, countriesRes, timeseriesRes, eventsRes, campaignsRes, goalsRes, vitalsRes, errorsRes, insightsRes] = await Promise.all([
           fetch(\`\${baseUrl}/stats\${params}\`).then(r => r.json()).catch(() => ({})),
           fetch(\`\${baseUrl}/realtime\`).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
           fetch(\`\${baseUrl}/pages\${params}\`).then(r => r.json()).catch(() => ({ pages: [] })),
@@ -678,6 +685,9 @@ function getDashboardHtml(): string {
           fetch(\`\${baseUrl}/events\${params}\`).then(r => r.json()).catch(() => ({ events: [] })),
           fetch(\`\${baseUrl}/campaigns\${params}\`).then(r => r.json()).catch(() => ({ campaigns: [] })),
           fetch(\`\${baseUrl}/goals\${params}\`).then(r => r.json()).catch(() => ({ goals: [] })),
+          fetch(\`\${baseUrl}/vitals\${params}\`).then(r => r.json()).catch(() => ({ vitals: [] })),
+          fetch(\`\${baseUrl}/errors\${params}\`).then(r => r.json()).catch(() => ({ errors: [] })),
+          fetch(\`\${baseUrl}/insights\`).then(r => r.json()).catch(() => ({ insights: [] })),
         ])
 
         previousStats = { ...stats }
@@ -701,6 +711,10 @@ function getDashboardHtml(): string {
         events = eventsRes.events || []
         goals = goalsRes.goals || []
         timeSeriesData = timeseriesRes.timeSeries || []
+        vitals = vitalsRes.vitals || []
+        errors = errorsRes.errors || []
+        insights = insightsRes.insights || []
+        comparisonStats = insightsRes.stats || null
         lastUpdated = new Date()
 
         // Mark site as having data if we see any (don't show setup for empty time ranges)
@@ -720,6 +734,482 @@ function getDashboardHtml(): string {
     function fmt(n) {
       if (n === undefined || n === null) return '0'
       return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'k' : String(n)
+    }
+
+    // Tab switching
+    let flowData = null
+    let revenueData = null
+
+    function switchTab(tab) {
+      activeTab = tab
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab)
+      })
+      // Hide/show appropriate content
+      const mainContent = document.getElementById('main-content')
+      const statsSection = document.querySelector('.stats')
+      const chartBox = document.querySelector('.chart-box')
+
+      if (tab === 'dashboard') {
+        if (statsSection) statsSection.style.display = 'grid'
+        if (chartBox) chartBox.style.display = 'block'
+        renderDashboard()
+      } else if (tab === 'sessions') {
+        if (statsSection) statsSection.style.display = 'none'
+        if (chartBox) chartBox.style.display = 'none'
+        fetchSessions()
+      } else if (tab === 'flow') {
+        if (statsSection) statsSection.style.display = 'none'
+        if (chartBox) chartBox.style.display = 'none'
+        fetchUserFlow()
+      } else if (tab === 'vitals') {
+        if (statsSection) statsSection.style.display = 'none'
+        if (chartBox) chartBox.style.display = 'none'
+        renderVitals()
+      } else if (tab === 'errors') {
+        if (statsSection) statsSection.style.display = 'none'
+        if (chartBox) chartBox.style.display = 'none'
+        renderErrors()
+      } else if (tab === 'insights') {
+        if (statsSection) statsSection.style.display = 'none'
+        if (chartBox) chartBox.style.display = 'none'
+        renderInsights()
+      }
+    }
+
+    // Fetch user flow data
+    async function fetchUserFlow() {
+      const params = getDateRangeParams(false)
+      try {
+        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/flow\${params}\`)
+        flowData = await res.json()
+        renderUserFlow()
+      } catch (e) {
+        console.error('Failed to fetch user flow:', e)
+      }
+    }
+
+    // Render user flow visualization
+    function renderUserFlow() {
+      const grid = document.querySelector('.grid')
+      if (!grid || !flowData) return
+
+      const { nodes, links, totalSessions, analyzedSessions } = flowData
+
+      // Group nodes by layer (approximation based on incoming/outgoing links)
+      const entryNodes = nodes.filter(n => n.id === '/' || links.every(l => l.target !== n.id || l.source === n.id))
+      const otherNodes = nodes.filter(n => !entryNodes.includes(n))
+
+      grid.innerHTML = \`
+        <div style="grid-column:1/-1">
+          <h3 style="margin-bottom:0.5rem;font-size:1rem">User Flow</h3>
+          <p style="font-size:0.75rem;color:var(--muted);margin-bottom:1.5rem">Showing top paths from \${analyzedSessions} of \${totalSessions} multi-page sessions</p>
+
+          <div style="display:flex;gap:2rem;overflow-x:auto;padding-bottom:1rem">
+            <!-- Entry pages -->
+            <div style="min-width:200px">
+              <h4 style="font-size:0.6875rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem">Entry Pages</h4>
+              \${entryNodes.slice(0, 8).map(n => \`
+                <div style="background:var(--bg);border:1px solid var(--border);padding:0.5rem 0.75rem;border-radius:6px;margin-bottom:0.5rem">
+                  <div style="font-size:0.8125rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${n.id}</div>
+                  <div style="font-size:0.6875rem;color:var(--muted)">\${n.count} visits</div>
+                </div>
+              \`).join('')}
+            </div>
+
+            <!-- Flow connections -->
+            <div style="min-width:300px;flex:1">
+              <h4 style="font-size:0.6875rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem">Top Flows</h4>
+              \${links.slice(0, 15).map(l => \`
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;font-size:0.75rem">
+                  <span style="background:var(--bg);padding:0.25rem 0.5rem;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">\${l.source}</span>
+                  <span style="color:var(--accent)">→</span>
+                  <span style="background:var(--bg);padding:0.25rem 0.5rem;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">\${l.target}</span>
+                  <span style="color:var(--muted);margin-left:auto">\${l.value}x</span>
+                </div>
+              \`).join('')}
+            </div>
+
+            <!-- Top pages by traffic -->
+            <div style="min-width:200px">
+              <h4 style="font-size:0.6875rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem">Most Visited</h4>
+              \${nodes.slice(0, 10).map((n, i) => \`
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+                  <span style="width:18px;height:18px;background:var(--accent);color:white;border-radius:50%;font-size:0.6875rem;display:flex;align-items:center;justify-content:center">\${i + 1}</span>
+                  <span style="font-size:0.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">\${n.id}</span>
+                  <span style="font-size:0.6875rem;color:var(--muted)">\${n.count}</span>
+                </div>
+              \`).join('')}
+            </div>
+          </div>
+
+          \${links.length === 0 ? '<div class="empty-cell">No flow data available. Users need to visit multiple pages in a session.</div>' : ''}
+        </div>
+      \`
+    }
+
+    // Fetch sessions list
+    async function fetchSessions() {
+      const params = getDateRangeParams(false)
+      const filter = Object.values(filters).filter(f => f).join(' ')
+      const filterParam = filter ? '&filter=' + encodeURIComponent(filter) : ''
+      try {
+        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/sessions\${params}\${filterParam}\`)
+        const data = await res.json()
+        sessions = data.sessions || []
+        renderSessions()
+      } catch (e) {
+        console.error('Failed to fetch sessions:', e)
+      }
+    }
+
+    // Render sessions list
+    function renderSessions() {
+      const grid = document.querySelector('.grid')
+      if (!grid) return
+      grid.innerHTML = \`
+        <div style="grid-column: 1/-1">
+          <h3 style="margin-bottom:1rem;font-size:1rem">Sessions (\${sessions.length})</h3>
+          <div class="session-list">
+            \${sessions.length === 0 ? '<div class="empty-cell">No sessions found</div>' : sessions.map(s => \`
+              <div class="session-card" onclick="viewSession('\${s.id}')">
+                <div class="session-header">
+                  <span style="font-weight:500">\${s.entryPath || '/'}</span>
+                  <span style="font-size:0.75rem;color:var(--muted)">\${new Date(s.startedAt).toLocaleString()}</span>
+                </div>
+                <div class="session-meta">
+                  <span>\${s.pageViewCount || 0} pages</span>
+                  <span>\${formatDuration(s.duration)}</span>
+                  <span>\${s.browser || 'Unknown'}</span>
+                  <span>\${s.country || 'Unknown'}</span>
+                  \${s.isBounce ? '<span style="color:#ef4444">Bounced</span>' : ''}
+                </div>
+              </div>
+            \`).join('')}
+          </div>
+        </div>
+      \`
+    }
+
+    // Format duration
+    function formatDuration(ms) {
+      if (!ms) return '0s'
+      const s = Math.floor(ms / 1000)
+      if (s < 60) return s + 's'
+      const m = Math.floor(s / 60)
+      return m + 'm ' + (s % 60) + 's'
+    }
+
+    // View session detail
+    async function viewSession(sessionId) {
+      try {
+        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/sessions/\${sessionId}\`)
+        sessionDetail = await res.json()
+        renderSessionModal()
+      } catch (e) {
+        console.error('Failed to fetch session:', e)
+      }
+    }
+
+    // Render session modal with replay
+    function renderSessionModal() {
+      if (!sessionDetail) return
+      let modal = document.getElementById('session-modal')
+      if (!modal) {
+        modal = document.createElement('div')
+        modal.id = 'session-modal'
+        modal.className = 'modal-overlay'
+        modal.onclick = (e) => { if (e.target === modal) closeModal() }
+        document.body.appendChild(modal)
+      }
+      const s = sessionDetail.session
+      const timeline = sessionDetail.timeline || []
+      const clicks = sessionDetail.clicks || []
+      const pageviews = sessionDetail.pageviews || []
+
+      // Group clicks by path
+      const clicksByPath = {}
+      for (const c of clicks) {
+        const path = c.path || '/'
+        if (!clicksByPath[path]) clicksByPath[path] = []
+        clicksByPath[path].push(c)
+      }
+
+      // Get unique paths visited
+      const paths = [...new Set(pageviews.map(p => p.path))]
+
+      modal.innerHTML = \`
+        <div class="modal" style="max-width:1000px">
+          <div class="modal-header">
+            <h3>Session: \${s.id?.slice(0,8) || 'Unknown'}</h3>
+            <button class="modal-close" onclick="closeModal()">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
+              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">\${s.pageViewCount || 0}</div><div class="stat-lbl">Pages</div></div>
+              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">\${formatDuration(s.duration)}</div><div class="stat-lbl">Duration</div></div>
+              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">\${s.browser || '?'}</div><div class="stat-lbl">Browser</div></div>
+              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">\${s.country || '?'}</div><div class="stat-lbl">Country</div></div>
+            </div>
+
+            \${clicks.length > 0 ? \`
+            <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Click Heatmap (\${clicks.length} clicks)</h4>
+            <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
+              \${paths.map((p, i) => \`<button class="date-btn \${i===0?'active':''}" onclick="showPathHeatmap('\${p}')">\${p}</button>\`).join('')}
+            </div>
+            <div id="heatmap-container" style="position:relative;width:100%;height:400px;background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:1.5rem">
+              <div id="heatmap-clicks" style="position:absolute;inset:0"></div>
+              <div style="position:absolute;bottom:10px;right:10px;font-size:0.6875rem;color:var(--muted);background:var(--bg2);padding:0.25rem 0.5rem;border-radius:4px">
+                Viewport: \${clicks[0]?.viewportWidth || '?'}x\${clicks[0]?.viewportHeight || '?'}
+              </div>
+            </div>
+            \` : ''}
+
+            <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Session Journey</h4>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
+              \${pageviews.map((p, i) => \`
+                <div style="background:var(--bg);border:1px solid var(--border);padding:0.5rem 0.75rem;border-radius:6px;font-size:0.75rem">
+                  <div style="color:var(--text)">\${p.path}</div>
+                  <div style="color:var(--muted);font-size:0.6875rem">\${new Date(p.timestamp).toLocaleTimeString()}</div>
+                </div>
+                \${i < pageviews.length - 1 ? '<span style="color:var(--muted)">→</span>' : ''}
+              \`).join('')}
+            </div>
+
+            <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Timeline (\${timeline.length} events)</h4>
+            <div class="timeline" style="max-height:300px;overflow-y:auto">
+              \${timeline.map(t => \`
+                <div class="timeline-item">
+                  <div class="timeline-type \${t.type === 'error' ? 'error' : ''}">\${t.type}</div>
+                  <div class="timeline-content">
+                    \${t.type === 'pageview' ? '<span style="color:var(--accent)">' + t.data.path + '</span>' : ''}
+                    \${t.type === 'event' ? '<span style="color:var(--success)">' + t.data.name + '</span>' : ''}
+                    \${t.type === 'click' ? 'Click at (' + t.data.viewportX + ', ' + t.data.viewportY + ') on <code>' + (t.data.elementTag || 'element') + '</code>' : ''}
+                    \${t.type === 'vital' ? '<span style="color:var(--warning)">' + t.data.metric + '</span>: ' + t.data.value + 'ms (' + t.data.rating + ')' : ''}
+                    \${t.type === 'error' ? '<span style="color:#ef4444">' + (t.data.message || '').slice(0,100) + '</span>' : ''}
+                  </div>
+                  <div class="timeline-time">\${new Date(t.timestamp).toLocaleTimeString()}</div>
+                </div>
+              \`).join('')}
+            </div>
+          </div>
+        </div>
+      \`
+      modal.classList.add('active')
+
+      // Render initial heatmap if we have clicks
+      if (clicks.length > 0 && paths.length > 0) {
+        renderHeatmapClicks(paths[0], clicksByPath)
+      }
+    }
+
+    // Render clicks on heatmap
+    function renderHeatmapClicks(path, clicksByPath) {
+      const container = document.getElementById('heatmap-clicks')
+      if (!container) return
+      const pathClicks = clicksByPath[path] || []
+      if (pathClicks.length === 0) {
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)">No clicks on this page</div>'
+        return
+      }
+
+      // Get viewport size from first click
+      const vw = pathClicks[0].viewportWidth || 1920
+      const vh = pathClicks[0].viewportHeight || 1080
+
+      // Scale factor to fit in container
+      const containerRect = container.getBoundingClientRect()
+      const scale = Math.min(containerRect.width / vw, containerRect.height / vh)
+
+      container.innerHTML = pathClicks.map(c => {
+        const x = (c.viewportX || 0) * scale
+        const y = (c.viewportY || 0) * scale
+        return \`<div style="position:absolute;left:\${x}px;top:\${y}px;width:20px;height:20px;background:rgba(239,68,68,0.5);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 0 10px rgba(239,68,68,0.5)"></div>\`
+      }).join('')
+    }
+
+    window.showPathHeatmap = function(path) {
+      if (!sessionDetail) return
+      const clicks = sessionDetail.clicks || []
+      const clicksByPath = {}
+      for (const c of clicks) {
+        const p = c.path || '/'
+        if (!clicksByPath[p]) clicksByPath[p] = []
+        clicksByPath[p].push(c)
+      }
+
+      // Update button states
+      document.querySelectorAll('#session-modal .date-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent === path)
+      })
+
+      renderHeatmapClicks(path, clicksByPath)
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('session-modal')
+      if (modal) modal.classList.remove('active')
+    }
+
+    // Render vitals
+    function renderVitals() {
+      const grid = document.querySelector('.grid')
+      if (!grid) return
+      const getColor = (v) => {
+        if (!v || v.samples === 0) return ''
+        if (v.good >= 75) return 'good'
+        if (v.poor >= 25) return 'poor'
+        return 'needs-improvement'
+      }
+      const formatValue = (metric, value) => {
+        if (metric === 'CLS') return (value / 1000).toFixed(3)
+        return value + 'ms'
+      }
+      grid.innerHTML = \`
+        <div style="grid-column:1/-1">
+          <h3 style="margin-bottom:1rem;font-size:1rem">Core Web Vitals</h3>
+          <div class="vitals-grid">
+            \${vitals.map(v => \`
+              <div class="vital-card">
+                <div class="vital-name">\${v.metric}</div>
+                <div class="vital-value \${getColor(v)}">\${v.samples > 0 ? formatValue(v.metric, v.p75) : '—'}</div>
+                <div style="font-size:0.6875rem;color:var(--muted)">\${v.samples} samples</div>
+                \${v.samples > 0 ? \`
+                  <div class="vital-bar">
+                    <span class="good" style="width:\${v.good}%"></span>
+                    <span class="needs-improvement" style="width:\${v.needsImprovement}%"></span>
+                    <span class="poor" style="width:\${v.poor}%"></span>
+                  </div>
+                \` : ''}
+              </div>
+            \`).join('')}
+          </div>
+          <p style="margin-top:1rem;font-size:0.75rem;color:var(--muted)">
+            <strong>LCP</strong> (Largest Contentful Paint): Loading performance. <strong>FID</strong> (First Input Delay): Interactivity.
+            <strong>CLS</strong> (Cumulative Layout Shift): Visual stability. <strong>TTFB</strong> (Time to First Byte): Server response.
+            <strong>INP</strong> (Interaction to Next Paint): Responsiveness.
+          </p>
+        </div>
+      \`
+    }
+
+    // Render errors
+    function renderErrors() {
+      const grid = document.querySelector('.grid')
+      if (!grid) return
+      grid.innerHTML = \`
+        <div style="grid-column:1/-1">
+          <h3 style="margin-bottom:1rem;font-size:1rem">JavaScript Errors (\${errors.length} unique)</h3>
+          \${errors.length === 0 ? '<div class="empty-cell">No errors recorded</div>' : errors.map(e => \`
+            <div class="error-card">
+              <div class="error-message">\${e.message || 'Unknown error'}</div>
+              <div class="error-meta">
+                <span>\${e.count}x</span>
+                <span>\${e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source'}</span>
+                <span>Last: \${new Date(e.lastSeen).toLocaleString()}</span>
+                <span>Browsers: \${(e.browsers || []).join(', ')}</span>
+              </div>
+              \${e.stack ? '<div class="error-stack">' + e.stack + '</div>' : ''}
+            </div>
+          \`).join('')}
+        </div>
+      \`
+    }
+
+    // Render insights
+    function renderInsights() {
+      const grid = document.querySelector('.grid')
+      if (!grid) return
+      const icons = {
+        traffic: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>',
+        referrer: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/></svg>',
+        page: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>',
+        device: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>',
+        engagement: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>'
+      }
+      grid.innerHTML = \`
+        <div style="grid-column:1/-1">
+          <h3 style="margin-bottom:1rem;font-size:1rem">Insights</h3>
+          \${comparisonStats ? \`
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
+              <div class="stat" style="padding:1rem">
+                <div class="stat-val" style="font-size:1.25rem">\${fmt(comparisonStats.thisWeekViews)}</div>
+                <div class="stat-lbl">Views This Week</div>
+                \${comparisonStats.change !== 0 ? '<div class="stat-change ' + (comparisonStats.change > 0 ? 'positive' : 'negative') + '">' + (comparisonStats.change > 0 ? '+' : '') + comparisonStats.change + '%</div>' : ''}
+              </div>
+              <div class="stat" style="padding:1rem">
+                <div class="stat-val" style="font-size:1.25rem">\${fmt(comparisonStats.lastWeekViews)}</div>
+                <div class="stat-lbl">Views Last Week</div>
+              </div>
+              <div class="stat" style="padding:1rem">
+                <div class="stat-val" style="font-size:1.25rem">\${comparisonStats.sessions || 0}</div>
+                <div class="stat-lbl">Sessions</div>
+              </div>
+              <div class="stat" style="padding:1rem">
+                <div class="stat-val" style="font-size:1.25rem">\${comparisonStats.bounceRate || 0}%</div>
+                <div class="stat-lbl">Bounce Rate</div>
+              </div>
+            </div>
+          \` : ''}
+          \${insights.length === 0 ? '<div class="empty-cell">No insights available yet. Check back when you have more data.</div>' : insights.map(i => \`
+            <div class="insight-card">
+              <div class="insight-icon \${i.severity}">\${icons[i.type] || icons.traffic}</div>
+              <div class="insight-content">
+                <div class="insight-title">\${i.title}</div>
+                <div class="insight-desc">\${i.description}</div>
+              </div>
+            </div>
+          \`).join('')}
+        </div>
+      \`
+    }
+
+    // Apply filter
+    function applyFilter(type, value) {
+      filters[type] = value
+      if (activeTab === 'sessions') {
+        fetchSessions()
+      } else {
+        fetchDashboardData()
+      }
+    }
+
+    // Update filter dropdowns with data
+    function updateFilters() {
+      const countrySelect = document.getElementById('filter-country')
+      const browserSelect = document.getElementById('filter-browser')
+      if (countrySelect && countries.length > 0) {
+        const opts = countries.slice(0, 20).map(c => '<option value="' + (c.country || c.name) + '">' + (c.country || c.name) + '</option>')
+        countrySelect.innerHTML = '<option value="">All Countries</option>' + opts.join('')
+      }
+      if (browserSelect && browsers.length > 0) {
+        const opts = browsers.slice(0, 10).map(b => '<option value="' + (b.browser || b.name) + '">' + (b.browser || b.name) + '</option>')
+        browserSelect.innerHTML = '<option value="">All Browsers</option>' + opts.join('')
+      }
+    }
+
+    // Export data
+    async function exportData(format) {
+      const params = getDateRangeParams(false)
+      const type = activeTab === 'sessions' ? 'sessions' : activeTab === 'events' ? 'events' : 'pageviews'
+      const url = \`\${API_ENDPOINT}/api/sites/\${siteId}/export\${params}&format=\${format}&type=\${type}\`
+      if (format === 'csv') {
+        window.open(url, '_blank')
+      } else {
+        try {
+          const res = await fetch(url)
+          const data = await res.json()
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+          const a = document.createElement('a')
+          a.href = URL.createObjectURL(blob)
+          a.download = type + '-export.json'
+          a.click()
+        } catch (e) {
+          console.error('Export failed:', e)
+        }
+      }
     }
 
     function hasAnyData() {
@@ -746,6 +1236,9 @@ function getDashboardHtml(): string {
         document.getElementById('stat-avgtime').textContent = stats.avgTime
       }
       document.getElementById('realtime-count').textContent = stats.realtime === 1 ? '1 visitor online' : stats.realtime + ' visitors online'
+
+      // Update filter dropdowns
+      updateFilters()
 
       // Update last updated time
       if (lastUpdated) {
@@ -1209,6 +1702,82 @@ function getDashboardHtml(): string {
     .refresh-btn.spinning svg { animation: spinReverse 1s linear infinite }
     @keyframes spinReverse { to { transform: rotate(-360deg) } }
 
+    /* Tabs */
+    .tabs-nav { display: flex; gap: 0.25rem; margin-bottom: 1rem; background: var(--bg2); padding: 0.25rem; border-radius: 8px; width: fit-content }
+    .tab-btn { background: none; border: none; color: var(--muted); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; transition: all 0.15s }
+    .tab-btn:hover { color: var(--text) }
+    .tab-btn.active { background: var(--accent); color: white }
+
+    /* Filters & Export */
+    .filter-group { display: flex; gap: 0.5rem }
+    .filter-select { background: var(--bg2); border: 1px solid var(--border); color: var(--text); padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8125rem; cursor: pointer }
+    .filter-select:hover { border-color: var(--accent) }
+    .action-group { display: flex; align-items: center; gap: 0.75rem }
+    .export-btn { display: flex; align-items: center; gap: 0.5rem; background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.8125rem; transition: all 0.15s }
+    .export-btn:hover { border-color: var(--accent); color: var(--text) }
+
+    /* Comparison Stats */
+    .stat-change { font-size: 0.6875rem; margin-top: 0.25rem }
+    .stat-change.positive { color: var(--success) }
+    .stat-change.negative { color: #ef4444 }
+
+    /* Tab Content Sections */
+    .tab-content { display: none }
+    .tab-content.active { display: block }
+
+    /* Sessions List */
+    .session-list { display: flex; flex-direction: column; gap: 0.5rem }
+    .session-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; cursor: pointer; transition: all 0.15s }
+    .session-card:hover { border-color: var(--accent) }
+    .session-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem }
+    .session-meta { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--muted) }
+    .session-pages { font-size: 0.8125rem; color: var(--text2) }
+
+    /* Vitals Cards */
+    .vitals-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem }
+    .vital-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center }
+    .vital-name { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; margin-bottom: 0.5rem }
+    .vital-value { font-size: 1.5rem; font-weight: 600 }
+    .vital-value.good { color: var(--success) }
+    .vital-value.needs-improvement { color: var(--warning) }
+    .vital-value.poor { color: #ef4444 }
+    .vital-bar { height: 4px; background: var(--bg3); border-radius: 2px; margin-top: 0.5rem; overflow: hidden; display: flex }
+    .vital-bar span { height: 100% }
+    .vital-bar .good { background: var(--success) }
+    .vital-bar .needs-improvement { background: var(--warning) }
+    .vital-bar .poor { background: #ef4444 }
+
+    /* Error Cards */
+    .error-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 0.5rem }
+    .error-message { color: #ef4444; font-family: monospace; font-size: 0.8125rem; margin-bottom: 0.5rem; word-break: break-word }
+    .error-meta { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--muted) }
+    .error-stack { font-family: monospace; font-size: 0.6875rem; color: var(--muted); background: var(--bg); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; overflow-x: auto; white-space: pre-wrap; max-height: 100px }
+
+    /* Insights Cards */
+    .insight-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; display: flex; gap: 1rem; align-items: flex-start }
+    .insight-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0 }
+    .insight-icon.positive { background: rgba(16,185,129,0.1); color: var(--success) }
+    .insight-icon.negative { background: rgba(239,68,68,0.1); color: #ef4444 }
+    .insight-icon.neutral { background: rgba(99,102,241,0.1); color: var(--accent) }
+    .insight-content { flex: 1 }
+    .insight-title { font-weight: 500; margin-bottom: 0.25rem }
+    .insight-desc { font-size: 0.8125rem; color: var(--muted) }
+
+    /* Session Detail Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; display: none }
+    .modal-overlay.active { display: flex }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 800px; max-height: 90vh; overflow: auto }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 1 }
+    .modal-header h3 { font-size: 1rem }
+    .modal-close { background: none; border: none; color: var(--muted); cursor: pointer; padding: 0.5rem }
+    .modal-close:hover { color: var(--text) }
+    .modal-body { padding: 1rem }
+    .timeline-item { display: flex; gap: 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--bg3) }
+    .timeline-item:last-child { border-bottom: none }
+    .timeline-type { width: 80px; font-size: 0.6875rem; text-transform: uppercase; color: var(--muted) }
+    .timeline-content { flex: 1; font-size: 0.8125rem }
+    .timeline-time { font-size: 0.6875rem; color: var(--muted) }
+
     /* Stats */
     .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; margin-bottom: 1.5rem }
     .stat { background: var(--bg2); padding: 1.25rem; border-radius: 8px; text-align: center; border: 1px solid var(--border) }
@@ -1309,6 +1878,15 @@ function getDashboardHtml(): string {
       </div>
     </header>
 
+    <div class="tabs-nav">
+      <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+      <button class="tab-btn" data-tab="sessions" onclick="switchTab('sessions')">Sessions</button>
+      <button class="tab-btn" data-tab="flow" onclick="switchTab('flow')">User Flow</button>
+      <button class="tab-btn" data-tab="vitals" onclick="switchTab('vitals')">Web Vitals</button>
+      <button class="tab-btn" data-tab="errors" onclick="switchTab('errors')">Errors</button>
+      <button class="tab-btn" data-tab="insights" onclick="switchTab('insights')">Insights</button>
+    </div>
+
     <div class="controls">
       <div class="date-range">
         <button class="date-btn" data-range="1h" onclick="setDateRange('1h')">1h</button>
@@ -1319,7 +1897,25 @@ function getDashboardHtml(): string {
         <button class="date-btn" data-range="30d" onclick="setDateRange('30d')">30d</button>
         <button class="date-btn" data-range="90d" onclick="setDateRange('90d')">90d</button>
       </div>
-      <div class="refresh-group">
+      <div class="filter-group">
+        <select id="filter-country" class="filter-select" onchange="applyFilter('country', this.value)">
+          <option value="">All Countries</option>
+        </select>
+        <select id="filter-device" class="filter-select" onchange="applyFilter('device', this.value)">
+          <option value="">All Devices</option>
+          <option value="desktop">Desktop</option>
+          <option value="mobile">Mobile</option>
+          <option value="tablet">Tablet</option>
+        </select>
+        <select id="filter-browser" class="filter-select" onchange="applyFilter('browser', this.value)">
+          <option value="">All Browsers</option>
+        </select>
+      </div>
+      <div class="action-group">
+        <button class="export-btn" onclick="exportData('csv')" title="Export CSV">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Export
+        </button>
         <span id="last-updated" class="last-updated"></span>
         <button id="refresh-btn" class="refresh-btn" onclick="fetchDashboardData()" title="Refresh data">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -1882,6 +2478,57 @@ async function handleCollect(event: LambdaEvent) {
         viewportHeight: props.vh || 0,
         deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
         timestamp,
+      })
+    }
+    else if (payload.e === 'vitals') {
+      // Handle Core Web Vitals event (LCP, FID, CLS, TTFB, INP)
+      const props = payload.p || {}
+      const deviceInfo = parseUserAgent(userAgent)
+
+      await dynamodb.putItem({
+        TableName: TABLE_NAME,
+        Item: marshall({
+          pk: `SITE#${payload.s}`,
+          sk: `VITAL#${timestamp.toISOString()}#${generateId()}`,
+          siteId: payload.s,
+          sessionId,
+          visitorId,
+          path: parsedUrl.pathname,
+          metric: props.metric || 'unknown',
+          value: props.value || 0,
+          rating: props.rating || 'unknown',
+          deviceType: deviceInfo.deviceType,
+          browser: deviceInfo.browser,
+          timestamp: timestamp.toISOString(),
+          ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60, // 90 days TTL
+        }),
+      })
+    }
+    else if (payload.e === 'error') {
+      // Handle JavaScript error event
+      const props = payload.p || {}
+      const deviceInfo = parseUserAgent(userAgent)
+
+      await dynamodb.putItem({
+        TableName: TABLE_NAME,
+        Item: marshall({
+          pk: `SITE#${payload.s}`,
+          sk: `ERROR#${timestamp.toISOString()}#${generateId()}`,
+          siteId: payload.s,
+          sessionId,
+          visitorId,
+          path: parsedUrl.pathname,
+          message: String(props.message || '').slice(0, 500),
+          source: props.source || '',
+          line: props.line || 0,
+          col: props.col || 0,
+          stack: String(props.stack || '').slice(0, 2000),
+          deviceType: deviceInfo.deviceType,
+          browser: deviceInfo.browser,
+          os: deviceInfo.os,
+          timestamp: timestamp.toISOString(),
+          ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30 days TTL
+        }),
       })
     }
 
@@ -3343,6 +3990,1047 @@ async function handleGetHeatmapPages(siteId: string, event: LambdaEvent) {
   }
 }
 
+// ============================================================================
+// Sessions API - View individual sessions with all data
+// ============================================================================
+
+async function handleGetSessions(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = parseDateRange(event.queryStringParameters)
+    const limit = Math.min(Number(event.queryStringParameters?.limit) || 50, 200)
+    const filter = event.queryStringParameters?.filter || ''
+
+    // Query sessions
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `SESSION#` },
+        ':end': { S: `SESSION#~` },
+      },
+      ScanIndexForward: false,
+      Limit: limit * 2, // Get extra to filter
+    }) as { Items?: any[] }
+
+    let sessions = (result.Items || []).map(unmarshall).filter((s: any) => {
+      const sessionTime = new Date(s.startedAt || s.endedAt || s.timestamp)
+      return sessionTime >= startDate && sessionTime <= endDate
+    })
+
+    // Apply filters
+    if (filter) {
+      const f = filter.toLowerCase()
+      sessions = sessions.filter((s: any) =>
+        (s.entryPath || '').toLowerCase().includes(f) ||
+        (s.browser || '').toLowerCase().includes(f) ||
+        (s.country || '').toLowerCase().includes(f) ||
+        (s.referrerSource || '').toLowerCase().includes(f)
+      )
+    }
+
+    sessions = sessions.slice(0, limit).map((s: any) => ({
+      id: s.id,
+      visitorId: s.visitorId,
+      entryPath: s.entryPath,
+      exitPath: s.exitPath,
+      pageViewCount: s.pageViewCount || 0,
+      eventCount: s.eventCount || 0,
+      duration: s.duration || 0,
+      isBounce: s.isBounce,
+      browser: s.browser,
+      os: s.os,
+      deviceType: s.deviceType,
+      country: s.country,
+      referrerSource: s.referrerSource,
+      utmSource: s.utmSource,
+      utmCampaign: s.utmCampaign,
+      startedAt: s.startedAt,
+      endedAt: s.endedAt,
+    }))
+
+    return response({ sessions, total: sessions.length })
+  } catch (error) {
+    console.error('Sessions error:', error)
+    return response({ error: 'Failed to fetch sessions' }, 500)
+  }
+}
+
+async function handleGetSessionDetail(siteId: string, sessionId: string, event: LambdaEvent) {
+  try {
+    // Get session
+    const sessionResult = await dynamodb.getItem({
+      TableName: TABLE_NAME,
+      Key: {
+        pk: { S: `SITE#${siteId}` },
+        sk: { S: `SESSION#${sessionId}` },
+      },
+    })
+
+    if (!sessionResult.Item) {
+      return response({ error: 'Session not found' }, 404)
+    }
+
+    const session = unmarshall(sessionResult.Item)
+
+    // Get all pageviews for this session
+    const pageviewsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      FilterExpression: 'sessionId = :sessionId',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':skPrefix': { S: 'PAGEVIEW#' },
+        ':sessionId': { S: sessionId },
+      },
+    }) as { Items?: any[] }
+
+    const pageviews = (pageviewsResult.Items || []).map(unmarshall)
+      .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+    // Get all events for this session
+    const eventsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      FilterExpression: 'sessionId = :sessionId',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':skPrefix': { S: 'EVENT#' },
+        ':sessionId': { S: sessionId },
+      },
+    }) as { Items?: any[] }
+
+    const events = (eventsResult.Items || []).map(unmarshall)
+      .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+    // Get heatmap clicks for this session
+    const clicksResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      FilterExpression: 'sessionId = :sessionId',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':skPrefix': { S: 'HEATMAP_CLICK#' },
+        ':sessionId': { S: sessionId },
+      },
+    }) as { Items?: any[] }
+
+    const clicks = (clicksResult.Items || []).map(unmarshall)
+
+    // Get vitals for this session
+    const vitalsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      FilterExpression: 'sessionId = :sessionId',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':skPrefix': { S: 'VITAL#' },
+        ':sessionId': { S: sessionId },
+      },
+    }) as { Items?: any[] }
+
+    const vitals = (vitalsResult.Items || []).map(unmarshall)
+
+    // Get errors for this session
+    const errorsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      FilterExpression: 'sessionId = :sessionId',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':skPrefix': { S: 'ERROR#' },
+        ':sessionId': { S: sessionId },
+      },
+    }) as { Items?: any[] }
+
+    const errors = (errorsResult.Items || []).map(unmarshall)
+
+    // Build timeline of all events
+    const timeline = [
+      ...pageviews.map((p: any) => ({ type: 'pageview', timestamp: p.timestamp, data: p })),
+      ...events.map((e: any) => ({ type: 'event', timestamp: e.timestamp, data: e })),
+      ...clicks.map((c: any) => ({ type: 'click', timestamp: c.timestamp, data: c })),
+      ...vitals.map((v: any) => ({ type: 'vital', timestamp: v.timestamp, data: v })),
+      ...errors.map((e: any) => ({ type: 'error', timestamp: e.timestamp, data: e })),
+    ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+    return response({
+      session,
+      pageviews,
+      events,
+      clicks,
+      vitals,
+      errors,
+      timeline,
+    })
+  } catch (error) {
+    console.error('Session detail error:', error)
+    return response({ error: 'Failed to fetch session detail' }, 500)
+  }
+}
+
+// ============================================================================
+// Web Vitals API
+// ============================================================================
+
+async function handleGetVitals(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = parseDateRange(event.queryStringParameters)
+
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `VITAL#${startDate.toISOString()}` },
+        ':end': { S: `VITAL#${endDate.toISOString()}` },
+      },
+    }) as { Items?: any[] }
+
+    const vitals = (result.Items || []).map(unmarshall)
+
+    // Aggregate by metric
+    const metrics: Record<string, { values: number[]; ratings: Record<string, number> }> = {
+      LCP: { values: [], ratings: { good: 0, 'needs-improvement': 0, poor: 0 } },
+      FID: { values: [], ratings: { good: 0, 'needs-improvement': 0, poor: 0 } },
+      CLS: { values: [], ratings: { good: 0, 'needs-improvement': 0, poor: 0 } },
+      TTFB: { values: [], ratings: { good: 0, 'needs-improvement': 0, poor: 0 } },
+      INP: { values: [], ratings: { good: 0, 'needs-improvement': 0, poor: 0 } },
+    }
+
+    for (const v of vitals) {
+      const metric = v.metric
+      if (metrics[metric]) {
+        metrics[metric].values.push(v.value)
+        metrics[metric].ratings[v.rating] = (metrics[metric].ratings[v.rating] || 0) + 1
+      }
+    }
+
+    // Calculate p75 and averages
+    const summary = Object.entries(metrics).map(([name, data]) => {
+      const sorted = [...data.values].sort((a, b) => a - b)
+      const p75Index = Math.floor(sorted.length * 0.75)
+      const total = data.ratings.good + data.ratings['needs-improvement'] + data.ratings.poor
+      return {
+        metric: name,
+        p75: sorted[p75Index] || 0,
+        avg: sorted.length > 0 ? Math.round(sorted.reduce((a, b) => a + b, 0) / sorted.length) : 0,
+        samples: sorted.length,
+        good: total > 0 ? Math.round((data.ratings.good / total) * 100) : 0,
+        needsImprovement: total > 0 ? Math.round((data.ratings['needs-improvement'] / total) * 100) : 0,
+        poor: total > 0 ? Math.round((data.ratings.poor / total) * 100) : 0,
+      }
+    })
+
+    return response({ vitals: summary, raw: vitals.slice(0, 100) })
+  } catch (error) {
+    console.error('Vitals error:', error)
+    return response({ error: 'Failed to fetch vitals' }, 500)
+  }
+}
+
+// ============================================================================
+// Errors API
+// ============================================================================
+
+async function handleGetErrors(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = parseDateRange(event.queryStringParameters)
+    const limit = Math.min(Number(event.queryStringParameters?.limit) || 50, 200)
+
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `ERROR#${startDate.toISOString()}` },
+        ':end': { S: `ERROR#${endDate.toISOString()}` },
+      },
+      ScanIndexForward: false,
+    }) as { Items?: any[] }
+
+    const errors = (result.Items || []).map(unmarshall)
+
+    // Group by message for aggregation
+    const grouped: Record<string, { message: string; count: number; lastSeen: string; browsers: Set<string>; paths: Set<string>; sample: any }> = {}
+    for (const e of errors) {
+      const key = e.message || 'Unknown error'
+      if (!grouped[key]) {
+        grouped[key] = {
+          message: key,
+          count: 0,
+          lastSeen: e.timestamp,
+          browsers: new Set(),
+          paths: new Set(),
+          sample: e,
+        }
+      }
+      grouped[key].count++
+      if (e.timestamp > grouped[key].lastSeen) {
+        grouped[key].lastSeen = e.timestamp
+        grouped[key].sample = e
+      }
+      if (e.browser) grouped[key].browsers.add(e.browser)
+      if (e.path) grouped[key].paths.add(e.path)
+    }
+
+    const errorList = Object.values(grouped)
+      .map(g => ({
+        message: g.message,
+        count: g.count,
+        lastSeen: g.lastSeen,
+        browsers: Array.from(g.browsers),
+        paths: Array.from(g.paths).slice(0, 5),
+        source: g.sample.source,
+        line: g.sample.line,
+        stack: g.sample.stack,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit)
+
+    return response({
+      errors: errorList,
+      total: errors.length,
+      uniqueErrors: Object.keys(grouped).length,
+    })
+  } catch (error) {
+    console.error('Errors error:', error)
+    return response({ error: 'Failed to fetch errors' }, 500)
+  }
+}
+
+// ============================================================================
+// Export API - CSV/JSON export
+// ============================================================================
+
+async function handleExport(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = parseDateRange(event.queryStringParameters)
+    const format = event.queryStringParameters?.format || 'json'
+    const type = event.queryStringParameters?.type || 'pageviews'
+
+    let data: any[] = []
+    let headers: string[] = []
+
+    if (type === 'pageviews') {
+      const result = await dynamodb.query({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+        ExpressionAttributeValues: {
+          ':pk': { S: `SITE#${siteId}` },
+          ':start': { S: `PAGEVIEW#${startDate.toISOString()}` },
+          ':end': { S: `PAGEVIEW#${endDate.toISOString()}` },
+        },
+        Limit: 10000,
+      }) as { Items?: any[] }
+      data = (result.Items || []).map(unmarshall)
+      headers = ['timestamp', 'path', 'title', 'browser', 'os', 'deviceType', 'country', 'referrerSource', 'utmSource', 'utmCampaign']
+    } else if (type === 'sessions') {
+      const result = await dynamodb.query({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+        ExpressionAttributeValues: {
+          ':pk': { S: `SITE#${siteId}` },
+          ':skPrefix': { S: 'SESSION#' },
+        },
+        Limit: 10000,
+      }) as { Items?: any[] }
+      data = (result.Items || []).map(unmarshall).filter((s: any) => {
+        const t = new Date(s.startedAt || s.endedAt)
+        return t >= startDate && t <= endDate
+      })
+      headers = ['id', 'startedAt', 'endedAt', 'duration', 'pageViewCount', 'eventCount', 'entryPath', 'exitPath', 'browser', 'os', 'deviceType', 'country', 'isBounce']
+    } else if (type === 'events') {
+      const result = await dynamodb.query({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+        ExpressionAttributeValues: {
+          ':pk': { S: `SITE#${siteId}` },
+          ':start': { S: `EVENT#${startDate.toISOString()}` },
+          ':end': { S: `EVENT#${endDate.toISOString()}` },
+        },
+        Limit: 10000,
+      }) as { Items?: any[] }
+      data = (result.Items || []).map(unmarshall)
+      headers = ['timestamp', 'name', 'value', 'path']
+    }
+
+    if (format === 'csv') {
+      const csvRows = [headers.join(',')]
+      for (const row of data) {
+        csvRows.push(headers.map(h => {
+          const val = row[h]
+          if (val === undefined || val === null) return ''
+          const str = String(val)
+          return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str
+        }).join(','))
+      }
+      return {
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="${type}-${startDate.toISOString().slice(0, 10)}-${endDate.toISOString().slice(0, 10)}.csv"`,
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+        body: csvRows.join('\n'),
+      }
+    }
+
+    return response({ data, count: data.length, type, dateRange: { start: startDate.toISOString(), end: endDate.toISOString() } })
+  } catch (error) {
+    console.error('Export error:', error)
+    return response({ error: 'Failed to export data' }, 500)
+  }
+}
+
+// ============================================================================
+// Insights API - Automatic anomaly detection and insights
+// ============================================================================
+
+async function handleGetInsights(siteId: string, event: LambdaEvent) {
+  try {
+    const now = new Date()
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+
+    // Get this week's stats
+    const thisWeekResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `PAGEVIEW#${weekAgo.toISOString()}` },
+        ':end': { S: `PAGEVIEW#${now.toISOString()}` },
+      },
+    }) as { Items?: any[] }
+
+    // Get last week's stats
+    const lastWeekResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `PAGEVIEW#${twoWeeksAgo.toISOString()}` },
+        ':end': { S: `PAGEVIEW#${weekAgo.toISOString()}` },
+      },
+    }) as { Items?: any[] }
+
+    const thisWeek = (thisWeekResult.Items || []).map(unmarshall)
+    const lastWeek = (lastWeekResult.Items || []).map(unmarshall)
+
+    const insights: { type: string; title: string; description: string; change?: number; severity: 'positive' | 'negative' | 'neutral' }[] = []
+
+    // Traffic change insight
+    const thisWeekViews = thisWeek.length
+    const lastWeekViews = lastWeek.length
+    if (lastWeekViews > 0) {
+      const change = Math.round(((thisWeekViews - lastWeekViews) / lastWeekViews) * 100)
+      if (Math.abs(change) >= 10) {
+        insights.push({
+          type: 'traffic',
+          title: change > 0 ? 'Traffic is up' : 'Traffic is down',
+          description: `Page views ${change > 0 ? 'increased' : 'decreased'} by ${Math.abs(change)}% compared to last week`,
+          change,
+          severity: change > 0 ? 'positive' : 'negative',
+        })
+      }
+    }
+
+    // Top referrer insight
+    const referrerCounts: Record<string, number> = {}
+    for (const pv of thisWeek) {
+      if (pv.referrerSource && pv.referrerSource !== 'Direct') {
+        referrerCounts[pv.referrerSource] = (referrerCounts[pv.referrerSource] || 0) + 1
+      }
+    }
+    const topReferrer = Object.entries(referrerCounts).sort((a, b) => b[1] - a[1])[0]
+    if (topReferrer && topReferrer[1] >= 5) {
+      insights.push({
+        type: 'referrer',
+        title: `${topReferrer[0]} driving traffic`,
+        description: `${topReferrer[0]} sent ${topReferrer[1]} visitors this week`,
+        severity: 'positive',
+      })
+    }
+
+    // Popular page insight
+    const pageCounts: Record<string, number> = {}
+    for (const pv of thisWeek) {
+      pageCounts[pv.path] = (pageCounts[pv.path] || 0) + 1
+    }
+    const topPage = Object.entries(pageCounts).sort((a, b) => b[1] - a[1])[0]
+    if (topPage && topPage[0] !== '/') {
+      insights.push({
+        type: 'page',
+        title: 'Most popular page',
+        description: `${topPage[0]} received ${topPage[1]} views this week`,
+        severity: 'neutral',
+      })
+    }
+
+    // Mobile vs Desktop insight
+    const deviceCounts: Record<string, number> = { mobile: 0, desktop: 0, tablet: 0 }
+    for (const pv of thisWeek) {
+      if (pv.deviceType) deviceCounts[pv.deviceType] = (deviceCounts[pv.deviceType] || 0) + 1
+    }
+    const mobilePercent = thisWeek.length > 0 ? Math.round((deviceCounts.mobile / thisWeek.length) * 100) : 0
+    if (mobilePercent >= 50) {
+      insights.push({
+        type: 'device',
+        title: 'Mobile-first audience',
+        description: `${mobilePercent}% of your visitors are on mobile devices`,
+        severity: 'neutral',
+      })
+    }
+
+    // Bounce rate insight
+    const sessionsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':skPrefix': { S: 'SESSION#' },
+      },
+      Limit: 1000,
+    }) as { Items?: any[] }
+
+    const sessions = (sessionsResult.Items || []).map(unmarshall).filter((s: any) => {
+      const t = new Date(s.startedAt || s.endedAt)
+      return t >= weekAgo && t <= now
+    })
+
+    const bounces = sessions.filter((s: any) => s.isBounce).length
+    const bounceRate = sessions.length > 0 ? Math.round((bounces / sessions.length) * 100) : 0
+    if (bounceRate >= 70) {
+      insights.push({
+        type: 'engagement',
+        title: 'High bounce rate',
+        description: `${bounceRate}% of visitors leave after viewing one page`,
+        severity: 'negative',
+      })
+    } else if (bounceRate <= 30) {
+      insights.push({
+        type: 'engagement',
+        title: 'Great engagement',
+        description: `Only ${bounceRate}% bounce rate - visitors are exploring your site`,
+        severity: 'positive',
+      })
+    }
+
+    return response({
+      insights,
+      stats: {
+        thisWeekViews,
+        lastWeekViews,
+        change: lastWeekViews > 0 ? Math.round(((thisWeekViews - lastWeekViews) / lastWeekViews) * 100) : 0,
+        bounceRate,
+        sessions: sessions.length,
+      },
+    })
+  } catch (error) {
+    console.error('Insights error:', error)
+    return response({ error: 'Failed to fetch insights' }, 500)
+  }
+}
+
+// ============================================================================
+// Public Dashboard Sharing
+// ============================================================================
+
+async function handleCreateShareLink(siteId: string, event: LambdaEvent) {
+  try {
+    const token = generateId() + generateId() // 24 char token
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: `SITE#${siteId}`,
+        sk: `SHARE#${token}`,
+        token,
+        siteId,
+        createdAt: new Date().toISOString(),
+        expiresAt: expiresAt.toISOString(),
+        ttl: Math.floor(expiresAt.getTime() / 1000),
+      }),
+    })
+
+    return response({
+      token,
+      url: `https://analytics.stacksjs.com/?share=${token}`,
+      expiresAt: expiresAt.toISOString(),
+    })
+  } catch (error) {
+    console.error('Create share link error:', error)
+    return response({ error: 'Failed to create share link' }, 500)
+  }
+}
+
+async function handleGetSharedDashboard(token: string) {
+  try {
+    // Find the share token
+    const result = await dynamodb.scan({
+      TableName: TABLE_NAME,
+      FilterExpression: 'begins_with(sk, :sharePrefix) AND #token = :token',
+      ExpressionAttributeNames: { '#token': 'token' },
+      ExpressionAttributeValues: {
+        ':sharePrefix': { S: 'SHARE#' },
+        ':token': { S: token },
+      },
+    }) as { Items?: any[] }
+
+    if (!result.Items || result.Items.length === 0) {
+      return response({ error: 'Invalid or expired share link' }, 404)
+    }
+
+    const share = unmarshall(result.Items[0])
+    if (new Date(share.expiresAt) < new Date()) {
+      return response({ error: 'Share link has expired' }, 410)
+    }
+
+    return response({ siteId: share.siteId, valid: true })
+  } catch (error) {
+    console.error('Get shared dashboard error:', error)
+    return response({ error: 'Failed to validate share link' }, 500)
+  }
+}
+
+// ============================================================================
+// A/B Testing / Experiments
+// ============================================================================
+
+async function handleCreateExperiment(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { name, variants, targetUrl } = body
+
+    if (!name || !variants || variants.length < 2) {
+      return response({ error: 'Name and at least 2 variants required' }, 400)
+    }
+
+    const experiment = {
+      pk: `SITE#${siteId}`,
+      sk: `EXPERIMENT#${generateId()}`,
+      id: generateId(),
+      siteId,
+      name,
+      variants: variants.map((v: any, i: number) => ({
+        id: generateId(),
+        name: v.name || `Variant ${String.fromCharCode(65 + i)}`,
+        weight: v.weight || Math.floor(100 / variants.length),
+      })),
+      targetUrl: targetUrl || '*',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      conversions: {},
+      impressions: {},
+    }
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall(experiment),
+    })
+
+    return response({ experiment }, 201)
+  } catch (error) {
+    console.error('Create experiment error:', error)
+    return response({ error: 'Failed to create experiment' }, 500)
+  }
+}
+
+async function handleGetExperiments(siteId: string, event: LambdaEvent) {
+  try {
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':skPrefix': { S: 'EXPERIMENT#' },
+      },
+    }) as { Items?: any[] }
+
+    const experiments = (result.Items || []).map(unmarshall)
+    return response({ experiments })
+  } catch (error) {
+    console.error('Get experiments error:', error)
+    return response({ error: 'Failed to fetch experiments' }, 500)
+  }
+}
+
+async function handleRecordExperimentEvent(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { experimentId, variantId, eventType, visitorId } = body
+
+    if (!experimentId || !variantId || !eventType) {
+      return response({ error: 'experimentId, variantId, and eventType required' }, 400)
+    }
+
+    // Update experiment stats
+    const updateExpr = eventType === 'conversion'
+      ? 'SET conversions.#vid = if_not_exists(conversions.#vid, :zero) + :one'
+      : 'SET impressions.#vid = if_not_exists(impressions.#vid, :zero) + :one'
+
+    await dynamodb.updateItem({
+      TableName: TABLE_NAME,
+      Key: {
+        pk: { S: `SITE#${siteId}` },
+        sk: { S: `EXPERIMENT#${experimentId}` },
+      },
+      UpdateExpression: updateExpr,
+      ExpressionAttributeNames: { '#vid': variantId },
+      ExpressionAttributeValues: {
+        ':zero': { N: '0' },
+        ':one': { N: '1' },
+      },
+    })
+
+    return response({ success: true })
+  } catch (error) {
+    console.error('Record experiment event error:', error)
+    return response({ error: 'Failed to record experiment event' }, 500)
+  }
+}
+
+// ============================================================================
+// Alerts & Webhooks
+// ============================================================================
+
+async function handleCreateAlert(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { name, type, threshold, webhookUrl, email } = body
+
+    if (!name || !type) {
+      return response({ error: 'Name and type required' }, 400)
+    }
+
+    const alert = {
+      pk: `SITE#${siteId}`,
+      sk: `ALERT#${generateId()}`,
+      id: generateId(),
+      siteId,
+      name,
+      type, // 'traffic_spike', 'traffic_drop', 'error_rate', 'goal_conversion'
+      threshold: threshold || 50, // percentage change
+      webhookUrl,
+      email,
+      enabled: true,
+      createdAt: new Date().toISOString(),
+      lastTriggered: null,
+    }
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall(alert),
+    })
+
+    return response({ alert }, 201)
+  } catch (error) {
+    console.error('Create alert error:', error)
+    return response({ error: 'Failed to create alert' }, 500)
+  }
+}
+
+async function handleGetAlerts(siteId: string, event: LambdaEvent) {
+  try {
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':skPrefix': { S: 'ALERT#' },
+      },
+    }) as { Items?: any[] }
+
+    const alerts = (result.Items || []).map(unmarshall)
+    return response({ alerts })
+  } catch (error) {
+    console.error('Get alerts error:', error)
+    return response({ error: 'Failed to fetch alerts' }, 500)
+  }
+}
+
+async function handleDeleteAlert(siteId: string, alertId: string) {
+  try {
+    await dynamodb.deleteItem({
+      TableName: TABLE_NAME,
+      Key: {
+        pk: { S: `SITE#${siteId}` },
+        sk: { S: `ALERT#${alertId}` },
+      },
+    })
+    return response({ success: true })
+  } catch (error) {
+    console.error('Delete alert error:', error)
+    return response({ error: 'Failed to delete alert' }, 500)
+  }
+}
+
+// ============================================================================
+// API Keys
+// ============================================================================
+
+async function handleCreateApiKey(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { name } = body
+
+    const key = 'tsa_' + generateId() + generateId() // API key format
+
+    const apiKey = {
+      pk: `SITE#${siteId}`,
+      sk: `APIKEY#${key}`,
+      key,
+      siteId,
+      name: name || 'API Key',
+      createdAt: new Date().toISOString(),
+      lastUsed: null,
+    }
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall(apiKey),
+    })
+
+    return response({ apiKey: { ...apiKey, key } }, 201) // Only return key once on creation
+  } catch (error) {
+    console.error('Create API key error:', error)
+    return response({ error: 'Failed to create API key' }, 500)
+  }
+}
+
+async function handleGetApiKeys(siteId: string, event: LambdaEvent) {
+  try {
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':skPrefix': { S: 'APIKEY#' },
+      },
+    }) as { Items?: any[] }
+
+    const apiKeys = (result.Items || []).map(item => {
+      const key = unmarshall(item)
+      return {
+        ...key,
+        key: key.key.slice(0, 8) + '...' + key.key.slice(-4), // Mask key
+      }
+    })
+    return response({ apiKeys })
+  } catch (error) {
+    console.error('Get API keys error:', error)
+    return response({ error: 'Failed to fetch API keys' }, 500)
+  }
+}
+
+async function handleDeleteApiKey(siteId: string, keyId: string) {
+  try {
+    await dynamodb.deleteItem({
+      TableName: TABLE_NAME,
+      Key: {
+        pk: { S: `SITE#${siteId}` },
+        sk: { S: `APIKEY#${keyId}` },
+      },
+    })
+    return response({ success: true })
+  } catch (error) {
+    console.error('Delete API key error:', error)
+    return response({ error: 'Failed to delete API key' }, 500)
+  }
+}
+
+// ============================================================================
+// User Flow Visualization
+// ============================================================================
+
+async function handleGetUserFlow(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = parseDateRange(event.queryStringParameters)
+    const entryPath = event.queryStringParameters?.entry || '/'
+    const limit = Math.min(Number(event.queryStringParameters?.limit) || 100, 500)
+
+    // Get sessions with multiple pageviews
+    const sessionsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      FilterExpression: 'pageViewCount > :one',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':skPrefix': { S: 'SESSION#' },
+        ':one': { N: '1' },
+      },
+      Limit: limit,
+    }) as { Items?: any[] }
+
+    const sessions = (sessionsResult.Items || []).map(unmarshall).filter((s: any) => {
+      const t = new Date(s.startedAt || s.endedAt)
+      return t >= startDate && t <= endDate
+    })
+
+    // Get pageviews for these sessions
+    const sessionIds = sessions.map((s: any) => s.id).filter(Boolean).slice(0, 50)
+
+    // Build flow data
+    const flows: Record<string, Record<string, number>> = {}
+    const pathCounts: Record<string, number> = {}
+
+    // Query pageviews for each session (limited batch)
+    for (const sid of sessionIds) {
+      const pvResult = await dynamodb.query({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+        FilterExpression: 'sessionId = :sessionId',
+        ExpressionAttributeValues: {
+          ':pk': { S: `SITE#${siteId}` },
+          ':skPrefix': { S: 'PAGEVIEW#' },
+          ':sessionId': { S: sid },
+        },
+        Limit: 20,
+      }) as { Items?: any[] }
+
+      const pvs = (pvResult.Items || []).map(unmarshall)
+        .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+      // Build path sequence
+      for (let i = 0; i < pvs.length - 1; i++) {
+        const from = pvs[i].path || '/'
+        const to = pvs[i + 1].path || '/'
+
+        if (!flows[from]) flows[from] = {}
+        flows[from][to] = (flows[from][to] || 0) + 1
+
+        pathCounts[from] = (pathCounts[from] || 0) + 1
+        pathCounts[to] = (pathCounts[to] || 0) + 1
+      }
+    }
+
+    // Convert to array format for visualization
+    const nodes = Object.keys(pathCounts).map(path => ({
+      id: path,
+      label: path,
+      count: pathCounts[path],
+    })).sort((a, b) => b.count - a.count).slice(0, 20)
+
+    const nodeIds = new Set(nodes.map(n => n.id))
+
+    const links: { source: string; target: string; value: number }[] = []
+    for (const [from, targets] of Object.entries(flows)) {
+      for (const [to, count] of Object.entries(targets)) {
+        if (nodeIds.has(from) && nodeIds.has(to)) {
+          links.push({ source: from, target: to, value: count })
+        }
+      }
+    }
+
+    // Sort links by value
+    links.sort((a, b) => b.value - a.value)
+
+    return response({
+      nodes,
+      links: links.slice(0, 50),
+      totalSessions: sessions.length,
+      analyzedSessions: sessionIds.length,
+    })
+  } catch (error) {
+    console.error('User flow error:', error)
+    return response({ error: 'Failed to fetch user flow' }, 500)
+  }
+}
+
+// ============================================================================
+// Revenue Attribution
+// ============================================================================
+
+async function handleGetRevenue(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = parseDateRange(event.queryStringParameters)
+
+    // Get conversions with revenue
+    const conversionsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `CONVERSION#${startDate.toISOString()}` },
+        ':end': { S: `CONVERSION#${endDate.toISOString()}` },
+      },
+    }) as { Items?: any[] }
+
+    const conversions = (conversionsResult.Items || []).map(unmarshall)
+
+    // Get events with value (revenue events)
+    const eventsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      FilterExpression: 'attribute_exists(#val)',
+      ExpressionAttributeNames: { '#val': 'value' },
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `EVENT#${startDate.toISOString()}` },
+        ':end': { S: `EVENT#${endDate.toISOString()}` },
+      },
+    }) as { Items?: any[] }
+
+    const revenueEvents = (eventsResult.Items || []).map(unmarshall)
+
+    // Aggregate by source
+    const bySource: Record<string, { revenue: number; conversions: number; events: number }> = {}
+    const byUtmSource: Record<string, { revenue: number; conversions: number }> = {}
+    const byUtmCampaign: Record<string, { revenue: number; conversions: number }> = {}
+
+    for (const c of conversions) {
+      const source = c.referrerSource || 'Direct'
+      if (!bySource[source]) bySource[source] = { revenue: 0, conversions: 0, events: 0 }
+      bySource[source].conversions++
+      bySource[source].revenue += c.revenue || 0
+
+      if (c.utmSource) {
+        if (!byUtmSource[c.utmSource]) byUtmSource[c.utmSource] = { revenue: 0, conversions: 0 }
+        byUtmSource[c.utmSource].conversions++
+        byUtmSource[c.utmSource].revenue += c.revenue || 0
+      }
+
+      if (c.utmCampaign) {
+        if (!byUtmCampaign[c.utmCampaign]) byUtmCampaign[c.utmCampaign] = { revenue: 0, conversions: 0 }
+        byUtmCampaign[c.utmCampaign].conversions++
+        byUtmCampaign[c.utmCampaign].revenue += c.revenue || 0
+      }
+    }
+
+    // Add revenue from events
+    for (const e of revenueEvents) {
+      const source = 'Events'
+      if (!bySource[source]) bySource[source] = { revenue: 0, conversions: 0, events: 0 }
+      bySource[source].events++
+      bySource[source].revenue += e.value || 0
+    }
+
+    const totalRevenue = Object.values(bySource).reduce((sum, s) => sum + s.revenue, 0)
+    const totalConversions = conversions.length
+
+    return response({
+      totalRevenue,
+      totalConversions,
+      bySource: Object.entries(bySource)
+        .map(([source, stats]) => ({ source, ...stats }))
+        .sort((a, b) => b.revenue - a.revenue),
+      byUtmSource: Object.entries(byUtmSource)
+        .map(([source, stats]) => ({ source, ...stats }))
+        .sort((a, b) => b.revenue - a.revenue),
+      byUtmCampaign: Object.entries(byUtmCampaign)
+        .map(([campaign, stats]) => ({ campaign, ...stats }))
+        .sort((a, b) => b.revenue - a.revenue),
+    })
+  } catch (error) {
+    console.error('Revenue error:', error)
+    return response({ error: 'Failed to fetch revenue' }, 500)
+  }
+}
+
 // Handler to list all sites
 async function handleGetSites() {
   try {
@@ -3542,6 +5230,96 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
       if (path.includes('/heatmap/pages')) {
         return handleGetHeatmapPages(siteId, event)
       }
+      // /api/sites/{siteId}/sessions/{sessionId}
+      const sessionMatch = path.match(/\/sessions\/([^/]+)$/)
+      if (sessionMatch) {
+        return handleGetSessionDetail(siteId, sessionMatch[1], event)
+      }
+      // /api/sites/{siteId}/sessions
+      if (path.endsWith('/sessions')) {
+        return handleGetSessions(siteId, event)
+      }
+      // /api/sites/{siteId}/vitals
+      if (path.endsWith('/vitals')) {
+        return handleGetVitals(siteId, event)
+      }
+      // /api/sites/{siteId}/errors
+      if (path.endsWith('/errors')) {
+        return handleGetErrors(siteId, event)
+      }
+      // /api/sites/{siteId}/export
+      if (path.endsWith('/export')) {
+        return handleExport(siteId, event)
+      }
+      // /api/sites/{siteId}/insights
+      if (path.endsWith('/insights')) {
+        return handleGetInsights(siteId, event)
+      }
+      // /api/sites/{siteId}/experiments
+      if (path.endsWith('/experiments')) {
+        return handleGetExperiments(siteId, event)
+      }
+      // /api/sites/{siteId}/alerts
+      if (path.endsWith('/alerts')) {
+        return handleGetAlerts(siteId, event)
+      }
+      // /api/sites/{siteId}/api-keys
+      if (path.endsWith('/api-keys')) {
+        return handleGetApiKeys(siteId, event)
+      }
+      // /api/sites/{siteId}/flow
+      if (path.endsWith('/flow')) {
+        return handleGetUserFlow(siteId, event)
+      }
+      // /api/sites/{siteId}/revenue
+      if (path.endsWith('/revenue')) {
+        return handleGetRevenue(siteId, event)
+      }
+    }
+  }
+
+  // Handle share link validation
+  if (method === 'GET' && path.startsWith('/api/share/')) {
+    const token = path.split('/').pop()
+    if (token) return handleGetSharedDashboard(token)
+  }
+
+  // POST routes for new features
+  const siteIdForPost = extractSiteId(path)
+  if (siteIdForPost && method === 'POST') {
+    // /api/sites/{siteId}/share
+    if (path.endsWith('/share')) {
+      return handleCreateShareLink(siteIdForPost, event)
+    }
+    // /api/sites/{siteId}/experiments
+    if (path.endsWith('/experiments')) {
+      return handleCreateExperiment(siteIdForPost, event)
+    }
+    // /api/sites/{siteId}/experiments/event
+    if (path.endsWith('/experiments/event')) {
+      return handleRecordExperimentEvent(siteIdForPost, event)
+    }
+    // /api/sites/{siteId}/alerts
+    if (path.endsWith('/alerts')) {
+      return handleCreateAlert(siteIdForPost, event)
+    }
+    // /api/sites/{siteId}/api-keys
+    if (path.endsWith('/api-keys')) {
+      return handleCreateApiKey(siteIdForPost, event)
+    }
+  }
+
+  // DELETE routes
+  if (siteIdForPost && method === 'DELETE') {
+    // /api/sites/{siteId}/alerts/{alertId}
+    const alertMatch = path.match(/\/alerts\/([^/]+)$/)
+    if (alertMatch) {
+      return handleDeleteAlert(siteIdForPost, alertMatch[1])
+    }
+    // /api/sites/{siteId}/api-keys/{keyId}
+    const keyMatch = path.match(/\/api-keys\/([^/]+)$/)
+    if (keyMatch) {
+      return handleDeleteApiKey(siteIdForPost, keyMatch[1])
     }
   }
 
