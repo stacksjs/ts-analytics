@@ -624,6 +624,10 @@ function getDashboardHtml(): string {
       fetchSites()
     }
 
+    function navigateTo(section) {
+      window.location.href = '/dashboard/' + section + '?siteId=' + encodeURIComponent(siteId)
+    }
+
     function setDateRange(range) {
       dateRange = range
       document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'))
@@ -1215,6 +1219,10 @@ function getDashboardHtml(): string {
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem }
     .panel { background: var(--bg2); border-radius: 8px; padding: 1rem; border: 1px solid var(--border) }
     .panel-title { font-size: 0.875rem; font-weight: 500; margin-bottom: 1rem; color: var(--text2); display: flex; align-items: center; gap: 0.5rem }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem }
+    .panel-header .panel-title { margin-bottom: 0 }
+    .view-all { font-size: 0.75rem; color: var(--primary); text-decoration: none; opacity: 0.8; transition: opacity 0.2s }
+    .view-all:hover { opacity: 1; text-decoration: underline }
 
     /* Tables */
     .data-table { width: 100%; font-size: 0.8125rem; border-collapse: collapse }
@@ -1382,14 +1390,20 @@ function getDashboardHtml(): string {
 
       <div class="grid">
         <div class="panel">
-          <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Top Pages</div>
+          <div class="panel-header">
+            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Top Pages</div>
+            <a href="#" onclick="navigateTo('pages')" class="view-all">View all &rarr;</a>
+          </div>
           <table class="data-table">
             <thead><tr><th>Path</th><th style="text-align:right">Entries</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th></tr></thead>
             <tbody id="pages-body"><tr><td colspan="4" class="empty-cell">Loading...</td></tr></tbody>
           </table>
         </div>
         <div class="panel">
-          <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>Top Referrers</div>
+          <div class="panel-header">
+            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>Top Referrers</div>
+            <a href="#" onclick="navigateTo('referrers')" class="view-all">View all &rarr;</a>
+          </div>
           <table class="data-table">
             <thead><tr><th>Source</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th></tr></thead>
             <tbody id="referrers-body"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
@@ -1399,14 +1413,20 @@ function getDashboardHtml(): string {
 
       <div class="grid">
         <div class="panel">
-          <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>Devices</div>
+          <div class="panel-header">
+            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>Devices</div>
+            <a href="#" onclick="navigateTo('devices')" class="view-all">View all &rarr;</a>
+          </div>
           <table class="data-table">
             <thead><tr><th>Type</th><th style="text-align:right">Visitors</th><th style="text-align:right">%</th></tr></thead>
             <tbody id="devices-body"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
           </table>
         </div>
         <div class="panel">
-          <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>Browsers</div>
+          <div class="panel-header">
+            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>Browsers</div>
+            <a href="#" onclick="navigateTo('browsers')" class="view-all">View all &rarr;</a>
+          </div>
           <table class="data-table">
             <thead><tr><th>Browser</th><th style="text-align:right">Visitors</th><th style="text-align:right">%</th></tr></thead>
             <tbody id="browsers-body"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
@@ -1416,14 +1436,20 @@ function getDashboardHtml(): string {
 
       <div class="grid">
         <div class="panel">
-          <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Countries</div>
+          <div class="panel-header">
+            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Countries</div>
+            <a href="#" onclick="navigateTo('countries')" class="view-all">View all &rarr;</a>
+          </div>
           <table class="data-table">
             <thead><tr><th>Country</th><th style="text-align:right">Visitors</th></tr></thead>
             <tbody id="countries-body"><tr><td colspan="2" class="empty-cell">Loading...</td></tr></tbody>
           </table>
         </div>
         <div class="panel">
-          <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>Campaigns</div>
+          <div class="panel-header">
+            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>Campaigns</div>
+            <a href="#" onclick="navigateTo('campaigns')" class="view-all">View all &rarr;</a>
+          </div>
           <table class="data-table">
             <thead><tr><th>Campaign</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th></tr></thead>
             <tbody id="campaigns-body"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
@@ -1432,14 +1458,20 @@ function getDashboardHtml(): string {
       </div>
 
       <div class="events">
-        <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Custom Events</div>
+        <div class="panel-header">
+          <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Custom Events</div>
+          <a href="#" onclick="navigateTo('events')" class="view-all">View all &rarr;</a>
+        </div>
         <div id="events-container"><div class="empty-cell">Loading...</div></div>
       </div>
 
       <div class="goals-section">
-        <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
-          <span><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Goals</span>
-          <button onclick="showCreateGoalModal()" class="create-goal-btn">+ Add Goal</button>
+        <div class="panel-header">
+          <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Goals</div>
+          <div style="display:flex;gap:1rem;align-items:center">
+            <a href="#" onclick="navigateTo('goals')" class="view-all">View all &rarr;</a>
+            <button onclick="showCreateGoalModal()" class="create-goal-btn">+ Add Goal</button>
+          </div>
         </div>
         <div id="goals-container"><div class="empty-cell">Loading...</div></div>
       </div>
@@ -1891,6 +1923,269 @@ async function handleScript(event: LambdaEvent) {
       'Access-Control-Allow-Origin': '*',
     },
     body: script,
+  }
+}
+
+// ============================================================================
+// Detail Pages
+// ============================================================================
+
+async function handleDetailPage(section: string, event: LambdaEvent) {
+  const siteId = event.queryStringParameters?.siteId || ''
+
+  const sectionTitles: Record<string, string> = {
+    pages: 'All Pages',
+    referrers: 'All Referrers',
+    devices: 'Devices & OS',
+    browsers: 'All Browsers',
+    countries: 'All Countries',
+    campaigns: 'All Campaigns',
+    events: 'All Events',
+    goals: 'Goals',
+  }
+
+  const sectionIcons: Record<string, string> = {
+    pages: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>',
+    referrers: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>',
+    devices: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>',
+    browsers: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>',
+    countries: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+    campaigns: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>',
+    events: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>',
+    goals: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${sectionTitles[section]} - Analytics</title>
+  <style>
+    :root { --bg: #0f0f0f; --bg2: #1a1a1a; --bg3: #252525; --text: #fff; --text2: #e5e5e5; --muted: #888; --border: #333; --primary: #818cf8 }
+    * { margin: 0; padding: 0; box-sizing: border-box }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh }
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem }
+    .header { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem }
+    .back-btn { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); text-decoration: none; font-size: 0.875rem; padding: 0.5rem 1rem; border-radius: 6px; transition: all 0.2s }
+    .back-btn:hover { background: var(--bg2); color: var(--text) }
+    .page-title { display: flex; align-items: center; gap: 0.75rem; font-size: 1.5rem; font-weight: 600; color: var(--text) }
+    .page-title svg { color: var(--primary) }
+    .date-range { display: flex; gap: 0.5rem; margin-bottom: 1.5rem }
+    .date-btn { padding: 0.5rem 1rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; color: var(--muted); cursor: pointer; font-size: 0.8125rem; transition: all 0.2s }
+    .date-btn:hover { color: var(--text); border-color: var(--primary) }
+    .date-btn.active { background: var(--primary); color: #fff; border-color: var(--primary) }
+    .panel { background: var(--bg2); border-radius: 8px; padding: 1.5rem; border: 1px solid var(--border) }
+    .data-table { width: 100%; font-size: 0.875rem; border-collapse: collapse }
+    .data-table th { text-align: left; color: var(--muted); font-weight: 500; padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border); font-size: 0.75rem; text-transform: uppercase }
+    .data-table td { padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--bg3) }
+    .data-table tr:hover { background: var(--bg3) }
+    .name { color: var(--text); display: flex; align-items: center; gap: 0.5rem }
+    .value { text-align: right; color: var(--text2) }
+    .empty-cell { color: var(--muted); text-align: center; padding: 2rem }
+    .loading { text-align: center; padding: 3rem; color: var(--muted) }
+    .bar { height: 4px; background: var(--bg3); border-radius: 2px; margin-top: 4px; overflow: hidden }
+    .bar-fill { height: 100%; background: var(--primary); border-radius: 2px }
+    @media (max-width: 768px) { .container { padding: 1rem } .date-range { flex-wrap: wrap } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <a href="/dashboard?siteId=${encodeURIComponent(siteId)}" class="back-btn">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Back to Dashboard
+      </a>
+    </div>
+    <h1 class="page-title">${sectionIcons[section]}${sectionTitles[section]}</h1>
+    <div class="date-range" style="margin-top:1.5rem">
+      <button class="date-btn" data-range="1h">1h</button>
+      <button class="date-btn" data-range="6h">6h</button>
+      <button class="date-btn" data-range="12h">12h</button>
+      <button class="date-btn" data-range="24h">24h</button>
+      <button class="date-btn" data-range="7d">7 days</button>
+      <button class="date-btn active" data-range="30d">30 days</button>
+      <button class="date-btn" data-range="90d">90 days</button>
+    </div>
+    <div class="panel">
+      <div id="content" class="loading">Loading...</div>
+    </div>
+  </div>
+  <script>
+    const siteId = '${siteId}'
+    const section = '${section}'
+    let dateRange = '30d'
+
+    document.querySelectorAll('.date-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        dateRange = btn.dataset.range
+        document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'))
+        btn.classList.add('active')
+        fetchData()
+      })
+    })
+
+    function getDateRangeParams() {
+      const now = new Date()
+      const end = now.toISOString()
+      let start
+      switch(dateRange) {
+        case '1h': start = new Date(now - 1*60*60*1000); break
+        case '6h': start = new Date(now - 6*60*60*1000); break
+        case '12h': start = new Date(now - 12*60*60*1000); break
+        case '24h': start = new Date(now - 24*60*60*1000); break
+        case '7d': start = new Date(now - 7*24*60*60*1000); break
+        case '30d': start = new Date(now - 30*24*60*60*1000); break
+        case '90d': start = new Date(now - 90*24*60*60*1000); break
+        default: start = new Date(now - 30*24*60*60*1000)
+      }
+      return '?startDate=' + start.toISOString() + '&endDate=' + end + '&limit=100'
+    }
+
+    function fmt(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : n.toString() }
+
+    function getDeviceIcon(type) {
+      if (type === 'Desktop') return '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>'
+      if (type === 'Mobile') return '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>'
+      if (type === 'Tablet') return '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M12 18h.01"/></svg>'
+      return '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>'
+    }
+
+    function getBrowserIcon(name) {
+      const n = name?.toLowerCase() || ''
+      if (n.includes('chrome')) return '<svg width="14" height="14" viewBox="0 0 24 24" style="flex-shrink:0"><circle cx="12" cy="12" r="10" fill="#4285f4"/><circle cx="12" cy="12" r="4" fill="#fff"/></svg>'
+      if (n.includes('firefox')) return '<svg width="14" height="14" viewBox="0 0 24 24" style="flex-shrink:0"><circle cx="12" cy="12" r="10" fill="#ff9500"/></svg>'
+      if (n.includes('safari')) return '<svg width="14" height="14" viewBox="0 0 24 24" style="flex-shrink:0"><circle cx="12" cy="12" r="10" fill="#006cff"/></svg>'
+      if (n.includes('edge')) return '<svg width="14" height="14" viewBox="0 0 24 24" style="flex-shrink:0"><circle cx="12" cy="12" r="10" fill="#0078d7"/></svg>'
+      return '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/></svg>'
+    }
+
+    function getCountryFlag(name) {
+      const flags = { 'United States': '🇺🇸', 'United Kingdom': '🇬🇧', 'Germany': '🇩🇪', 'France': '🇫🇷', 'Canada': '🇨🇦', 'Australia': '🇦🇺', 'Japan': '🇯🇵', 'China': '🇨🇳', 'India': '🇮🇳', 'Brazil': '🇧🇷', 'Netherlands': '🇳🇱', 'Spain': '🇪🇸', 'Italy': '🇮🇹', 'Sweden': '🇸🇪', 'Norway': '🇳🇴', 'Denmark': '🇩🇰', 'Finland': '🇫🇮', 'Poland': '🇵🇱', 'Russia': '🇷🇺', 'South Korea': '🇰🇷', 'Mexico': '🇲🇽', 'Argentina': '🇦🇷', 'Singapore': '🇸🇬', 'New Zealand': '🇳🇿', 'Ireland': '🇮🇪', 'Switzerland': '🇨🇭', 'Austria': '🇦🇹', 'Belgium': '🇧🇪', 'Portugal': '🇵🇹', 'Czech Republic': '🇨🇿', 'Unknown': '🌐' }
+      return flags[name] || '🌐'
+    }
+
+    async function fetchData() {
+      const content = document.getElementById('content')
+      content.innerHTML = '<div class="loading">Loading...</div>'
+      const params = getDateRangeParams()
+      try {
+        const res = await fetch('/api/sites/' + encodeURIComponent(siteId) + '/' + section + params)
+        const data = await res.json()
+        renderContent(data)
+      } catch (err) {
+        content.innerHTML = '<div class="empty-cell">Failed to load data</div>'
+      }
+    }
+
+    function renderContent(data) {
+      const content = document.getElementById('content')
+      let html = ''
+
+      if (section === 'pages') {
+        const pages = data.pages || []
+        if (!pages.length) { content.innerHTML = '<div class="empty-cell">No page data</div>'; return }
+        const maxViews = Math.max(...pages.map(p => p.views || 0))
+        html = '<table class="data-table"><thead><tr><th>Path</th><th style="text-align:right">Entries</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th><th style="width:100px"></th></tr></thead><tbody>'
+        pages.forEach(p => {
+          const pct = maxViews > 0 ? ((p.views || 0) / maxViews * 100) : 0
+          html += '<tr><td class="name">' + (p.path || p.url || '/') + '</td><td class="value">' + fmt(p.entries || 0) + '</td><td class="value">' + fmt(p.visitors || 0) + '</td><td class="value">' + fmt(p.views || 0) + '</td><td><div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div></td></tr>'
+        })
+        html += '</tbody></table>'
+      }
+      else if (section === 'referrers') {
+        const referrers = data.referrers || []
+        if (!referrers.length) { content.innerHTML = '<div class="empty-cell">No referrer data</div>'; return }
+        const maxViews = Math.max(...referrers.map(r => r.views || 0))
+        html = '<table class="data-table"><thead><tr><th>Source</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th><th style="width:100px"></th></tr></thead><tbody>'
+        referrers.forEach(r => {
+          const pct = maxViews > 0 ? ((r.views || 0) / maxViews * 100) : 0
+          html += '<tr><td class="name">' + (r.source || 'Direct') + '</td><td class="value">' + fmt(r.visitors || 0) + '</td><td class="value">' + fmt(r.views || 0) + '</td><td><div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div></td></tr>'
+        })
+        html += '</tbody></table>'
+      }
+      else if (section === 'devices') {
+        const devices = data.deviceTypes || []
+        const os = data.operatingSystems || []
+        html = '<h3 style="font-size:1rem;margin-bottom:1rem;color:var(--text2)">Device Types</h3>'
+        if (!devices.length) { html += '<div class="empty-cell">No device data</div>' }
+        else {
+          html += '<table class="data-table"><thead><tr><th>Type</th><th style="text-align:right">Visitors</th><th style="text-align:right">%</th></tr></thead><tbody>'
+          devices.forEach(d => { html += '<tr><td class="name">' + getDeviceIcon(d.type) + d.type + '</td><td class="value">' + fmt(d.visitors || 0) + '</td><td class="value">' + (d.percentage || 0) + '%</td></tr>' })
+          html += '</tbody></table>'
+        }
+        if (os.length) {
+          html += '<h3 style="font-size:1rem;margin:2rem 0 1rem;color:var(--text2)">Operating Systems</h3>'
+          html += '<table class="data-table"><thead><tr><th>OS</th><th style="text-align:right">Visitors</th><th style="text-align:right">%</th></tr></thead><tbody>'
+          os.forEach(o => { html += '<tr><td class="name">' + o.name + '</td><td class="value">' + fmt(o.visitors || 0) + '</td><td class="value">' + (o.percentage || 0) + '%</td></tr>' })
+          html += '</tbody></table>'
+        }
+      }
+      else if (section === 'browsers') {
+        const browsers = data.browsers || []
+        if (!browsers.length) { content.innerHTML = '<div class="empty-cell">No browser data</div>'; return }
+        html = '<table class="data-table"><thead><tr><th>Browser</th><th style="text-align:right">Visitors</th><th style="text-align:right">%</th></tr></thead><tbody>'
+        browsers.forEach(b => { html += '<tr><td class="name">' + getBrowserIcon(b.name) + b.name + '</td><td class="value">' + fmt(b.visitors || 0) + '</td><td class="value">' + (b.percentage || 0) + '%</td></tr>' })
+        html += '</tbody></table>'
+      }
+      else if (section === 'countries') {
+        const countries = data.countries || []
+        if (!countries.length) { content.innerHTML = '<div class="empty-cell">No country data</div>'; return }
+        const maxVisitors = Math.max(...countries.map(c => c.visitors || 0))
+        html = '<table class="data-table"><thead><tr><th>Country</th><th style="text-align:right">Visitors</th><th style="width:100px"></th></tr></thead><tbody>'
+        countries.forEach(c => {
+          const pct = maxVisitors > 0 ? ((c.visitors || 0) / maxVisitors * 100) : 0
+          html += '<tr><td class="name"><span style="margin-right:8px">' + getCountryFlag(c.name) + '</span>' + (c.name || 'Unknown') + '</td><td class="value">' + fmt(c.visitors || 0) + '</td><td><div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div></td></tr>'
+        })
+        html += '</tbody></table>'
+      }
+      else if (section === 'campaigns') {
+        const campaigns = data.campaigns || []
+        if (!campaigns.length) { content.innerHTML = '<div class="empty-cell">No campaign data</div>'; return }
+        const maxViews = Math.max(...campaigns.map(c => c.views || 0))
+        html = '<table class="data-table"><thead><tr><th>Campaign</th><th>Source</th><th>Medium</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th><th style="width:100px"></th></tr></thead><tbody>'
+        campaigns.forEach(c => {
+          const pct = maxViews > 0 ? ((c.views || 0) / maxViews * 100) : 0
+          html += '<tr><td class="name">' + (c.name || '-') + '</td><td>' + (c.source || '-') + '</td><td>' + (c.medium || '-') + '</td><td class="value">' + fmt(c.visitors || 0) + '</td><td class="value">' + fmt(c.views || 0) + '</td><td><div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div></td></tr>'
+        })
+        html += '</tbody></table>'
+      }
+      else if (section === 'events') {
+        const events = data.events || []
+        if (!events.length) { content.innerHTML = '<div class="empty-cell">No custom events tracked</div>'; return }
+        const maxCount = Math.max(...events.map(e => e.count || 0))
+        html = '<table class="data-table"><thead><tr><th>Event</th><th style="text-align:right">Count</th><th style="text-align:right">Unique</th><th style="text-align:right">Avg Value</th><th style="width:100px"></th></tr></thead><tbody>'
+        events.forEach(e => {
+          const pct = maxCount > 0 ? ((e.count || 0) / maxCount * 100) : 0
+          html += '<tr><td class="name">' + e.name + '</td><td class="value">' + fmt(e.count || 0) + '</td><td class="value">' + fmt(e.unique || e.visitors || 0) + '</td><td class="value">' + (e.avgValue ? e.avgValue.toFixed(2) : '-') + '</td><td><div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div></td></tr>'
+        })
+        html += '</tbody></table>'
+      }
+      else if (section === 'goals') {
+        const goals = data.goals || []
+        if (!goals.length) { content.innerHTML = '<div class="empty-cell">No goals configured</div>'; return }
+        html = '<table class="data-table"><thead><tr><th>Goal</th><th>Type</th><th>Pattern</th><th style="text-align:right">Conversions</th><th style="text-align:right">Value</th></tr></thead><tbody>'
+        goals.forEach(g => {
+          html += '<tr><td class="name">' + g.name + '</td><td>' + g.type + '</td><td>' + (g.pattern || '-') + '</td><td class="value">' + fmt(g.conversions || 0) + '</td><td class="value">' + (g.totalValue ? '$' + g.totalValue.toFixed(2) : '-') + '</td></tr>'
+        })
+        html += '</tbody></table>'
+      }
+
+      content.innerHTML = html
+    }
+
+    fetchData()
+  </script>
+</body>
+</html>`
+
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'text/html',
+      'Access-Control-Allow-Origin': '*',
+    },
+    body: html,
   }
 }
 
@@ -3040,6 +3335,12 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
 
   if ((path === '/dashboard' || path === '/') && method === 'GET') {
     return handleDashboard()
+  }
+
+  // Detail page routes
+  const detailMatch = path.match(/^\/dashboard\/(pages|referrers|devices|browsers|countries|campaigns|events|goals)$/)
+  if (detailMatch && method === 'GET') {
+    return handleDetailPage(detailMatch[1], event)
   }
 
   if (path === '/collect' && method === 'POST') {
