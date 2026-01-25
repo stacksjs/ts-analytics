@@ -2563,6 +2563,105 @@ async function handleGetCountries(siteId: string, event: LambdaEvent) {
   }
 }
 
+async function handleGetRegions(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = parseDateRange(event.queryStringParameters)
+    const limit = Math.min(Number(event.queryStringParameters?.limit) || 10, 100)
+    const countryFilter = event.queryStringParameters?.country
+
+    // Query sessions
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':prefix': { S: 'SESSION#' },
+      },
+    }) as { Items?: any[] }
+
+    const sessions = (result.Items || []).map(unmarshall).filter(s => {
+      const sessionStart = new Date(s.startedAt)
+      if (sessionStart < startDate || sessionStart > endDate) return false
+      if (countryFilter && s.country !== countryFilter) return false
+      return true
+    })
+
+    // Aggregate by region
+    const regionStats: Record<string, { visitors: Set<string>, country: string }> = {}
+    for (const s of sessions) {
+      const region = s.region || 'Unknown'
+      const country = s.country || 'Unknown'
+      const key = `${country}:${region}`
+      if (!regionStats[key]) regionStats[key] = { visitors: new Set(), country }
+      regionStats[key].visitors.add(s.visitorId)
+    }
+
+    const regions = Object.entries(regionStats)
+      .map(([key, data]) => {
+        const region = key.split(':')[1]
+        return { name: region, country: data.country, visitors: data.visitors.size }
+      })
+      .sort((a, b) => b.visitors - a.visitors)
+      .slice(0, limit)
+
+    return response({ regions })
+  } catch (error) {
+    console.error('Regions error:', error)
+    return response({ error: 'Failed to fetch regions' }, 500)
+  }
+}
+
+async function handleGetCities(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = parseDateRange(event.queryStringParameters)
+    const limit = Math.min(Number(event.queryStringParameters?.limit) || 10, 100)
+    const countryFilter = event.queryStringParameters?.country
+    const regionFilter = event.queryStringParameters?.region
+
+    // Query sessions
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':prefix': { S: 'SESSION#' },
+      },
+    }) as { Items?: any[] }
+
+    const sessions = (result.Items || []).map(unmarshall).filter(s => {
+      const sessionStart = new Date(s.startedAt)
+      if (sessionStart < startDate || sessionStart > endDate) return false
+      if (countryFilter && s.country !== countryFilter) return false
+      if (regionFilter && s.region !== regionFilter) return false
+      return true
+    })
+
+    // Aggregate by city
+    const cityStats: Record<string, { visitors: Set<string>, country: string, region: string }> = {}
+    for (const s of sessions) {
+      const city = s.city || 'Unknown'
+      const region = s.region || 'Unknown'
+      const country = s.country || 'Unknown'
+      const key = `${country}:${region}:${city}`
+      if (!cityStats[key]) cityStats[key] = { visitors: new Set(), country, region }
+      cityStats[key].visitors.add(s.visitorId)
+    }
+
+    const cities = Object.entries(cityStats)
+      .map(([key, data]) => {
+        const city = key.split(':')[2]
+        return { name: city, country: data.country, region: data.region, visitors: data.visitors.size }
+      })
+      .sort((a, b) => b.visitors - a.visitors)
+      .slice(0, limit)
+
+    return response({ cities })
+  } catch (error) {
+    console.error('Cities error:', error)
+    return response({ error: 'Failed to fetch cities' }, 500)
+  }
+}
+
 async function handleGetTimeSeries(siteId: string, event: LambdaEvent) {
   try {
     const { startDate, endDate } = parseDateRange(event.queryStringParameters)
@@ -3397,6 +3496,14 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
       // /api/sites/{siteId}/countries
       if (path.endsWith('/countries')) {
         return handleGetCountries(siteId, event)
+      }
+      // /api/sites/{siteId}/regions
+      if (path.endsWith('/regions')) {
+        return handleGetRegions(siteId, event)
+      }
+      // /api/sites/{siteId}/cities
+      if (path.endsWith('/cities')) {
+        return handleGetCities(siteId, event)
       }
       // /api/sites/{siteId}/timeseries
       if (path.endsWith('/timeseries')) {
