@@ -1,10 +1,10 @@
-<script setup lang="ts">
+<script server>
 /**
  * LiveActivityFeed Component
  *
- * Real-time feed of visitor activity with animations.
+ * Real-time feed of visitor activity.
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { defineProps, withDefaults } from 'stx'
 
 export type ActivityType = 'pageview' | 'event' | 'conversion' | 'session_start' | 'session_end'
 
@@ -20,28 +20,25 @@ export interface Activity {
   value?: number
 }
 
-const props = withDefaults(defineProps<{
+interface LiveActivityFeedProps {
   activities: Activity[]
   maxItems?: number
   autoScroll?: boolean
   showTimestamps?: boolean
   paused?: boolean
-}>(), {
-  maxItems: 20,
-  autoScroll: true,
-  showTimestamps: true,
-  paused: false,
-})
+}
 
-const emit = defineEmits<{
-  (e: 'click', activity: Activity): void
-}>()
-
-const containerRef = ref<HTMLDivElement | null>(null)
-
-const displayedActivities = computed(() =>
-  props.activities.slice(0, props.maxItems),
+const { activities, maxItems, autoScroll, showTimestamps, paused } = withDefaults(
+  defineProps<LiveActivityFeedProps>(),
+  {
+    maxItems: 20,
+    autoScroll: true,
+    showTimestamps: true,
+    paused: false,
+  }
 )
+
+const displayedActivities = activities.slice(0, maxItems)
 
 const activityConfig: Record<ActivityType, { icon: string, color: string, label: string }> = {
   pageview: {
@@ -84,21 +81,6 @@ function getFlag(countryCode?: string): string {
   return String.fromCodePoint(...codePoints)
 }
 
-function formatTime(date: Date): string {
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const seconds = Math.floor(diff / 1000)
-
-  if (seconds < 5)
-    return 'Just now'
-  if (seconds < 60)
-    return `${seconds}s ago`
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60)
-    return `${minutes}m ago`
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
 function getActivityText(activity: Activity): string {
   switch (activity.type) {
     case 'pageview':
@@ -117,110 +99,76 @@ function getActivityText(activity: Activity): string {
 }
 </script>
 
-<template>
-  <div class="live-activity-feed">
-    <div class="flex items-center justify-between mb-4">
-      <div class="flex items-center gap-2">
-        <h3 class="text-sm font-medium text-gray-900">Live Activity</h3>
-        <div v-if="!paused" class="relative">
-          <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <div class="absolute inset-0 w-2 h-2 rounded-full bg-green-500 animate-ping" />
+<div class="live-activity-feed card-hover p-6">
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-2">
+      <h3 class="text-sm font-medium text-gray-900">Live Activity</h3>
+      @if (!paused)
+        <div class="relative">
+          <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+          <div class="absolute inset-0 w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
         </div>
-        <span v-else class="text-xs text-gray-500">(Paused)</span>
-      </div>
-      <span v-if="activities.length" class="text-xs text-gray-500">
+      @else
+        <span class="text-xs text-gray-500">(Paused)</span>
+      @endif
+    </div>
+    @if (activities.length)
+      <span class="text-xs text-gray-500">
         {{ activities.length }} activities
       </span>
-    </div>
+    @endif
+  </div>
 
-    <!-- Empty state -->
-    <div v-if="!activities.length" class="text-center py-8 text-gray-500">
+  @if (!activities.length)
+    <div class="text-center py-8 text-gray-500">
       <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
       </svg>
       <p>Waiting for activity...</p>
     </div>
-
-    <!-- Activity list -->
-    <div
-      v-else
-      ref="containerRef"
-      class="space-y-2 max-h-96 overflow-y-auto"
-    >
-      <TransitionGroup name="activity">
-        <div
-          v-for="activity in displayedActivities"
-          :key="activity.id"
-          class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-          @click="emit('click', activity)"
-        >
-          <!-- Type icon -->
-          <div
-            class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            :class="activityConfig[activity.type].color"
-          >
+  @else
+    <div class="space-y-2 max-h-96 overflow-y-auto">
+      @foreach (displayedActivities as activity)
+        <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 {{ activityConfig[activity.type].color }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="activityConfig[activity.type].icon" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ activityConfig[activity.type].icon }}" />
             </svg>
           </div>
 
-          <!-- Content -->
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
               <span class="text-sm text-gray-900 truncate">
                 {{ getActivityText(activity) }}
               </span>
-              <span v-if="activity.value" class="text-xs font-medium text-green-600">
-                +${{ activity.value }}
-              </span>
+              @if (activity.value)
+                <span class="text-xs font-medium text-green-600">
+                  +${{ activity.value }}
+                </span>
+              @endif
             </div>
             <div class="flex items-center gap-2 text-xs text-gray-500">
-              <span v-if="activity.countryCode" class="flex items-center gap-1">
-                {{ getFlag(activity.countryCode) }}
-                {{ activity.country }}
-              </span>
-              <span v-if="activity.device" class="flex items-center gap-1">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="deviceIcons[activity.device]" />
-                </svg>
-              </span>
+              @if (activity.countryCode)
+                <span class="flex items-center gap-1">
+                  {{ getFlag(activity.countryCode) }}
+                  {{ activity.country }}
+                </span>
+              @endif
+              @if (activity.device)
+                <span class="flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ deviceIcons[activity.device] }}" />
+                  </svg>
+                </span>
+              @endif
             </div>
           </div>
 
-          <!-- Timestamp -->
-          <span v-if="showTimestamps" class="text-xs text-gray-400 flex-shrink-0">
-            {{ formatTime(activity.timestamp) }}
-          </span>
+          @if (showTimestamps)
+            <span class="text-xs text-gray-400 flex-shrink-0">Just now</span>
+          @endif
         </div>
-      </TransitionGroup>
+      @endforeach
     </div>
-  </div>
-</template>
-
-<style scoped>
-.live-activity-feed {
-  @apply card-hover p-6;
-}
-
-.activity-enter-active {
-  transition: all 0.3s ease-out;
-}
-
-.activity-leave-active {
-  transition: all 0.2s ease-in;
-}
-
-.activity-enter-from {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-
-.activity-leave-to {
-  opacity: 0;
-  transform: translateX(20px);
-}
-
-.activity-move {
-  transition: transform 0.3s ease;
-}
-</style>
+  @endif
+</div>

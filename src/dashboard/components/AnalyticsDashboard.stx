@@ -1,268 +1,361 @@
-<script setup lang="ts">
+<script server>
 /**
  * AnalyticsDashboard Component
  *
  * Main dashboard layout combining all analytics components.
  */
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { defineProps, withDefaults } from 'stx'
 import type {
   AnalyticsApiConfig,
   DashboardSummary,
-  DateRange,
-  RealtimeData,
   TimeSeriesDataPoint,
   TopItem,
 } from '../types'
-import { createAnalyticsComposable, createRealtimePoller } from '../composables/useAnalytics'
-import DateRangePicker from './DateRangePicker.stx'
-import DeviceBreakdown from './DeviceBreakdown.stx'
-import RealtimeCounter from './RealtimeCounter.stx'
-import StatCard from './StatCard.stx'
-import TimeSeriesChart from './TimeSeriesChart.stx'
-import TopList from './TopList.stx'
 
-const props = withDefaults(defineProps<{
+interface AnalyticsDashboardProps {
   config: AnalyticsApiConfig
   refreshInterval?: number
   realtimeInterval?: number
-}>(), {
-  refreshInterval: 60000, // 1 minute
-  realtimeInterval: 5000, // 5 seconds
-})
-
-// State
-const loading = ref(true)
-const error = ref<Error | null>(null)
-const stats = ref<DashboardSummary | null>(null)
-const realtime = ref<RealtimeData | null>(null)
-const timeSeries = ref<TimeSeriesDataPoint[]>([])
-const topPages = ref<TopItem[]>([])
-const topReferrers = ref<TopItem[]>([])
-const devices = ref<TopItem[]>([])
-const dateRange = ref<DateRange>({
-  start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-  end: new Date(),
-  preset: '7d',
-})
-
-// Analytics composable
-const analytics = createAnalyticsComposable({
-  ...props.config,
-  initialDateRange: '7d',
-})
-
-// Realtime poller
-let realtimePoller: ReturnType<typeof createRealtimePoller> | null = null
-
-// Fetch all data
-async function fetchData() {
-  loading.value = true
-  error.value = null
-
-  try {
-    const [
-      statsData,
-      timeSeriesData,
-      pagesData,
-      referrersData,
-      devicesData,
-    ] = await Promise.all([
-      analytics.fetchStats(dateRange.value),
-      analytics.fetchTimeSeries(dateRange.value),
-      analytics.fetchTopPages(dateRange.value, 10),
-      analytics.fetchTopReferrers(dateRange.value, 10),
-      analytics.fetchDevices(dateRange.value),
-    ])
-
-    stats.value = statsData
-    timeSeries.value = timeSeriesData
-    topPages.value = pagesData
-    topReferrers.value = referrersData
-    devices.value = devicesData
-  }
-  catch (err) {
-    error.value = err instanceof Error ? err : new Error(String(err))
-  }
-  finally {
-    loading.value = false
-  }
+  stats?: DashboardSummary | null
+  timeSeries?: TimeSeriesDataPoint[]
+  topPages?: TopItem[]
+  topReferrers?: TopItem[]
+  devices?: TopItem[]
+  realtimeVisitors?: number
+  realtimePageViews?: number
+  loading?: boolean
+  error?: string | null
 }
 
-// Handle realtime updates
-function handleRealtimeUpdate(data: RealtimeData) {
-  realtime.value = data
-}
-
-// Refresh interval
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-
-onMounted(async () => {
-  await fetchData()
-
-  // Start realtime polling
-  realtimePoller = createRealtimePoller(props.config, handleRealtimeUpdate, props.realtimeInterval)
-  realtimePoller.start()
-
-  // Start auto-refresh
-  if (props.refreshInterval > 0) {
-    refreshTimer = setInterval(fetchData, props.refreshInterval)
+const {
+  config,
+  refreshInterval,
+  realtimeInterval,
+  stats,
+  timeSeries,
+  topPages,
+  topReferrers,
+  devices,
+  realtimeVisitors,
+  realtimePageViews,
+  loading,
+  error,
+} = withDefaults(
+  defineProps<AnalyticsDashboardProps>(),
+  {
+    refreshInterval: 60000,
+    realtimeInterval: 5000,
+    stats: null,
+    timeSeries: () => [],
+    topPages: () => [],
+    topReferrers: () => [],
+    devices: () => [],
+    realtimeVisitors: 0,
+    realtimePageViews: 0,
+    loading: false,
+    error: null,
   }
-})
-
-onUnmounted(() => {
-  realtimePoller?.stop()
-  if (refreshTimer) {
-    clearInterval(refreshTimer)
-  }
-})
-
-// Watch date range changes
-watch(dateRange, fetchData)
-
-// Computed
-const hasData = computed(() => stats.value !== null)
+)
 </script>
 
-<template>
-  <div class="analytics-dashboard min-h-screen bg-gray-50 p-6">
-    <!-- Header -->
-    <header class="flex items-center justify-between mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">
-          Analytics Dashboard
-        </h1>
-        <p class="text-gray-500 text-sm mt-1">
-          Track your website performance
-        </p>
-      </div>
+<div
+  class="analytics-dashboard min-h-screen bg-gray-50 p-6"
+  style="max-width: 1400px; margin: 0 auto"
+  x-data="{
+    loading: {{ loading ? 'true' : 'false' }},
+    dateRange: '7d',
+    refresh() {
+      this.loading = true
+      this.$dispatch('refresh')
+    }
+  }"
+>
+  <header class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">
+        Analytics Dashboard
+      </h1>
+      <p class="text-gray-500 text-sm mt-1">
+        Track your website performance
+      </p>
+    </div>
 
-      <div class="flex items-center gap-4">
-        <DateRangePicker v-model="dateRange" />
+    <div class="flex items-center gap-4">
+      <select
+        class="bg-white border border-gray-200 text-gray-900 px-4 py-2 rounded-lg text-sm cursor-pointer hover:border-indigo-500"
+        x-model="dateRange"
+        x-on:change="$dispatch('date-change', { range: dateRange })"
+      >
+        <option value="today">Today</option>
+        <option value="yesterday">Yesterday</option>
+        <option value="7d">Last 7 days</option>
+        <option value="30d">Last 30 days</option>
+        <option value="90d">Last 90 days</option>
+      </select>
 
-        <button
-          type="button"
-          class="btn-icon"
-          title="Refresh"
-          :disabled="loading"
-          @click="fetchData"
+      <button
+        type="button"
+        class="btn-icon p-2 rounded-lg hover:bg-gray-100"
+        title="Refresh"
+        x-bind:disabled="loading"
+        x-on:click="refresh()"
+      >
+        <svg
+          class="w-5 h-5"
+          x-bind:class="{ 'animate-spin': loading }"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
-          <svg
-            class="w-5 h-5"
-            :class="{ 'animate-spin': loading }"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        </button>
-      </div>
-    </header>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      </button>
+    </div>
+  </header>
 
-    <!-- Error state -->
-    <div
-      v-if="error"
-      class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700"
-    >
+  @if (error)
+    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
       <p class="font-medium">Error loading analytics</p>
-      <p class="text-sm mt-1">{{ error.message }}</p>
+      <p class="text-sm mt-1">{{ error }}</p>
       <button
         type="button"
         class="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-        @click="fetchData"
+        x-on:click="refresh()"
       >
         Try again
       </button>
     </div>
+  @endif
 
-    <!-- Realtime counter -->
-    <section class="mb-6">
-      <RealtimeCounter
-        :count="realtime?.currentVisitors ?? 0"
-        :loading="!realtime"
-      >
-        <template #details>
-          <p v-if="realtime" class="mt-2 text-sm text-gray-500">
-            {{ realtime.pageViewsLastHour }} page views in the last hour
+  <section class="mb-6">
+    <div class="realtime-counter card-hover p-6">
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+          <div class="absolute inset-0 w-3 h-3 rounded-full bg-green-500 animate-ping"></div>
+        </div>
+        <div>
+          <span class="text-4xl font-bold text-gray-900">{{ realtimeVisitors }}</span>
+          <span class="ml-2 text-gray-500 text-sm">visitors right now</span>
+        </div>
+      </div>
+      @if (realtimePageViews > 0)
+        <p class="mt-2 text-sm text-gray-500">
+          {{ realtimePageViews }} page views in the last hour
+        </p>
+      @endif
+    </div>
+  </section>
+
+  <section class="dashboard-grid mb-6">
+    <div class="stat-card card-hover p-6">
+      <h3 class="text-sm font-medium text-gray-500">Page Views</h3>
+      @if (loading)
+        <div class="animate-pulse"><div class="skeleton h-8 w-24 mt-2"></div></div>
+      @else
+        <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats?.pageViews ?? 0 }}</p>
+        @if (stats?.change?.pageViews !== undefined)
+          <p class="text-sm mt-1 {{ stats.change.pageViews >= 0 ? 'text-green-600' : 'text-red-600' }}">
+            {{ stats.change.pageViews >= 0 ? '+' : '' }}{{ stats.change.pageViews.toFixed(1) }}% vs previous period
           </p>
-        </template>
-      </RealtimeCounter>
-    </section>
+        @endif
+      @endif
+    </div>
 
-    <!-- Stats cards -->
-    <section class="dashboard-grid mb-6">
-      <StatCard
-        title="Page Views"
-        :value="stats?.pageViews ?? 0"
-        :change="stats?.change?.pageViews"
-        change-label="vs previous period"
-        :loading="loading"
-      />
-      <StatCard
-        title="Unique Visitors"
-        :value="stats?.uniqueVisitors ?? 0"
-        :change="stats?.change?.uniqueVisitors"
-        change-label="vs previous period"
-        :loading="loading"
-      />
-      <StatCard
-        title="Bounce Rate"
-        :value="stats?.bounceRate ?? 0"
-        :change="stats?.change?.bounceRate"
-        change-label="vs previous period"
-        format="percentage"
-        :loading="loading"
-      />
-      <StatCard
-        title="Avg. Session Duration"
-        :value="stats?.avgSessionDuration ?? 0"
-        :change="stats?.change?.avgSessionDuration"
-        change-label="vs previous period"
-        format="duration"
-        :loading="loading"
-      />
-    </section>
+    <div class="stat-card card-hover p-6">
+      <h3 class="text-sm font-medium text-gray-500">Unique Visitors</h3>
+      @if (loading)
+        <div class="animate-pulse"><div class="skeleton h-8 w-24 mt-2"></div></div>
+      @else
+        <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats?.uniqueVisitors ?? 0 }}</p>
+        @if (stats?.change?.uniqueVisitors !== undefined)
+          <p class="text-sm mt-1 {{ stats.change.uniqueVisitors >= 0 ? 'text-green-600' : 'text-red-600' }}">
+            {{ stats.change.uniqueVisitors >= 0 ? '+' : '' }}{{ stats.change.uniqueVisitors.toFixed(1) }}% vs previous period
+          </p>
+        @endif
+      @endif
+    </div>
 
-    <!-- Time series chart -->
-    <section class="mb-6">
-      <TimeSeriesChart
-        :data="timeSeries"
-        :loading="loading"
-        :height="350"
-        :metrics="['pageViews', 'uniqueVisitors']"
-      />
-    </section>
+    <div class="stat-card card-hover p-6">
+      <h3 class="text-sm font-medium text-gray-500">Bounce Rate</h3>
+      @if (loading)
+        <div class="animate-pulse"><div class="skeleton h-8 w-24 mt-2"></div></div>
+      @else
+        <p class="text-3xl font-bold text-gray-900 mt-2">{{ ((stats?.bounceRate ?? 0) * 100).toFixed(1) }}%</p>
+        @if (stats?.change?.bounceRate !== undefined)
+          <p class="text-sm mt-1 {{ stats.change.bounceRate <= 0 ? 'text-green-600' : 'text-red-600' }}">
+            {{ stats.change.bounceRate >= 0 ? '+' : '' }}{{ stats.change.bounceRate.toFixed(1) }}% vs previous period
+          </p>
+        @endif
+      @endif
+    </div>
 
-    <!-- Bottom grid -->
-    <section class="dashboard-grid-3">
-      <TopList
-        title="Top Pages"
-        :items="topPages"
-        :loading="loading"
-        empty-message="No page views yet"
-      />
+    <div class="stat-card card-hover p-6">
+      <h3 class="text-sm font-medium text-gray-500">Avg. Session Duration</h3>
+      @if (loading)
+        <div class="animate-pulse"><div class="skeleton h-8 w-24 mt-2"></div></div>
+      @else
+        <p class="text-3xl font-bold text-gray-900 mt-2">{{ Math.floor((stats?.avgSessionDuration ?? 0) / 60) }}m {{ Math.floor((stats?.avgSessionDuration ?? 0) % 60) }}s</p>
+        @if (stats?.change?.avgSessionDuration !== undefined)
+          <p class="text-sm mt-1 {{ stats.change.avgSessionDuration >= 0 ? 'text-green-600' : 'text-red-600' }}">
+            {{ stats.change.avgSessionDuration >= 0 ? '+' : '' }}{{ stats.change.avgSessionDuration.toFixed(1) }}% vs previous period
+          </p>
+        @endif
+      @endif
+    </div>
+  </section>
 
-      <TopList
-        title="Top Referrers"
-        :items="topReferrers"
-        :loading="loading"
-        empty-message="No referrer data"
-      />
+  <section class="mb-6">
+    <div class="card-hover p-6">
+      <h3 class="text-sm font-medium text-gray-900 mb-4">Traffic Overview</h3>
+      @if (loading)
+        <div class="animate-pulse"><div class="skeleton h-80 w-full"></div></div>
+      @elseif (timeSeries.length === 0)
+        <div class="flex items-center justify-center h-80 text-gray-400">
+          <p>No data available for selected period</p>
+        </div>
+      @else
+        <canvas
+          id="trafficChart"
+          style="height: 320px"
+          x-data="{
+            chart: null,
+            init() {
+              const ctx = this.$el.getContext('2d')
+              if (!ctx) return
 
-      <DeviceBreakdown
-        :devices="devices"
-        :loading="loading"
-      />
-    </section>
+              const data = {{ JSON.stringify(timeSeries) }}
+              const labels = data.map(d => new Date(d.date).toLocaleDateString())
 
-    <!-- Slot for additional content -->
-    <slot name="footer" />
-  </div>
-</template>
+              this.chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                  labels,
+                  datasets: [
+                    {
+                      label: 'Page Views',
+                      data: data.map(d => d.pageViews || d.views || 0),
+                      borderColor: '#6366f1',
+                      backgroundColor: '#6366f120',
+                      fill: true,
+                      tension: 0.3,
+                    },
+                    {
+                      label: 'Unique Visitors',
+                      data: data.map(d => d.uniqueVisitors || d.visitors || 0),
+                      borderColor: '#22c55e',
+                      backgroundColor: '#22c55e20',
+                      fill: true,
+                      tension: 0.3,
+                    }
+                  ]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: true, position: 'top' } },
+                  scales: {
+                    y: { beginAtZero: true, grid: { color: '#e5e7eb' } },
+                    x: { grid: { display: false } }
+                  }
+                }
+              })
+            }
+          }"
+        ></canvas>
+      @endif
+    </div>
+  </section>
 
-<style scoped>
-.analytics-dashboard {
-  max-width: 1400px;
-  margin: 0 auto;
-}
-</style>
+  <section class="dashboard-grid-3">
+    <div class="card-hover p-6">
+      <h3 class="text-sm font-medium text-gray-900 mb-4">Top Pages</h3>
+      @if (loading)
+        <div class="space-y-3">
+          @foreach ([1, 2, 3, 4, 5] as i)
+            <div class="animate-pulse">
+              <div class="skeleton h-4 w-full mb-1"></div>
+              <div class="skeleton h-2 w-3/4"></div>
+            </div>
+          @endforeach
+        </div>
+      @elseif (topPages.length === 0)
+        <p class="text-gray-500 text-center py-8">No page views yet</p>
+      @else
+        <div class="space-y-3">
+          @foreach (topPages as page)
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-900 truncate" title="{{ page.name }}">{{ page.name }}</span>
+                <span class="text-gray-500">{{ page.value }}</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill bg-indigo-500" style="width: {{ page.percentage * 100 }}%"></div>
+              </div>
+            </div>
+          @endforeach
+        </div>
+      @endif
+    </div>
+
+    <div class="card-hover p-6">
+      <h3 class="text-sm font-medium text-gray-900 mb-4">Top Referrers</h3>
+      @if (loading)
+        <div class="space-y-3">
+          @foreach ([1, 2, 3, 4, 5] as i)
+            <div class="animate-pulse">
+              <div class="skeleton h-4 w-full mb-1"></div>
+              <div class="skeleton h-2 w-3/4"></div>
+            </div>
+          @endforeach
+        </div>
+      @elseif (topReferrers.length === 0)
+        <p class="text-gray-500 text-center py-8">No referrer data</p>
+      @else
+        <div class="space-y-3">
+          @foreach (topReferrers as referrer)
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-900 truncate" title="{{ referrer.name }}">{{ referrer.name }}</span>
+                <span class="text-gray-500">{{ referrer.value }}</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill bg-indigo-500" style="width: {{ referrer.percentage * 100 }}%"></div>
+              </div>
+            </div>
+          @endforeach
+        </div>
+      @endif
+    </div>
+
+    <div class="card-hover p-6">
+      <h3 class="text-sm font-medium text-gray-900 mb-4">Devices</h3>
+      @if (loading)
+        <div class="space-y-3">
+          @foreach ([1, 2, 3] as i)
+            <div class="animate-pulse">
+              <div class="skeleton h-4 w-full mb-1"></div>
+              <div class="skeleton h-2 w-3/4"></div>
+            </div>
+          @endforeach
+        </div>
+      @elseif (devices.length === 0)
+        <p class="text-gray-500 text-center py-8">No device data</p>
+      @else
+        <div class="space-y-3">
+          @foreach (devices as device)
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-900">{{ device.name }}</span>
+                <span class="text-gray-500">{{ (device.percentage * 100).toFixed(1) }}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill bg-indigo-500" style="width: {{ device.percentage * 100 }}%"></div>
+              </div>
+            </div>
+          @endforeach
+        </div>
+      @endif
+    </div>
+  </section>
+</div>

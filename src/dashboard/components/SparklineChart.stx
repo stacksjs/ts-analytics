@@ -1,13 +1,13 @@
-<script setup lang="ts">
+<script server>
 /**
  * SparklineChart Component
  *
  * A minimal inline sparkline chart for showing trends.
  * Uses SVG for crisp rendering at any size.
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { defineProps, withDefaults } from 'stx'
 
-const props = withDefaults(defineProps<{
+interface SparklineChartProps {
   data: number[]
   width?: number
   height?: number
@@ -16,30 +16,32 @@ const props = withDefaults(defineProps<{
   showArea?: boolean
   strokeWidth?: number
   loading?: boolean
-}>(), {
-  width: 100,
-  height: 32,
-  color: '#6366f1',
-  fillColor: '#6366f120',
-  showArea: true,
-  strokeWidth: 2,
-  loading: false,
-})
+}
 
-const svgRef = ref<SVGSVGElement | null>(null)
+const { data, width, height, color, fillColor, showArea, strokeWidth, loading } = withDefaults(
+  defineProps<SparklineChartProps>(),
+  {
+    width: 100,
+    height: 32,
+    color: '#6366f1',
+    fillColor: '#6366f120',
+    showArea: true,
+    strokeWidth: 2,
+    loading: false,
+  }
+)
 
-const pathData = computed(() => {
-  if (!props.data.length)
+function computePathData(): string {
+  if (!data.length)
     return ''
 
-  const data = props.data
   const min = Math.min(...data)
   const max = Math.max(...data)
   const range = max - min || 1
 
-  const padding = props.strokeWidth
-  const chartWidth = props.width - padding * 2
-  const chartHeight = props.height - padding * 2
+  const padding = strokeWidth
+  const chartWidth = width - padding * 2
+  const chartHeight = height - padding * 2
 
   const points = data.map((value, index) => {
     const x = padding + (index / (data.length - 1)) * chartWidth
@@ -48,20 +50,19 @@ const pathData = computed(() => {
   })
 
   return `M${points.join(' L')}`
-})
+}
 
-const areaPath = computed(() => {
-  if (!props.data.length || !props.showArea)
+function computeAreaPath(): string {
+  if (!data.length || !showArea)
     return ''
 
-  const data = props.data
   const min = Math.min(...data)
   const max = Math.max(...data)
   const range = max - min || 1
 
-  const padding = props.strokeWidth
-  const chartWidth = props.width - padding * 2
-  const chartHeight = props.height - padding * 2
+  const padding = strokeWidth
+  const chartWidth = width - padding * 2
+  const chartHeight = height - padding * 2
 
   const points = data.map((value, index) => {
     const x = padding + (index / (data.length - 1)) * chartWidth
@@ -74,92 +75,88 @@ const areaPath = computed(() => {
   const bottomY = padding + chartHeight
 
   return `M${firstX},${bottomY} L${points.join(' L')} L${lastX},${bottomY} Z`
-})
+}
 
-const trend = computed(() => {
-  if (props.data.length < 2)
+function computeTrend(): number {
+  if (data.length < 2)
     return 0
 
-  const first = props.data[0]
-  const last = props.data[props.data.length - 1]
+  const first = data[0]
+  const last = data[data.length - 1]
 
   if (first === 0)
     return last > 0 ? 100 : 0
 
   return ((last - first) / first) * 100
-})
+}
 
-const trendColor = computed(() => {
-  if (trend.value > 0)
+function getTrendColor(trend: number): string {
+  if (trend > 0)
     return '#22c55e'
-  if (trend.value < 0)
+  if (trend < 0)
     return '#ef4444'
   return '#6b7280'
-})
+}
+
+const pathData = computePathData()
+const areaPath = computeAreaPath()
+const trend = computeTrend()
+const trendColor = getTrendColor(trend)
 </script>
 
-<template>
-  <div class="sparkline-chart inline-flex items-center gap-2">
-    <!-- Loading state -->
-    <div v-if="loading" class="animate-pulse">
-      <div class="skeleton" :style="{ width: `${width}px`, height: `${height}px` }" />
+<div class="sparkline-chart inline-flex items-center gap-2">
+  @if (loading)
+    <div class="animate-pulse">
+      <div class="skeleton" style="width: {{ width }}px; height: {{ height }}px"></div>
     </div>
-
-    <!-- Empty state -->
+  @elseif (!data.length)
     <div
-      v-else-if="!data.length"
       class="flex items-center justify-center text-gray-300"
-      :style="{ width: `${width}px`, height: `${height}px` }"
+      style="width: {{ width }}px; height: {{ height }}px"
     >
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
       </svg>
     </div>
-
-    <!-- Chart -->
+  @else
     <svg
-      v-else
-      ref="svgRef"
-      :width="width"
-      :height="height"
+      width="{{ width }}"
+      height="{{ height }}"
       class="overflow-visible"
     >
-      <!-- Area fill -->
-      <path
-        v-if="showArea && areaPath"
-        :d="areaPath"
-        :fill="fillColor"
-      />
+      @if (showArea && areaPath)
+        <path
+          d="{{ areaPath }}"
+          fill="{{ fillColor }}"
+        />
+      @endif
 
-      <!-- Line -->
       <path
-        :d="pathData"
-        :stroke="color"
-        :stroke-width="strokeWidth"
+        d="{{ pathData }}"
+        stroke="{{ color }}"
+        stroke-width="{{ strokeWidth }}"
         fill="none"
         stroke-linecap="round"
         stroke-linejoin="round"
       />
 
-      <!-- End dot -->
-      <circle
-        v-if="data.length"
-        :cx="width - strokeWidth"
-        :cy="height / 2"
-        :r="strokeWidth"
-        :fill="color"
-      />
+      @if (data.length)
+        <circle
+          cx="{{ width - strokeWidth }}"
+          cy="{{ height / 2 }}"
+          r="{{ strokeWidth }}"
+          fill="{{ color }}"
+        />
+      @endif
     </svg>
 
-    <!-- Trend indicator -->
-    <slot name="trend">
+    @if (data.length >= 2)
       <span
-        v-if="data.length >= 2"
         class="text-xs font-medium"
-        :style="{ color: trendColor }"
+        style="color: {{ trendColor }}"
       >
         {{ trend >= 0 ? '+' : '' }}{{ trend.toFixed(1) }}%
       </span>
-    </slot>
-  </div>
-</template>
+    @endif
+  @endif
+</div>

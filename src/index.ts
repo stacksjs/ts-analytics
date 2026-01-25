@@ -345,3 +345,26 @@ export {
   generateTrackingSnippet,
   type TrackingScriptConfig,
 } from './tracking-script'
+
+// IP Geolocation & Location Services
+export {
+  City,
+  CityLoader,
+  CountryLoader,
+  createIpApiProvider,
+  createMaxMindProvider,
+  extractCloudflareGeo,
+  extractVercelGeo,
+  findCity,
+  formatGeoLocation,
+  formatGeoLocationShort,
+  type GeoLocation,
+  type GeoProvider,
+  GeoResolver,
+  GeolocationService,
+  type GeoServiceConfig,
+  getGeolocationService,
+  type IPGeoResult,
+  lookupFromHeaders,
+  lookupIP,
+} from './geolocation'

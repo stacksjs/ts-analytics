@@ -22,6 +22,7 @@
  */
 
 // Components - All 31 dashboard components
+// These are string identifiers that reference .stx component files
 export {
   // Alert & activity
   AlertCard,
@@ -61,6 +62,10 @@ export {
   // List & table components
   TopList,
   TrendIndicator,
+  // Utilities for component resolution
+  allComponents,
+  componentRegistry,
+  getComponentPath,
 } from './components'
 
 // Composables

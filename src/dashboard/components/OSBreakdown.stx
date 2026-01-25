@@ -1,19 +1,24 @@
-<script setup lang="ts">
+<script server>
 /**
  * OSBreakdown Component
  *
  * Displays operating system breakdown with icons.
  */
-import { computed } from 'vue'
+import { defineProps, withDefaults } from 'stx'
 import type { TopItem } from '../types'
 import { formatPercentage } from '../utils'
 
-const props = withDefaults(defineProps<{
+interface OSBreakdownProps {
   systems: TopItem[]
   loading?: boolean
-}>(), {
-  loading: false,
-})
+}
+
+const { systems, loading } = withDefaults(
+  defineProps<OSBreakdownProps>(),
+  {
+    loading: false,
+  }
+)
 
 const osIcons: Record<string, string> = {
   windows: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>`,
@@ -35,9 +40,7 @@ const osColors: Record<string, string> = {
   other: 'bg-gray-100 text-gray-600',
 }
 
-const sortedSystems = computed(() =>
-  [...props.systems].sort((a, b) => b.value - a.value),
-)
+const sortedSystems = [...systems].sort((a, b) => b.value - a.value)
 
 function getOSIcon(name: string): string {
   const key = name.toLowerCase().replace(/\s+/g, '')
@@ -74,59 +77,48 @@ function getOSColor(name: string): string {
 }
 </script>
 
-<template>
-  <div class="os-breakdown">
-    <h3 class="text-sm font-medium text-gray-900 mb-4">
-      Operating Systems
-    </h3>
+<div class="os-breakdown card-hover p-6">
+  <h3 class="text-sm font-medium text-gray-900 mb-4">
+    Operating Systems
+  </h3>
 
-    <!-- Loading state -->
-    <div v-if="loading" class="space-y-4">
-      <div v-for="i in 4" :key="i" class="animate-pulse flex items-center gap-4">
-        <div class="skeleton w-10 h-10 rounded-lg" />
-        <div class="flex-1">
-          <div class="skeleton h-4 w-20 mb-2" />
-          <div class="skeleton h-2 w-full" />
+  @if (loading)
+    <div class="space-y-4">
+      @foreach ([1, 2, 3, 4] as i)
+        <div class="animate-pulse flex items-center gap-4">
+          <div class="skeleton w-10 h-10 rounded-lg"></div>
+          <div class="flex-1">
+            <div class="skeleton h-4 w-20 mb-2"></div>
+            <div class="skeleton h-2 w-full"></div>
+          </div>
         </div>
-      </div>
+      @endforeach
     </div>
-
-    <!-- Empty state -->
-    <div v-else-if="!systems.length" class="text-center py-8 text-gray-500">
+  @elseif (!systems.length)
+    <div class="text-center py-8 text-gray-500">
       No OS data available
     </div>
-
-    <!-- OS list -->
-    <div v-else class="space-y-4">
-      <div
-        v-for="system in sortedSystems"
-        :key="system.name"
-        class="flex items-center gap-4"
-      >
-        <div
-          class="w-10 h-10 rounded-lg flex items-center justify-center"
-          :class="getOSColor(system.name)"
-          v-html="getOSIcon(system.name)"
-        />
-        <div class="flex-1">
-          <div class="flex items-center justify-between">
-            <span class="font-medium text-gray-900">{{ system.name }}</span>
-            <span class="text-sm text-gray-600">{{ formatPercentage(system.percentage) }}</span>
-          </div>
-          <div class="progress-bar mt-1">
-            <div
-              class="progress-fill bg-gray-400"
-              :style="{ width: `${system.percentage * 100}%` }"
-            />
+  @else
+    <div class="space-y-4">
+      @foreach (sortedSystems as system)
+        <div class="flex items-center gap-4">
+          <div
+            class="w-10 h-10 rounded-lg flex items-center justify-center {{ getOSColor(system.name) }}"
+          >{!! getOSIcon(system.name) !!}</div>
+          <div class="flex-1">
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-gray-900">{{ system.name }}</span>
+              <span class="text-sm text-gray-600">{{ formatPercentage(system.percentage) }}</span>
+            </div>
+            <div class="progress-bar mt-1">
+              <div
+                class="progress-fill bg-gray-400"
+                style="width: {{ system.percentage * 100 }}%"
+              ></div>
+            </div>
           </div>
         </div>
-      </div>
+      @endforeach
     </div>
-  </div>
-</template>
-
-<style scoped>
-.os-breakdown {
-  @apply card-hover p-6;
-}
-</style>
+  @endif
+</div>

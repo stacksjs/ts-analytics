@@ -1,60 +1,76 @@
-{{-- DateRangePicker Component --}}
-{{-- Props: dateRange, comparison, granularity --}}
-<div class="date-bar">
-  <select class="date-select" id="date-range">
-    <option value="today" @if(dateRange === 'today') selected @endif>Today</option>
-    <option value="yesterday" @if(dateRange === 'yesterday') selected @endif>Yesterday</option>
-    <option value="7d" @if(dateRange === '7d') selected @endif>Last 7 days</option>
-    <option value="30d" @if(dateRange === '30d') selected @endif>Last 30 days</option>
-    <option value="90d" @if(dateRange === '90d') selected @endif>Last 90 days</option>
-    <option value="12m" @if(dateRange === '12m') selected @endif>Last 12 months</option>
+<script server>
+/**
+ * DateRangePicker Component
+ *
+ * Date range selector with presets and comparison options.
+ */
+import { defineProps, withDefaults } from 'stx'
+
+interface DateRangePickerProps {
+  dateRange?: string
+  comparison?: string
+  granularity?: string
+}
+
+const { dateRange, comparison, granularity } = withDefaults(
+  defineProps<DateRangePickerProps>(),
+  {
+    dateRange: '7d',
+    comparison: 'none',
+    granularity: 'auto',
+  }
+)
+</script>
+
+<div
+  class="date-bar flex items-center gap-4 py-3 mb-4 flex-wrap"
+  x-data="{
+    dateRange: '{{ dateRange }}',
+    comparison: '{{ comparison }}',
+    granularity: '{{ granularity }}',
+    onChange() {
+      this.$dispatch('date-change', {
+        dateRange: this.dateRange,
+        comparison: this.comparison,
+        granularity: this.granularity
+      })
+    }
+  }"
+>
+  <select
+    class="date-select bg-white border border-gray-200 text-gray-900 px-4 py-2 rounded-lg text-sm cursor-pointer hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+    x-model="dateRange"
+    x-on:change="onChange()"
+  >
+    <option value="today">Today</option>
+    <option value="yesterday">Yesterday</option>
+    <option value="7d">Last 7 days</option>
+    <option value="30d">Last 30 days</option>
+    <option value="90d">Last 90 days</option>
+    <option value="12m">Last 12 months</option>
     <option value="custom">Custom range</option>
   </select>
-  <span>compared to</span>
-  <select class="date-select" id="comparison">
-    <option value="none" @if(comparison === 'none') selected @endif>No comparison</option>
-    <option value="previous" @if(comparison === 'previous') selected @endif>Previous period</option>
-    <option value="year" @if(comparison === 'year') selected @endif>Same period last year</option>
+
+  <span class="text-gray-500 text-sm">compared to</span>
+
+  <select
+    class="date-select bg-white border border-gray-200 text-gray-900 px-4 py-2 rounded-lg text-sm cursor-pointer hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+    x-model="comparison"
+    x-on:change="onChange()"
+  >
+    <option value="none">No comparison</option>
+    <option value="previous">Previous period</option>
+    <option value="year">Same period last year</option>
   </select>
-  <select class="date-select" id="granularity">
-    <option value="auto" @if(granularity === 'auto') selected @endif>Auto</option>
-    <option value="hour" @if(granularity === 'hour') selected @endif>Hourly</option>
-    <option value="day" @if(granularity === 'day') selected @endif>Daily</option>
-    <option value="month" @if(granularity === 'month') selected @endif>Monthly</option>
+
+  <select
+    class="date-select bg-white border border-gray-200 text-gray-900 px-4 py-2 rounded-lg text-sm cursor-pointer hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+    x-model="granularity"
+    x-on:change="onChange()"
+  >
+    <option value="auto">Auto</option>
+    <option value="hour">Hourly</option>
+    <option value="day">Daily</option>
+    <option value="month">Monthly</option>
   </select>
 </div>
-
-<style>
-.date-bar {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 0;
-  margin-bottom: 1rem;
-}
-
-.date-select {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.date-select:hover {
-  border-color: var(--accent);
-}
-
-.date-bar span {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-@media (max-width: 768px) {
-  .date-bar {
-    flex-wrap: wrap;
-  }
-}
-</style>

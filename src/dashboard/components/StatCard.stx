@@ -1,92 +1,90 @@
-<script setup lang="ts">
+<script server>
 /**
  * StatCard Component
  *
  * Displays a single stat with optional change indicator.
  */
-import { computed } from 'vue'
-import type { StatCardProps } from '../types'
-import {
-  formatChange,
-  formatCompact,
-  formatCurrency,
-  formatDuration,
-  formatPercentage,
-} from '../utils'
+import { defineProps, withDefaults } from 'stx'
 
-const props = withDefaults(defineProps<StatCardProps>(), {
-  format: 'number',
-  loading: false,
-})
+interface StatCardProps {
+  title: string
+  value: string | number
+  format?: 'number' | 'percentage' | 'duration' | 'currency'
+  change?: number
+  changeLabel?: string
+  icon?: string
+  loading?: boolean
+}
 
-const formattedValue = computed(() => {
-  if (typeof props.value === 'string')
-    return props.value
+const { title, value, format, change, changeLabel, icon, loading } = withDefaults(
+  defineProps<StatCardProps>(),
+  {
+    format: 'number',
+    loading: false,
+  }
+)
 
-  switch (props.format) {
+function formatValue(val: string | number, fmt: string): string {
+  if (typeof val === 'string') return val
+
+  switch (fmt) {
     case 'percentage':
-      return formatPercentage(props.value)
+      return `${val}%`
     case 'duration':
-      return formatDuration(props.value)
+      const mins = Math.floor(val / 60)
+      const secs = val % 60
+      return `${mins}:${secs.toString().padStart(2, '0')}`
     case 'currency':
-      return formatCurrency(props.value)
+      return `$${val.toLocaleString()}`
     case 'number':
     default:
-      return formatCompact(props.value)
+      if (val >= 1e6) return `${(val / 1e6).toFixed(1)}M`
+      if (val >= 1e3) return `${(val / 1e3).toFixed(1)}k`
+      return val.toLocaleString()
   }
-})
+}
 
-const changeClass = computed(() => {
-  if (props.change === undefined)
-    return ''
-  // For bounce rate, negative is good
-  const isPositiveGood = props.title.toLowerCase() !== 'bounce rate'
-  const isGood = isPositiveGood ? props.change >= 0 : props.change <= 0
-  return isGood ? 'text-green-600' : 'text-red-600'
-})
+function formatChange(val: number): string {
+  const sign = val >= 0 ? '+' : ''
+  return `${sign}${val}%`
+}
 
-const formattedChange = computed(() => {
-  if (props.change === undefined)
-    return ''
-  return formatChange(props.change)
-})
+const formattedValue = formatValue(value, format || 'number')
+const formattedChange = change !== undefined ? formatChange(change) : ''
+const isPositiveGood = title.toLowerCase() !== 'bounce rate'
+const changeClass = change !== undefined
+  ? (isPositiveGood ? (change >= 0 ? 'text-green-600' : 'text-red-600') : (change <= 0 ? 'text-green-600' : 'text-red-600'))
+  : ''
 </script>
 
-<template>
-  <div class="stat-card">
-    <div class="flex items-center justify-between">
-      <h3 class="stat-title">
-        {{ title }}
-      </h3>
-      <span v-if="icon" class="text-gray-400">
-        <slot name="icon">
-          {{ icon }}
-        </slot>
-      </span>
-    </div>
-
-    <div class="mt-2">
-      <template v-if="loading">
-        <div class="animate-pulse">
-          <div class="skeleton h-8 w-24" />
-          <div class="skeleton h-4 w-16 mt-2" />
-        </div>
-      </template>
-      <template v-else>
-        <p class="stat-value">
-          {{ formattedValue }}
-        </p>
-        <p v-if="change !== undefined" class="mt-1 text-sm" :class="changeClass">
-          <span>{{ formattedChange }}</span>
-          <span v-if="changeLabel" class="text-gray-500 ml-1">{{ changeLabel }}</span>
-        </p>
-      </template>
-    </div>
+<div class="stat-card card-hover p-6">
+  <div class="flex items-center justify-between">
+    <h3 class="stat-title text-sm font-medium text-gray-500">
+      {{ title }}
+    </h3>
+    @if (icon)
+      <span class="text-gray-400">{{ icon }}</span>
+    @endif
   </div>
-</template>
 
-<style scoped>
-.stat-card {
-  @apply card-hover p-6;
-}
-</style>
+  <div class="mt-2">
+    @if (loading)
+      <div class="animate-pulse">
+        <div class="skeleton h-8 w-24 bg-gray-200 rounded"></div>
+        <div class="skeleton h-4 w-16 mt-2 bg-gray-200 rounded"></div>
+      </div>
+    @else
+      <p class="stat-value text-2xl font-semibold text-gray-900">
+        {{ formattedValue }}
+      </p>
+      @if (change !== undefined)
+        <p class="mt-1 text-sm {{ changeClass }}">
+          <span>{{ formattedChange }}</span>
+          @if (changeLabel)
+            <span class="text-gray-500 ml-1">{{ changeLabel }}</span>
+          @endif
+        </p>
+      @endif
+    @endif
+  </div>
+</div>

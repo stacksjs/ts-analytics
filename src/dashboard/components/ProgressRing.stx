@@ -1,12 +1,12 @@
-<script setup lang="ts">
+<script server>
 /**
  * ProgressRing Component
  *
  * Circular progress indicator with optional center content.
  */
-import { computed } from 'vue'
+import { defineProps, withDefaults } from 'stx'
 
-const props = withDefaults(defineProps<{
+interface ProgressRingProps {
   value: number // 0-100
   size?: number
   strokeWidth?: number
@@ -15,79 +15,75 @@ const props = withDefaults(defineProps<{
   showValue?: boolean
   label?: string
   loading?: boolean
-}>(), {
-  size: 120,
-  strokeWidth: 8,
-  color: '#6366f1',
-  bgColor: '#e5e7eb',
-  showValue: true,
-  loading: false,
-})
+}
 
-const radius = computed(() => (props.size - props.strokeWidth) / 2)
-const circumference = computed(() => 2 * Math.PI * radius.value)
-const offset = computed(() => {
-  const progress = Math.min(Math.max(props.value, 0), 100)
-  return circumference.value - (progress / 100) * circumference.value
-})
-const center = computed(() => props.size / 2)
+const { value, size, strokeWidth, color, bgColor, showValue, label, loading } = withDefaults(
+  defineProps<ProgressRingProps>(),
+  {
+    size: 120,
+    strokeWidth: 8,
+    color: '#6366f1',
+    bgColor: '#e5e7eb',
+    showValue: true,
+    loading: false,
+  }
+)
+
+const radius = (size - strokeWidth) / 2
+const circumference = 2 * Math.PI * radius
+const progress = Math.min(Math.max(value, 0), 100)
+const offset = circumference - (progress / 100) * circumference
+const center = size / 2
 </script>
 
-<template>
-  <div
-    class="progress-ring relative inline-flex items-center justify-center"
-    :style="{ width: `${size}px`, height: `${size}px` }"
-  >
-    <!-- Loading state -->
-    <div v-if="loading" class="absolute inset-0 animate-pulse">
-      <div class="w-full h-full rounded-full bg-gray-200" />
+<div
+  class="progress-ring relative inline-flex items-center justify-center"
+  style="width: {{ size }}px; height: {{ size }}px"
+>
+  @if (loading)
+    <div class="absolute inset-0 animate-pulse">
+      <div class="w-full h-full rounded-full bg-gray-200"></div>
     </div>
-
-    <!-- SVG Ring -->
+  @else
     <svg
-      v-else
-      :width="size"
-      :height="size"
+      width="{{ size }}"
+      height="{{ size }}"
       class="transform -rotate-90"
     >
-      <!-- Background circle -->
       <circle
-        :cx="center"
-        :cy="center"
-        :r="radius"
-        :stroke="bgColor"
-        :stroke-width="strokeWidth"
+        cx="{{ center }}"
+        cy="{{ center }}"
+        r="{{ radius }}"
+        stroke="{{ bgColor }}"
+        stroke-width="{{ strokeWidth }}"
         fill="none"
       />
 
-      <!-- Progress circle -->
       <circle
-        :cx="center"
-        :cy="center"
-        :r="radius"
-        :stroke="color"
-        :stroke-width="strokeWidth"
-        :stroke-dasharray="circumference"
-        :stroke-dashoffset="offset"
+        cx="{{ center }}"
+        cy="{{ center }}"
+        r="{{ radius }}"
+        stroke="{{ color }}"
+        stroke-width="{{ strokeWidth }}"
+        stroke-dasharray="{{ circumference }}"
+        stroke-dashoffset="{{ offset }}"
         stroke-linecap="round"
         fill="none"
         class="transition-all duration-500 ease-out"
       />
     </svg>
 
-    <!-- Center content -->
-    <div
-      v-if="!loading"
-      class="absolute inset-0 flex flex-col items-center justify-center"
-    >
-      <slot>
-        <span v-if="showValue" class="text-2xl font-bold text-gray-900">
+    <div class="absolute inset-0 flex flex-col items-center justify-center">
+      @if (showValue)
+        <span class="text-2xl font-bold text-gray-900">
           {{ Math.round(value) }}%
         </span>
-        <span v-if="label" class="text-xs text-gray-500 mt-0.5">
+      @endif
+      @if (label)
+        <span class="text-xs text-gray-500 mt-0.5">
           {{ label }}
         </span>
-      </slot>
+      @endif
     </div>
-  </div>
-</template>
+  @endif
+</div>

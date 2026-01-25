@@ -1,42 +1,47 @@
-<script setup lang="ts">
+<script server>
 /**
  * TrendIndicator Component
  *
  * Compact trend indicator showing direction and percentage change.
  */
-import { computed } from 'vue'
+import { defineProps, withDefaults } from 'stx'
 
-const props = withDefaults(defineProps<{
+interface TrendIndicatorProps {
   value: number // Percentage change (-100 to +100+)
   size?: 'sm' | 'md' | 'lg'
   showValue?: boolean
   invertColors?: boolean // For metrics where decrease is good
   neutral?: number // Threshold for neutral (default 0)
-}>(), {
-  size: 'md',
-  showValue: true,
-  invertColors: false,
-  neutral: 0,
-})
+}
 
-const isPositive = computed(() => props.value > props.neutral)
-const isNegative = computed(() => props.value < props.neutral)
-const isNeutral = computed(() => props.value === props.neutral)
+const { value, size, showValue, invertColors, neutral } = withDefaults(
+  defineProps<TrendIndicatorProps>(),
+  {
+    size: 'md',
+    showValue: true,
+    invertColors: false,
+    neutral: 0,
+  }
+)
 
-const colorClass = computed(() => {
-  if (isNeutral.value)
+const isPositive = value > neutral
+const isNegative = value < neutral
+const isNeutral = value === neutral
+
+function getColorClass(): string {
+  if (isNeutral)
     return 'text-gray-500 bg-gray-100'
 
-  const positive = isPositive.value
-  const goodTrend = props.invertColors ? !positive : positive
+  const positive = isPositive
+  const goodTrend = invertColors ? !positive : positive
 
   return goodTrend
     ? 'text-green-600 bg-green-100'
     : 'text-red-600 bg-red-100'
-})
+}
 
-const sizeClasses = computed(() => {
-  switch (props.size) {
+function getSizeClasses(): { wrapper: string, icon: string } {
+  switch (size) {
     case 'sm':
       return { wrapper: 'text-xs px-1.5 py-0.5 gap-0.5', icon: 'w-3 h-3' }
     case 'lg':
@@ -44,10 +49,10 @@ const sizeClasses = computed(() => {
     default:
       return { wrapper: 'text-sm px-2 py-1 gap-1', icon: 'w-4 h-4' }
   }
-})
+}
 
-const formattedValue = computed(() => {
-  const abs = Math.abs(props.value)
+function formatValue(): string {
+  const abs = Math.abs(value)
   if (abs >= 1000)
     return `${(abs / 1000).toFixed(1)}k`
   if (abs >= 100)
@@ -55,49 +60,46 @@ const formattedValue = computed(() => {
   if (abs >= 10)
     return abs.toFixed(1)
   return abs.toFixed(2)
-})
+}
+
+const colorClass = getColorClass()
+const sizeClasses = getSizeClasses()
+const formattedValue = formatValue()
 </script>
 
-<template>
-  <span
-    class="inline-flex items-center rounded-full font-medium"
-    :class="[colorClass, sizeClasses.wrapper]"
-  >
-    <!-- Up arrow -->
+<span class="inline-flex items-center rounded-full font-medium {{ colorClass }} {{ sizeClasses.wrapper }}">
+  @if (isPositive)
     <svg
-      v-if="isPositive"
-      :class="sizeClasses.icon"
+      class="{{ sizeClasses.icon }}"
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
     >
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
     </svg>
-
-    <!-- Down arrow -->
+  @elseif (isNegative)
     <svg
-      v-else-if="isNegative"
-      :class="sizeClasses.icon"
+      class="{{ sizeClasses.icon }}"
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
     >
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
     </svg>
-
-    <!-- Neutral -->
+  @else
     <svg
-      v-else
-      :class="sizeClasses.icon"
+      class="{{ sizeClasses.icon }}"
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
     >
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14" />
     </svg>
+  @endif
 
-    <span v-if="showValue">
+  @if (showValue)
+    <span>
       {{ isPositive ? '+' : '' }}{{ formattedValue }}%
     </span>
-  </span>
-</template>
+  @endif
+</span>

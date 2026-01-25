@@ -1,9 +1,10 @@
-<script setup lang="ts">
+<script server>
 /**
  * MiniStats Component
  *
  * Compact horizontal row of mini stats, perfect for headers or summaries.
  */
+import { defineProps, withDefaults } from 'stx'
 import { formatCompact, formatCurrency, formatDuration, formatPercentage } from '../utils'
 
 export interface MiniStat {
@@ -14,14 +15,19 @@ export interface MiniStat {
   icon?: string
 }
 
-const props = withDefaults(defineProps<{
+interface MiniStatsProps {
   stats: MiniStat[]
   loading?: boolean
   dividers?: boolean
-}>(), {
-  loading: false,
-  dividers: true,
-})
+}
+
+const { stats, loading, dividers } = withDefaults(
+  defineProps<MiniStatsProps>(),
+  {
+    loading: false,
+    dividers: true,
+  }
+)
 
 function formatValue(stat: MiniStat): string {
   if (typeof stat.value === 'string')
@@ -40,66 +46,51 @@ function formatValue(stat: MiniStat): string {
 }
 </script>
 
-<template>
-  <div class="mini-stats flex items-center flex-wrap gap-y-2">
-    <template v-if="loading">
-      <div v-for="i in 4" :key="i" class="flex items-center gap-6 animate-pulse">
+<div class="mini-stats flex items-center flex-wrap gap-y-2 py-2">
+  @if (loading)
+    @foreach ([1, 2, 3, 4] as i)
+      <div class="flex items-center gap-6 animate-pulse">
         <div class="flex items-center gap-2">
-          <div class="skeleton h-4 w-16" />
-          <div class="skeleton h-5 w-12" />
+          <div class="skeleton h-4 w-16"></div>
+          <div class="skeleton h-5 w-12"></div>
         </div>
-        <div v-if="dividers && i < 4" class="h-4 w-px bg-gray-200" />
+        @if (dividers && i < 4)
+          <div class="h-4 w-px bg-gray-200"></div>
+        @endif
       </div>
-    </template>
-
-    <template v-else>
-      <div
-        v-for="(stat, index) in stats"
-        :key="stat.label"
-        class="flex items-center"
-      >
+    @endforeach
+  @else
+    @foreach (stats as stat)
+      <div class="flex items-center">
         <div class="flex items-center gap-2 px-3 first:pl-0 last:pr-0">
-          <!-- Icon -->
-          <svg
-            v-if="stat.icon"
-            class="w-4 h-4 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="stat.icon" />
-          </svg>
+          @if (stat.icon)
+            <svg
+              class="w-4 h-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ stat.icon }}" />
+            </svg>
+          @endif
 
-          <!-- Label -->
           <span class="text-sm text-gray-500">{{ stat.label }}</span>
 
-          <!-- Value -->
           <span class="text-sm font-semibold text-gray-900">
             {{ formatValue(stat) }}
           </span>
 
-          <!-- Change indicator -->
-          <span
-            v-if="stat.change !== undefined"
-            class="text-xs font-medium"
-            :class="stat.change >= 0 ? 'text-green-600' : 'text-red-600'"
-          >
-            {{ stat.change >= 0 ? '+' : '' }}{{ stat.change.toFixed(1) }}%
-          </span>
+          @if (stat.change !== undefined)
+            <span class="text-xs font-medium {{ stat.change >= 0 ? 'text-green-600' : 'text-red-600' }}">
+              {{ stat.change >= 0 ? '+' : '' }}{{ stat.change.toFixed(1) }}%
+            </span>
+          @endif
         </div>
 
-        <!-- Divider -->
-        <div
-          v-if="dividers && index < stats.length - 1"
-          class="h-4 w-px bg-gray-200"
-        />
+        @if (dividers && !loop.last)
+          <div class="h-4 w-px bg-gray-200"></div>
+        @endif
       </div>
-    </template>
-  </div>
-</template>
-
-<style scoped>
-.mini-stats {
-  @apply py-2;
-}
-</style>
+    @endforeach
+  @endif
+</div>

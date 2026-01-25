@@ -4,6 +4,7 @@ import { describe, expect, it } from 'bun:test'
  * Component Export Tests
  *
  * Verifies all 31 dashboard components are properly exported.
+ * Components are .stx files (Stacks framework).
  */
 
 describe('Dashboard Components Exports', () => {
@@ -56,7 +57,7 @@ describe('Dashboard Components Exports', () => {
     expect(components.LiveActivityFeed).toBeDefined()
   })
 
-  it('should have all components as valid Vue components', async () => {
+  it('should have all components as valid stx components', async () => {
     const components = await import('../../src/dashboard/components')
 
     const componentNames = [
@@ -96,8 +97,8 @@ describe('Dashboard Components Exports', () => {
     for (const name of componentNames) {
       const component = components[name as keyof typeof components]
       expect(component).toBeDefined()
-      // Vue components are objects with render or setup function
-      expect(typeof component).toBe('object')
+      // stx components are exported as strings (file content/path)
+      expect(typeof component).toBe('string')
     }
 
     // Verify count

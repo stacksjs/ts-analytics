@@ -16,6 +16,11 @@ import {
   GoalMatcher,
 
 } from './Analytics'
+import {
+  GeolocationService,
+  type IPGeoResult,
+  lookupFromHeaders,
+} from './geolocation'
 
 // ============================================================================
 // Types
@@ -251,6 +256,19 @@ export class AnalyticsAPI {
         const utmContent = parsedUrl.searchParams.get('utm_content') || undefined
         const utmTerm = parsedUrl.searchParams.get('utm_term') || undefined
 
+        // Get geolocation from headers (Cloudflare, Vercel, etc.) or IP lookup
+        let geoResult: IPGeoResult | null = null
+        try {
+          geoResult = lookupFromHeaders(req.headers)
+          // Note: For IP-based lookup (slower), you could use:
+          // if (!geoResult && req.ip) {
+          //   geoResult = await lookupIP(req.ip)
+          // }
+        }
+        catch {
+          // Geolocation lookup failed, continue without it
+        }
+
         // Create page view record
         const pageView: PageView = {
           id: AnalyticsStore.generateId(),
@@ -274,6 +292,10 @@ export class AnalyticsAPI {
           osVersion: deviceInfo.osVersion,
           screenWidth: payload.sw,
           screenHeight: payload.sh,
+          // Geolocation data
+          country: geoResult?.countryCode,
+          region: geoResult?.regionCode || geoResult?.region,
+          city: geoResult?.city,
           isUnique,
           isBounce: isNewSession, // Will be updated if more pages viewed
           timestamp,
@@ -303,7 +325,10 @@ export class AnalyticsAPI {
             utmSource,
             utmMedium,
             utmCampaign,
-            country: undefined, // Would need geo lookup
+            // Geolocation data
+            country: geoResult?.countryCode,
+            region: geoResult?.regionCode || geoResult?.region,
+            city: geoResult?.city,
             deviceType: deviceInfo.deviceType,
             browser: deviceInfo.browser,
             os: deviceInfo.os,

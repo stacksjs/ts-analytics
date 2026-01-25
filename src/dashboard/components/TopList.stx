@@ -1,83 +1,74 @@
-<script setup lang="ts">
+<script server>
 /**
  * TopList Component
  *
  * Displays a list of top items (pages, referrers, etc.) with bars.
  */
-import { computed } from 'vue'
+import { defineProps, withDefaults } from 'stx'
 import type { TopListProps } from '../types'
 import { formatCompact, formatPercentage } from '../utils'
 
-const props = withDefaults(defineProps<TopListProps>(), {
-  showPercentage: true,
-  maxItems: 10,
-  emptyMessage: 'No data available',
-  loading: false,
-})
-
-const displayItems = computed(() =>
-  props.items.slice(0, props.maxItems),
+const { title, items, showPercentage, maxItems, emptyMessage, loading } = withDefaults(
+  defineProps<TopListProps>(),
+  {
+    showPercentage: true,
+    maxItems: 10,
+    emptyMessage: 'No data available',
+    loading: false,
+  }
 )
 
-const maxValue = computed(() =>
-  Math.max(...props.items.map(item => item.value), 1),
-)
+const displayItems = items.slice(0, maxItems)
+const maxValue = Math.max(...items.map(item => item.value), 1)
 </script>
 
-<template>
-  <div class="top-list">
-    <h3 class="text-sm font-medium text-gray-900 mb-4">
-      {{ title }}
-    </h3>
+<div class="top-list card-hover p-6">
+  <h3 class="text-sm font-medium text-gray-900 mb-4">
+    {{ title }}
+  </h3>
 
-    <!-- Loading state -->
-    <div v-if="loading" class="space-y-3">
-      <div v-for="i in 5" :key="i" class="animate-pulse">
-        <div class="flex justify-between mb-1">
-          <div class="skeleton h-4 w-32" />
-          <div class="skeleton h-4 w-12" />
+  @if (loading)
+    <div class="space-y-3">
+      @foreach ([1, 2, 3, 4, 5] as i)
+        <div class="animate-pulse">
+          <div class="flex justify-between mb-1">
+            <div class="skeleton h-4 w-32"></div>
+            <div class="skeleton h-4 w-12"></div>
+          </div>
+          <div class="skeleton h-2"></div>
         </div>
-        <div class="skeleton h-2" />
-      </div>
+      @endforeach
     </div>
-
-    <!-- Empty state -->
-    <div v-else-if="items.length === 0" class="text-center py-8 text-gray-500">
+  @elseif (items.length === 0)
+    <div class="text-center py-8 text-gray-500">
       {{ emptyMessage }}
     </div>
-
-    <!-- Items list -->
-    <div v-else class="space-y-3">
-      <div v-for="(item, index) in displayItems" :key="index" class="group">
-        <div class="list-item mb-1">
-          <span class="list-label" :title="item.name">
-            {{ item.name }}
-          </span>
-          <span class="list-value">
-            {{ formatCompact(item.value) }}
-            <span v-if="showPercentage" class="text-gray-400 ml-1">
-              ({{ formatPercentage(item.percentage) }})
+  @else
+    <div class="space-y-3">
+      @foreach (displayItems as item)
+        <div class="group">
+          <div class="list-item mb-1">
+            <span class="list-label" title="{{ item.name }}">
+              {{ item.name }}
             </span>
-          </span>
-        </div>
+            <span class="list-value">
+              {{ formatCompact(item.value) }}
+              @if (showPercentage)
+                <span class="text-gray-400 ml-1">
+                  ({{ formatPercentage(item.percentage) }})
+                </span>
+              @endif
+            </span>
+          </div>
 
-        <!-- Progress bar -->
-        <div class="progress-bar">
-          <div
-            class="progress-fill bg-indigo-500"
-            :style="{ width: `${(item.value / maxValue) * 100}%` }"
-          />
+          <div class="progress-bar">
+            <div
+              class="progress-fill bg-indigo-500"
+              style="width: {{ (item.value / maxValue) * 100 }}%"
+            ></div>
+          </div>
         </div>
-      </div>
+      @endforeach
     </div>
-
-    <!-- View more slot -->
-    <slot name="footer" />
-  </div>
-</template>
-
-<style scoped>
-.top-list {
-  @apply card-hover p-6;
-}
-</style>
+  @endif
+</div>

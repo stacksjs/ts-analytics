@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 /**
  * Chart Components Tests
  *
- * Tests for all chart-related components.
+ * Tests for all chart-related stx components.
  */
 
 describe('Chart Components', () => {
@@ -13,9 +13,9 @@ describe('Chart Components', () => {
       expect(TimeSeriesChart).toBeDefined()
     })
 
-    it('should be a Vue component', async () => {
+    it('should be a stx component', async () => {
       const { TimeSeriesChart } = await import('../../src/dashboard/components')
-      expect(typeof TimeSeriesChart).toBe('object')
+      expect(typeof TimeSeriesChart).toBe('string')
     })
   })
 
@@ -25,9 +25,9 @@ describe('Chart Components', () => {
       expect(DonutChart).toBeDefined()
     })
 
-    it('should be a Vue component', async () => {
+    it('should be a stx component', async () => {
       const { DonutChart } = await import('../../src/dashboard/components')
-      expect(typeof DonutChart).toBe('object')
+      expect(typeof DonutChart).toBe('string')
     })
   })
 
@@ -37,9 +37,9 @@ describe('Chart Components', () => {
       expect(SparklineChart).toBeDefined()
     })
 
-    it('should be a Vue component', async () => {
+    it('should be a stx component', async () => {
       const { SparklineChart } = await import('../../src/dashboard/components')
-      expect(typeof SparklineChart).toBe('object')
+      expect(typeof SparklineChart).toBe('string')
     })
   })
 
@@ -49,9 +49,9 @@ describe('Chart Components', () => {
       expect(HeatmapChart).toBeDefined()
     })
 
-    it('should be a Vue component', async () => {
+    it('should be a stx component', async () => {
       const { HeatmapChart } = await import('../../src/dashboard/components')
-      expect(typeof HeatmapChart).toBe('object')
+      expect(typeof HeatmapChart).toBe('string')
     })
   })
 
@@ -61,9 +61,9 @@ describe('Chart Components', () => {
       expect(FunnelChart).toBeDefined()
     })
 
-    it('should be a Vue component', async () => {
+    it('should be a stx component', async () => {
       const { FunnelChart } = await import('../../src/dashboard/components')
-      expect(typeof FunnelChart).toBe('object')
+      expect(typeof FunnelChart).toBe('string')
     })
   })
 
@@ -73,9 +73,9 @@ describe('Chart Components', () => {
       expect(BarChart).toBeDefined()
     })
 
-    it('should be a Vue component', async () => {
+    it('should be a stx component', async () => {
       const { BarChart } = await import('../../src/dashboard/components')
-      expect(typeof BarChart).toBe('object')
+      expect(typeof BarChart).toBe('string')
     })
   })
 
@@ -85,9 +85,9 @@ describe('Chart Components', () => {
       expect(ProgressRing).toBeDefined()
     })
 
-    it('should be a Vue component', async () => {
+    it('should be a stx component', async () => {
       const { ProgressRing } = await import('../../src/dashboard/components')
-      expect(typeof ProgressRing).toBe('object')
+      expect(typeof ProgressRing).toBe('string')
     })
   })
 })

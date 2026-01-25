@@ -1,28 +1,30 @@
-<script setup lang="ts">
+<script server>
 /**
  * EmptyState Component
  *
  * Placeholder for empty data states with customizable icon and actions.
  */
+import { defineProps, withDefaults } from 'stx'
 
 export type EmptyStateVariant = 'default' | 'no-data' | 'no-results' | 'error' | 'no-access'
 
-const props = withDefaults(defineProps<{
+interface EmptyStateProps {
   title?: string
   description?: string
   variant?: EmptyStateVariant
   actionLabel?: string
   showIcon?: boolean
-}>(), {
-  title: 'No data',
-  description: 'There is no data to display at this time.',
-  variant: 'default',
-  showIcon: true,
-})
+}
 
-const emit = defineEmits<{
-  (e: 'action'): void
-}>()
+const { title, description, variant, actionLabel, showIcon } = withDefaults(
+  defineProps<EmptyStateProps>(),
+  {
+    title: 'No data',
+    description: 'There is no data to display at this time.',
+    variant: 'default',
+    showIcon: true,
+  }
+)
 
 const variantConfig: Record<EmptyStateVariant, { icon: string, defaultTitle: string, defaultDesc: string }> = {
   'default': {
@@ -52,57 +54,37 @@ const variantConfig: Record<EmptyStateVariant, { icon: string, defaultTitle: str
   },
 }
 
-const config = variantConfig[props.variant]
-const displayTitle = props.title || config.defaultTitle
-const displayDesc = props.description || config.defaultDesc
+const config = variantConfig[variant || 'default']
+const displayTitle = title || config.defaultTitle
+const displayDesc = description || config.defaultDesc
+const isError = variant === 'error'
 </script>
 
-<template>
-  <div class="empty-state flex flex-col items-center justify-center py-12 px-4 text-center">
-    <!-- Icon -->
-    <div
-      v-if="showIcon"
-      class="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-      :class="variant === 'error' ? 'bg-red-100' : 'bg-gray-100'"
-    >
+<div class="empty-state flex flex-col items-center justify-center py-12 px-4 text-center" style="min-height: 200px">
+  @if (showIcon)
+    <div class="w-16 h-16 rounded-full flex items-center justify-center mb-4 {{ isError ? 'bg-red-100' : 'bg-gray-100' }}">
       <svg
-        class="w-8 h-8"
-        :class="variant === 'error' ? 'text-red-400' : 'text-gray-400'"
+        class="w-8 h-8 {{ isError ? 'text-red-400' : 'text-gray-400' }}"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
       >
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="config.icon" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ config.icon }}" />
       </svg>
     </div>
+  @endif
 
-    <!-- Title -->
-    <h3 class="text-lg font-medium text-gray-900 mb-1">
-      {{ displayTitle }}
-    </h3>
+  <h3 class="text-lg font-medium text-gray-900 mb-1">
+    {{ displayTitle }}
+  </h3>
 
-    <!-- Description -->
-    <p class="text-sm text-gray-500 max-w-sm mb-6">
-      {{ displayDesc }}
-    </p>
+  <p class="text-sm text-gray-500 max-w-sm mb-6">
+    {{ displayDesc }}
+  </p>
 
-    <!-- Action button -->
-    <button
-      v-if="actionLabel"
-      type="button"
-      class="btn-primary"
-      @click="emit('action')"
-    >
+  @if (actionLabel)
+    <button type="button" class="btn-primary">
       {{ actionLabel }}
     </button>
-
-    <!-- Custom slot -->
-    <slot />
-  </div>
-</template>
-
-<style scoped>
-.empty-state {
-  min-height: 200px;
-}
-</style>
+  @endif
+</div>

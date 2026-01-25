@@ -1,34 +1,37 @@
-<script setup lang="ts">
+<script server>
 /**
  * AnimatedNumber Component
  *
  * Animated counting number with formatting options.
+ * Uses Alpine.js for client-side animation.
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { defineProps, withDefaults } from 'stx'
 import { formatCompact, formatCurrency, formatPercentage } from '../utils'
 
-const props = withDefaults(defineProps<{
+interface AnimatedNumberProps {
   value: number
   format?: 'number' | 'compact' | 'percentage' | 'currency'
-  duration?: number // Animation duration in ms
+  duration?: number
   decimals?: number
   prefix?: string
   suffix?: string
   animate?: boolean
-}>(), {
-  format: 'compact',
-  duration: 1000,
-  decimals: 0,
-  prefix: '',
-  suffix: '',
-  animate: true,
-})
+}
 
-const displayValue = ref(0)
-const isAnimating = ref(false)
+const { value, format, duration, decimals, prefix, suffix, animate } = withDefaults(
+  defineProps<AnimatedNumberProps>(),
+  {
+    format: 'compact',
+    duration: 1000,
+    decimals: 0,
+    prefix: '',
+    suffix: '',
+    animate: true,
+  }
+)
 
 function formatNumber(num: number): string {
-  switch (props.format) {
+  switch (format) {
     case 'percentage':
       return formatPercentage(num)
     case 'currency':
@@ -37,64 +40,45 @@ function formatNumber(num: number): string {
       return formatCompact(num)
     default:
       return num.toLocaleString(undefined, {
-        minimumFractionDigits: props.decimals,
-        maximumFractionDigits: props.decimals,
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
       })
   }
 }
 
-function animateValue(start: number, end: number) {
-  if (!props.animate) {
-    displayValue.value = end
-    return
-  }
-
-  isAnimating.value = true
-  const startTime = performance.now()
-  const diff = end - start
-
-  function step(currentTime: number) {
-    const elapsed = currentTime - startTime
-    const progress = Math.min(elapsed / props.duration, 1)
-
-    // Easing function (ease-out cubic)
-    const eased = 1 - (1 - progress) ** 3
-
-    displayValue.value = start + diff * eased
-
-    if (progress < 1) {
-      requestAnimationFrame(step)
-    }
-    else {
-      displayValue.value = end
-      isAnimating.value = false
-    }
-  }
-
-  requestAnimationFrame(step)
-}
-
-const formattedValue = computed(() => {
-  return `${props.prefix}${formatNumber(displayValue.value)}${props.suffix}`
-})
-
-onMounted(() => {
-  animateValue(0, props.value)
-})
-
-watch(() => props.value, (newVal, oldVal) => {
-  animateValue(oldVal ?? 0, newVal)
-})
+const formattedValue = `${prefix}${formatNumber(value)}${suffix}`
 </script>
 
-<template>
-  <span class="animated-number tabular-nums" :class="{ 'opacity-80': isAnimating }">
-    {{ formattedValue }}
-  </span>
-</template>
-
-<style scoped>
-.animated-number {
-  transition: opacity 0.15s ease;
-}
-</style>
+@if (animate)
+  <span
+    class="animated-number tabular-nums"
+    x-data="{
+      current: 0,
+      target: {{ value }},
+      isAnimating: true,
+      formatNum(n) {
+        return '{{ prefix }}' + n.toLocaleString() + '{{ suffix }}'
+      },
+      init() {
+        const start = performance.now()
+        const duration = {{ duration }}
+        const animate = (now) => {
+          const elapsed = now - start
+          const progress = Math.min(elapsed / duration, 1)
+          const eased = 1 - Math.pow(1 - progress, 3)
+          this.current = Math.round(eased * this.target)
+          if (progress < 1) {
+            requestAnimationFrame(animate)
+          } else {
+            this.isAnimating = false
+          }
+        }
+        requestAnimationFrame(animate)
+      }
+    }"
+    x-text="formatNum(current)"
+    :class="{ 'opacity-80': isAnimating }"
+  >{{ formattedValue }}</span>
+@else
+  <span class="animated-number tabular-nums">{{ formattedValue }}</span>
+@endif

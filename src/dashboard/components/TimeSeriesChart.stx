@@ -1,22 +1,104 @@
-{{-- TimeSeriesChart Component --}}
-{{-- Props: data (array of {date, views, visitors}), metric --}}
-<div class="chart-container">
-  @if(data.length > 0)
-    <div class="chart-header">
-      <div class="chart-legend">
-        <span class="legend-item views">
-          <span class="legend-dot"></span>
+<script server>
+/**
+ * TimeSeriesChart Component
+ *
+ * Displays time series data as a line chart.
+ */
+import { defineProps, withDefaults } from 'stx'
+import type { TimeSeriesDataPoint } from '../types'
+
+interface TimeSeriesChartProps {
+  data: TimeSeriesDataPoint[]
+  metrics?: string[]
+  height?: number
+  loading?: boolean
+}
+
+const { data, metrics, height, loading } = withDefaults(
+  defineProps<TimeSeriesChartProps>(),
+  {
+    metrics: () => ['pageViews', 'uniqueVisitors'],
+    height: 300,
+    loading: false,
+  }
+)
+</script>
+
+<div class="chart-container card-hover p-6">
+  @if (loading)
+    <div class="animate-pulse">
+      <div class="skeleton" style="height: {{ height }}px"></div>
+    </div>
+  @elseif (data.length > 0)
+    <div class="chart-header mb-4">
+      <div class="chart-legend flex justify-end gap-6 text-xs">
+        <span class="legend-item views flex items-center gap-2 text-gray-600">
+          <span class="legend-dot w-2.5 h-2.5 rounded-sm bg-indigo-500"></span>
           Views
         </span>
-        <span class="legend-item visitors">
-          <span class="legend-dot"></span>
+        <span class="legend-item visitors flex items-center gap-2 text-gray-600">
+          <span class="legend-dot w-2.5 h-2.5 rounded-sm bg-green-500"></span>
           Visitors
         </span>
       </div>
     </div>
-    <canvas id="timeSeriesChart" height="200"></canvas>
+    <canvas
+      id="timeSeriesChart"
+      style="height: {{ height }}px"
+      x-data="{
+        chart: null,
+        init() {
+          const ctx = this.$el.getContext('2d')
+          if (!ctx) return
+
+          const data = {{ JSON.stringify(data) }}
+          const labels = data.map(d => new Date(d.date).toLocaleDateString())
+
+          this.chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: 'Page Views',
+                  data: data.map(d => d.pageViews || d.views || 0),
+                  borderColor: '#6366f1',
+                  backgroundColor: '#6366f120',
+                  fill: true,
+                  tension: 0.3,
+                },
+                {
+                  label: 'Unique Visitors',
+                  data: data.map(d => d.uniqueVisitors || d.visitors || 0),
+                  borderColor: '#22c55e',
+                  backgroundColor: '#22c55e20',
+                  fill: true,
+                  tension: 0.3,
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  grid: { color: '#e5e7eb' }
+                },
+                x: {
+                  grid: { display: false }
+                }
+              }
+            }
+          })
+        }
+      }"
+    ></canvas>
   @else
-    <div class="chart-placeholder">
+    <div class="chart-placeholder flex flex-col items-center justify-center text-gray-400 gap-4" style="height: {{ height }}px">
       <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
       </svg>
@@ -24,71 +106,3 @@
     </div>
   @endif
 </div>
-
-@island('time-series-chart')
-  <script props>
-    "data": data,
-    "metric": metric || "views"
-  </script>
-@endisland
-
-<style>
-.chart-container {
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  min-height: 280px;
-}
-
-.chart-header {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1rem;
-}
-
-.chart-legend {
-  display: flex;
-  gap: 1.5rem;
-  font-size: 0.75rem;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-secondary);
-}
-
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-}
-
-.legend-item.views .legend-dot {
-  background: var(--accent);
-}
-
-.legend-item.visitors .legend-dot {
-  background: var(--success);
-}
-
-.chart-placeholder {
-  height: 200px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  gap: 1rem;
-}
-
-.chart-placeholder svg {
-  opacity: 0.5;
-}
-
-#timeSeriesChart {
-  width: 100%;
-}
-</style>

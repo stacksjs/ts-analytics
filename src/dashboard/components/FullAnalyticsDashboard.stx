@@ -1,31 +1,18 @@
-<script setup lang="ts">
+<script server>
 /**
  * FullAnalyticsDashboard Component
  *
  * A comprehensive analytics dashboard with tabbed navigation
  * for Overview, Audience, Behavior, and Conversions views.
  */
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { defineProps, withDefaults } from 'stx'
 import type {
   AnalyticsApiConfig,
   DashboardSummary,
-  DateRange,
   GoalConversion,
-  RealtimeData,
   TimeSeriesDataPoint,
   TopItem,
 } from '../types'
-import { createAnalyticsComposable, createRealtimePoller } from '../composables/useAnalytics'
-import BrowserBreakdown from './BrowserBreakdown.stx'
-import CountryList from './CountryList.stx'
-import DateRangePicker from './DateRangePicker.stx'
-import DeviceBreakdown from './DeviceBreakdown.stx'
-import DonutChart from './DonutChart.stx'
-import GoalsPanel from './GoalsPanel.stx'
-import RealtimeCounter from './RealtimeCounter.stx'
-import StatCard from './StatCard.stx'
-import TimeSeriesChart from './TimeSeriesChart.stx'
-import TopList from './TopList.stx'
 
 type TabId = 'overview' | 'audience' | 'behavior' | 'conversions'
 
@@ -35,16 +22,62 @@ interface Tab {
   icon: string
 }
 
-const props = withDefaults(defineProps<{
+interface FullAnalyticsDashboardProps {
   config: AnalyticsApiConfig
   refreshInterval?: number
   realtimeInterval?: number
   defaultTab?: TabId
-}>(), {
-  refreshInterval: 60000,
-  realtimeInterval: 5000,
-  defaultTab: 'overview',
-})
+  stats?: DashboardSummary | null
+  timeSeries?: TimeSeriesDataPoint[]
+  topPages?: TopItem[]
+  topReferrers?: TopItem[]
+  devices?: TopItem[]
+  browsers?: TopItem[]
+  countries?: TopItem[]
+  goals?: GoalConversion[]
+  realtimeVisitors?: number
+  realtimePageViews?: number
+  loading?: boolean
+  error?: string | null
+}
+
+const {
+  config,
+  refreshInterval,
+  realtimeInterval,
+  defaultTab,
+  stats,
+  timeSeries,
+  topPages,
+  topReferrers,
+  devices,
+  browsers,
+  countries,
+  goals,
+  realtimeVisitors,
+  realtimePageViews,
+  loading,
+  error,
+} = withDefaults(
+  defineProps<FullAnalyticsDashboardProps>(),
+  {
+    refreshInterval: 60000,
+    realtimeInterval: 5000,
+    defaultTab: 'overview',
+    stats: null,
+    timeSeries: () => [],
+    topPages: () => [],
+    topReferrers: () => [],
+    devices: () => [],
+    browsers: () => [],
+    countries: () => [],
+    goals: () => [],
+    realtimeVisitors: 0,
+    realtimePageViews: 0,
+    loading: false,
+    error: null,
+  }
+)
 
 const tabs: Tab[] = [
   { id: 'overview', label: 'Overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -53,294 +86,376 @@ const tabs: Tab[] = [
   { id: 'conversions', label: 'Conversions', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
 ]
 
-const activeTab = ref<TabId>(props.defaultTab)
-const loading = ref(true)
-const error = ref<Error | null>(null)
-
-// Data state
-const stats = ref<DashboardSummary | null>(null)
-const realtime = ref<RealtimeData | null>(null)
-const timeSeries = ref<TimeSeriesDataPoint[]>([])
-const topPages = ref<TopItem[]>([])
-const topReferrers = ref<TopItem[]>([])
-const devices = ref<TopItem[]>([])
-const browsers = ref<TopItem[]>([])
-const countries = ref<TopItem[]>([])
-const goals = ref<GoalConversion[]>([])
-const dateRange = ref<DateRange>({
-  start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-  end: new Date(),
-  preset: '7d',
-})
-
-const analytics = createAnalyticsComposable({
-  ...props.config,
-  initialDateRange: '7d',
-})
-
-let realtimePoller: ReturnType<typeof createRealtimePoller> | null = null
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-
-async function fetchData() {
-  loading.value = true
-  error.value = null
-
-  try {
-    const [
-      statsData,
-      timeSeriesData,
-      pagesData,
-      referrersData,
-      devicesData,
-      browsersData,
-      countriesData,
-      goalsData,
-    ] = await Promise.all([
-      analytics.fetchStats(dateRange.value),
-      analytics.fetchTimeSeries(dateRange.value),
-      analytics.fetchTopPages(dateRange.value, 10),
-      analytics.fetchTopReferrers(dateRange.value, 10),
-      analytics.fetchDevices(dateRange.value),
-      analytics.fetchBrowsers(dateRange.value, 10),
-      analytics.fetchCountries(dateRange.value, 10),
-      analytics.fetchGoals(dateRange.value),
-    ])
-
-    stats.value = statsData
-    timeSeries.value = timeSeriesData as TimeSeriesDataPoint[]
-    topPages.value = pagesData as TopItem[]
-    topReferrers.value = referrersData as TopItem[]
-    devices.value = devicesData as TopItem[]
-    browsers.value = browsersData as TopItem[]
-    countries.value = countriesData as TopItem[]
-    goals.value = goalsData as GoalConversion[]
-  }
-  catch (err) {
-    error.value = err instanceof Error ? err : new Error(String(err))
-  }
-  finally {
-    loading.value = false
-  }
-}
-
-function handleRealtimeUpdate(data: RealtimeData) {
-  realtime.value = data
-}
-
-// Computed for donut chart data
-const deviceDonutData = computed(() =>
-  devices.value.map(d => ({ name: d.name, value: d.value })),
-)
-
-const browserDonutData = computed(() =>
-  browsers.value.slice(0, 5).map(b => ({ name: b.name, value: b.value })),
-)
-
-onMounted(async () => {
-  await fetchData()
-
-  realtimePoller = createRealtimePoller(props.config, handleRealtimeUpdate, props.realtimeInterval)
-  realtimePoller.start()
-
-  if (props.refreshInterval > 0) {
-    refreshTimer = setInterval(fetchData, props.refreshInterval)
-  }
-})
-
-onUnmounted(() => {
-  realtimePoller?.stop()
-  if (refreshTimer)
-    clearInterval(refreshTimer)
-})
-
-watch(dateRange, fetchData)
+const totalConversions = goals.reduce((sum, g) => sum + g.conversions, 0)
+const avgConversionRate = goals.length ? goals.reduce((sum, g) => sum + g.conversionRate, 0) / goals.length : 0
+const totalRevenue = goals.reduce((sum, g) => sum + g.revenue, 0)
 </script>
 
-<template>
-  <div class="full-analytics-dashboard min-h-screen bg-gray-50">
-    <!-- Header -->
-    <header class="bg-white border-b border-gray-200 sticky top-0 z-20">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div>
-            <h1 class="text-xl font-semibold text-gray-900">Analytics</h1>
-          </div>
-
-          <div class="flex items-center gap-4">
-            <!-- Realtime badge -->
-            <div v-if="realtime" class="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-full">
-              <div class="relative">
-                <div class="pulse-dot bg-green-500 animate-pulse" />
-                <div class="pulse-ring bg-green-500" />
-              </div>
-              <span class="text-sm font-medium text-green-700">
-                {{ realtime.currentVisitors }} online
-              </span>
-            </div>
-
-            <DateRangePicker v-model="dateRange" />
-
-            <button
-              type="button"
-              class="btn-icon"
-              title="Refresh"
-              :disabled="loading"
-              @click="fetchData"
-            >
-              <svg
-                class="w-5 h-5"
-                :class="{ 'animate-spin': loading }"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
-          </div>
+<div
+  class="full-analytics-dashboard min-h-screen bg-gray-50"
+  x-data="{
+    activeTab: '{{ defaultTab }}',
+    loading: {{ loading ? 'true' : 'false' }},
+    refresh() {
+      this.loading = true
+      this.$dispatch('refresh')
+    }
+  }"
+>
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div>
+          <h1 class="text-xl font-semibold text-gray-900">Analytics</h1>
         </div>
 
-        <!-- Tabs -->
-        <nav class="flex gap-6 -mb-px">
+        <div class="flex items-center gap-4">
+          @if (realtimeVisitors > 0)
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-full">
+              <div class="relative">
+                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <div class="absolute inset-0 w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
+              </div>
+              <span class="text-sm font-medium text-green-700">
+                {{ realtimeVisitors }} online
+              </span>
+            </div>
+          @endif
+
+          <select
+            class="bg-white border border-gray-200 text-gray-900 px-4 py-2 rounded-lg text-sm cursor-pointer hover:border-indigo-500"
+            x-on:change="$dispatch('date-change', { range: $event.target.value })"
+          >
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 90 days</option>
+          </select>
+
           <button
-            v-for="tab in tabs"
-            :key="tab.id"
+            type="button"
+            class="btn-icon p-2 rounded-lg hover:bg-gray-100"
+            title="Refresh"
+            x-bind:disabled="loading"
+            x-on:click="refresh()"
+          >
+            <svg
+              class="w-5 h-5"
+              x-bind:class="{ 'animate-spin': loading }"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <nav class="flex gap-6 -mb-px">
+        @foreach (tabs as tab)
+          <button
             type="button"
             class="flex items-center gap-2 px-1 py-4 text-sm font-medium border-b-2 transition-colors"
-            :class="activeTab === tab.id
-              ? 'border-primary-500 text-primary-600'
+            x-bind:class="activeTab === '{{ tab.id }}'
+              ? 'border-indigo-500 text-indigo-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-            @click="activeTab = tab.id"
+            x-on:click="activeTab = '{{ tab.id }}'"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="tab.icon" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ tab.icon }}" />
             </svg>
             {{ tab.label }}
           </button>
-        </nav>
-      </div>
-    </header>
+        @endforeach
+      </nav>
+    </div>
+  </header>
 
-    <!-- Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <!-- Error state -->
-      <div v-if="error" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    @if (error)
+      <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
         <p class="font-medium">Error loading analytics</p>
-        <p class="text-sm mt-1">{{ error.message }}</p>
-        <button type="button" class="mt-2 text-sm text-red-600 hover:text-red-800 underline" @click="fetchData">
+        <p class="text-sm mt-1">{{ error }}</p>
+        <button type="button" class="mt-2 text-sm text-red-600 hover:text-red-800 underline" x-on:click="refresh()">
           Try again
         </button>
       </div>
+    @endif
 
-      <!-- Overview Tab -->
-      <div v-show="activeTab === 'overview'" class="space-y-6">
-        <!-- Stats cards -->
-        <section class="dashboard-grid">
-          <StatCard title="Page Views" :value="stats?.pageViews ?? 0" :change="stats?.change?.pageViews" change-label="vs previous period" :loading="loading" />
-          <StatCard title="Unique Visitors" :value="stats?.uniqueVisitors ?? 0" :change="stats?.change?.uniqueVisitors" change-label="vs previous period" :loading="loading" />
-          <StatCard title="Bounce Rate" :value="stats?.bounceRate ?? 0" :change="stats?.change?.bounceRate" change-label="vs previous period" format="percentage" :loading="loading" />
-          <StatCard title="Avg. Session Duration" :value="stats?.avgSessionDuration ?? 0" :change="stats?.change?.avgSessionDuration" change-label="vs previous period" format="duration" :loading="loading" />
-        </section>
+    <!-- Overview Tab -->
+    <div x-show="activeTab === 'overview'" class="space-y-6">
+      <section class="dashboard-grid">
+        <div class="stat-card card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-500">Page Views</h3>
+          @if (loading)
+            <div class="animate-pulse"><div class="skeleton h-8 w-24 mt-2"></div></div>
+          @else
+            <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats?.pageViews ?? 0 }}</p>
+          @endif
+        </div>
+        <div class="stat-card card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-500">Unique Visitors</h3>
+          @if (loading)
+            <div class="animate-pulse"><div class="skeleton h-8 w-24 mt-2"></div></div>
+          @else
+            <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats?.uniqueVisitors ?? 0 }}</p>
+          @endif
+        </div>
+        <div class="stat-card card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-500">Bounce Rate</h3>
+          @if (loading)
+            <div class="animate-pulse"><div class="skeleton h-8 w-24 mt-2"></div></div>
+          @else
+            <p class="text-3xl font-bold text-gray-900 mt-2">{{ ((stats?.bounceRate ?? 0) * 100).toFixed(1) }}%</p>
+          @endif
+        </div>
+        <div class="stat-card card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-500">Avg. Session</h3>
+          @if (loading)
+            <div class="animate-pulse"><div class="skeleton h-8 w-24 mt-2"></div></div>
+          @else
+            <p class="text-3xl font-bold text-gray-900 mt-2">{{ Math.floor((stats?.avgSessionDuration ?? 0) / 60) }}m</p>
+          @endif
+        </div>
+      </section>
 
-        <!-- Chart -->
-        <section>
-          <TimeSeriesChart :data="timeSeries" :loading="loading" :height="350" :metrics="['pageViews', 'uniqueVisitors']" />
-        </section>
+      <section class="card-hover p-6">
+        <h3 class="text-sm font-medium text-gray-900 mb-4">Traffic Overview</h3>
+        @if (loading)
+          <div class="animate-pulse"><div class="skeleton h-80 w-full"></div></div>
+        @elseif (timeSeries.length === 0)
+          <div class="flex items-center justify-center h-80 text-gray-400">No data available</div>
+        @else
+          <canvas
+            id="overviewChart"
+            style="height: 320px"
+            x-init="
+              const ctx = $el.getContext('2d');
+              if (ctx) {
+                const data = {{ JSON.stringify(timeSeries) }};
+                new Chart(ctx, {
+                  type: 'line',
+                  data: {
+                    labels: data.map(d => new Date(d.date).toLocaleDateString()),
+                    datasets: [{
+                      label: 'Page Views',
+                      data: data.map(d => d.pageViews || 0),
+                      borderColor: '#6366f1',
+                      backgroundColor: '#6366f120',
+                      fill: true,
+                      tension: 0.3,
+                    }]
+                  },
+                  options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                  }
+                });
+              }
+            "
+          ></canvas>
+        @endif
+      </section>
 
-        <!-- Bottom grid -->
-        <section class="dashboard-grid-3">
-          <TopList title="Top Pages" :items="topPages" :loading="loading" empty-message="No page views yet" />
-          <TopList title="Top Referrers" :items="topReferrers" :loading="loading" empty-message="No referrer data" />
-          <DeviceBreakdown :devices="devices" :loading="loading" />
-        </section>
-      </div>
+      <section class="dashboard-grid-3">
+        <div class="card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-900 mb-4">Top Pages</h3>
+          @if (topPages.length === 0)
+            <p class="text-gray-500 text-center py-8">No data</p>
+          @else
+            <div class="space-y-3">
+              @foreach (topPages.slice(0, 5) as page)
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-900 truncate">{{ page.name }}</span>
+                  <span class="text-gray-500">{{ page.value }}</span>
+                </div>
+              @endforeach
+            </div>
+          @endif
+        </div>
+        <div class="card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-900 mb-4">Top Referrers</h3>
+          @if (topReferrers.length === 0)
+            <p class="text-gray-500 text-center py-8">No data</p>
+          @else
+            <div class="space-y-3">
+              @foreach (topReferrers.slice(0, 5) as referrer)
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-900 truncate">{{ referrer.name }}</span>
+                  <span class="text-gray-500">{{ referrer.value }}</span>
+                </div>
+              @endforeach
+            </div>
+          @endif
+        </div>
+        <div class="card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-900 mb-4">Devices</h3>
+          @if (devices.length === 0)
+            <p class="text-gray-500 text-center py-8">No data</p>
+          @else
+            <div class="space-y-3">
+              @foreach (devices as device)
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-900">{{ device.name }}</span>
+                  <span class="text-gray-500">{{ (device.percentage * 100).toFixed(1) }}%</span>
+                </div>
+              @endforeach
+            </div>
+          @endif
+        </div>
+      </section>
+    </div>
 
-      <!-- Audience Tab -->
-      <div v-show="activeTab === 'audience'" class="space-y-6">
-        <!-- Realtime -->
-        <section>
-          <RealtimeCounter :count="realtime?.currentVisitors ?? 0" :loading="!realtime">
-            <template #details>
-              <p v-if="realtime" class="mt-2 text-sm text-gray-500">
-                {{ realtime.pageViewsLastHour }} page views in the last hour
-              </p>
-            </template>
-          </RealtimeCounter>
-        </section>
-
-        <!-- Geographic & Demographics -->
-        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <CountryList :countries="countries" :loading="loading" />
-          <div class="space-y-6">
-            <DonutChart title="Traffic by Device" :items="deviceDonutData" :loading="loading" total-label="Visitors" />
+    <!-- Audience Tab -->
+    <div x-show="activeTab === 'audience'" class="space-y-6">
+      <section class="card-hover p-6">
+        <div class="flex items-center gap-3">
+          <div class="relative">
+            <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
           </div>
-        </section>
+          <div>
+            <span class="text-4xl font-bold text-gray-900">{{ realtimeVisitors }}</span>
+            <span class="ml-2 text-gray-500 text-sm">visitors right now</span>
+          </div>
+        </div>
+        @if (realtimePageViews > 0)
+          <p class="mt-2 text-sm text-gray-500">{{ realtimePageViews }} page views in the last hour</p>
+        @endif
+      </section>
 
-        <!-- Browsers -->
-        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <BrowserBreakdown :browsers="browsers" :loading="loading" />
-          <DonutChart title="Browser Share" :items="browserDonutData" :loading="loading" total-label="Visitors" />
-        </section>
-      </div>
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-900 mb-4">Countries</h3>
+          @if (countries.length === 0)
+            <p class="text-gray-500 text-center py-8">No country data</p>
+          @else
+            <div class="space-y-3">
+              @foreach (countries as country)
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-900">{{ country.name }}</span>
+                  <span class="text-gray-500">{{ country.value }}</span>
+                </div>
+              @endforeach
+            </div>
+          @endif
+        </div>
+        <div class="card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-900 mb-4">Browsers</h3>
+          @if (browsers.length === 0)
+            <p class="text-gray-500 text-center py-8">No browser data</p>
+          @else
+            <div class="space-y-3">
+              @foreach (browsers as browser)
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-900">{{ browser.name }}</span>
+                  <span class="text-gray-500">{{ (browser.percentage * 100).toFixed(1) }}%</span>
+                </div>
+              @endforeach
+            </div>
+          @endif
+        </div>
+      </section>
+    </div>
 
-      <!-- Behavior Tab -->
-      <div v-show="activeTab === 'behavior'" class="space-y-6">
-        <!-- Page performance -->
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <StatCard title="Pages / Session" :value="stats?.avgPagesPerSession ?? 0" :loading="loading" />
-          <StatCard title="Avg. Session Duration" :value="stats?.avgSessionDuration ?? 0" format="duration" :loading="loading" />
-          <StatCard title="Bounce Rate" :value="stats?.bounceRate ?? 0" format="percentage" :loading="loading" />
-        </section>
+    <!-- Behavior Tab -->
+    <div x-show="activeTab === 'behavior'" class="space-y-6">
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="stat-card card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-500">Pages / Session</h3>
+          <p class="text-3xl font-bold text-gray-900 mt-2">{{ (stats?.avgPagesPerSession ?? 0).toFixed(1) }}</p>
+        </div>
+        <div class="stat-card card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-500">Avg. Session Duration</h3>
+          <p class="text-3xl font-bold text-gray-900 mt-2">{{ Math.floor((stats?.avgSessionDuration ?? 0) / 60) }}m {{ Math.floor((stats?.avgSessionDuration ?? 0) % 60) }}s</p>
+        </div>
+        <div class="stat-card card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-500">Bounce Rate</h3>
+          <p class="text-3xl font-bold text-gray-900 mt-2">{{ ((stats?.bounceRate ?? 0) * 100).toFixed(1) }}%</p>
+        </div>
+      </section>
 
-        <!-- Top content -->
-        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TopList title="Most Viewed Pages" :items="topPages" :loading="loading" :max-items="15" empty-message="No page views yet" />
-          <TopList title="Top Entry Pages" :items="topPages.slice(0, 10)" :loading="loading" empty-message="No entry data" />
-        </section>
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-900 mb-4">Most Viewed Pages</h3>
+          @if (topPages.length === 0)
+            <p class="text-gray-500 text-center py-8">No page views yet</p>
+          @else
+            <div class="space-y-3">
+              @foreach (topPages as page)
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-900 truncate">{{ page.name }}</span>
+                  <span class="text-gray-500">{{ page.value }}</span>
+                </div>
+              @endforeach
+            </div>
+          @endif
+        </div>
+        <div class="card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-900 mb-4">Traffic Sources</h3>
+          @if (topReferrers.length === 0)
+            <p class="text-gray-500 text-center py-8">No referrer data</p>
+          @else
+            <div class="space-y-3">
+              @foreach (topReferrers as referrer)
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-900 truncate">{{ referrer.name }}</span>
+                  <span class="text-gray-500">{{ referrer.value }}</span>
+                </div>
+              @endforeach
+            </div>
+          @endif
+        </div>
+      </section>
+    </div>
 
-        <!-- Referrers -->
-        <section>
-          <TopList title="Traffic Sources" :items="topReferrers" :loading="loading" :max-items="15" empty-message="No referrer data" />
-        </section>
-      </div>
+    <!-- Conversions Tab -->
+    <div x-show="activeTab === 'conversions'" class="space-y-6">
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="stat-card card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-500">Total Conversions</h3>
+          <p class="text-3xl font-bold text-gray-900 mt-2">{{ totalConversions }}</p>
+        </div>
+        <div class="stat-card card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-500">Conversion Rate</h3>
+          <p class="text-3xl font-bold text-gray-900 mt-2">{{ (avgConversionRate * 100).toFixed(2) }}%</p>
+        </div>
+        <div class="stat-card card-hover p-6">
+          <h3 class="text-sm font-medium text-gray-500">Total Revenue</h3>
+          <p class="text-3xl font-bold text-gray-900 mt-2">${{ totalRevenue.toLocaleString() }}</p>
+        </div>
+      </section>
 
-      <!-- Conversions Tab -->
-      <div v-show="activeTab === 'conversions'" class="space-y-6">
-        <!-- Goals summary -->
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <StatCard
-            title="Total Conversions"
-            :value="goals.reduce((sum, g) => sum + g.conversions, 0)"
-            :loading="loading"
-          />
-          <StatCard
-            title="Conversion Rate"
-            :value="goals.length ? goals.reduce((sum, g) => sum + g.conversionRate, 0) / goals.length : 0"
-            format="percentage"
-            :loading="loading"
-          />
-          <StatCard
-            title="Total Revenue"
-            :value="goals.reduce((sum, g) => sum + g.revenue, 0)"
-            format="currency"
-            :loading="loading"
-          />
-        </section>
-
-        <!-- Goals panel -->
-        <section>
-          <GoalsPanel :goals="goals" :loading="loading" />
-        </section>
-      </div>
-    </main>
-
-    <!-- Footer slot -->
-    <slot name="footer" />
-  </div>
-</template>
-
-<style scoped>
-.full-analytics-dashboard {
-  min-height: 100vh;
-}
-</style>
+      <section class="card-hover p-6">
+        <h3 class="text-sm font-medium text-gray-900 mb-4">Conversion Goals</h3>
+        @if (goals.length === 0)
+          <div class="text-center py-8 text-gray-500">
+            <p>No goals configured</p>
+            <p class="text-sm text-gray-400 mt-1">Set up conversion goals to track performance</p>
+          </div>
+        @else
+          <div class="space-y-4">
+            @foreach (goals as goal)
+              <div class="p-4 bg-gray-50 rounded-lg">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-medium text-gray-900">{{ goal.goalName }}</span>
+                  <span class="text-lg font-semibold text-gray-900">{{ goal.conversions }}</span>
+                </div>
+                <div class="progress-bar mb-2">
+                  <div class="progress-fill bg-green-500" style="width: {{ Math.min(goal.conversionRate * 100, 100) }}%"></div>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-gray-500">{{ (goal.conversionRate * 100).toFixed(2) }}% conversion rate</span>
+                  @if (goal.revenue > 0)
+                    <span class="text-green-600 font-medium">${{ goal.revenue.toLocaleString() }}</span>
+                  @endif
+                </div>
+              </div>
+            @endforeach
+          </div>
+        @endif
+      </section>
+    </div>
+  </main>
+</div>

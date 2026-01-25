@@ -363,8 +363,12 @@ export interface Session {
   utmSource?: string
   utmMedium?: string
   utmCampaign?: string
-  /** Country code */
+  /** Country code (ISO 3166-1 alpha-2) */
   country?: string
+  /** Region/state code or name */
+  region?: string
+  /** City name */
+  city?: string
   /** Device type */
   deviceType?: DeviceType
   /** Browser */

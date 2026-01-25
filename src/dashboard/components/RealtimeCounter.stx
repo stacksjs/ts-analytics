@@ -1,37 +1,39 @@
-<script setup lang="ts">
+<script server>
 /**
  * RealtimeCounter Component
  *
  * Displays current visitor count with pulsing indicator.
  */
-import { computed } from 'vue'
+import { defineProps, withDefaults } from 'stx'
 import type { RealtimeCounterProps } from '../types'
 import { formatCompact } from '../utils'
 
-const props = withDefaults(defineProps<RealtimeCounterProps>(), {
-  label: 'visitors right now',
-  pulseColor: '#22c55e',
-  loading: false,
-})
+const { count, label, pulseColor, loading } = withDefaults(
+  defineProps<RealtimeCounterProps>(),
+  {
+    label: 'visitors right now',
+    pulseColor: '#22c55e',
+    loading: false,
+  }
+)
 
-const formattedCount = computed(() => formatCompact(props.count))
+const formattedCount = formatCompact(count)
 </script>
 
-<template>
-  <div class="realtime-counter">
-    <div class="flex items-center gap-3">
-      <!-- Pulsing indicator -->
-      <div class="relative">
-        <div class="pulse-dot animate-pulse" :style="{ backgroundColor: pulseColor }" />
-        <div class="pulse-ring" :style="{ backgroundColor: pulseColor }" />
-      </div>
+<div class="realtime-counter card-hover p-6">
+  <div class="flex items-center gap-3">
+    <div class="relative">
+      <div class="pulse-dot animate-pulse" style="background-color: {{ pulseColor }}"></div>
+      <div class="pulse-ring" style="background-color: {{ pulseColor }}"></div>
+    </div>
 
-      <div v-if="loading" class="animate-pulse">
-        <div class="skeleton h-10 w-16" />
-        <div class="skeleton h-4 w-24 mt-1" />
+    @if (loading)
+      <div class="animate-pulse">
+        <div class="skeleton h-10 w-16"></div>
+        <div class="skeleton h-4 w-24 mt-1"></div>
       </div>
-
-      <div v-else>
+    @else
+      <div>
         <span class="text-4xl font-bold text-gray-900">
           {{ formattedCount }}
         </span>
@@ -39,14 +41,6 @@ const formattedCount = computed(() => formatCompact(props.count))
           {{ label }}
         </span>
       </div>
-    </div>
-
-    <slot name="details" />
+    @endif
   </div>
-</template>
-
-<style scoped>
-.realtime-counter {
-  @apply card-hover p-6;
-}
-</style>
+</div>

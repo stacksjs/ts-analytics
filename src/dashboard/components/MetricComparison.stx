@@ -1,100 +1,81 @@
-<script setup lang="ts">
+<script server>
 /**
  * MetricComparison Component
  *
  * Displays a metric with visual comparison between current and previous periods.
  */
-import { computed } from 'vue'
+import { defineProps, withDefaults } from 'stx'
 import { formatChange, formatCompact, formatCurrency, formatDuration, formatPercentage } from '../utils'
 
-const props = withDefaults(defineProps<{
+interface MetricComparisonProps {
   title: string
   current: number
   previous: number
   format?: 'number' | 'percentage' | 'duration' | 'currency'
   loading?: boolean
-  invertColors?: boolean // For metrics where decrease is good (bounce rate)
-}>(), {
-  format: 'number',
-  loading: false,
-  invertColors: false,
-})
+  invertColors?: boolean
+}
 
-const change = computed(() => {
-  if (props.previous === 0)
-    return props.current > 0 ? 100 : 0
-  return ((props.current - props.previous) / props.previous) * 100
-})
-
-const formattedCurrent = computed(() => {
-  switch (props.format) {
-    case 'percentage':
-      return formatPercentage(props.current)
-    case 'duration':
-      return formatDuration(props.current)
-    case 'currency':
-      return formatCurrency(props.current)
-    default:
-      return formatCompact(props.current)
+const { title, current, previous, format, loading, invertColors } = withDefaults(
+  defineProps<MetricComparisonProps>(),
+  {
+    format: 'number',
+    loading: false,
+    invertColors: false,
   }
-})
+)
 
-const formattedPrevious = computed(() => {
-  switch (props.format) {
+const change = previous === 0
+  ? (current > 0 ? 100 : 0)
+  : ((current - previous) / previous) * 100
+
+function formatValue(value: number): string {
+  switch (format) {
     case 'percentage':
-      return formatPercentage(props.previous)
+      return formatPercentage(value)
     case 'duration':
-      return formatDuration(props.previous)
+      return formatDuration(value)
     case 'currency':
-      return formatCurrency(props.previous)
+      return formatCurrency(value)
     default:
-      return formatCompact(props.previous)
+      return formatCompact(value)
   }
-})
+}
 
-const isPositive = computed(() => {
-  const positive = change.value >= 0
-  return props.invertColors ? !positive : positive
-})
+const formattedCurrent = formatValue(current)
+const formattedPrevious = formatValue(previous)
 
-const barWidthCurrent = computed(() => {
-  const max = Math.max(props.current, props.previous)
-  return max > 0 ? (props.current / max) * 100 : 0
-})
+const positive = change >= 0
+const isPositive = invertColors ? !positive : positive
 
-const barWidthPrevious = computed(() => {
-  const max = Math.max(props.current, props.previous)
-  return max > 0 ? (props.previous / max) * 100 : 0
-})
+const max = Math.max(current, previous)
+const barWidthCurrent = max > 0 ? (current / max) * 100 : 0
+const barWidthPrevious = max > 0 ? (previous / max) * 100 : 0
 </script>
 
-<template>
-  <div class="metric-comparison">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-sm font-medium text-gray-900">{{ title }}</h3>
-      <span
-        v-if="!loading"
-        class="text-sm font-medium"
-        :class="isPositive ? 'text-green-600' : 'text-red-600'"
-      >
+<div class="metric-comparison card-hover p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-sm font-medium text-gray-900">{{ title }}</h3>
+    @if (!loading)
+      <span class="text-sm font-medium {{ isPositive ? 'text-green-600' : 'text-red-600' }}">
         {{ formatChange(change / 100) }}
       </span>
-    </div>
+    @endif
+  </div>
 
-    <!-- Loading state -->
-    <div v-if="loading" class="space-y-4 animate-pulse">
+  @if (loading)
+    <div class="space-y-4 animate-pulse">
       <div>
-        <div class="skeleton h-4 w-20 mb-2" />
-        <div class="skeleton h-3 w-full" />
+        <div class="skeleton h-4 w-20 mb-2"></div>
+        <div class="skeleton h-3 w-full"></div>
       </div>
       <div>
-        <div class="skeleton h-4 w-20 mb-2" />
-        <div class="skeleton h-3 w-3/4" />
+        <div class="skeleton h-4 w-20 mb-2"></div>
+        <div class="skeleton h-3 w-3/4"></div>
       </div>
     </div>
-
-    <div v-else class="space-y-4">
-      <!-- Current period -->
+  @else
+    <div class="space-y-4">
       <div>
         <div class="flex items-center justify-between text-sm mb-1">
           <span class="text-gray-600">Current period</span>
@@ -102,14 +83,12 @@ const barWidthPrevious = computed(() => {
         </div>
         <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
           <div
-            class="h-full rounded-full transition-all duration-500"
-            :class="isPositive ? 'bg-green-500' : 'bg-red-500'"
-            :style="{ width: `${barWidthCurrent}%` }"
-          />
+            class="h-full rounded-full transition-all duration-500 {{ isPositive ? 'bg-green-500' : 'bg-red-500' }}"
+            style="width: {{ barWidthCurrent }}%"
+          ></div>
         </div>
       </div>
 
-      <!-- Previous period -->
       <div>
         <div class="flex items-center justify-between text-sm mb-1">
           <span class="text-gray-600">Previous period</span>
@@ -118,16 +97,10 @@ const barWidthPrevious = computed(() => {
         <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
           <div
             class="h-full bg-gray-400 rounded-full transition-all duration-500"
-            :style="{ width: `${barWidthPrevious}%` }"
-          />
+            style="width: {{ barWidthPrevious }}%"
+          ></div>
         </div>
       </div>
     </div>
-  </div>
-</template>
-
-<style scoped>
-.metric-comparison {
-  @apply card-hover p-6;
-}
-</style>
+  @endif
+</div>

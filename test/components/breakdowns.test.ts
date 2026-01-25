@@ -4,6 +4,7 @@ import { describe, expect, it } from 'bun:test'
  * Breakdown Components Tests
  *
  * Tests for device, browser, OS, country, and campaign breakdowns.
+ * Components are .stx files (Stacks framework).
  */
 
 describe('Breakdown Components', () => {
@@ -13,9 +14,9 @@ describe('Breakdown Components', () => {
       expect(DeviceBreakdown).toBeDefined()
     })
 
-    it('should be a Vue component', async () => {
+    it('should be a stx component', async () => {
       const { DeviceBreakdown } = await import('../../src/dashboard/components')
-      expect(typeof DeviceBreakdown).toBe('object')
+      expect(typeof DeviceBreakdown).toBe('string')
     })
   })
 
@@ -25,9 +26,9 @@ describe('Breakdown Components', () => {
       expect(BrowserBreakdown).toBeDefined()
     })
 
-    it('should be a Vue component', async () => {
+    it('should be a stx component', async () => {
       const { BrowserBreakdown } = await import('../../src/dashboard/components')
-      expect(typeof BrowserBreakdown).toBe('object')
+      expect(typeof BrowserBreakdown).toBe('string')
     })
   })
 
@@ -37,9 +38,9 @@ describe('Breakdown Components', () => {
       expect(OSBreakdown).toBeDefined()
     })
 
-    it('should be a Vue component', async () => {
+    it('should be a stx component', async () => {
       const { OSBreakdown } = await import('../../src/dashboard/components')
-      expect(typeof OSBreakdown).toBe('object')
+      expect(typeof OSBreakdown).toBe('string')
     })
   })
 
@@ -49,9 +50,9 @@ describe('Breakdown Components', () => {
       expect(CountryList).toBeDefined()
     })
 
-    it('should be a Vue component', async () => {
+    it('should be a stx component', async () => {
       const { CountryList } = await import('../../src/dashboard/components')
-      expect(typeof CountryList).toBe('object')
+      expect(typeof CountryList).toBe('string')
     })
   })
 
@@ -61,9 +62,9 @@ describe('Breakdown Components', () => {
       expect(CampaignBreakdown).toBeDefined()
     })
 
-    it('should be a Vue component', async () => {
+    it('should be a stx component', async () => {
       const { CampaignBreakdown } = await import('../../src/dashboard/components')
-      expect(typeof CampaignBreakdown).toBe('object')
+      expect(typeof CampaignBreakdown).toBe('string')
     })
   })
 })
