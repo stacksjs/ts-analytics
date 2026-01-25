@@ -292,6 +292,32 @@ export {
   withRetry,
 } from './batching'
 
+// SQS-Based Write Buffering (for high-throughput scenarios)
+// Extends ts-cloud for infrastructure - see cloud.config.ts
+export {
+  type AnalyticsEvent,
+  createAnalyticsProducer,
+  defaultSQSConfig,
+  EventBuffer,
+  type EventProcessor,
+  generateSQSResources,
+  getAllShardKeys,
+  getRandomShardedPartitionKey,
+  getShardedPartitionKey,
+  isSQSBufferingEnabled,
+  type ProcessResult,
+  type RealtimeUpdate,
+  type SQSClient,
+  type SQSConfig,
+  SQSEventConsumer,
+  SQSEventProducer,
+  type SQSLambdaMessage,
+  type SQSMessage,
+  type SQSRawMessage,
+  type SQSSendResult,
+  WriteCoalescer,
+} from './sqs-buffering'
+
 // Funnel Analysis
 export {
   calculateDropOffRate,

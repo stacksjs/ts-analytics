@@ -3,6 +3,10 @@
  *
  * This handler wraps the analytics API for deployment to AWS Lambda.
  * It uses API Gateway for HTTP routing and Eloquent-like models for data access.
+ *
+ * Supports optional SQS buffering for high-throughput scenarios.
+ * Enable by setting SQS_BUFFERING_ENABLED=true and SQS_QUEUE_URL env vars.
+ * See cloud.config.ts for infrastructure configuration.
  */
 
 import {
@@ -11,6 +15,8 @@ import {
   generateId,
   hashVisitorId,
   getDailySalt,
+  isSQSBufferingEnabled,
+  type AnalyticsEvent,
 } from '../src/index'
 import type { Session as SessionType } from '../src/types'
 import {
@@ -31,6 +37,8 @@ import {
 // Configuration
 const TABLE_NAME = process.env.ANALYTICS_TABLE_NAME || 'ts-analytics'
 const REGION = process.env.AWS_REGION || 'us-east-1'
+const SQS_QUEUE_URL = process.env.SQS_QUEUE_URL
+const SQS_ENABLED = isSQSBufferingEnabled()
 
 // Configure analytics models
 configureAnalytics({
@@ -40,6 +48,20 @@ configureAnalytics({
 
 // Create native DynamoDB client for direct queries (used in dashboard handlers)
 const dynamodb = createClient({ region: REGION })
+
+// SQS client for buffered writes (lazy initialized)
+let sqsProducer: Awaited<ReturnType<typeof import('../src/index').createAnalyticsProducer>> | null = null
+
+async function getSQSProducer() {
+  if (!sqsProducer && SQS_ENABLED && SQS_QUEUE_URL) {
+    const { createAnalyticsProducer } = await import('../src/index')
+    sqsProducer = await createAnalyticsProducer({
+      queueUrl: SQS_QUEUE_URL,
+      region: REGION,
+    })
+  }
+  return sqsProducer
+}
 
 // In-memory session cache (resets on cold start)
 const sessionCache = new Map<string, { session: SessionType; expires: number }>()
@@ -223,7 +245,9 @@ function parseUserAgent(ua: string) {
 
   // Detect browser - order matters (more specific first)
   let browser = 'Unknown'
-  if (/edg/i.test(ua)) browser = 'Edge'
+  if (/dia\//i.test(ua)) browser = 'Dia'
+  else if (/arc\//i.test(ua)) browser = 'Arc'
+  else if (/edg/i.test(ua)) browser = 'Edge'
   else if (/opr|opera/i.test(ua)) browser = 'Opera'
   else if (/brave/i.test(ua)) browser = 'Brave'
   else if (/vivaldi/i.test(ua)) browser = 'Vivaldi'
@@ -903,6 +927,7 @@ function getDashboardHtml(): string {
     function renderChart() {
       const canvas = document.getElementById('chart')
       const chartEmpty = document.getElementById('chart-empty')
+      const tooltip = document.getElementById('chartTooltip')
 
       if (!canvas) return
 
@@ -917,58 +942,136 @@ function getDashboardHtml(): string {
 
       const ctx = canvas.getContext('2d')
       const rect = canvas.parentElement.getBoundingClientRect()
-      canvas.width = rect.width - 48
-      canvas.height = 200
-      const pad = { top: 20, right: 20, bottom: 30, left: 50 }
-      const w = canvas.width - pad.left - pad.right
-      const h = canvas.height - pad.top - pad.bottom
+      const dpr = window.devicePixelRatio || 1
+      const logicalW = rect.width - 48
+      const logicalH = 220
+      canvas.width = logicalW * dpr
+      canvas.height = logicalH * dpr
+      canvas.style.width = logicalW + 'px'
+      canvas.style.height = logicalH + 'px'
+      ctx.scale(dpr, dpr)
+      const pad = { top: 20, right: 20, bottom: 50, left: 50 }
+      const w = logicalW - pad.left - pad.right
+      const h = logicalH - pad.top - pad.bottom
       const maxV = Math.max(...timeSeriesData.map(d => d.views || d.count || 0), 1)
       const xS = w / (timeSeriesData.length - 1 || 1)
       const yS = h / maxV
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      // Store points for hover
+      const points = timeSeriesData.map((d, i) => ({
+        x: pad.left + i * xS,
+        y: pad.top + h - (d.views || d.count || 0) * yS,
+        data: d
+      }))
 
-      // Grid lines
-      ctx.strokeStyle = '#374151'
-      ctx.lineWidth = 1
-      for (let i = 0; i <= 4; i++) {
-        const y = pad.top + (h/4)*i
+      function fmtDate(dateStr) {
+        const date = new Date(dateStr)
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+        return months[date.getMonth()] + ' ' + date.getDate()
+      }
+
+      function draw(hoverIdx) {
+        ctx.save()
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+        ctx.clearRect(0, 0, logicalW, logicalH)
+
+        // Grid lines
+        ctx.strokeStyle = '#374151'
+        ctx.lineWidth = 1
+        for (let i = 0; i <= 4; i++) {
+          const y = pad.top + (h/4)*i
+          ctx.beginPath()
+          ctx.moveTo(pad.left, y)
+          ctx.lineTo(pad.left+w, y)
+          ctx.stroke()
+        }
+
+        // Fill
         ctx.beginPath()
-        ctx.moveTo(pad.left, y)
-        ctx.lineTo(pad.left+w, y)
+        ctx.fillStyle = 'rgba(129,140,248,0.1)'
+        points.forEach((p, i) => {
+          i===0 ? (ctx.moveTo(p.x,pad.top+h), ctx.lineTo(p.x,p.y)) : ctx.lineTo(p.x,p.y)
+        })
+        ctx.lineTo(points[points.length-1].x, pad.top+h)
+        ctx.closePath()
+        ctx.fill()
+
+        // Line
+        ctx.beginPath()
+        ctx.strokeStyle = '#818cf8'
+        ctx.lineWidth = 2
+        points.forEach((p, i) => { i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y) })
         ctx.stroke()
+
+        // Data points
+        points.forEach((p, i) => {
+          ctx.beginPath()
+          ctx.fillStyle = i === hoverIdx ? '#fff' : '#818cf8'
+          ctx.arc(p.x, p.y, i === hoverIdx ? 6 : 3, 0, Math.PI * 2)
+          ctx.fill()
+          if (i === hoverIdx) { ctx.strokeStyle = '#818cf8'; ctx.lineWidth = 2; ctx.stroke() }
+        })
+
+        // Y-axis labels
+        ctx.fillStyle = '#6b7280'
+        ctx.font = '11px -apple-system, sans-serif'
+        ctx.textAlign = 'right'
+        for (let i = 0; i <= 4; i++) {
+          ctx.fillText(fmt(Math.round(maxV - (maxV/4)*i)), pad.left-10, pad.top+(h/4)*i+4)
+        }
+
+        // X-axis labels
+        ctx.textAlign = 'center'
+        const labelCount = Math.min(timeSeriesData.length, 7)
+        const step = Math.max(1, Math.floor((timeSeriesData.length - 1) / (labelCount - 1)))
+        for (let i = 0; i < timeSeriesData.length; i += step) {
+          const d = timeSeriesData[i]
+          ctx.fillText(fmtDate(d.date), pad.left + i * xS, logicalH - 10)
+        }
+        if ((timeSeriesData.length - 1) % step !== 0 && timeSeriesData.length > 1) {
+          const d = timeSeriesData[timeSeriesData.length - 1]
+          ctx.fillText(fmtDate(d.date), pad.left + (timeSeriesData.length - 1) * xS, logicalH - 10)
+        }
+
+        // Hover line
+        if (hoverIdx >= 0) {
+          ctx.beginPath()
+          ctx.strokeStyle = 'rgba(129,140,248,0.5)'
+          ctx.lineWidth = 1
+          ctx.setLineDash([4, 4])
+          ctx.moveTo(points[hoverIdx].x, pad.top)
+          ctx.lineTo(points[hoverIdx].x, pad.top + h)
+          ctx.stroke()
+          ctx.setLineDash([])
+        }
+        ctx.restore()
       }
 
-      // Line
-      ctx.beginPath()
-      ctx.strokeStyle = '#818cf8'
-      ctx.lineWidth = 2
-      timeSeriesData.forEach((d, i) => {
-        const x = pad.left + i*xS
-        const y = pad.top + h - (d.views || d.count || 0)*yS
-        i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y)
-      })
-      ctx.stroke()
+      draw(-1)
 
-      // Fill
-      ctx.beginPath()
-      ctx.fillStyle = 'rgba(129,140,248,0.1)'
-      timeSeriesData.forEach((d, i) => {
-        const x = pad.left + i*xS
-        const y = pad.top + h - (d.views || d.count || 0)*yS
-        i===0 ? (ctx.moveTo(x,pad.top+h), ctx.lineTo(x,y)) : ctx.lineTo(x,y)
-      })
-      ctx.lineTo(pad.left + (timeSeriesData.length-1)*xS, pad.top+h)
-      ctx.closePath()
-      ctx.fill()
-
-      // Y-axis labels
-      ctx.fillStyle = '#6b7280'
-      ctx.font = '10px sans-serif'
-      ctx.textAlign = 'right'
-      for (let i = 0; i <= 4; i++) {
-        ctx.fillText(fmt(Math.round(maxV - (maxV/4)*i)), pad.left-10, pad.top+(h/4)*i+3)
+      canvas.onmousemove = function(e) {
+        const cr = canvas.getBoundingClientRect()
+        const mx = e.clientX - cr.left
+        let closest = -1, minDist = 30
+        points.forEach((p, i) => { const d = Math.abs(mx - p.x); if (d < minDist) { minDist = d; closest = i } })
+        if (closest >= 0) {
+          const p = points[closest], d = p.data
+          tooltip.innerHTML = '<div style="color:#9ca3af;font-size:11px;margin-bottom:6px;font-weight:500">' + fmtDate(d.date) + '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:8px;height:8px;background:#818cf8;border-radius:2px"></span>Views: <strong style="margin-left:auto">' + fmt(d.views || d.count || 0) + '</strong></div>' +
+            '<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:8px;height:8px;background:#10b981;border-radius:2px"></span>Visitors: <strong style="margin-left:auto">' + fmt(d.visitors || 0) + '</strong></div>'
+          tooltip.style.display = 'block'
+          let left = p.x + 10; if (left + 150 > logicalW) left = p.x - 160
+          tooltip.style.left = left + 'px'
+          tooltip.style.top = (p.y - 20) + 'px'
+          draw(closest)
+          canvas.style.cursor = 'pointer'
+        } else {
+          tooltip.style.display = 'none'
+          draw(-1)
+          canvas.style.cursor = 'default'
+        }
       }
+      canvas.onmouseleave = function() { tooltip.style.display = 'none'; draw(-1) }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -1057,6 +1160,7 @@ function getDashboardHtml(): string {
     .chart-box { background: var(--bg2); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; min-height: 250px; border: 1px solid var(--border); position: relative }
     .chart-title { font-size: 0.875rem; font-weight: 500; margin-bottom: 1rem; color: var(--text2) }
     .chart-empty { display: none; flex-direction: column; align-items: center; justify-content: center; height: 200px; color: var(--muted); text-align: center }
+    .chart-tooltip { display: none; position: absolute; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: none; z-index: 100; min-width: 140px }
 
     /* Grid & Panels */
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem }
@@ -1214,9 +1318,10 @@ function getDashboardHtml(): string {
     </div>
 
     <div id="main-content">
-      <div class="chart-box">
+      <div class="chart-box" style="position:relative">
         <div class="chart-title">Pageviews Over Time</div>
         <canvas id="chart"></canvas>
+        <div id="chartTooltip" class="chart-tooltip"></div>
         <div id="chart-empty" class="chart-empty">
           <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.5;margin-bottom:0.5rem"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
           <p>No time series data available</p>
@@ -1339,6 +1444,86 @@ async function handleCollect(event: LambdaEvent) {
     // Support both v1 and v2 formats for source IP
     const ip = event.requestContext?.http?.sourceIp || event.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown'
     const userAgent = event.requestContext?.http?.userAgent || event.headers?.['user-agent'] || 'unknown'
+
+    // =========================================================================
+    // SQS Fast Path - Queue events for async processing
+    // This reduces Lambda execution time and handles traffic spikes better
+    // =========================================================================
+    if (SQS_ENABLED) {
+      try {
+        const producer = await getSQSProducer()
+        if (producer) {
+          const timestamp = new Date()
+          const salt = getDailySalt()
+          const visitorId = await hashVisitorId(ip, userAgent, payload.s, salt)
+
+          // Parse device info for the event
+          const deviceInfo = parseUserAgent(userAgent)
+          const referrerSource = parseReferrerSource(payload.r)
+
+          let parsedUrl: URL
+          try {
+            parsedUrl = new URL(payload.u)
+          }
+          catch {
+            return response({ error: 'Invalid URL' }, 400)
+          }
+
+          // Get country from headers
+          const country = getCountryFromHeaders(event.headers)
+
+          // Build analytics event for SQS
+          const analyticsEvent: AnalyticsEvent = {
+            type: payload.e === 'pageview' ? 'pageview' : payload.e === 'event' ? 'event' : 'event',
+            siteId: payload.s,
+            timestamp: timestamp.toISOString(),
+            data: {
+              id: generateId(),
+              siteId: payload.s,
+              visitorId,
+              sessionId: payload.sid,
+              path: parsedUrl.pathname,
+              hostname: parsedUrl.hostname,
+              title: payload.t,
+              referrer: payload.r,
+              referrerSource,
+              utmSource: parsedUrl.searchParams.get('utm_source') || undefined,
+              utmMedium: parsedUrl.searchParams.get('utm_medium') || undefined,
+              utmCampaign: parsedUrl.searchParams.get('utm_campaign') || undefined,
+              deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
+              browser: deviceInfo.browser,
+              os: deviceInfo.os,
+              country,
+              screenWidth: payload.sw,
+              screenHeight: payload.sh,
+              isUnique: true, // Will be determined by consumer
+              isBounce: true, // Will be determined by consumer
+              timestamp,
+              // For custom events
+              ...(payload.e === 'event' && payload.p && {
+                name: payload.p.name || 'unnamed',
+                value: payload.p.value,
+                properties: payload.p,
+              }),
+            },
+          }
+
+          await producer.sendEvent(analyticsEvent)
+          console.log(`[Collect] Queued ${payload.e} event to SQS for site ${payload.s}`)
+
+          // Return fast - 204 No Content
+          return response(null, 204)
+        }
+      }
+      catch (sqsError) {
+        // Fall back to direct write if SQS fails
+        console.error('[Collect] SQS send failed, falling back to direct write:', sqsError)
+      }
+    }
+
+    // =========================================================================
+    // Direct Write Path - Traditional synchronous DynamoDB writes
+    // =========================================================================
     console.log(`[Collect] IP: ${ip}, UA: ${userAgent?.substring(0, 50)}...`)
     const salt = getDailySalt()
     const visitorId = await hashVisitorId(ip, userAgent, payload.s, salt)

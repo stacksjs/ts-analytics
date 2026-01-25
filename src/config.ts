@@ -138,6 +138,71 @@ export interface AnalyticsConfig {
     /** Enable monthly aggregation */
     monthlyEnabled: boolean
   }
+
+  /**
+   * Scale settings for high-throughput scenarios
+   * Based on learnings from Fathom Analytics' DynamoDB experience
+   */
+  scale: {
+    /**
+     * Enable SQS-based write buffering
+     * Routes /collect writes through SQS for better handling of traffic spikes
+     */
+    sqsBuffering: {
+      enabled: boolean
+      /** SQS Queue URL */
+      queueUrl?: string
+      /** Dead letter queue URL for failed messages */
+      deadLetterQueueUrl?: string
+      /** Max retries before sending to DLQ */
+      maxRetries: number
+    }
+
+    /**
+     * DAX (DynamoDB Accelerator) caching for reads
+     * Dramatically reduces read latency and cost for hot data
+     */
+    daxCaching: {
+      enabled: boolean
+      /** DAX cluster endpoint */
+      endpoint?: string
+      /** TTL for cached items in seconds */
+      ttlSeconds: number
+    }
+
+    /**
+     * Partition sharding for high-volume sites
+     * Distributes writes across multiple partitions to avoid throttling
+     */
+    partitionSharding: {
+      enabled: boolean
+      /** Number of shards per site (default: 10) */
+      shardCount: number
+      /** Sites that require sharding (empty = all sites) */
+      enabledSiteIds: string[]
+    }
+
+    /**
+     * Write coalescing to reduce duplicate writes
+     * Combines multiple updates to same key within a time window
+     */
+    writeCoalescing: {
+      enabled: boolean
+      /** Window in milliseconds to coalesce writes */
+      windowMs: number
+    }
+
+    /**
+     * Batch write settings
+     */
+    batchWrites: {
+      enabled: boolean
+      /** Max items per batch (DynamoDB limit: 25) */
+      maxBatchSize: number
+      /** Flush interval in milliseconds */
+      flushIntervalMs: number
+    }
+  }
 }
 
 /**
@@ -148,7 +213,15 @@ export type UserAnalyticsConfig = {
     ? Partial<AnalyticsTableConfig>
     : K extends 'retention' | 'privacy' | 'tracking' | 'api' | 'aggregation'
       ? Partial<AnalyticsConfig[K]>
-      : AnalyticsConfig[K]
+      : K extends 'scale'
+        ? {
+            sqsBuffering?: Partial<AnalyticsConfig['scale']['sqsBuffering']>
+            daxCaching?: Partial<AnalyticsConfig['scale']['daxCaching']>
+            partitionSharding?: Partial<AnalyticsConfig['scale']['partitionSharding']>
+            writeCoalescing?: Partial<AnalyticsConfig['scale']['writeCoalescing']>
+            batchWrites?: Partial<AnalyticsConfig['scale']['batchWrites']>
+          }
+        : AnalyticsConfig[K]
 }
 
 // ============================================================================
@@ -201,6 +274,36 @@ export const defaultConfig: AnalyticsConfig = {
     dailyEnabled: true,
     monthlyEnabled: true,
   },
+
+  // Scale settings - disabled by default for simplicity
+  // Enable these for high-traffic sites (>10k req/sec)
+  scale: {
+    sqsBuffering: {
+      enabled: false,
+      queueUrl: undefined,
+      deadLetterQueueUrl: undefined,
+      maxRetries: 3,
+    },
+    daxCaching: {
+      enabled: false,
+      endpoint: undefined,
+      ttlSeconds: 300, // 5 minutes default cache
+    },
+    partitionSharding: {
+      enabled: false,
+      shardCount: 10,
+      enabledSiteIds: [], // Empty = disabled
+    },
+    writeCoalescing: {
+      enabled: true, // Enabled by default - reduces redundant writes
+      windowMs: 100,
+    },
+    batchWrites: {
+      enabled: true, // Enabled by default - more efficient
+      maxBatchSize: 25, // DynamoDB limit
+      flushIntervalMs: 1000,
+    },
+  },
 }
 
 // ============================================================================
@@ -243,6 +346,28 @@ export function defineConfig(userConfig: UserAnalyticsConfig = {}): AnalyticsCon
     aggregation: {
       ...defaultConfig.aggregation,
       ...userConfig.aggregation,
+    },
+    scale: {
+      sqsBuffering: {
+        ...defaultConfig.scale.sqsBuffering,
+        ...userConfig.scale?.sqsBuffering,
+      },
+      daxCaching: {
+        ...defaultConfig.scale.daxCaching,
+        ...userConfig.scale?.daxCaching,
+      },
+      partitionSharding: {
+        ...defaultConfig.scale.partitionSharding,
+        ...userConfig.scale?.partitionSharding,
+      },
+      writeCoalescing: {
+        ...defaultConfig.scale.writeCoalescing,
+        ...userConfig.scale?.writeCoalescing,
+      },
+      batchWrites: {
+        ...defaultConfig.scale.batchWrites,
+        ...userConfig.scale?.batchWrites,
+      },
     },
   }
 }

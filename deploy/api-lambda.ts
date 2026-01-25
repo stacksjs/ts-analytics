@@ -105,7 +105,7 @@ async function deployLambdaAPI() {
     format: 'cjs', // CommonJS for Lambda Node.js runtime
     minify: true,
     sourcemap: 'none',
-    external: [], // Bundle everything
+    external: ['bunfig'], // bunfig not needed at runtime, causes bundling issues
   })
 
   if (!bundleResult.success) {

@@ -631,14 +631,15 @@
 
     function renderChart() {
       const canvas = document.getElementById('timeSeriesChart')
+      const tooltip = document.getElementById('chartTooltip')
       if (!canvas || !timeSeriesData.length) return
 
       const ctx = canvas.getContext('2d')
       const rect = canvas.parentElement.getBoundingClientRect()
       canvas.width = rect.width - 48
-      canvas.height = 200
+      canvas.height = 220
 
-      const padding = { top: 20, right: 20, bottom: 30, left: 50 }
+      const padding = { top: 20, right: 20, bottom: 50, left: 50 }
       const width = canvas.width - padding.left - padding.right
       const height = canvas.height - padding.top - padding.bottom
 
@@ -646,56 +647,158 @@
       const xScale = width / (timeSeriesData.length - 1 || 1)
       const yScale = height / maxViews
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      // Store point positions for hover detection
+      const points = timeSeriesData.map((d, i) => ({
+        x: padding.left + i * xScale,
+        y: padding.top + height - d.views * yScale,
+        data: d
+      }))
 
-      // Draw grid lines
-      ctx.strokeStyle = '#374151'
-      ctx.lineWidth = 1
-      for (let i = 0; i <= 4; i++) {
-        const y = padding.top + (height / 4) * i
+      function draw(hoverIndex = -1) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+        // Draw grid lines
+        ctx.strokeStyle = '#374151'
+        ctx.lineWidth = 1
+        for (let i = 0; i <= 4; i++) {
+          const y = padding.top + (height / 4) * i
+          ctx.beginPath()
+          ctx.moveTo(padding.left, y)
+          ctx.lineTo(padding.left + width, y)
+          ctx.stroke()
+        }
+
+        // Draw area fill
         ctx.beginPath()
-        ctx.moveTo(padding.left, y)
-        ctx.lineTo(padding.left + width, y)
+        ctx.fillStyle = 'rgba(129, 140, 248, 0.1)'
+        points.forEach((p, i) => {
+          if (i === 0) {
+            ctx.moveTo(p.x, padding.top + height)
+            ctx.lineTo(p.x, p.y)
+          } else {
+            ctx.lineTo(p.x, p.y)
+          }
+        })
+        ctx.lineTo(points[points.length - 1].x, padding.top + height)
+        ctx.closePath()
+        ctx.fill()
+
+        // Draw line
+        ctx.beginPath()
+        ctx.strokeStyle = '#818cf8'
+        ctx.lineWidth = 2
+        points.forEach((p, i) => {
+          if (i === 0) ctx.moveTo(p.x, p.y)
+          else ctx.lineTo(p.x, p.y)
+        })
         ctx.stroke()
+
+        // Draw data points
+        points.forEach((p, i) => {
+          ctx.beginPath()
+          ctx.fillStyle = i === hoverIndex ? '#ffffff' : '#818cf8'
+          ctx.arc(p.x, p.y, i === hoverIndex ? 6 : 3, 0, Math.PI * 2)
+          ctx.fill()
+          if (i === hoverIndex) {
+            ctx.strokeStyle = '#818cf8'
+            ctx.lineWidth = 2
+            ctx.stroke()
+          }
+        })
+
+        // Draw Y axis labels
+        ctx.fillStyle = '#6b7280'
+        ctx.font = '11px -apple-system, sans-serif'
+        ctx.textAlign = 'right'
+        for (let i = 0; i <= 4; i++) {
+          const value = Math.round(maxViews - (maxViews / 4) * i)
+          const y = padding.top + (height / 4) * i
+          ctx.fillText(formatNumber(value), padding.left - 10, y + 4)
+        }
+
+        // Draw X axis labels
+        ctx.textAlign = 'center'
+        ctx.fillStyle = '#6b7280'
+        const labelCount = Math.min(timeSeriesData.length, 7)
+        const step = Math.max(1, Math.floor((timeSeriesData.length - 1) / (labelCount - 1)))
+        for (let i = 0; i < timeSeriesData.length; i += step) {
+          const d = timeSeriesData[i]
+          const x = padding.left + i * xScale
+          const dateStr = formatChartDate(d.date)
+          ctx.fillText(dateStr, x, canvas.height - 10)
+        }
+        // Always show last label if not already shown
+        if ((timeSeriesData.length - 1) % step !== 0) {
+          const d = timeSeriesData[timeSeriesData.length - 1]
+          const x = padding.left + (timeSeriesData.length - 1) * xScale
+          ctx.fillText(formatChartDate(d.date), x, canvas.height - 10)
+        }
+
+        // Draw vertical hover line
+        if (hoverIndex >= 0) {
+          ctx.beginPath()
+          ctx.strokeStyle = 'rgba(129, 140, 248, 0.5)'
+          ctx.lineWidth = 1
+          ctx.setLineDash([4, 4])
+          ctx.moveTo(points[hoverIndex].x, padding.top)
+          ctx.lineTo(points[hoverIndex].x, padding.top + height)
+          ctx.stroke()
+          ctx.setLineDash([])
+        }
       }
 
-      // Draw line
-      ctx.beginPath()
-      ctx.strokeStyle = '#818cf8'
-      ctx.lineWidth = 2
-      timeSeriesData.forEach((d, i) => {
-        const x = padding.left + i * xScale
-        const y = padding.top + height - d.views * yScale
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
-      })
-      ctx.stroke()
+      function formatChartDate(dateStr) {
+        const date = new Date(dateStr)
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        return months[date.getMonth()] + ' ' + date.getDate()
+      }
 
-      // Draw area fill
-      ctx.beginPath()
-      ctx.fillStyle = 'rgba(129, 140, 248, 0.1)'
-      timeSeriesData.forEach((d, i) => {
-        const x = padding.left + i * xScale
-        const y = padding.top + height - d.views * yScale
-        if (i === 0) {
-          ctx.moveTo(x, padding.top + height)
-          ctx.lineTo(x, y)
+      // Initial draw
+      draw()
+
+      // Hover interaction
+      canvas.onmousemove = function(e) {
+        const canvasRect = canvas.getBoundingClientRect()
+        const mouseX = e.clientX - canvasRect.left
+        const mouseY = e.clientY - canvasRect.top
+
+        // Find closest point
+        let closestIdx = -1
+        let closestDist = 30 // Max distance to trigger hover
+        points.forEach((p, i) => {
+          const dist = Math.abs(mouseX - p.x)
+          if (dist < closestDist) {
+            closestDist = dist
+            closestIdx = i
+          }
+        })
+
+        if (closestIdx >= 0) {
+          const p = points[closestIdx]
+          const d = p.data
+          tooltip.innerHTML = `
+            <div class="tooltip-date">${formatChartDate(d.date)}</div>
+            <div class="tooltip-row"><span class="tooltip-dot views"></span>Views: <strong>${formatNumber(d.views)}</strong></div>
+            <div class="tooltip-row"><span class="tooltip-dot visitors"></span>Visitors: <strong>${formatNumber(d.visitors || 0)}</strong></div>
+          `
+          tooltip.style.display = 'block'
+          // Position tooltip
+          let left = p.x + 10
+          if (left + 150 > canvas.width) left = p.x - 160
+          tooltip.style.left = left + 'px'
+          tooltip.style.top = (p.y - 30) + 'px'
+          draw(closestIdx)
+          canvas.style.cursor = 'pointer'
         } else {
-          ctx.lineTo(x, y)
+          tooltip.style.display = 'none'
+          draw()
+          canvas.style.cursor = 'default'
         }
-      })
-      ctx.lineTo(padding.left + (timeSeriesData.length - 1) * xScale, padding.top + height)
-      ctx.closePath()
-      ctx.fill()
+      }
 
-      // Draw Y axis labels
-      ctx.fillStyle = '#6b7280'
-      ctx.font = '10px sans-serif'
-      ctx.textAlign = 'right'
-      for (let i = 0; i <= 4; i++) {
-        const value = Math.round(maxViews - (maxViews / 4) * i)
-        const y = padding.top + (height / 4) * i
-        ctx.fillText(formatNumber(value), padding.left - 10, y + 3)
+      canvas.onmouseleave = function() {
+        tooltip.style.display = 'none'
+        draw()
       }
     }
 
@@ -885,6 +988,54 @@
       align-items: center;
       justify-content: center;
       color: var(--text-muted);
+    }
+
+    .chart-tooltip {
+      display: none;
+      position: absolute;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.8125rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+      z-index: 100;
+      min-width: 140px;
+    }
+
+    .tooltip-date {
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+
+    .tooltip-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-secondary);
+      margin: 0.25rem 0;
+    }
+
+    .tooltip-row strong {
+      color: var(--text-primary);
+      margin-left: auto;
+    }
+
+    .tooltip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    .tooltip-dot.views {
+      background: var(--accent);
+    }
+
+    .tooltip-dot.visitors {
+      background: var(--success);
     }
 
     /* Data Grid */
@@ -1633,8 +1784,9 @@
     </div>
 
     <!-- Time Series Chart -->
-    <div class="chart-container">
+    <div class="chart-container" style="position: relative;">
       <canvas id="timeSeriesChart"></canvas>
+      <div id="chartTooltip" class="chart-tooltip"></div>
     </div>
 
     <!-- Data Grid - Row 1 -->
