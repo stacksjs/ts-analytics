@@ -514,6 +514,35 @@ function getDashboardHtml(): string {
     let filters = { country: '', device: '', browser: '', referrer: '' }
     let comparisonStats = null
 
+    // Theme management
+    function getPreferredTheme() {
+      const stored = localStorage.getItem('ts-analytics-theme')
+      if (stored) return stored
+      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme)
+      const darkIcon = document.getElementById('theme-icon-dark')
+      const lightIcon = document.getElementById('theme-icon-light')
+      if (darkIcon && lightIcon) {
+        darkIcon.style.display = theme === 'dark' ? 'block' : 'none'
+        lightIcon.style.display = theme === 'light' ? 'block' : 'none'
+      }
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark'
+      const newTheme = current === 'dark' ? 'light' : 'dark'
+      localStorage.setItem('ts-analytics-theme', newTheme)
+      applyTheme(newTheme)
+      // Re-render chart with new theme colors
+      if (timeSeriesData.length) renderChart()
+    }
+
+    // Initialize theme immediately
+    applyTheme(getPreferredTheme())
+
     // Browser icons (SVG)
     const browserIcons = {
       'Chrome': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:6px"><circle cx="12" cy="12" r="10" stroke="#4285F4" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#4285F4"/><path d="M12 2v6" stroke="#EA4335" stroke-width="2"/><path d="M5 17l5-3" stroke="#FBBC05" stroke-width="2"/><path d="M19 17l-5-3" stroke="#34A853" stroke-width="2"/></svg>',
@@ -666,6 +695,7 @@ function getDashboardHtml(): string {
     async function fetchDashboardData() {
       if (isLoading) return
       isLoading = true
+      const spinStartTime = Date.now()
       document.getElementById('refresh-btn').classList.add('spinning')
 
       const baseUrl = \`\${API_ENDPOINT}/api/sites/\${siteId}\`
@@ -727,7 +757,13 @@ function getDashboardHtml(): string {
         console.error('Failed to fetch:', error)
       } finally {
         isLoading = false
-        document.getElementById('refresh-btn').classList.remove('spinning')
+        // Ensure spinner completes at least one full rotation (1s animation)
+        const elapsed = Date.now() - spinStartTime
+        const minSpinTime = 1000
+        const remainingTime = Math.max(0, minSpinTime - elapsed)
+        setTimeout(() => {
+          document.getElementById('refresh-btn').classList.remove('spinning')
+        }, remainingTime)
       }
     }
 
@@ -882,7 +918,7 @@ function getDashboardHtml(): string {
                   <span>\${formatDuration(s.duration)}</span>
                   <span>\${s.browser || 'Unknown'}</span>
                   <span>\${s.country || 'Unknown'}</span>
-                  \${s.isBounce ? '<span style="color:#ef4444">Bounced</span>' : ''}
+                  \${s.isBounce ? '<span style="color:var(--error)">Bounced</span>' : ''}
                 </div>
               </div>
             \`).join('')}
@@ -988,7 +1024,7 @@ function getDashboardHtml(): string {
                     \${t.type === 'event' ? '<span style="color:var(--success)">' + t.data.name + '</span>' : ''}
                     \${t.type === 'click' ? 'Click at (' + t.data.viewportX + ', ' + t.data.viewportY + ') on <code>' + (t.data.elementTag || 'element') + '</code>' : ''}
                     \${t.type === 'vital' ? '<span style="color:var(--warning)">' + t.data.metric + '</span>: ' + t.data.value + 'ms (' + t.data.rating + ')' : ''}
-                    \${t.type === 'error' ? '<span style="color:#ef4444">' + (t.data.message || '').slice(0,100) + '</span>' : ''}
+                    \${t.type === 'error' ? '<span style="color:var(--error)">' + (t.data.message || '').slice(0,100) + '</span>' : ''}
                   </div>
                   <div class="timeline-time">\${new Date(t.timestamp).toLocaleTimeString()}</div>
                 </div>
@@ -1443,6 +1479,15 @@ function getDashboardHtml(): string {
 
       if (!canvas) return
 
+      // Read CSS variables for theme-aware chart colors
+      const styles = getComputedStyle(document.documentElement)
+      const colors = {
+        border: styles.getPropertyValue('--border').trim() || '#2d3139',
+        accent2: styles.getPropertyValue('--accent2').trim() || '#818cf8',
+        muted: styles.getPropertyValue('--muted').trim() || '#6b7280',
+        text: styles.getPropertyValue('--text').trim() || '#f3f4f6'
+      }
+
       if (!timeSeriesData.length) {
         canvas.style.display = 'none'
         chartEmpty.style.display = 'flex'
@@ -1516,7 +1561,7 @@ function getDashboardHtml(): string {
         ctx.clearRect(0, 0, logicalW, logicalH)
 
         // Grid lines
-        ctx.strokeStyle = '#374151'
+        ctx.strokeStyle = colors.border
         ctx.lineWidth = 1
         for (let i = 0; i <= 4; i++) {
           const y = pad.top + (h/4)*i
@@ -1528,7 +1573,7 @@ function getDashboardHtml(): string {
 
         // Fill
         ctx.beginPath()
-        ctx.fillStyle = 'rgba(129,140,248,0.1)'
+        ctx.fillStyle = colors.accent2 + '1a' // 0.1 alpha
         points.forEach((p, i) => {
           i===0 ? (ctx.moveTo(p.x,pad.top+h), ctx.lineTo(p.x,p.y)) : ctx.lineTo(p.x,p.y)
         })
@@ -1538,7 +1583,7 @@ function getDashboardHtml(): string {
 
         // Line
         ctx.beginPath()
-        ctx.strokeStyle = '#818cf8'
+        ctx.strokeStyle = colors.accent2
         ctx.lineWidth = 2
         points.forEach((p, i) => { i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y) })
         ctx.stroke()
@@ -1546,14 +1591,14 @@ function getDashboardHtml(): string {
         // Data points
         points.forEach((p, i) => {
           ctx.beginPath()
-          ctx.fillStyle = i === hoverIdx ? '#fff' : '#818cf8'
+          ctx.fillStyle = i === hoverIdx ? colors.text : colors.accent2
           ctx.arc(p.x, p.y, i === hoverIdx ? 6 : 3, 0, Math.PI * 2)
           ctx.fill()
-          if (i === hoverIdx) { ctx.strokeStyle = '#818cf8'; ctx.lineWidth = 2; ctx.stroke() }
+          if (i === hoverIdx) { ctx.strokeStyle = colors.accent2; ctx.lineWidth = 2; ctx.stroke() }
         })
 
         // Y-axis labels
-        ctx.fillStyle = '#6b7280'
+        ctx.fillStyle = colors.muted
         ctx.font = '11px -apple-system, sans-serif'
         ctx.textAlign = 'right'
         for (let i = 0; i <= 4; i++) {
@@ -1591,7 +1636,7 @@ function getDashboardHtml(): string {
         // Hover line
         if (hoverIdx >= 0) {
           ctx.beginPath()
-          ctx.strokeStyle = 'rgba(129,140,248,0.5)'
+          ctx.strokeStyle = colors.accent2 + '80' // 0.5 alpha
           ctx.lineWidth = 1
           ctx.setLineDash([4, 4])
           ctx.moveTo(points[hoverIdx].x, pad.top)
@@ -1611,9 +1656,9 @@ function getDashboardHtml(): string {
         points.forEach((p, i) => { const d = Math.abs(mx - p.x); if (d < minDist) { minDist = d; closest = i } })
         if (closest >= 0) {
           const p = points[closest], d = p.data
-          tooltip.innerHTML = '<div style="color:#9ca3af;font-size:11px;margin-bottom:6px;font-weight:500">' + fmtDateFull(d.date) + '</div>' +
-            '<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:8px;height:8px;background:#818cf8;border-radius:2px"></span>Views: <strong style="margin-left:auto">' + fmt(d.views || d.count || 0) + '</strong></div>' +
-            '<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:8px;height:8px;background:#10b981;border-radius:2px"></span>Visitors: <strong style="margin-left:auto">' + fmt(d.visitors || 0) + '</strong></div>'
+          tooltip.innerHTML = '<div style="color:var(--muted);font-size:11px;margin-bottom:6px;font-weight:500">' + fmtDateFull(d.date) + '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:8px;height:8px;background:var(--accent2);border-radius:2px"></span>Views: <strong style="margin-left:auto">' + fmt(d.views || d.count || 0) + '</strong></div>' +
+            '<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:8px;height:8px;background:var(--success);border-radius:2px"></span>Visitors: <strong style="margin-left:auto">' + fmt(d.visitors || 0) + '</strong></div>'
           tooltip.style.display = 'block'
           let left = p.x + 10; if (left + 150 > logicalW) left = p.x - 160
           tooltip.style.left = left + 'px'
@@ -1655,7 +1700,8 @@ function getDashboardHtml(): string {
     window.addEventListener('resize', () => { if (timeSeriesData.length) renderChart() })
   </script>
   <style>
-    :root { --bg: #0f1117; --bg2: #1a1d27; --bg3: #252836; --text: #f3f4f6; --text2: #9ca3af; --muted: #6b7280; --accent: #6366f1; --accent2: #818cf8; --success: #10b981; --border: #2d3139; --warning: #f59e0b }
+    :root { --bg: #0f1117; --bg2: #1a1d27; --bg3: #252836; --text: #f3f4f6; --text2: #9ca3af; --muted: #6b7280; --accent: #6366f1; --accent2: #818cf8; --success: #10b981; --border: #2d3139; --warning: #f59e0b; --error: #ef4444; --overlay: rgba(0,0,0,0.7) }
+    [data-theme="light"] { --bg: #f8fafc; --bg2: #ffffff; --bg3: #f1f5f9; --text: #0f172a; --text2: #475569; --muted: #64748b; --accent: #4f46e5; --accent2: #6366f1; --success: #059669; --border: #e2e8f0; --warning: #d97706; --error: #dc2626; --overlay: rgba(0,0,0,0.5) }
     * { box-sizing: border-box; margin: 0; padding: 0 }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh }
 
@@ -1702,6 +1748,10 @@ function getDashboardHtml(): string {
     .refresh-btn.spinning svg { animation: spinReverse 1s linear infinite }
     @keyframes spinReverse { to { transform: rotate(-360deg) } }
 
+    /* Theme Toggle */
+    .theme-toggle { background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 0.5rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--text) }
+
     /* Tabs */
     .tabs-nav { display: flex; gap: 0.25rem; margin-bottom: 1rem; background: var(--bg2); padding: 0.25rem; border-radius: 8px; width: fit-content }
     .tab-btn { background: none; border: none; color: var(--muted); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; transition: all 0.15s }
@@ -1719,7 +1769,7 @@ function getDashboardHtml(): string {
     /* Comparison Stats */
     .stat-change { font-size: 0.6875rem; margin-top: 0.25rem }
     .stat-change.positive { color: var(--success) }
-    .stat-change.negative { color: #ef4444 }
+    .stat-change.negative { color: var(--error) }
 
     /* Tab Content Sections */
     .tab-content { display: none }
@@ -1740,16 +1790,16 @@ function getDashboardHtml(): string {
     .vital-value { font-size: 1.5rem; font-weight: 600 }
     .vital-value.good { color: var(--success) }
     .vital-value.needs-improvement { color: var(--warning) }
-    .vital-value.poor { color: #ef4444 }
+    .vital-value.poor { color: var(--error) }
     .vital-bar { height: 4px; background: var(--bg3); border-radius: 2px; margin-top: 0.5rem; overflow: hidden; display: flex }
     .vital-bar span { height: 100% }
     .vital-bar .good { background: var(--success) }
     .vital-bar .needs-improvement { background: var(--warning) }
-    .vital-bar .poor { background: #ef4444 }
+    .vital-bar .poor { background: var(--error) }
 
     /* Error Cards */
     .error-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 0.5rem }
-    .error-message { color: #ef4444; font-family: monospace; font-size: 0.8125rem; margin-bottom: 0.5rem; word-break: break-word }
+    .error-message { color: var(--error); font-family: monospace; font-size: 0.8125rem; margin-bottom: 0.5rem; word-break: break-word }
     .error-meta { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--muted) }
     .error-stack { font-family: monospace; font-size: 0.6875rem; color: var(--muted); background: var(--bg); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; overflow-x: auto; white-space: pre-wrap; max-height: 100px }
 
@@ -1757,14 +1807,14 @@ function getDashboardHtml(): string {
     .insight-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; display: flex; gap: 1rem; align-items: flex-start }
     .insight-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0 }
     .insight-icon.positive { background: rgba(16,185,129,0.1); color: var(--success) }
-    .insight-icon.negative { background: rgba(239,68,68,0.1); color: #ef4444 }
+    .insight-icon.negative { background: rgba(239,68,68,0.1); color: var(--error) }
     .insight-icon.neutral { background: rgba(99,102,241,0.1); color: var(--accent) }
     .insight-content { flex: 1 }
     .insight-title { font-weight: 500; margin-bottom: 0.25rem }
     .insight-desc { font-size: 0.8125rem; color: var(--muted) }
 
     /* Session Detail Modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; display: none }
+    .modal-overlay { position: fixed; inset: 0; background: var(--overlay); display: flex; align-items: center; justify-content: center; z-index: 1000; display: none }
     .modal-overlay.active { display: flex }
     .modal { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 800px; max-height: 90vh; overflow: auto }
     .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 1 }
@@ -1822,14 +1872,14 @@ function getDashboardHtml(): string {
     .create-goal-btn:hover { background: var(--accent2) }
     .icon-btn { background: none; border: none; color: var(--muted); cursor: pointer; padding: 0.25rem; border-radius: 4px; margin-left: 0.25rem }
     .icon-btn:hover { background: var(--bg3); color: var(--text) }
-    .icon-btn.danger:hover { color: #ef4444 }
+    .icon-btn.danger:hover { color: var(--error) }
     .goal-type-badge { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase; font-weight: 500 }
     .goal-type-badge.pageview { background: rgba(99,102,241,0.2); color: var(--accent) }
-    .goal-type-badge.event { background: rgba(16,185,129,0.2); color: #10b981 }
+    .goal-type-badge.event { background: rgba(16,185,129,0.2); color: var(--success) }
     .goal-type-badge.duration { background: rgba(245,158,11,0.2); color: #f59e0b }
 
     /* Modal */
-    .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000 }
+    .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay); display: flex; align-items: center; justify-content: center; z-index: 1000 }
     .modal-content { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; max-width: 420px; width: 90% }
     .modal-content h3 { margin-bottom: 1.5rem; font-size: 1.125rem; color: var(--text) }
     .modal-content label { display: block; margin-bottom: 1rem; font-size: 0.8125rem; color: var(--text2) }
@@ -1874,6 +1924,10 @@ function getDashboardHtml(): string {
         <span id="current-site-name" class="site-name-header">Analytics Dashboard</span>
       </div>
       <div class="header-right">
+        <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+          <svg id="theme-icon-dark" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg id="theme-icon-light" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none"><circle cx="12" cy="12" r="5" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
         <div class="realtime-badge"><span class="pulse"></span><span id="realtime-count">0 visitors online</span></div>
       </div>
     </header>
@@ -2624,6 +2678,7 @@ async function handleDetailPage(section: string, event: LambdaEvent) {
   <title>${sectionTitles[section]} - Analytics</title>
   <style>
     :root { --bg: #0f0f0f; --bg2: #1a1a1a; --bg3: #252525; --text: #fff; --text2: #e5e5e5; --muted: #888; --border: #333; --primary: #818cf8 }
+    [data-theme="light"] { --bg: #f8fafc; --bg2: #ffffff; --bg3: #f1f5f9; --text: #0f172a; --text2: #475569; --muted: #64748b; --border: #e2e8f0; --primary: #4f46e5 }
     * { margin: 0; padding: 0; box-sizing: border-box }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh }
     .container { max-width: 1200px; margin: 0 auto; padding: 2rem }
@@ -2673,6 +2728,14 @@ async function handleDetailPage(section: string, event: LambdaEvent) {
     </div>
   </div>
   <script>
+    // Theme initialization - sync with main dashboard
+    function getPreferredTheme() {
+      const stored = localStorage.getItem('ts-analytics-theme')
+      if (stored) return stored
+      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+    }
+    document.documentElement.setAttribute('data-theme', getPreferredTheme())
+
     const siteId = '${siteId}'
     const section = '${section}'
     let dateRange = '6h'
