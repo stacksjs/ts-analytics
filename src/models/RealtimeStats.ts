@@ -67,6 +67,14 @@ const RealtimeStatsModel: Model = {
       comment: 'Map of path -> visitor count',
     },
 
+    visitorIds: {
+      required: false,
+      fillable: true,
+      cast: 'json',
+      default: [],
+      comment: 'Set of unique visitor IDs for this minute (for counting)',
+    },
+
     ttl: {
       required: true,
       fillable: true,

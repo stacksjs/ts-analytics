@@ -679,12 +679,14 @@ export interface RealtimeStats {
   siteId: string
   /** Minute bucket (ISO timestamp truncated to minute) */
   minute: string
-  /** Current visitors (active in this minute) */
+  /** Current visitors (active in this minute) - computed from visitorIds */
   currentVisitors: number
   /** Page views in this minute */
   pageViews: number
   /** Active pages (path -> visitor count) */
   activePages: Record<string, number>
+  /** Set of unique visitor IDs for this minute (for counting unique visitors) */
+  visitorIds?: string[]
   /** TTL (auto-delete after 10 minutes) */
   ttl: number
 }
@@ -747,6 +749,8 @@ export interface TopItem {
   name: string
   value: number
   percentage: number
+  /** Optional metadata (e.g., country/region for cities) */
+  metadata?: Record<string, string | undefined>
 }
 
 /**

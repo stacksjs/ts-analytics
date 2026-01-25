@@ -1,17 +1,38 @@
 {{-- GeoTable Component --}}
-{{-- Props: countries, regions, cities, activeTab --}}
+{{-- Props: countries, regions, cities, activeTab, onFetchRegions, onFetchCities --}}
 <div class="data-panel">
   <div class="tabs">
-    <button class="tab-btn @if(activeTab === 'countries') active @endif" data-tab="countries" type="button">
+    <button class="tab-btn @if(activeTab === 'countries') active @endif" data-tab="countries" type="button" @click="handleTabChange('countries')">
       Countries
     </button>
-    <button class="tab-btn @if(activeTab === 'regions') active @endif" data-tab="regions" type="button">
+    <button class="tab-btn @if(activeTab === 'regions') active @endif" data-tab="regions" type="button" @click="handleTabChange('regions')">
       Regions
+      @if(selectedCountry)
+        <span class="filter-badge">{{ selectedCountry }}</span>
+      @endif
     </button>
-    <button class="tab-btn @if(activeTab === 'cities') active @endif" data-tab="cities" type="button">
+    <button class="tab-btn @if(activeTab === 'cities') active @endif" data-tab="cities" type="button" @click="handleTabChange('cities')">
       Cities
+      @if(selectedRegion)
+        <span class="filter-badge">{{ selectedRegion }}</span>
+      @endif
     </button>
   </div>
+
+  {{-- Breadcrumb navigation for drill-down --}}
+  @if(selectedCountry || selectedRegion)
+    <div class="breadcrumb">
+      <button class="breadcrumb-btn" type="button" @click="clearFilters">All</button>
+      @if(selectedCountry)
+        <span class="breadcrumb-sep">/</span>
+        <button class="breadcrumb-btn @if(!selectedRegion) active @endif" type="button" @click="clearRegionFilter">{{ selectedCountry }}</button>
+      @endif
+      @if(selectedRegion)
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-current">{{ selectedRegion }}</span>
+      @endif
+    </div>
+  @endif
 
   <div class="tab-content" data-content="countries" @if(activeTab !== 'countries') style="display:none" @endif>
     <table class="data-table">
@@ -23,10 +44,11 @@
       </thead>
       <tbody>
         @forelse(countries as country)
-          <tr>
+          <tr class="clickable-row" @click="drillDownToRegions(country)">
             <td class="name">
               <span class="flag" data-country="{{ country.code }}">{{ country.flag }}</span>
               {{ country.name }}
+              <span class="drill-icon">&#8250;</span>
             </td>
             <td class="value">{{ formatNumber(country.visitors) }}</td>
           </tr>
@@ -49,13 +71,22 @@
       </thead>
       <tbody>
         @forelse(regions as region)
-          <tr>
-            <td class="name">{{ region.name }}</td>
+          <tr class="clickable-row" @click="drillDownToCities(region)">
+            <td class="name">
+              {{ region.name }}
+              <span class="drill-icon">&#8250;</span>
+            </td>
             <td class="value">{{ formatNumber(region.visitors) }}</td>
           </tr>
         @empty
           <tr>
-            <td colspan="2" class="empty-cell">No region data</td>
+            <td colspan="2" class="empty-cell">
+              @if(selectedCountry)
+                No region data for {{ selectedCountry }}
+              @else
+                Select a country to view regions
+              @endif
+            </td>
           </tr>
         @endforelse
       </tbody>
@@ -78,7 +109,15 @@
           </tr>
         @empty
           <tr>
-            <td colspan="2" class="empty-cell">No city data</td>
+            <td colspan="2" class="empty-cell">
+              @if(selectedRegion)
+                No city data for {{ selectedRegion }}
+              @elseif(selectedCountry)
+                Select a region to view cities
+              @else
+                Select a country and region to view cities
+              @endif
+            </td>
           </tr>
         @endforelse
       </tbody>
@@ -87,10 +126,61 @@
 </div>
 
 @ts
+import { ref } from 'vue'
+
+// Props
+const props = defineProps<{
+  countries: Array<{ name: string, code: string, flag?: string, visitors: number }>
+  regions: Array<{ name: string, country: string, visitors: number }>
+  cities: Array<{ name: string, region: string, country: string, visitors: number }>
+  activeTab: 'countries' | 'regions' | 'cities'
+  onFetchRegions?: (country: string) => void
+  onFetchCities?: (country: string, region: string) => void
+  onTabChange?: (tab: 'countries' | 'regions' | 'cities') => void
+}>()
+
+// State for drill-down
+const selectedCountry = ref<string | null>(null)
+const selectedRegion = ref<string | null>(null)
+
 function formatNumber(num: number): string {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
   return num.toString()
+}
+
+function handleTabChange(tab: 'countries' | 'regions' | 'cities') {
+  props.onTabChange?.(tab)
+}
+
+function drillDownToRegions(country: { name: string, code: string }) {
+  selectedCountry.value = country.name
+  selectedRegion.value = null
+  props.onFetchRegions?.(country.code)
+  props.onTabChange?.('regions')
+}
+
+function drillDownToCities(region: { name: string, country: string }) {
+  selectedRegion.value = region.name
+  // Use the country code from the selected country context
+  const countryCode = props.countries.find(c => c.name === selectedCountry.value)?.code || selectedCountry.value || ''
+  props.onFetchCities?.(countryCode, region.name)
+  props.onTabChange?.('cities')
+}
+
+function clearFilters() {
+  selectedCountry.value = null
+  selectedRegion.value = null
+  props.onTabChange?.('countries')
+}
+
+function clearRegionFilter() {
+  selectedRegion.value = null
+  if (selectedCountry.value) {
+    const countryCode = props.countries.find(c => c.name === selectedCountry.value)?.code || selectedCountry.value
+    props.onFetchRegions?.(countryCode)
+  }
+  props.onTabChange?.('regions')
 }
 @endts
 
@@ -118,6 +208,9 @@ function formatNumber(num: number): string {
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
 }
 
 .tab-btn:hover {
@@ -127,6 +220,52 @@ function formatNumber(num: number): string {
 .tab-btn.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
+}
+
+.filter-badge {
+  background: var(--accent);
+  color: white;
+  font-size: 0.625rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.breadcrumb-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0.125rem 0.25rem;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.breadcrumb-btn:hover {
+  background: var(--bg-tertiary);
+}
+
+.breadcrumb-btn.active {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.breadcrumb-sep {
+  color: var(--text-muted);
+}
+
+.breadcrumb-current {
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .data-table {
@@ -164,6 +303,27 @@ function formatNumber(num: number): string {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.clickable-row:hover {
+  background: var(--bg-tertiary);
+}
+
+.clickable-row:hover .drill-icon {
+  opacity: 1;
+}
+
+.drill-icon {
+  margin-left: auto;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+  font-size: 1rem;
 }
 
 .flag {

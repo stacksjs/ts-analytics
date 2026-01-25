@@ -167,6 +167,50 @@ export class AnalyticsClient {
   }
 
   /**
+   * Get region stats
+   */
+  async getRegions(options: FetchOptions & { country?: string } = {}): Promise<TopItem[]> {
+    const params = new URLSearchParams()
+    if (options.startDate)
+      params.set('startDate', options.startDate.toISOString())
+    if (options.endDate)
+      params.set('endDate', options.endDate.toISOString())
+    if (options.limit)
+      params.set('limit', String(options.limit))
+    if (options.country)
+      params.set('country', options.country)
+
+    const query = params.toString()
+    const response = await this.fetch<{ regions: TopItem[] }>(
+      `/api/analytics/sites/${this.siteId}/regions${query ? `?${query}` : ''}`,
+    )
+    return response.regions || []
+  }
+
+  /**
+   * Get city stats
+   */
+  async getCities(options: FetchOptions & { country?: string, region?: string } = {}): Promise<TopItem[]> {
+    const params = new URLSearchParams()
+    if (options.startDate)
+      params.set('startDate', options.startDate.toISOString())
+    if (options.endDate)
+      params.set('endDate', options.endDate.toISOString())
+    if (options.limit)
+      params.set('limit', String(options.limit))
+    if (options.country)
+      params.set('country', options.country)
+    if (options.region)
+      params.set('region', options.region)
+
+    const query = params.toString()
+    const response = await this.fetch<{ cities: TopItem[] }>(
+      `/api/analytics/sites/${this.siteId}/cities${query ? `?${query}` : ''}`,
+    )
+    return response.cities || []
+  }
+
+  /**
    * Get time series data
    */
   async getTimeSeries(options: FetchOptions = {}): Promise<TimeSeriesDataPoint[]> {
@@ -278,6 +322,8 @@ export function createAnalyticsComposable(options: UseAnalyticsOptions): {
   fetchDevices: (dateRange: { start: Date, end: Date }) => Promise<unknown>
   fetchBrowsers: (dateRange: { start: Date, end: Date }, limit?: number) => Promise<unknown[]>
   fetchCountries: (dateRange: { start: Date, end: Date }, limit?: number) => Promise<unknown[]>
+  fetchRegions: (dateRange: { start: Date, end: Date }, country?: string, limit?: number) => Promise<unknown[]>
+  fetchCities: (dateRange: { start: Date, end: Date }, country?: string, region?: string, limit?: number) => Promise<unknown[]>
   fetchTimeSeries: (dateRange: { start: Date, end: Date }) => Promise<unknown[]>
   fetchGoals: (dateRange: { start: Date, end: Date }) => Promise<unknown[]>
 } {
@@ -330,6 +376,10 @@ export function createAnalyticsComposable(options: UseAnalyticsOptions): {
       client.getBrowsers({ startDate: dateRange.start, endDate: dateRange.end, limit }),
     fetchCountries: (dateRange: { start: Date, end: Date }, limit = 10): Promise<unknown[]> =>
       client.getCountries({ startDate: dateRange.start, endDate: dateRange.end, limit }),
+    fetchRegions: (dateRange: { start: Date, end: Date }, country?: string, limit = 10): Promise<unknown[]> =>
+      client.getRegions({ startDate: dateRange.start, endDate: dateRange.end, country, limit }),
+    fetchCities: (dateRange: { start: Date, end: Date }, country?: string, region?: string, limit = 10): Promise<unknown[]> =>
+      client.getCities({ startDate: dateRange.start, endDate: dateRange.end, country, region, limit }),
     fetchTimeSeries: (dateRange: { start: Date, end: Date }): Promise<unknown[]> =>
       client.getTimeSeries({ startDate: dateRange.start, endDate: dateRange.end }),
     fetchGoals: (dateRange: { start: Date, end: Date }): Promise<unknown[]> =>

@@ -40,6 +40,8 @@ export interface DashboardData {
   browsers: Array<{ name: string, count: number, percentage: number }>
   operatingSystems: Array<{ name: string, count: number, percentage: number }>
   countries: Array<{ name: string, code: string, visitors: number, percentage: number }>
+  regions: Array<{ name: string, country: string, visitors: number, percentage: number }>
+  cities: Array<{ name: string, region: string, country: string, visitors: number, percentage: number }>
   // Goals
   goals: GoalConversion[]
 }
@@ -65,6 +67,8 @@ export function useDashboardData(options: DashboardDataOptions) {
   const browsers = ref<Array<{ name: string, count: number, percentage: number }>>([])
   const operatingSystems = ref<Array<{ name: string, count: number, percentage: number }>>([])
   const countries = ref<Array<{ name: string, code: string, visitors: number, percentage: number }>>([])
+  const regions = ref<Array<{ name: string, country: string, visitors: number, percentage: number }>>([])
+  const cities = ref<Array<{ name: string, region: string, country: string, visitors: number, percentage: number }>>([])
   const goals = ref<GoalConversion[]>([])
 
   // Intervals
@@ -167,6 +171,41 @@ export function useDashboardData(options: DashboardDataOptions) {
     }
   }
 
+  // Fetch regions data
+  async function fetchRegions(country?: string) {
+    try {
+      const fetchOptions = {
+        startDate: dateRange.value.start,
+        endDate: dateRange.value.end,
+        limit: 10,
+        country,
+      }
+      const regionsResult = await client.getRegions(fetchOptions)
+      regions.value = transformRegionData(regionsResult, country || '')
+    }
+    catch (err) {
+      console.error('Regions fetch error:', err)
+    }
+  }
+
+  // Fetch cities data
+  async function fetchCities(country?: string, region?: string) {
+    try {
+      const fetchOptions = {
+        startDate: dateRange.value.start,
+        endDate: dateRange.value.end,
+        limit: 10,
+        country,
+        region,
+      }
+      const citiesResult = await client.getCities(fetchOptions)
+      cities.value = transformCityData(citiesResult, country || '', region || '')
+    }
+    catch (err) {
+      console.error('Cities fetch error:', err)
+    }
+  }
+
   // Start polling
   function startPolling() {
     if (options.refreshInterval && options.refreshInterval > 0) {
@@ -227,6 +266,8 @@ export function useDashboardData(options: DashboardDataOptions) {
     browsers,
     operatingSystems,
     countries,
+    regions,
+    cities,
     goals,
 
     // Computed
@@ -235,6 +276,8 @@ export function useDashboardData(options: DashboardDataOptions) {
     // Methods
     refresh: fetchData,
     setDateRange,
+    fetchRegions,
+    fetchCities,
   }
 }
 
@@ -312,6 +355,27 @@ function getCountryCode(countryName: string): string {
     'China': 'CN',
   }
   return codes[countryName] || 'XX'
+}
+
+function transformRegionData(data: TopItem[], country: string): Array<{ name: string, country: string, visitors: number, percentage: number }> {
+  const total = data.reduce((sum, d) => sum + d.value, 0)
+  return data.map(d => ({
+    name: d.name,
+    country,
+    visitors: d.value,
+    percentage: total > 0 ? d.value / total : 0,
+  }))
+}
+
+function transformCityData(data: TopItem[], country: string, region: string): Array<{ name: string, region: string, country: string, visitors: number, percentage: number }> {
+  const total = data.reduce((sum, d) => sum + d.value, 0)
+  return data.map(d => ({
+    name: d.name,
+    region,
+    country,
+    visitors: d.value,
+    percentage: total > 0 ? d.value / total : 0,
+  }))
 }
 
 export default useDashboardData

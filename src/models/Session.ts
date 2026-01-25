@@ -112,6 +112,22 @@ const SessionModel: Model = {
       },
     },
 
+    region: {
+      fillable: true,
+      validation: {
+        rule: 'string',
+      },
+      comment: 'Region/state code or name',
+    },
+
+    city: {
+      fillable: true,
+      validation: {
+        rule: 'string',
+      },
+      comment: 'City name',
+    },
+
     // Device information
     deviceType: {
       fillable: true,

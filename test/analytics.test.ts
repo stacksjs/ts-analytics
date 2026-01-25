@@ -562,7 +562,7 @@ describe('AnalyticsStore', () => {
       expect(command.command).toBe('UpdateItem')
       expect(command.input.Key.pk).toEqual({ S: 'SITE#site-123' })
       expect(command.input.Key.sk).toEqual({ S: 'REALTIME#2024-01-15T14:30' })
-      expect(command.input.ExpressionAttributeValues[':cv']).toEqual({ N: '25' })
+      expect(command.input.ExpressionAttributeValues[':pvInc']).toEqual({ N: '1' })
     })
 
     it('should generate getRealtimeStatsCommand', () => {
@@ -861,14 +861,16 @@ describe('AnalyticsAggregator', () => {
 
       const stats = aggregator.aggregateGeoStats('site-123', 'day', periodStart, sessions)
 
-      expect(stats).toHaveLength(3)
+      // Filter for country-level stats only (no region/city)
+      const countryStats = stats.filter(s => !s.region && !s.city)
+      expect(countryStats).toHaveLength(3)
 
-      const usStats = stats.find(s => s.country === 'US')!
+      const usStats = countryStats.find(s => s.country === 'US')!
       expect(usStats.visitors).toBe(2)
       expect(usStats.pageViews).toBe(4)
       expect(usStats.bounceRate).toBe(0.5)
 
-      const gbStats = stats.find(s => s.country === 'GB')!
+      const gbStats = countryStats.find(s => s.country === 'GB')!
       expect(gbStats.visitors).toBe(1)
     })
   })
@@ -1544,6 +1546,7 @@ describe('AnalyticsQueryAPI', () => {
           currentVisitors: 25,
           pageViews: 50,
           activePages: { '/home': 10, '/blog': 8 },
+          visitorIds: ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'v13', 'v14', 'v15'],
           ttl: Math.floor(Date.now() / 1000) + 600,
         },
         {
@@ -1552,12 +1555,14 @@ describe('AnalyticsQueryAPI', () => {
           currentVisitors: 22,
           pageViews: 45,
           activePages: { '/home': 8, '/pricing': 7 },
+          visitorIds: ['v1', 'v2', 'v3', 'v10', 'v11', 'v12', 'v16', 'v17', 'v18', 'v19', 'v20', 'v21', 'v22', 'v23', 'v24', 'v25'],
           ttl: Math.floor(Date.now() / 1000) + 540,
         },
       ]
 
       const realtimeData = AnalyticsQueryAPI.processRealtimeData(realtimeStats)
 
+      // 15 unique visitors in first minute + 10 new unique visitors in second = 25 total unique
       expect(realtimeData.currentVisitors).toBe(25)
       expect(realtimeData.pageViewsLastHour).toBe(95)
       expect(realtimeData.topActivePages).toHaveLength(3)

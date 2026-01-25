@@ -859,8 +859,9 @@ export class AnalyticsStore {
 
   /**
    * Generate command to update realtime stats
+   * Uses a DynamoDB String Set to track unique visitor IDs per minute
    */
-  updateRealtimeStatsCommand(stats: RealtimeStats): {
+  updateRealtimeStatsCommand(stats: RealtimeStats & { visitorId?: string }): {
     command: 'UpdateItem'
     input: {
       TableName: string
@@ -872,6 +873,9 @@ export class AnalyticsStore {
   } {
     const keys = AnalyticsKeyPatterns.realtimeStats
 
+    // Build expression based on whether we have a visitor ID to track
+    const hasVisitorId = stats.visitorId && stats.visitorId.length > 0
+
     return {
       command: 'UpdateItem',
       input: {
@@ -880,27 +884,34 @@ export class AnalyticsStore {
           pk: { S: keys.pk(stats.siteId) },
           sk: { S: keys.sk(stats.minute) },
         },
-        UpdateExpression: `
-          SET #cv = :cv,
-              #pv = if_not_exists(#pv, :zero) + :pvInc,
+        UpdateExpression: hasVisitorId
+          ? `
+          SET #pv = if_not_exists(#pv, :zero) + :pvInc,
+              #activePages = :activePages,
+              #ttl = :ttl,
+              #et = :et
+          ADD #visitorIds :visitorId
+        `.trim()
+          : `
+          SET #pv = if_not_exists(#pv, :zero) + :pvInc,
               #activePages = :activePages,
               #ttl = :ttl,
               #et = :et
         `.trim(),
         ExpressionAttributeNames: {
-          '#cv': 'currentVisitors',
           '#pv': 'pageViews',
           '#activePages': 'activePages',
           '#ttl': 'ttl',
           '#et': '_et',
+          ...(hasVisitorId ? { '#visitorIds': 'visitorIds' } : {}),
         },
         ExpressionAttributeValues: {
-          ':cv': { N: String(stats.currentVisitors) },
           ':pvInc': { N: '1' },
           ':activePages': { S: JSON.stringify(stats.activePages) },
           ':ttl': { N: String(stats.ttl) },
           ':zero': { N: '0' },
           ':et': { S: 'RealtimeStats' },
+          ...(hasVisitorId ? { ':visitorId': { SS: [stats.visitorId!] } } : {}),
         },
       },
     }
@@ -1030,6 +1041,105 @@ export class AnalyticsStore {
         Limit: limit,
       },
     }
+  }
+
+  /**
+   * Generate command to get regions for a country
+   */
+  getRegionsCommand(
+    siteId: string,
+    period: AggregationPeriod,
+    periodStart: string,
+    country?: string,
+    limit: number = 10,
+  ): {
+      command: 'Query'
+      input: {
+        TableName: string
+        KeyConditionExpression: string
+        ExpressionAttributeValues: Record<string, unknown>
+        FilterExpression?: string
+        ExpressionAttributeNames?: Record<string, string>
+        Limit: number
+      }
+    } {
+    const keys = AnalyticsKeyPatterns.geoStats
+    const skPrefix = country
+      ? `GEOSTATS#${period.toUpperCase()}#${periodStart}#${country}#`
+      : `GEOSTATS#${period.toUpperCase()}#${periodStart}`
+
+    const input: ReturnType<typeof this.getRegionsCommand>['input'] = {
+      TableName: this.options.tableName,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: keys.pk(siteId) },
+        ':skPrefix': { S: skPrefix },
+      },
+      Limit: limit,
+    }
+
+    // Filter to only include records with region but without city (region-level aggregates)
+    input.FilterExpression = 'attribute_exists(#region) AND attribute_not_exists(#city)'
+    input.ExpressionAttributeNames = {
+      '#region': 'region',
+      '#city': 'city',
+    }
+
+    return { command: 'Query', input }
+  }
+
+  /**
+   * Generate command to get cities, optionally filtered by country and/or region
+   */
+  getCitiesCommand(
+    siteId: string,
+    period: AggregationPeriod,
+    periodStart: string,
+    options?: { country?: string, region?: string },
+    limit: number = 10,
+  ): {
+      command: 'Query'
+      input: {
+        TableName: string
+        KeyConditionExpression: string
+        ExpressionAttributeValues: Record<string, unknown>
+        FilterExpression?: string
+        ExpressionAttributeNames?: Record<string, string>
+        Limit: number
+      }
+    } {
+    const keys = AnalyticsKeyPatterns.geoStats
+    let skPrefix = `GEOSTATS#${period.toUpperCase()}#${periodStart}`
+
+    if (options?.country) {
+      skPrefix += `#${options.country}`
+      if (options?.region) {
+        skPrefix += `#${options.region}`
+      }
+    }
+
+    const input: ReturnType<typeof this.getCitiesCommand>['input'] = {
+      TableName: this.options.tableName,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: keys.pk(siteId) },
+        ':skPrefix': { S: skPrefix },
+      },
+      Limit: limit,
+    }
+
+    // Filter to only include records with city (city-level aggregates)
+    input.FilterExpression = 'attribute_exists(#city)'
+    input.ExpressionAttributeNames = { '#city': 'city' }
+
+    // Add region filter if country is specified but region is not (filter by region attribute)
+    if (options?.country && options?.region) {
+      input.FilterExpression += ' AND #region = :region'
+      input.ExpressionAttributeNames['#region'] = 'region'
+      input.ExpressionAttributeValues[':region'] = { S: options.region }
+    }
+
+    return { command: 'Query', input }
   }
 
   // ==========================================================================
@@ -1757,6 +1867,7 @@ export class AnalyticsAggregator {
 
   /**
    * Generate geographic stats from sessions
+   * Creates hierarchical aggregations at country, region, and city levels
    */
   aggregateGeoStats(
     siteId: string,
@@ -1765,6 +1876,7 @@ export class AnalyticsAggregator {
     sessions: Session[],
   ): GeoStats[] {
     const periodStartStr = AnalyticsStore.getPeriodStart(periodStart, period)
+    const results: GeoStats[] = []
 
     // Group by country
     const countryGroups = new Map<string, Session[]>()
@@ -1775,11 +1887,11 @@ export class AnalyticsAggregator {
       countryGroups.set(country, existing)
     }
 
-    const results: GeoStats[] = []
-    for (const [country, groupSessions] of countryGroups) {
-      const visitors = new Set(groupSessions.map(s => s.visitorId))
-      const pageViews = groupSessions.reduce((sum, s) => sum + s.pageViewCount, 0)
-      const bounces = groupSessions.filter(s => s.isBounce).length
+    // Country-level stats
+    for (const [country, countrySessions] of countryGroups) {
+      const visitors = new Set(countrySessions.map(s => s.visitorId))
+      const pageViews = countrySessions.reduce((sum, s) => sum + s.pageViewCount, 0)
+      const bounces = countrySessions.filter(s => s.isBounce).length
 
       results.push({
         siteId,
@@ -1788,8 +1900,61 @@ export class AnalyticsAggregator {
         country,
         visitors: visitors.size,
         pageViews,
-        bounceRate: groupSessions.length > 0 ? bounces / groupSessions.length : 0,
+        bounceRate: countrySessions.length > 0 ? bounces / countrySessions.length : 0,
       })
+
+      // Region-level stats (group by country+region)
+      const regionGroups = new Map<string, Session[]>()
+      for (const session of countrySessions) {
+        const region = session.region || 'Unknown'
+        const existing = regionGroups.get(region) || []
+        existing.push(session)
+        regionGroups.set(region, existing)
+      }
+
+      for (const [region, regionSessions] of regionGroups) {
+        const regionVisitors = new Set(regionSessions.map(s => s.visitorId))
+        const regionPageViews = regionSessions.reduce((sum, s) => sum + s.pageViewCount, 0)
+        const regionBounces = regionSessions.filter(s => s.isBounce).length
+
+        results.push({
+          siteId,
+          period,
+          periodStart: periodStartStr,
+          country,
+          region,
+          visitors: regionVisitors.size,
+          pageViews: regionPageViews,
+          bounceRate: regionSessions.length > 0 ? regionBounces / regionSessions.length : 0,
+        })
+
+        // City-level stats (group by country+region+city)
+        const cityGroups = new Map<string, Session[]>()
+        for (const session of regionSessions) {
+          const city = session.city || 'Unknown'
+          const existing = cityGroups.get(city) || []
+          existing.push(session)
+          cityGroups.set(city, existing)
+        }
+
+        for (const [city, citySessions] of cityGroups) {
+          const cityVisitors = new Set(citySessions.map(s => s.visitorId))
+          const cityPageViews = citySessions.reduce((sum, s) => sum + s.pageViewCount, 0)
+          const cityBounces = citySessions.filter(s => s.isBounce).length
+
+          results.push({
+            siteId,
+            period,
+            periodStart: periodStartStr,
+            country,
+            region,
+            city,
+            visitors: cityVisitors.size,
+            pageViews: cityPageViews,
+            bounceRate: citySessions.length > 0 ? cityBounces / citySessions.length : 0,
+          })
+        }
+      }
     }
 
     return results
@@ -2240,6 +2405,59 @@ export class AnalyticsQueryAPI {
   }
 
   /**
+   * Generate query command for fetching top regions
+   * @param siteId - Site ID
+   * @param options - Query options including dateRange, country filter, and limit
+   */
+  getRegions(
+    siteId: string,
+    options: {
+      dateRange: DateRange
+      country?: string
+      limit?: number
+    },
+  ): ReturnType<AnalyticsStore['getRegionsCommand']> {
+    const period = AnalyticsQueryAPI.determinePeriod(options.dateRange)
+    const periodStart = AnalyticsStore.getPeriodStart(options.dateRange.end, period)
+    const limit = options.limit ?? 10
+
+    return this.store.getRegionsCommand(
+      siteId,
+      period,
+      periodStart,
+      options.country,
+      limit,
+    )
+  }
+
+  /**
+   * Generate query command for fetching top cities
+   * @param siteId - Site ID
+   * @param options - Query options including dateRange, country/region filters, and limit
+   */
+  getCities(
+    siteId: string,
+    options: {
+      dateRange: DateRange
+      country?: string
+      region?: string
+      limit?: number
+    },
+  ): ReturnType<AnalyticsStore['getCitiesCommand']> {
+    const period = AnalyticsQueryAPI.determinePeriod(options.dateRange)
+    const periodStart = AnalyticsStore.getPeriodStart(options.dateRange.end, period)
+    const limit = options.limit ?? 10
+
+    return this.store.getCitiesCommand(
+      siteId,
+      period,
+      periodStart,
+      { country: options.country, region: options.region },
+      limit,
+    )
+  }
+
+  /**
    * Process aggregated stats results into dashboard summary
    */
   static processSummary(
@@ -2351,6 +2569,36 @@ export class AnalyticsQueryAPI {
   }
 
   /**
+   * Process geo stats into top regions
+   */
+  static processTopRegions(geoStats: GeoStats[], totalVisitors: number): TopItem[] {
+    return geoStats
+      .filter(g => g.region && !g.city) // Only region-level stats (has region, no city)
+      .sort((a, b) => b.visitors - a.visitors)
+      .map(g => ({
+        name: g.region!,
+        value: g.visitors,
+        percentage: totalVisitors > 0 ? (g.visitors / totalVisitors) * 100 : 0,
+        metadata: { country: g.country },
+      }))
+  }
+
+  /**
+   * Process geo stats into top cities
+   */
+  static processTopCities(geoStats: GeoStats[], totalVisitors: number): TopItem[] {
+    return geoStats
+      .filter(g => g.city) // Only city-level stats
+      .sort((a, b) => b.visitors - a.visitors)
+      .map(g => ({
+        name: g.city!,
+        value: g.visitors,
+        percentage: totalVisitors > 0 ? (g.visitors / totalVisitors) * 100 : 0,
+        metadata: { country: g.country, region: g.region },
+      }))
+  }
+
+  /**
    * Process device stats into top items
    */
   static processTopDevices(
@@ -2374,10 +2622,18 @@ export class AnalyticsQueryAPI {
   static processRealtimeData(
     realtimeStats: RealtimeStats[],
   ): RealtimeData {
-    // Sum up recent minutes
-    const currentVisitors = realtimeStats.length > 0
-      ? realtimeStats[0].currentVisitors
-      : 0
+    // Count unique visitors across all minutes by collecting visitor IDs
+    const uniqueVisitorIds = new Set<string>()
+    for (const stat of realtimeStats) {
+      // visitorIds is stored as a DynamoDB String Set (SS) and comes as an array
+      const visitorIds = stat.visitorIds as string[] | undefined
+      if (visitorIds && Array.isArray(visitorIds)) {
+        for (const id of visitorIds) {
+          uniqueVisitorIds.add(id)
+        }
+      }
+    }
+    const currentVisitors = uniqueVisitorIds.size
 
     const pageViewsLastHour = realtimeStats.reduce((sum, s) => sum + s.pageViews, 0)
 

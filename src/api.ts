@@ -349,15 +349,16 @@ export class AnalyticsAPI {
           await ctx.sessionStore.set(`${payload.s}:${sessionId}`, session, 1800) // 30 min TTL
         }
 
-        // Update realtime stats
+        // Update realtime stats with visitor ID for unique visitor tracking
         const minute = timestamp.toISOString().slice(0, 16)
         const realtimeCommand = this.store.updateRealtimeStatsCommand({
           siteId: payload.s,
           minute,
-          currentVisitors: 1, // Simplified - would need proper counting
+          currentVisitors: 0, // Computed from visitorIds set on retrieval
           pageViews: 1,
           activePages: { [parsedUrl.pathname]: 1 },
           ttl: Math.floor(Date.now() / 1000) + 600, // 10 min TTL
+          visitorId, // Track unique visitor ID in DynamoDB String Set
         })
         await ctx.executeCommand(realtimeCommand)
 
@@ -821,6 +822,141 @@ export class AnalyticsAPI {
   }
 
   /**
+   * GET /sites/:siteId/regions - Get top regions
+   * Query params:
+   *   - start/startDate: Start date (ISO string)
+   *   - end/endDate: End date (ISO string)
+   *   - country: Filter by country code (e.g., 'US')
+   *   - limit: Number of results (default 10)
+   */
+  async handleGetRegions(
+    req: AnalyticsRequest,
+    ctx: HandlerContext,
+  ): Promise<AnalyticsResponse> {
+    try {
+      const { siteId } = req.params
+      const { start, end, startDate: startDateParam, endDate: endDateParam, country, limit } = req.query
+
+      if (!siteId) {
+        return this.errorResponse(400, 'Missing siteId')
+      }
+
+      const startDate = (start || startDateParam) ? new Date(start || startDateParam) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      const endDate = (end || endDateParam) ? new Date(end || endDateParam) : new Date()
+      const dateRange = { start: startDate, end: endDate }
+
+      const command = ctx.queryApi.getRegions(siteId, {
+        dateRange,
+        country: country || undefined,
+        limit: limit ? Number.parseInt(limit, 10) : 10,
+      })
+      const result = await ctx.executeCommand(command) as { Items?: unknown[] }
+
+      // Calculate total visitors for percentage calculation
+      const items = (result.Items || []) as Array<{ visitors?: { N?: string } }>
+      const totalVisitors = items.reduce((sum, item) => {
+        return sum + (item.visitors?.N ? Number.parseInt(item.visitors.N, 10) : 0)
+      }, 0)
+
+      const regions = AnalyticsQueryAPI.processTopRegions(
+        items as Parameters<typeof AnalyticsQueryAPI.processTopRegions>[0],
+        totalVisitors,
+      )
+
+      return {
+        status: 200,
+        headers: {
+          ...this.getCorsHeaders(req.headers.origin),
+          'Content-Type': 'application/json',
+        },
+        body: {
+          regions,
+          dateRange: {
+            start: startDate.toISOString(),
+            end: endDate.toISOString(),
+          },
+          filters: {
+            country: country || null,
+          },
+        },
+      }
+    }
+    catch (error) {
+      console.error('Get regions error:', error)
+      return this.errorResponse(500, 'Failed to get regions')
+    }
+  }
+
+  /**
+   * GET /sites/:siteId/cities - Get top cities
+   * Query params:
+   *   - start/startDate: Start date (ISO string)
+   *   - end/endDate: End date (ISO string)
+   *   - country: Filter by country code (e.g., 'US')
+   *   - region: Filter by region code (e.g., 'CA' for California)
+   *   - limit: Number of results (default 10)
+   */
+  async handleGetCities(
+    req: AnalyticsRequest,
+    ctx: HandlerContext,
+  ): Promise<AnalyticsResponse> {
+    try {
+      const { siteId } = req.params
+      const { start, end, startDate: startDateParam, endDate: endDateParam, country, region, limit } = req.query
+
+      if (!siteId) {
+        return this.errorResponse(400, 'Missing siteId')
+      }
+
+      const startDate = (start || startDateParam) ? new Date(start || startDateParam) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      const endDate = (end || endDateParam) ? new Date(end || endDateParam) : new Date()
+      const dateRange = { start: startDate, end: endDate }
+
+      const command = ctx.queryApi.getCities(siteId, {
+        dateRange,
+        country: country || undefined,
+        region: region || undefined,
+        limit: limit ? Number.parseInt(limit, 10) : 10,
+      })
+      const result = await ctx.executeCommand(command) as { Items?: unknown[] }
+
+      // Calculate total visitors for percentage calculation
+      const items = (result.Items || []) as Array<{ visitors?: { N?: string } }>
+      const totalVisitors = items.reduce((sum, item) => {
+        return sum + (item.visitors?.N ? Number.parseInt(item.visitors.N, 10) : 0)
+      }, 0)
+
+      const cities = AnalyticsQueryAPI.processTopCities(
+        items as Parameters<typeof AnalyticsQueryAPI.processTopCities>[0],
+        totalVisitors,
+      )
+
+      return {
+        status: 200,
+        headers: {
+          ...this.getCorsHeaders(req.headers.origin),
+          'Content-Type': 'application/json',
+        },
+        body: {
+          cities,
+          dateRange: {
+            start: startDate.toISOString(),
+            end: endDate.toISOString(),
+          },
+          filters: {
+            country: country || null,
+            region: region || null,
+          },
+        },
+      }
+    }
+    catch (error) {
+      console.error('Get cities error:', error)
+      return this.errorResponse(500, 'Failed to get cities')
+    }
+  }
+
+  /**
    * POST /aggregate - Trigger aggregation (for scheduled jobs)
    */
   async handleAggregate(
@@ -988,6 +1124,14 @@ export function createBunRouter(api: AnalyticsAPI, executeCommand: HandlerContex
         req.params.siteId = path.split('/').slice(-2)[0]
         response = await api.handleGetTopPages(req, ctx)
       }
+      else if (method === 'GET' && path.match(/\/sites\/[^/]+\/regions$/)) {
+        req.params.siteId = path.split('/').slice(-2)[0]
+        response = await api.handleGetRegions(req, ctx)
+      }
+      else if (method === 'GET' && path.match(/\/sites\/[^/]+\/cities$/)) {
+        req.params.siteId = path.split('/').slice(-2)[0]
+        response = await api.handleGetCities(req, ctx)
+      }
       else if (method === 'GET' && path.match(/\/sites\/[^/]+$/)) {
         req.params.siteId = path.split('/').pop()!
         response = await api.handleGetSite(req, ctx)
@@ -1068,6 +1212,12 @@ export function createLambdaHandler(api: AnalyticsAPI, executeCommand: HandlerCo
     }
     else if (req.method === 'POST' && req.params.siteId && req.path.endsWith('/goals')) {
       response = await api.handleCreateGoal(req, ctx)
+    }
+    else if (req.method === 'GET' && req.params.siteId && req.path.endsWith('/regions')) {
+      response = await api.handleGetRegions(req, ctx)
+    }
+    else if (req.method === 'GET' && req.params.siteId && req.path.endsWith('/cities')) {
+      response = await api.handleGetCities(req, ctx)
     }
     else if (req.method === 'GET' && req.params.siteId && !req.path.includes('/')) {
       response = await api.handleGetSite(req, ctx)
