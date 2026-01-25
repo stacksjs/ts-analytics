@@ -505,6 +505,7 @@ function getDashboardHtml(): string {
     let siteHostname = null
     let showGoalModal = false
     let editingGoal = null
+    let siteHasHistoricalData = cachedStats ? true : false // Track if site has ever had data
 
     // Browser icons (SVG)
     const browserIcons = {
@@ -604,6 +605,7 @@ function getDashboardHtml(): string {
       if (cached) {
         stats = cached
         previousStats = null
+        siteHasHistoricalData = true // Site has historical data if we have cached stats
         renderDashboard(false)
       }
 
@@ -701,6 +703,11 @@ function getDashboardHtml(): string {
         timeSeriesData = timeseriesRes.timeSeries || []
         lastUpdated = new Date()
 
+        // Mark site as having data if we see any (don't show setup for empty time ranges)
+        if (stats.views > 0 || stats.sessions > 0 || pages.length > 0 || timeSeriesData.some(t => t.views > 0)) {
+          siteHasHistoricalData = true
+        }
+
         renderDashboard(true)
       } catch (error) {
         console.error('Failed to fetch:', error)
@@ -749,7 +756,9 @@ function getDashboardHtml(): string {
       const noDataMsg = document.getElementById('no-data-msg')
       const mainContent = document.getElementById('main-content')
 
-      if (!hasAnyData()) {
+      // Only show setup instructions for truly new sites (no historical data)
+      // If site has historical data but current time range is empty, just show empty charts
+      if (!hasAnyData() && !siteHasHistoricalData) {
         noDataMsg.style.display = 'block'
         mainContent.style.display = 'none'
         document.getElementById('tracking-script').textContent = '<script src="' + API_ENDPOINT + '/sites/' + siteId + '/script" defer></' + 'script>'
