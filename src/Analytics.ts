@@ -3114,12 +3114,15 @@ export interface TrackingScriptOptions {
   trackOutboundLinks?: boolean
   /** Custom domain for script (optional) */
   customDomain?: string
+  /** Use stealth mode (shorter endpoint paths, less identifiable) */
+  stealthMode?: boolean
 }
 
 /**
  * Generate minimal tracking script
  */
 export function generateTrackingScript(options: TrackingScriptOptions): string {
+  const endpoint = options.stealthMode ? '/t' : '/collect'
   return `
 <!-- Analytics -->
 <script data-site="${options.siteId}" data-api="${options.apiEndpoint}" defer>
@@ -3131,7 +3134,7 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
   var q=[],sk='_tsa_sid',sid;try{sid=sessionStorage.getItem(sk)}catch(e){}if(!sid){sid=Math.random().toString(36).slice(2);try{sessionStorage.setItem(sk,sid)}catch(e){}}
   function t(e,p){
     var x=new XMLHttpRequest();
-    x.open('POST',api+'/collect',true);
+    x.open('POST',api+'${endpoint}',true);
     x.setRequestHeader('Content-Type','application/json');
     x.send(JSON.stringify({
       s:site,sid:sid,e:e,p:p||{},

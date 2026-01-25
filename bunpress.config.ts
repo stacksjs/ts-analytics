@@ -7,11 +7,12 @@ const config: BunPressConfig = {
 
   theme: 'vitepress',
 
-  // Self-hosted analytics using ts-analytics
+  // Self-hosted analytics using ts-analytics (stealth mode to avoid ad blockers)
   analytics: {
     enabled: true,
     siteId: 'mkqiay2c2l1zcvca',
-    apiEndpoint: 'https://analytics.stacksjs.com',
+    apiEndpoint: 'https://a.stacksjs.com',
+    collectEndpoint: '/t', // Stealth endpoint (less likely to be blocked)
     honorDNT: true,
     trackHashChanges: false,
     trackOutboundLinks: true,

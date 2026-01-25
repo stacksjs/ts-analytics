@@ -868,6 +868,8 @@ export interface TrackingScriptOptions {
   honorDnt?: boolean
   trackHashChanges?: boolean
   trackOutboundLinks?: boolean
+  /** Use stealth mode (shorter endpoint paths, less identifiable) */
+  stealthMode?: boolean
 }
 
 // ============================================================================

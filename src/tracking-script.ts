@@ -44,6 +44,8 @@ export interface TrackingScriptConfig {
   minify?: boolean
   /** Heatmap tracking configuration */
   heatmap?: HeatmapTrackingConfig
+  /** Use stealth mode (shorter endpoint paths, less identifiable) */
+  stealthMode?: boolean
 }
 
 export interface HeatmapTrackingConfig {
@@ -865,9 +867,10 @@ function minifyScript(script: string): string {
 /**
  * Generate a minimal tracking script (page views only)
  */
-export function generateMinimalTrackingScript(config: Pick<TrackingScriptConfig, 'siteId' | 'apiEndpoint' | 'honorDnt'>): string {
+export function generateMinimalTrackingScript(config: Pick<TrackingScriptConfig, 'siteId' | 'apiEndpoint' | 'honorDnt' | 'stealthMode'>): string {
+  const endpoint = config.stealthMode ? '/t' : '/collect'
   return `(function(){
-var s='${config.siteId}',e='${config.apiEndpoint}/collect';
+var s='${config.siteId}',e='${config.apiEndpoint}${endpoint}';
 ${config.honorDnt ? "if(navigator.doNotTrack==='1')return;" : ''}
 var sid=sessionStorage.getItem('sa_s')||Math.random().toString(36).slice(2);
 sessionStorage.setItem('sa_s',sid);

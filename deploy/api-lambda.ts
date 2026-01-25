@@ -16,6 +16,7 @@ const SERVICE_NAME = process.env.API_SERVICE_NAME || 'ts-analytics-api'
 const STACK_NAME = `${SERVICE_NAME}-lambda-stack`
 const REGION = process.env.AWS_REGION || 'us-east-1'
 const DOMAIN = process.env.API_DOMAIN || 'analytics.stacksjs.com'
+const STEALTH_DOMAIN = process.env.API_STEALTH_DOMAIN || 'a.stacksjs.com' // Less likely to be blocked
 const BASE_DOMAIN = process.env.BASE_DOMAIN || 'stacksjs.com'
 const TABLE_NAME = process.env.ANALYTICS_TABLE_NAME || 'ts-analytics'
 const BUCKET_NAME = `${SERVICE_NAME}-deployment-${REGION}`
@@ -33,38 +34,49 @@ async function deployLambdaAPI() {
   const acm = new ACMClient('us-east-1') // ACM certs must be in us-east-1 for API Gateway
   const acmValidator = new ACMDnsValidator('us-east-1')
 
-  // Step 0: Get or create SSL certificate for custom domain
-  console.log('\n0. Setting up SSL certificate...')
+  // Step 0: Get or create SSL certificates for custom domains
+  console.log('\n0. Setting up SSL certificates...')
   let certificateArn: string | undefined
+  let stealthCertificateArn: string | undefined
 
-  if (DOMAIN && BASE_DOMAIN) {
+  // Helper function to get or create certificate
+  async function getOrCreateCertificate(domain: string): Promise<string | undefined> {
     try {
-      // Check for existing certificate
-      const existingCert = await acm.findCertificateByDomain(DOMAIN)
+      const existingCert = await acm.findCertificateByDomain(domain)
       if (existingCert && existingCert.Status === 'ISSUED') {
-        certificateArn = existingCert.CertificateArn
-        console.log(`   Using existing certificate: ${certificateArn}`)
+        console.log(`   Using existing certificate for ${domain}: ${existingCert.CertificateArn}`)
+        return existingCert.CertificateArn
+      }
+
+      const hostedZone = await route53.findHostedZoneForDomain(domain)
+      if (hostedZone) {
+        const hostedZoneId = hostedZone.Id.replace('/hostedzone/', '')
+        console.log(`   Requesting certificate for ${domain}...`)
+        const certResult = await acmValidator.requestAndValidate({
+          domainName: domain,
+          hostedZoneId,
+          waitForValidation: true,
+          maxWaitMinutes: 10,
+        })
+        console.log(`   Certificate issued for ${domain}: ${certResult.certificateArn}`)
+        return certResult.certificateArn
       } else {
-        // Get hosted zone for validation
-        const hostedZone = await route53.findHostedZoneForDomain(DOMAIN)
-        if (hostedZone) {
-          const hostedZoneId = hostedZone.Id.replace('/hostedzone/', '')
-          console.log(`   Requesting certificate for ${DOMAIN}...`)
-          const certResult = await acmValidator.requestAndValidate({
-            domainName: DOMAIN,
-            hostedZoneId,
-            waitForValidation: true,
-            maxWaitMinutes: 10,
-          })
-          certificateArn = certResult.certificateArn
-          console.log(`   Certificate issued: ${certificateArn}`)
-        } else {
-          console.log(`   Warning: No hosted zone found for ${BASE_DOMAIN}`)
-        }
+        console.log(`   Warning: No hosted zone found for ${domain}`)
       }
     } catch (error) {
-      console.log(`   Warning: Could not setup certificate: ${error}`)
+      console.log(`   Warning: Could not setup certificate for ${domain}: ${error}`)
     }
+    return undefined
+  }
+
+  // Get certificate for main domain
+  if (DOMAIN && BASE_DOMAIN) {
+    certificateArn = await getOrCreateCertificate(DOMAIN)
+  }
+
+  // Get certificate for stealth domain (if different from main domain)
+  if (STEALTH_DOMAIN && STEALTH_DOMAIN !== DOMAIN) {
+    stealthCertificateArn = await getOrCreateCertificate(STEALTH_DOMAIN)
   }
 
   // Step 1: Create S3 bucket for deployment artifacts
@@ -166,6 +178,8 @@ async function deployLambdaAPI() {
       TableName: { Type: 'String', Default: TABLE_NAME },
       CertificateArn: { Type: 'String', Default: certificateArn || '' },
       CustomDomain: { Type: 'String', Default: DOMAIN || '' },
+      StealthCertificateArn: { Type: 'String', Default: stealthCertificateArn || '' },
+      StealthDomain: { Type: 'String', Default: STEALTH_DOMAIN || '' },
     },
 
     Resources: {
@@ -232,6 +246,7 @@ async function deployLambdaAPI() {
             Variables: {
               ANALYTICS_TABLE_NAME: { Ref: 'TableName' },
               AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
+              STEALTH_DOMAIN: STEALTH_DOMAIN,
             },
           },
         },
@@ -318,6 +333,31 @@ async function deployLambdaAPI() {
           },
         },
       } : {}),
+
+      // Stealth Domain (less likely to be blocked by ad blockers)
+      ...(stealthCertificateArn && STEALTH_DOMAIN !== DOMAIN ? {
+        StealthDomainName: {
+          Type: 'AWS::ApiGatewayV2::DomainName',
+          Properties: {
+            DomainName: { Ref: 'StealthDomain' },
+            DomainNameConfigurations: [
+              {
+                CertificateArn: { Ref: 'StealthCertificateArn' },
+                EndpointType: 'REGIONAL',
+              },
+            ],
+          },
+        },
+        StealthApiMapping: {
+          Type: 'AWS::ApiGatewayV2::ApiMapping',
+          DependsOn: ['StealthDomainName', 'ApiStage'],
+          Properties: {
+            ApiId: { Ref: 'HttpApi' },
+            DomainName: { Ref: 'StealthDomain' },
+            Stage: '$default',
+          },
+        },
+      } : {}),
     },
 
     Outputs: {
@@ -337,6 +377,16 @@ async function deployLambdaAPI() {
         CustomDomainHostedZoneId: {
           Description: 'Custom domain hosted zone ID',
           Value: { 'Fn::GetAtt': ['ApiDomainName', 'RegionalHostedZoneId'] },
+        },
+      } : {}),
+      ...(stealthCertificateArn && STEALTH_DOMAIN !== DOMAIN ? {
+        StealthDomainTarget: {
+          Description: 'Stealth domain target for Route53',
+          Value: { 'Fn::GetAtt': ['StealthDomainName', 'RegionalDomainName'] },
+        },
+        StealthDomainHostedZoneId: {
+          Description: 'Stealth domain hosted zone ID',
+          Value: { 'Fn::GetAtt': ['StealthDomainName', 'RegionalHostedZoneId'] },
         },
       } : {}),
     },
@@ -446,6 +496,39 @@ async function deployLambdaAPI() {
         else {
           console.log(`   Warning: Hosted zone for ${BASE_DOMAIN} not found`)
         }
+
+        // Also set up stealth domain if different from main domain and has its own certificate
+        if (STEALTH_DOMAIN && STEALTH_DOMAIN !== DOMAIN && stealthCertificateArn) {
+          const stealthDomainTarget = outputs.StealthDomainTarget
+          const stealthDomainHostedZoneId = outputs.StealthDomainHostedZoneId
+
+          if (stealthDomainTarget && stealthDomainHostedZoneId) {
+            const stealthHostedZone = await route53.findHostedZoneForDomain(STEALTH_DOMAIN)
+            if (stealthHostedZone) {
+              const stealthHostedZoneId = stealthHostedZone.Id.replace('/hostedzone/', '')
+              try {
+                await route53.createAliasRecord({
+                  HostedZoneId: stealthHostedZoneId,
+                  Name: STEALTH_DOMAIN,
+                  Type: 'A',
+                  TargetHostedZoneId: stealthDomainHostedZoneId,
+                  TargetDNSName: stealthDomainTarget,
+                  EvaluateTargetHealth: false,
+                })
+                console.log(`   Created A record: ${STEALTH_DOMAIN} -> ${stealthDomainTarget}`)
+              }
+              catch (error: unknown) {
+                const message = error instanceof Error ? error.message : String(error)
+                if (message.includes('already exists') || message.includes('it already exists')) {
+                  console.log(`   A record already exists: ${STEALTH_DOMAIN}`)
+                }
+                else {
+                  console.log(`   Warning: Could not create stealth A record: ${message}`)
+                }
+              }
+            }
+          }
+        }
       }
       else {
         console.log('   Warning: Custom domain outputs not available')
@@ -454,6 +537,7 @@ async function deployLambdaAPI() {
 
     const dashboardUrl = certificateArn ? `https://${DOMAIN}/dashboard` : `${apiEndpoint}/dashboard`
     const collectUrl = certificateArn ? `https://${DOMAIN}/collect` : `${apiEndpoint}/collect`
+    const stealthCollectUrl = stealthCertificateArn ? `https://${STEALTH_DOMAIN}/t` : null
 
     console.log('\n🎉 Analytics API deployed successfully!')
     console.log(`\nDashboard: ${dashboardUrl}?siteId=YOUR_SITE_ID`)
@@ -462,8 +546,13 @@ async function deployLambdaAPI() {
     if (certificateArn) {
       console.log(`\nCustom domain: https://${DOMAIN}`)
     }
+    if (stealthCollectUrl) {
+      console.log(`\nStealth domain (ad-blocker resistant):`)
+      console.log(`   Collect: ${stealthCollectUrl}`)
+      console.log(`   Script: https://${STEALTH_DOMAIN}/sites/{siteId}/script?stealth=true`)
+    }
     console.log(`\nUpdate your bunpress.config.ts apiEndpoint to:`)
-    console.log(`   ${collectUrl}`)
+    console.log(`   ${stealthCollectUrl || collectUrl}`)
   }
   catch (error) {
     console.error('Deployment failed:', error)

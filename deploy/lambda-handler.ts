@@ -1913,16 +1913,21 @@ async function handleScript(event: LambdaEvent) {
   const path = event.rawPath || event.path || ''
   const pathMatch = path.match(/\/sites\/([^/]+)\/script/)
   const siteId = event.pathParameters?.siteId || (pathMatch ? pathMatch[1] : null)
-  const apiEndpoint = event.queryStringParameters?.api || `https://${event.requestContext?.domainName}`
   const minimal = event.queryStringParameters?.minimal === 'true'
+  const stealth = event.queryStringParameters?.stealth === 'true'
+
+  // Use stealth domain (a.stacksjs.com) if stealth mode is requested
+  const defaultEndpoint = `https://${event.requestContext?.domainName}`
+  const stealthEndpoint = process.env.STEALTH_DOMAIN ? `https://${process.env.STEALTH_DOMAIN}` : defaultEndpoint
+  const apiEndpoint = event.queryStringParameters?.api || (stealth ? stealthEndpoint : defaultEndpoint)
 
   if (!siteId) {
     return response({ error: 'Missing siteId' }, 400)
   }
 
   const script = minimal
-    ? generateMinimalTrackingScript({ siteId, apiEndpoint, honorDnt: true })
-    : generateTrackingScript({ siteId, apiEndpoint, honorDnt: true, trackOutboundLinks: true })
+    ? generateMinimalTrackingScript({ siteId, apiEndpoint, honorDnt: true, stealthMode: stealth })
+    : generateTrackingScript({ siteId, apiEndpoint, honorDnt: true, trackOutboundLinks: true, stealthMode: stealth })
 
   return {
     statusCode: 200,
@@ -3451,7 +3456,7 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
     return handleDetailPage(detailMatch[1], event)
   }
 
-  if (path === '/collect' && method === 'POST') {
+  if ((path === '/collect' || path === '/t') && method === 'POST') {
     return handleCollect(event)
   }
 
