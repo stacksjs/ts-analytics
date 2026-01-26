@@ -810,6 +810,18 @@ function getDashboardHtml(): string {
         if (statsSection) statsSection.style.display = 'none'
         if (chartBox) chartBox.style.display = 'none'
         renderInsights()
+      } else if (tab === 'live') {
+        if (statsSection) statsSection.style.display = 'none'
+        if (chartBox) chartBox.style.display = 'none'
+        fetchLiveView()
+      } else if (tab === 'funnels') {
+        if (statsSection) statsSection.style.display = 'none'
+        if (chartBox) chartBox.style.display = 'none'
+        fetchFunnels()
+      } else if (tab === 'settings') {
+        if (statsSection) statsSection.style.display = 'none'
+        if (chartBox) chartBox.style.display = 'none'
+        renderSettings()
       }
     }
 
@@ -1200,6 +1212,400 @@ function getDashboardHtml(): string {
           \`).join('')}
         </div>
       \`
+    }
+
+    // Live view state
+    let liveActivities = []
+    let liveRefreshInterval = null
+
+    // Fetch live view
+    async function fetchLiveView() {
+      try {
+        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/live\`)
+        const data = await res.json()
+        liveActivities = data.activities || []
+        renderLiveView()
+
+        // Auto-refresh every 5 seconds
+        if (liveRefreshInterval) clearInterval(liveRefreshInterval)
+        liveRefreshInterval = setInterval(async () => {
+          if (activeTab === 'live') {
+            const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/live\`)
+            const data = await res.json()
+            liveActivities = data.activities || []
+            renderLiveView()
+          } else {
+            clearInterval(liveRefreshInterval)
+          }
+        }, 5000)
+      } catch (e) {
+        console.error('Failed to fetch live view:', e)
+      }
+    }
+
+    // Render live view
+    function renderLiveView() {
+      const grid = document.querySelector('.grid')
+      if (!grid) return
+
+      grid.innerHTML = \`
+        <div style="grid-column:1/-1">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+            <h3 style="font-size:1rem;display:flex;align-items:center;gap:0.5rem">
+              <span class="pulse"></span>
+              Live Activity
+            </h3>
+            <span style="font-size:0.75rem;color:var(--muted)">Auto-refreshing every 5s</span>
+          </div>
+          \${liveActivities.length === 0 ? \`
+            <div class="empty-cell">No recent activity. Visitors will appear here in real-time.</div>
+          \` : \`
+            <div style="display:flex;flex-direction:column;gap:0.5rem">
+              \${liveActivities.map(a => \`
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;display:flex;align-items:center;gap:1rem">
+                  <div style="width:8px;height:8px;background:var(--success);border-radius:50%"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:0.875rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${a.path || '/'}</div>
+                    <div style="font-size:0.6875rem;color:var(--muted)">\${a.country || 'Unknown'} • \${a.device || 'Unknown'} • \${a.browser || 'Unknown'}</div>
+                  </div>
+                  <div style="font-size:0.6875rem;color:var(--muted);white-space:nowrap">\${timeAgo(a.timestamp)}</div>
+                </div>
+              \`).join('')}
+            </div>
+          \`}
+        </div>
+      \`
+    }
+
+    function timeAgo(timestamp) {
+      const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000)
+      if (seconds < 60) return 'Just now'
+      if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago'
+      return Math.floor(seconds / 3600) + 'h ago'
+    }
+
+    // Funnels state
+    let funnels = []
+
+    // Fetch funnels
+    async function fetchFunnels() {
+      try {
+        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/funnels\`)
+        const data = await res.json()
+        funnels = data.funnels || []
+        renderFunnels()
+      } catch (e) {
+        console.error('Failed to fetch funnels:', e)
+      }
+    }
+
+    // Render funnels
+    function renderFunnels() {
+      const grid = document.querySelector('.grid')
+      if (!grid) return
+
+      grid.innerHTML = \`
+        <div style="grid-column:1/-1">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+            <h3 style="font-size:1rem">Conversion Funnels</h3>
+            <button class="export-btn" onclick="showCreateFunnelModal()" style="padding:0.5rem 1rem">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              New Funnel
+            </button>
+          </div>
+          \${funnels.length === 0 ? \`
+            <div class="empty-cell">
+              <p>No funnels configured yet.</p>
+              <p style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">Create a funnel to track conversion rates through your key user flows.</p>
+            </div>
+          \` : funnels.map(f => \`
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:0.75rem">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                <h4 style="font-size:0.875rem">\${f.name}</h4>
+                <button class="icon-btn" onclick="analyzeFunnel('\${f.id}')" title="View analysis">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                </button>
+              </div>
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                \${(f.steps || []).map((s, i) => \`
+                  <span style="font-size:0.6875rem;padding:0.25rem 0.5rem;background:var(--bg);border-radius:4px">\${i + 1}. \${s.name}</span>
+                \`).join('<span style="color:var(--accent)">→</span>')}
+              </div>
+            </div>
+          \`).join('')}
+        </div>
+      \`
+    }
+
+    // Analyze funnel
+    async function analyzeFunnel(funnelId) {
+      const params = getDateRangeParams(false)
+      try {
+        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/funnels/\${funnelId}\${params}\`)
+        const data = await res.json()
+        showFunnelAnalysis(data)
+      } catch (e) {
+        console.error('Failed to analyze funnel:', e)
+      }
+    }
+
+    function showFunnelAnalysis(data) {
+      const grid = document.querySelector('.grid')
+      if (!grid) return
+
+      const { funnel, steps, totalSessions, overallConversion } = data
+
+      grid.innerHTML = \`
+        <div style="grid-column:1/-1">
+          <button onclick="fetchFunnels()" style="background:none;border:none;color:var(--muted);cursor:pointer;margin-bottom:1rem;font-size:0.8125rem">← Back to Funnels</button>
+          <h3 style="font-size:1rem;margin-bottom:0.5rem">\${funnel.name}</h3>
+          <p style="font-size:0.75rem;color:var(--muted);margin-bottom:1.5rem">\${totalSessions} sessions analyzed • \${overallConversion}% overall conversion</p>
+
+          <div style="display:flex;gap:0.5rem;align-items:stretch">
+            \${steps.map((s, i) => \`
+              <div style="flex:1;text-align:center">
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:0.5rem">
+                  <div style="font-size:1.5rem;font-weight:600;color:var(--text)">\${s.visitors}</div>
+                  <div style="font-size:0.6875rem;color:var(--muted);margin-top:0.25rem">\${s.conversionRate}% of total</div>
+                </div>
+                <div style="font-size:0.75rem;font-weight:500">\${s.name}</div>
+                \${i > 0 ? '<div style="font-size:0.6875rem;color:var(--error);margin-top:0.25rem">↓ ' + s.dropoffRate + '% drop</div>' : ''}
+              </div>
+              \${i < steps.length - 1 ? '<div style="display:flex;align-items:center;color:var(--muted);font-size:1.5rem">→</div>' : ''}
+            \`).join('')}
+          </div>
+        </div>
+      \`
+    }
+
+    function showCreateFunnelModal() {
+      // Simple prompt-based funnel creation (could be enhanced with a modal)
+      const name = prompt('Enter funnel name:')
+      if (!name) return
+
+      const stepsInput = prompt('Enter step patterns (comma-separated paths, e.g., /,/pricing,/signup):')
+      if (!stepsInput) return
+
+      const steps = stepsInput.split(',').map((pattern, i) => ({
+        name: pattern.trim() || 'Step ' + (i + 1),
+        type: 'pageview',
+        pattern: pattern.trim()
+      }))
+
+      if (steps.length < 2) {
+        alert('At least 2 steps are required')
+        return
+      }
+
+      createFunnel(name, steps)
+    }
+
+    async function createFunnel(name, steps) {
+      try {
+        await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/funnels\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, steps })
+        })
+        fetchFunnels()
+      } catch (e) {
+        console.error('Failed to create funnel:', e)
+      }
+    }
+
+    // Settings state
+    let settingsData = {}
+
+    // Render settings
+    async function renderSettings() {
+      const grid = document.querySelector('.grid')
+      if (!grid) return
+
+      // Fetch various settings
+      try {
+        const [retentionRes, teamRes, webhooksRes, emailReportsRes] = await Promise.all([
+          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/retention\`).then(r => r.json()).catch(() => ({ retentionDays: 365 })),
+          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/team\`).then(r => r.json()).catch(() => ({ members: [] })),
+          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/webhooks\`).then(r => r.json()).catch(() => ({ webhooks: [] })),
+          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/email-reports\`).then(r => r.json()).catch(() => ({ reports: [] }))
+        ])
+
+        settingsData = { retention: retentionRes, team: teamRes, webhooks: webhooksRes, emailReports: emailReportsRes }
+      } catch (e) {
+        console.error('Failed to fetch settings:', e)
+      }
+
+      const { retention, team, webhooks, emailReports } = settingsData
+
+      grid.innerHTML = \`
+        <div style="grid-column:1/-1">
+          <h3 style="font-size:1rem;margin-bottom:1.5rem">Settings</h3>
+
+          <!-- Data Retention -->
+          <div class="panel" style="margin-bottom:1rem">
+            <h4 style="font-size:0.875rem;margin-bottom:0.75rem">Data Retention</h4>
+            <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Configure how long to keep analytics data.</p>
+            <select id="retention-select" class="filter-select" style="width:auto" onchange="updateRetention(this.value)">
+              <option value="30" \${retention.retentionDays === 30 ? 'selected' : ''}>30 days</option>
+              <option value="90" \${retention.retentionDays === 90 ? 'selected' : ''}>90 days</option>
+              <option value="180" \${retention.retentionDays === 180 ? 'selected' : ''}>180 days</option>
+              <option value="365" \${retention.retentionDays === 365 ? 'selected' : ''}>1 year</option>
+              <option value="730" \${retention.retentionDays === 730 ? 'selected' : ''}>2 years</option>
+            </select>
+          </div>
+
+          <!-- Team Members -->
+          <div class="panel" style="margin-bottom:1rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+              <h4 style="font-size:0.875rem">Team Members</h4>
+              <button class="export-btn" onclick="inviteTeamMember()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Invite</button>
+            </div>
+            \${(team.members || []).length === 0 ? \`
+              <p style="font-size:0.75rem;color:var(--muted)">No team members yet.</p>
+            \` : \`
+              <div style="display:flex;flex-direction:column;gap:0.5rem">
+                \${(team.members || []).map(m => \`
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
+                    <span style="font-size:0.8125rem">\${m.email}</span>
+                    <span style="font-size:0.6875rem;color:var(--muted)">\${m.role} • \${m.status}</span>
+                  </div>
+                \`).join('')}
+              </div>
+            \`}
+          </div>
+
+          <!-- Webhooks -->
+          <div class="panel" style="margin-bottom:1rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+              <h4 style="font-size:0.875rem">Webhooks (Slack/Discord)</h4>
+              <button class="export-btn" onclick="addWebhook()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Add</button>
+            </div>
+            \${(webhooks.webhooks || []).length === 0 ? \`
+              <p style="font-size:0.75rem;color:var(--muted)">No webhooks configured. Add a Slack or Discord webhook to receive alerts.</p>
+            \` : \`
+              <div style="display:flex;flex-direction:column;gap:0.5rem">
+                \${(webhooks.webhooks || []).map(w => \`
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
+                    <span style="font-size:0.8125rem">\${w.type} • \${w.url}</span>
+                    <button class="icon-btn danger" onclick="deleteWebhook('\${w.id}')">×</button>
+                  </div>
+                \`).join('')}
+              </div>
+            \`}
+          </div>
+
+          <!-- Email Reports -->
+          <div class="panel" style="margin-bottom:1rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+              <h4 style="font-size:0.875rem">Email Reports</h4>
+              <button class="export-btn" onclick="addEmailReport()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Add</button>
+            </div>
+            \${(emailReports.reports || []).length === 0 ? \`
+              <p style="font-size:0.75rem;color:var(--muted)">No email reports scheduled.</p>
+            \` : \`
+              <div style="display:flex;flex-direction:column;gap:0.5rem">
+                \${(emailReports.reports || []).map(r => \`
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
+                    <span style="font-size:0.8125rem">\${r.email} • \${r.frequency}</span>
+                    <button class="icon-btn danger" onclick="deleteEmailReport('\${r.id}')">×</button>
+                  </div>
+                \`).join('')}
+              </div>
+            \`}
+          </div>
+
+          <!-- GDPR -->
+          <div class="panel">
+            <h4 style="font-size:0.875rem;margin-bottom:0.75rem">GDPR Tools</h4>
+            <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Handle data export and deletion requests.</p>
+            <div style="display:flex;gap:0.5rem">
+              <button class="export-btn" onclick="gdprExport()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Export Data</button>
+              <button class="export-btn" onclick="gdprDelete()" style="padding:0.375rem 0.75rem;font-size:0.75rem;border-color:var(--error);color:var(--error)">Delete Data</button>
+            </div>
+          </div>
+        </div>
+      \`
+    }
+
+    async function updateRetention(days) {
+      try {
+        await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/retention\`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ retentionDays: parseInt(days) })
+        })
+      } catch (e) {
+        console.error('Failed to update retention:', e)
+      }
+    }
+
+    function inviteTeamMember() {
+      const email = prompt('Enter email address:')
+      if (!email) return
+      const role = prompt('Enter role (admin, editor, viewer):') || 'viewer'
+
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/team\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, role })
+      }).then(() => renderSettings()).catch(e => console.error(e))
+    }
+
+    function addWebhook() {
+      const type = prompt('Enter type (slack, discord):')
+      if (!type) return
+      const url = prompt('Enter webhook URL:')
+      if (!url) return
+
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/webhooks\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, url, events: ['alert', 'goal'] })
+      }).then(() => renderSettings()).catch(e => console.error(e))
+    }
+
+    function deleteWebhook(webhookId) {
+      if (!confirm('Delete this webhook?')) return
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/webhooks/\${webhookId}\`, { method: 'DELETE' })
+        .then(() => renderSettings()).catch(e => console.error(e))
+    }
+
+    function addEmailReport() {
+      const email = prompt('Enter email address:')
+      if (!email) return
+      const frequency = prompt('Enter frequency (daily, weekly, monthly):') || 'weekly'
+
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/email-reports\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, frequency })
+      }).then(() => renderSettings()).catch(e => console.error(e))
+    }
+
+    function deleteEmailReport(reportId) {
+      if (!confirm('Delete this email report?')) return
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/email-reports/\${reportId}\`, { method: 'DELETE' })
+        .then(() => renderSettings()).catch(e => console.error(e))
+    }
+
+    function gdprExport() {
+      const visitorId = prompt('Enter visitor ID to export:')
+      if (!visitorId) return
+      window.open(\`\${API_ENDPOINT}/api/sites/\${siteId}/gdpr/export?visitorId=\${visitorId}\`, '_blank')
+    }
+
+    function gdprDelete() {
+      const visitorId = prompt('Enter visitor ID to delete:')
+      if (!visitorId) return
+      if (!confirm('This will permanently delete all data for this visitor. Continue?')) return
+
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/gdpr/delete\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitorId, confirmDelete: true })
+      }).then(r => r.json()).then(data => {
+        alert('Deleted ' + data.deletedRecords + ' records')
+      }).catch(e => console.error(e))
     }
 
     // Apply filter
@@ -1925,11 +2331,14 @@ function getDashboardHtml(): string {
       </div>
       <nav class="header-nav">
         <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+        <button class="nav-btn" data-tab="live" onclick="switchTab('live')">Live</button>
         <button class="nav-btn" data-tab="sessions" onclick="switchTab('sessions')">Sessions</button>
+        <button class="nav-btn" data-tab="funnels" onclick="switchTab('funnels')">Funnels</button>
         <button class="nav-btn" data-tab="flow" onclick="switchTab('flow')">User Flow</button>
         <button class="nav-btn" data-tab="vitals" onclick="switchTab('vitals')">Web Vitals</button>
         <button class="nav-btn" data-tab="errors" onclick="switchTab('errors')">Errors</button>
         <button class="nav-btn" data-tab="insights" onclick="switchTab('insights')">Insights</button>
+        <button class="nav-btn" data-tab="settings" onclick="switchTab('settings')">Settings</button>
       </nav>
       <div class="header-right">
         <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
@@ -5093,6 +5502,983 @@ async function handleGetRevenue(siteId: string, event: LambdaEvent) {
   }
 }
 
+// ============================================================================
+// Funnel Analysis Handlers
+// ============================================================================
+
+async function handleCreateFunnel(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { name, steps } = body
+
+    if (!name || !steps || !Array.isArray(steps) || steps.length < 2) {
+      return response({ error: 'Name and at least 2 steps are required' }, 400)
+    }
+
+    const funnelId = generateId()
+    const timestamp = new Date().toISOString()
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: `SITE#${siteId}`,
+        sk: `FUNNEL#${funnelId}`,
+        id: funnelId,
+        siteId,
+        name,
+        steps, // Array of { name: string, type: 'pageview' | 'event', pattern: string }
+        isActive: true,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }),
+    })
+
+    return response({ id: funnelId, name, steps, isActive: true, createdAt: timestamp })
+  } catch (error) {
+    console.error('Create funnel error:', error)
+    return response({ error: 'Failed to create funnel' }, 500)
+  }
+}
+
+async function handleGetFunnels(siteId: string, event: LambdaEvent) {
+  try {
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':sk': { S: 'FUNNEL#' },
+      },
+    })
+
+    const funnels = (result.Items || []).map((item: any) => unmarshall(item))
+    return response({ funnels })
+  } catch (error) {
+    console.error('Get funnels error:', error)
+    return response({ error: 'Failed to fetch funnels' }, 500)
+  }
+}
+
+async function handleGetFunnelAnalysis(siteId: string, funnelId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = event.queryStringParameters || {}
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const end = endDate ? new Date(endDate) : new Date()
+
+    // Get funnel definition
+    const funnelResult = await dynamodb.getItem({
+      TableName: TABLE_NAME,
+      Key: marshall({ pk: `SITE#${siteId}`, sk: `FUNNEL#${funnelId}` }),
+    })
+
+    if (!funnelResult.Item) {
+      return response({ error: 'Funnel not found' }, 404)
+    }
+
+    const funnel = unmarshall(funnelResult.Item)
+    const steps = funnel.steps || []
+
+    // Query sessions in date range
+    const sessionsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `SESSION#${start.toISOString()}` },
+        ':end': { S: `SESSION#${end.toISOString()}` },
+      },
+      Limit: 10000,
+    })
+
+    const sessions = (sessionsResult.Items || []).map((item: any) => unmarshall(item))
+
+    // Analyze funnel conversion for each step
+    const stepStats = steps.map((step: any, index: number) => ({
+      name: step.name,
+      type: step.type,
+      pattern: step.pattern,
+      visitors: 0,
+      conversionRate: 0,
+      dropoffRate: 0,
+    }))
+
+    // Count sessions that completed each step
+    for (const session of sessions) {
+      const completedSteps: boolean[] = []
+
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i]
+        let completed = false
+
+        if (step.type === 'pageview') {
+          // Check if session visited this page
+          const pages = session.pages || []
+          completed = pages.some((p: string) => p.includes(step.pattern))
+        } else if (step.type === 'event') {
+          // Would need to query events - simplified for now
+          completed = false
+        }
+
+        // Can only complete step if previous steps were completed
+        if (i === 0 || completedSteps[i - 1]) {
+          completedSteps[i] = completed
+          if (completed) {
+            stepStats[i].visitors++
+          }
+        } else {
+          completedSteps[i] = false
+        }
+      }
+    }
+
+    // Calculate conversion rates
+    const totalSessions = sessions.length
+    for (let i = 0; i < stepStats.length; i++) {
+      stepStats[i].conversionRate = totalSessions > 0
+        ? Math.round((stepStats[i].visitors / totalSessions) * 100)
+        : 0
+
+      if (i > 0 && stepStats[i - 1].visitors > 0) {
+        stepStats[i].dropoffRate = Math.round(
+          ((stepStats[i - 1].visitors - stepStats[i].visitors) / stepStats[i - 1].visitors) * 100
+        )
+      }
+    }
+
+    return response({
+      funnel: { id: funnel.id, name: funnel.name },
+      steps: stepStats,
+      totalSessions,
+      overallConversion: stepStats.length > 0 ? stepStats[stepStats.length - 1].conversionRate : 0,
+    })
+  } catch (error) {
+    console.error('Funnel analysis error:', error)
+    return response({ error: 'Failed to analyze funnel' }, 500)
+  }
+}
+
+async function handleDeleteFunnel(siteId: string, funnelId: string) {
+  try {
+    await dynamodb.deleteItem({
+      TableName: TABLE_NAME,
+      Key: marshall({ pk: `SITE#${siteId}`, sk: `FUNNEL#${funnelId}` }),
+    })
+    return response({ success: true })
+  } catch (error) {
+    console.error('Delete funnel error:', error)
+    return response({ error: 'Failed to delete funnel' }, 500)
+  }
+}
+
+// ============================================================================
+// Annotations Handlers
+// ============================================================================
+
+async function handleCreateAnnotation(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { date, title, description, type } = body
+
+    if (!date || !title) {
+      return response({ error: 'Date and title are required' }, 400)
+    }
+
+    const annotationId = generateId()
+    const timestamp = new Date().toISOString()
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: `SITE#${siteId}`,
+        sk: `ANNOTATION#${date}#${annotationId}`,
+        id: annotationId,
+        siteId,
+        date,
+        title,
+        description: description || '',
+        type: type || 'general', // 'deployment', 'campaign', 'incident', 'general'
+        createdAt: timestamp,
+      }),
+    })
+
+    return response({ id: annotationId, date, title, description, type, createdAt: timestamp })
+  } catch (error) {
+    console.error('Create annotation error:', error)
+    return response({ error: 'Failed to create annotation' }, 500)
+  }
+}
+
+async function handleGetAnnotations(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = event.queryStringParameters || {}
+    const start = startDate || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const end = endDate || new Date().toISOString().split('T')[0]
+
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `ANNOTATION#${start}` },
+        ':end': { S: `ANNOTATION#${end}~` },
+      },
+    })
+
+    const annotations = (result.Items || []).map((item: any) => unmarshall(item))
+    return response({ annotations })
+  } catch (error) {
+    console.error('Get annotations error:', error)
+    return response({ error: 'Failed to fetch annotations' }, 500)
+  }
+}
+
+async function handleDeleteAnnotation(siteId: string, annotationId: string, event: LambdaEvent) {
+  try {
+    const { date } = event.queryStringParameters || {}
+    if (!date) {
+      return response({ error: 'Date parameter required' }, 400)
+    }
+
+    await dynamodb.deleteItem({
+      TableName: TABLE_NAME,
+      Key: marshall({ pk: `SITE#${siteId}`, sk: `ANNOTATION#${date}#${annotationId}` }),
+    })
+    return response({ success: true })
+  } catch (error) {
+    console.error('Delete annotation error:', error)
+    return response({ error: 'Failed to delete annotation' }, 500)
+  }
+}
+
+// ============================================================================
+// Entry/Exit Pages Handler
+// ============================================================================
+
+async function handleGetEntryExitPages(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate, limit = '10' } = event.queryStringParameters || {}
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const end = endDate ? new Date(endDate) : new Date()
+    const limitNum = Math.min(parseInt(limit), 100)
+
+    // Query sessions to get entry and exit pages
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `SESSION#${start.toISOString()}` },
+        ':end': { S: `SESSION#${end.toISOString()}` },
+      },
+      Limit: 5000,
+    })
+
+    const sessions = (result.Items || []).map((item: any) => unmarshall(item))
+
+    const entryPages: Record<string, number> = {}
+    const exitPages: Record<string, number> = {}
+
+    for (const session of sessions) {
+      const pages = session.pages || []
+      if (pages.length > 0) {
+        const entry = pages[0]
+        const exit = pages[pages.length - 1]
+        entryPages[entry] = (entryPages[entry] || 0) + 1
+        exitPages[exit] = (exitPages[exit] || 0) + 1
+      }
+    }
+
+    const sortedEntry = Object.entries(entryPages)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limitNum)
+      .map(([page, count]) => ({ page, count, percentage: Math.round((count / sessions.length) * 100) }))
+
+    const sortedExit = Object.entries(exitPages)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limitNum)
+      .map(([page, count]) => ({ page, count, percentage: Math.round((count / sessions.length) * 100) }))
+
+    return response({ entryPages: sortedEntry, exitPages: sortedExit, totalSessions: sessions.length })
+  } catch (error) {
+    console.error('Entry/exit pages error:', error)
+    return response({ error: 'Failed to fetch entry/exit pages' }, 500)
+  }
+}
+
+// ============================================================================
+// Live View Handler (Real-time Activity)
+// ============================================================================
+
+async function handleGetLiveView(siteId: string, event: LambdaEvent) {
+  try {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+
+    // Get recent pageviews
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk > :since',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':since': { S: `PAGEVIEW#${fiveMinutesAgo.toISOString()}` },
+      },
+      ScanIndexForward: false,
+      Limit: 50,
+    })
+
+    const activities = (result.Items || [])
+      .map((item: any) => {
+        const data = unmarshall(item)
+        return {
+          id: data.id,
+          type: 'pageview',
+          path: data.path,
+          country: data.country,
+          city: data.city,
+          device: data.deviceType,
+          browser: data.browser,
+          referrer: data.referrer,
+          timestamp: data.timestamp,
+        }
+      })
+      .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+    return response({ activities, timestamp: new Date().toISOString() })
+  } catch (error) {
+    console.error('Live view error:', error)
+    return response({ error: 'Failed to fetch live view' }, 500)
+  }
+}
+
+// ============================================================================
+// Vitals Trends (Page Speed Over Time)
+// ============================================================================
+
+async function handleGetVitalsTrends(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate, metric = 'LCP' } = event.queryStringParameters || {}
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const end = endDate ? new Date(endDate) : new Date()
+
+    // Query vitals data
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `VITAL#${start.toISOString()}` },
+        ':end': { S: `VITAL#${end.toISOString()}` },
+      },
+      Limit: 10000,
+    })
+
+    const vitals = (result.Items || []).map((item: any) => unmarshall(item))
+
+    // Group by day
+    const dailyData: Record<string, { values: number[], count: number }> = {}
+
+    for (const vital of vitals) {
+      if (vital.metric === metric) {
+        const day = vital.timestamp.split('T')[0]
+        if (!dailyData[day]) {
+          dailyData[day] = { values: [], count: 0 }
+        }
+        dailyData[day].values.push(vital.value)
+        dailyData[day].count++
+      }
+    }
+
+    // Calculate daily averages and p75
+    const trends = Object.entries(dailyData)
+      .map(([date, data]) => {
+        const sorted = data.values.sort((a, b) => a - b)
+        const avg = sorted.reduce((a, b) => a + b, 0) / sorted.length
+        const p75 = sorted[Math.floor(sorted.length * 0.75)] || avg
+        return { date, average: Math.round(avg), p75: Math.round(p75), count: data.count }
+      })
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    return response({ metric, trends })
+  } catch (error) {
+    console.error('Vitals trends error:', error)
+    return response({ error: 'Failed to fetch vitals trends' }, 500)
+  }
+}
+
+// ============================================================================
+// Uptime Monitoring Handlers
+// ============================================================================
+
+async function handleCreateUptimeMonitor(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { url, interval = 5, timeout = 30 } = body
+
+    if (!url) {
+      return response({ error: 'URL is required' }, 400)
+    }
+
+    const monitorId = generateId()
+    const timestamp = new Date().toISOString()
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: `SITE#${siteId}`,
+        sk: `UPTIME#${monitorId}`,
+        id: monitorId,
+        siteId,
+        url,
+        interval, // minutes
+        timeout, // seconds
+        isActive: true,
+        createdAt: timestamp,
+      }),
+    })
+
+    return response({ id: monitorId, url, interval, timeout, isActive: true })
+  } catch (error) {
+    console.error('Create uptime monitor error:', error)
+    return response({ error: 'Failed to create uptime monitor' }, 500)
+  }
+}
+
+async function handleGetUptimeMonitors(siteId: string, event: LambdaEvent) {
+  try {
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':sk': { S: 'UPTIME#' },
+      },
+    })
+
+    const monitors = (result.Items || []).map((item: any) => unmarshall(item))
+    return response({ monitors })
+  } catch (error) {
+    console.error('Get uptime monitors error:', error)
+    return response({ error: 'Failed to fetch uptime monitors' }, 500)
+  }
+}
+
+async function handleGetUptimeHistory(siteId: string, monitorId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = event.queryStringParameters || {}
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const end = endDate ? new Date(endDate) : new Date()
+
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `UPTIME#${monitorId}` },
+        ':start': { S: `CHECK#${start.toISOString()}` },
+        ':end': { S: `CHECK#${end.toISOString()}` },
+      },
+      ScanIndexForward: false,
+      Limit: 1000,
+    })
+
+    const checks = (result.Items || []).map((item: any) => unmarshall(item))
+    const upChecks = checks.filter((c: any) => c.status === 'up').length
+    const uptimePercentage = checks.length > 0 ? Math.round((upChecks / checks.length) * 10000) / 100 : 100
+
+    return response({
+      monitorId,
+      checks: checks.slice(0, 100),
+      uptimePercentage,
+      totalChecks: checks.length,
+      avgResponseTime: checks.length > 0
+        ? Math.round(checks.reduce((a: number, c: any) => a + (c.responseTime || 0), 0) / checks.length)
+        : 0,
+    })
+  } catch (error) {
+    console.error('Get uptime history error:', error)
+    return response({ error: 'Failed to fetch uptime history' }, 500)
+  }
+}
+
+// ============================================================================
+// Webhook Configuration Handlers (Slack/Discord)
+// ============================================================================
+
+async function handleCreateWebhook(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { url, type, events } = body
+
+    if (!url || !type) {
+      return response({ error: 'URL and type are required' }, 400)
+    }
+
+    if (!['slack', 'discord', 'custom'].includes(type)) {
+      return response({ error: 'Type must be slack, discord, or custom' }, 400)
+    }
+
+    const webhookId = generateId()
+    const timestamp = new Date().toISOString()
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: `SITE#${siteId}`,
+        sk: `WEBHOOK#${webhookId}`,
+        id: webhookId,
+        siteId,
+        url,
+        type,
+        events: events || ['alert', 'goal', 'anomaly'], // Events to notify on
+        isActive: true,
+        createdAt: timestamp,
+      }),
+    })
+
+    return response({ id: webhookId, url, type, events, isActive: true })
+  } catch (error) {
+    console.error('Create webhook error:', error)
+    return response({ error: 'Failed to create webhook' }, 500)
+  }
+}
+
+async function handleGetWebhooks(siteId: string, event: LambdaEvent) {
+  try {
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':sk': { S: 'WEBHOOK#' },
+      },
+    })
+
+    const webhooks = (result.Items || []).map((item: any) => {
+      const webhook = unmarshall(item)
+      // Mask the URL for security
+      return { ...webhook, url: webhook.url.substring(0, 30) + '...' }
+    })
+    return response({ webhooks })
+  } catch (error) {
+    console.error('Get webhooks error:', error)
+    return response({ error: 'Failed to fetch webhooks' }, 500)
+  }
+}
+
+async function handleDeleteWebhook(siteId: string, webhookId: string) {
+  try {
+    await dynamodb.deleteItem({
+      TableName: TABLE_NAME,
+      Key: marshall({ pk: `SITE#${siteId}`, sk: `WEBHOOK#${webhookId}` }),
+    })
+    return response({ success: true })
+  } catch (error) {
+    console.error('Delete webhook error:', error)
+    return response({ error: 'Failed to delete webhook' }, 500)
+  }
+}
+
+// ============================================================================
+// Team Management Handlers
+// ============================================================================
+
+async function handleInviteTeamMember(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { email, role } = body
+
+    if (!email || !role) {
+      return response({ error: 'Email and role are required' }, 400)
+    }
+
+    if (!['admin', 'viewer', 'editor'].includes(role)) {
+      return response({ error: 'Role must be admin, viewer, or editor' }, 400)
+    }
+
+    const memberId = generateId()
+    const inviteToken = generateId()
+    const timestamp = new Date().toISOString()
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: `SITE#${siteId}`,
+        sk: `MEMBER#${memberId}`,
+        id: memberId,
+        siteId,
+        email,
+        role,
+        status: 'pending',
+        inviteToken,
+        createdAt: timestamp,
+      }),
+    })
+
+    return response({ id: memberId, email, role, status: 'pending', inviteToken })
+  } catch (error) {
+    console.error('Invite team member error:', error)
+    return response({ error: 'Failed to invite team member' }, 500)
+  }
+}
+
+async function handleGetTeamMembers(siteId: string, event: LambdaEvent) {
+  try {
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':sk': { S: 'MEMBER#' },
+      },
+    })
+
+    const members = (result.Items || []).map((item: any) => {
+      const member = unmarshall(item)
+      delete member.inviteToken // Don't expose invite token
+      return member
+    })
+    return response({ members })
+  } catch (error) {
+    console.error('Get team members error:', error)
+    return response({ error: 'Failed to fetch team members' }, 500)
+  }
+}
+
+async function handleRemoveTeamMember(siteId: string, memberId: string) {
+  try {
+    await dynamodb.deleteItem({
+      TableName: TABLE_NAME,
+      Key: marshall({ pk: `SITE#${siteId}`, sk: `MEMBER#${memberId}` }),
+    })
+    return response({ success: true })
+  } catch (error) {
+    console.error('Remove team member error:', error)
+    return response({ error: 'Failed to remove team member' }, 500)
+  }
+}
+
+// ============================================================================
+// Data Retention Settings Handlers
+// ============================================================================
+
+async function handleGetRetentionSettings(siteId: string, event: LambdaEvent) {
+  try {
+    const result = await dynamodb.getItem({
+      TableName: TABLE_NAME,
+      Key: marshall({ pk: `SITE#${siteId}`, sk: 'SETTINGS#retention' }),
+    })
+
+    if (!result.Item) {
+      return response({ retentionDays: 365, autoDelete: true }) // Default
+    }
+
+    const settings = unmarshall(result.Item)
+    return response(settings)
+  } catch (error) {
+    console.error('Get retention settings error:', error)
+    return response({ error: 'Failed to fetch retention settings' }, 500)
+  }
+}
+
+async function handleUpdateRetentionSettings(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { retentionDays, autoDelete } = body
+
+    if (retentionDays && (retentionDays < 30 || retentionDays > 3650)) {
+      return response({ error: 'Retention days must be between 30 and 3650' }, 400)
+    }
+
+    const timestamp = new Date().toISOString()
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: `SITE#${siteId}`,
+        sk: 'SETTINGS#retention',
+        siteId,
+        retentionDays: retentionDays || 365,
+        autoDelete: autoDelete !== false,
+        updatedAt: timestamp,
+      }),
+    })
+
+    return response({ retentionDays: retentionDays || 365, autoDelete: autoDelete !== false })
+  } catch (error) {
+    console.error('Update retention settings error:', error)
+    return response({ error: 'Failed to update retention settings' }, 500)
+  }
+}
+
+// ============================================================================
+// GDPR Tools Handlers
+// ============================================================================
+
+async function handleGdprExport(siteId: string, event: LambdaEvent) {
+  try {
+    const { visitorId } = event.queryStringParameters || {}
+
+    if (!visitorId) {
+      return response({ error: 'Visitor ID is required' }, 400)
+    }
+
+    // Query all data for this visitor
+    const sessionsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      IndexName: 'visitor-index',
+      KeyConditionExpression: 'visitorId = :vid',
+      ExpressionAttributeValues: {
+        ':vid': { S: visitorId },
+      },
+      Limit: 1000,
+    })
+
+    const sessions = (sessionsResult.Items || []).map((item: any) => unmarshall(item))
+
+    // Format for export
+    const exportData = {
+      visitorId,
+      exportDate: new Date().toISOString(),
+      sessions: sessions.map((s: any) => ({
+        sessionId: s.sessionId,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        pages: s.pages,
+        country: s.country,
+        city: s.city,
+        device: s.deviceType,
+        browser: s.browser,
+      })),
+    }
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Disposition': `attachment; filename="gdpr-export-${visitorId}.json"`,
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify(exportData, null, 2),
+    }
+  } catch (error) {
+    console.error('GDPR export error:', error)
+    return response({ error: 'Failed to export data' }, 500)
+  }
+}
+
+async function handleGdprDelete(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { visitorId, confirmDelete } = body
+
+    if (!visitorId || confirmDelete !== true) {
+      return response({ error: 'Visitor ID and confirmDelete: true are required' }, 400)
+    }
+
+    // Query all data for this visitor
+    const sessionsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      IndexName: 'visitor-index',
+      KeyConditionExpression: 'visitorId = :vid',
+      ExpressionAttributeValues: {
+        ':vid': { S: visitorId },
+      },
+      Limit: 1000,
+    })
+
+    const items = sessionsResult.Items || []
+    let deletedCount = 0
+
+    // Delete all items (batch delete in groups of 25)
+    for (let i = 0; i < items.length; i += 25) {
+      const batch = items.slice(i, i + 25)
+      const deleteRequests = batch.map((item: any) => ({
+        DeleteRequest: {
+          Key: { pk: item.pk, sk: item.sk },
+        },
+      }))
+
+      if (deleteRequests.length > 0) {
+        await dynamodb.batchWriteItem({
+          RequestItems: {
+            [TABLE_NAME]: deleteRequests,
+          },
+        })
+        deletedCount += deleteRequests.length
+      }
+    }
+
+    // Log the deletion request
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: `SITE#${siteId}`,
+        sk: `GDPR_DELETE#${new Date().toISOString()}#${visitorId}`,
+        visitorId,
+        deletedRecords: deletedCount,
+        requestedAt: new Date().toISOString(),
+      }),
+    })
+
+    return response({ success: true, deletedRecords: deletedCount })
+  } catch (error) {
+    console.error('GDPR delete error:', error)
+    return response({ error: 'Failed to delete data' }, 500)
+  }
+}
+
+// ============================================================================
+// Email Report Settings Handlers
+// ============================================================================
+
+async function handleCreateEmailReport(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { email, frequency, metrics } = body
+
+    if (!email || !frequency) {
+      return response({ error: 'Email and frequency are required' }, 400)
+    }
+
+    if (!['daily', 'weekly', 'monthly'].includes(frequency)) {
+      return response({ error: 'Frequency must be daily, weekly, or monthly' }, 400)
+    }
+
+    const reportId = generateId()
+    const timestamp = new Date().toISOString()
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: `SITE#${siteId}`,
+        sk: `EMAIL_REPORT#${reportId}`,
+        id: reportId,
+        siteId,
+        email,
+        frequency,
+        metrics: metrics || ['pageviews', 'visitors', 'bounce_rate', 'top_pages'],
+        isActive: true,
+        createdAt: timestamp,
+        lastSent: null,
+      }),
+    })
+
+    return response({ id: reportId, email, frequency, metrics, isActive: true })
+  } catch (error) {
+    console.error('Create email report error:', error)
+    return response({ error: 'Failed to create email report' }, 500)
+  }
+}
+
+async function handleGetEmailReports(siteId: string, event: LambdaEvent) {
+  try {
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':sk': { S: 'EMAIL_REPORT#' },
+      },
+    })
+
+    const reports = (result.Items || []).map((item: any) => unmarshall(item))
+    return response({ reports })
+  } catch (error) {
+    console.error('Get email reports error:', error)
+    return response({ error: 'Failed to fetch email reports' }, 500)
+  }
+}
+
+async function handleDeleteEmailReport(siteId: string, reportId: string) {
+  try {
+    await dynamodb.deleteItem({
+      TableName: TABLE_NAME,
+      Key: marshall({ pk: `SITE#${siteId}`, sk: `EMAIL_REPORT#${reportId}` }),
+    })
+    return response({ success: true })
+  } catch (error) {
+    console.error('Delete email report error:', error)
+    return response({ error: 'Failed to delete email report' }, 500)
+  }
+}
+
+// ============================================================================
+// Comparison Stats Handler
+// ============================================================================
+
+async function handleGetComparison(siteId: string, event: LambdaEvent) {
+  try {
+    const { startDate, endDate } = event.queryStringParameters || {}
+
+    if (!startDate || !endDate) {
+      return response({ error: 'Start and end dates are required' }, 400)
+    }
+
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    const periodLength = end.getTime() - start.getTime()
+
+    // Calculate previous period
+    const prevEnd = new Date(start.getTime() - 1)
+    const prevStart = new Date(prevEnd.getTime() - periodLength)
+
+    // Get current period stats
+    const currentParams = `startDate=${start.toISOString()}&endDate=${end.toISOString()}`
+    const currentStats = await getStatsForPeriod(siteId, start, end)
+
+    // Get previous period stats
+    const previousStats = await getStatsForPeriod(siteId, prevStart, prevEnd)
+
+    // Calculate changes
+    const calculateChange = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? 100 : 0
+      return Math.round(((current - previous) / previous) * 100)
+    }
+
+    return response({
+      current: currentStats,
+      previous: previousStats,
+      changes: {
+        sessions: calculateChange(currentStats.sessions, previousStats.sessions),
+        visitors: calculateChange(currentStats.visitors, previousStats.visitors),
+        pageviews: calculateChange(currentStats.pageviews, previousStats.pageviews),
+        bounceRate: calculateChange(currentStats.bounceRate, previousStats.bounceRate),
+        avgDuration: calculateChange(currentStats.avgDuration, previousStats.avgDuration),
+      },
+    })
+  } catch (error) {
+    console.error('Comparison error:', error)
+    return response({ error: 'Failed to fetch comparison data' }, 500)
+  }
+}
+
+async function getStatsForPeriod(siteId: string, start: Date, end: Date) {
+  // Query sessions in the period
+  const result = await dynamodb.query({
+    TableName: TABLE_NAME,
+    KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+    ExpressionAttributeValues: {
+      ':pk': { S: `SITE#${siteId}` },
+      ':start': { S: `SESSION#${start.toISOString()}` },
+      ':end': { S: `SESSION#${end.toISOString()}` },
+    },
+    Limit: 10000,
+  })
+
+  const sessions = (result.Items || []).map((item: any) => unmarshall(item))
+
+  const visitors = new Set(sessions.map((s: any) => s.visitorId)).size
+  const pageviews = sessions.reduce((sum: number, s: any) => sum + (s.pageViewCount || 1), 0)
+  const bounces = sessions.filter((s: any) => s.isBounce).length
+  const durations = sessions.map((s: any) => s.duration || 0).filter((d: number) => d > 0)
+
+  return {
+    sessions: sessions.length,
+    visitors,
+    pageviews,
+    bounceRate: sessions.length > 0 ? Math.round((bounces / sessions.length) * 100) : 0,
+    avgDuration: durations.length > 0 ? Math.round(durations.reduce((a: number, b: number) => a + b, 0) / durations.length / 1000) : 0,
+  }
+}
+
 // Handler to list all sites
 async function handleGetSites() {
   try {
@@ -5337,6 +6723,64 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
       if (path.endsWith('/revenue')) {
         return handleGetRevenue(siteId, event)
       }
+      // /api/sites/{siteId}/funnels/{funnelId}
+      const funnelMatch = path.match(/\/funnels\/([^/]+)$/)
+      if (funnelMatch && !path.includes('/analysis')) {
+        return handleGetFunnelAnalysis(siteId, funnelMatch[1], event)
+      }
+      // /api/sites/{siteId}/funnels
+      if (path.endsWith('/funnels')) {
+        return handleGetFunnels(siteId, event)
+      }
+      // /api/sites/{siteId}/annotations
+      if (path.endsWith('/annotations')) {
+        return handleGetAnnotations(siteId, event)
+      }
+      // /api/sites/{siteId}/entry-exit
+      if (path.endsWith('/entry-exit')) {
+        return handleGetEntryExitPages(siteId, event)
+      }
+      // /api/sites/{siteId}/live
+      if (path.endsWith('/live')) {
+        return handleGetLiveView(siteId, event)
+      }
+      // /api/sites/{siteId}/vitals-trends
+      if (path.endsWith('/vitals-trends')) {
+        return handleGetVitalsTrends(siteId, event)
+      }
+      // /api/sites/{siteId}/uptime/{monitorId}/history
+      const uptimeHistoryMatch = path.match(/\/uptime\/([^/]+)\/history$/)
+      if (uptimeHistoryMatch) {
+        return handleGetUptimeHistory(siteId, uptimeHistoryMatch[1], event)
+      }
+      // /api/sites/{siteId}/uptime
+      if (path.endsWith('/uptime')) {
+        return handleGetUptimeMonitors(siteId, event)
+      }
+      // /api/sites/{siteId}/webhooks
+      if (path.endsWith('/webhooks')) {
+        return handleGetWebhooks(siteId, event)
+      }
+      // /api/sites/{siteId}/team
+      if (path.endsWith('/team')) {
+        return handleGetTeamMembers(siteId, event)
+      }
+      // /api/sites/{siteId}/retention
+      if (path.endsWith('/retention')) {
+        return handleGetRetentionSettings(siteId, event)
+      }
+      // /api/sites/{siteId}/gdpr/export
+      if (path.endsWith('/gdpr/export')) {
+        return handleGdprExport(siteId, event)
+      }
+      // /api/sites/{siteId}/email-reports
+      if (path.endsWith('/email-reports')) {
+        return handleGetEmailReports(siteId, event)
+      }
+      // /api/sites/{siteId}/comparison
+      if (path.endsWith('/comparison')) {
+        return handleGetComparison(siteId, event)
+      }
     }
   }
 
@@ -5369,6 +6813,42 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
     if (path.endsWith('/api-keys')) {
       return handleCreateApiKey(siteIdForPost, event)
     }
+    // /api/sites/{siteId}/funnels
+    if (path.endsWith('/funnels')) {
+      return handleCreateFunnel(siteIdForPost, event)
+    }
+    // /api/sites/{siteId}/annotations
+    if (path.endsWith('/annotations')) {
+      return handleCreateAnnotation(siteIdForPost, event)
+    }
+    // /api/sites/{siteId}/uptime
+    if (path.endsWith('/uptime')) {
+      return handleCreateUptimeMonitor(siteIdForPost, event)
+    }
+    // /api/sites/{siteId}/webhooks
+    if (path.endsWith('/webhooks')) {
+      return handleCreateWebhook(siteIdForPost, event)
+    }
+    // /api/sites/{siteId}/team
+    if (path.endsWith('/team')) {
+      return handleInviteTeamMember(siteIdForPost, event)
+    }
+    // /api/sites/{siteId}/email-reports
+    if (path.endsWith('/email-reports')) {
+      return handleCreateEmailReport(siteIdForPost, event)
+    }
+    // /api/sites/{siteId}/gdpr/delete
+    if (path.endsWith('/gdpr/delete')) {
+      return handleGdprDelete(siteIdForPost, event)
+    }
+  }
+
+  // PUT routes
+  if (siteIdForPost && method === 'PUT') {
+    // /api/sites/{siteId}/retention
+    if (path.endsWith('/retention')) {
+      return handleUpdateRetentionSettings(siteIdForPost, event)
+    }
   }
 
   // DELETE routes
@@ -5382,6 +6862,31 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
     const keyMatch = path.match(/\/api-keys\/([^/]+)$/)
     if (keyMatch) {
       return handleDeleteApiKey(siteIdForPost, keyMatch[1])
+    }
+    // /api/sites/{siteId}/funnels/{funnelId}
+    const funnelDeleteMatch = path.match(/\/funnels\/([^/]+)$/)
+    if (funnelDeleteMatch) {
+      return handleDeleteFunnel(siteIdForPost, funnelDeleteMatch[1])
+    }
+    // /api/sites/{siteId}/annotations/{annotationId}
+    const annotationDeleteMatch = path.match(/\/annotations\/([^/]+)$/)
+    if (annotationDeleteMatch) {
+      return handleDeleteAnnotation(siteIdForPost, annotationDeleteMatch[1], event)
+    }
+    // /api/sites/{siteId}/webhooks/{webhookId}
+    const webhookDeleteMatch = path.match(/\/webhooks\/([^/]+)$/)
+    if (webhookDeleteMatch) {
+      return handleDeleteWebhook(siteIdForPost, webhookDeleteMatch[1])
+    }
+    // /api/sites/{siteId}/team/{memberId}
+    const memberDeleteMatch = path.match(/\/team\/([^/]+)$/)
+    if (memberDeleteMatch) {
+      return handleRemoveTeamMember(siteIdForPost, memberDeleteMatch[1])
+    }
+    // /api/sites/{siteId}/email-reports/{reportId}
+    const reportDeleteMatch = path.match(/\/email-reports\/([^/]+)$/)
+    if (reportDeleteMatch) {
+      return handleDeleteEmailReport(siteIdForPost, reportDeleteMatch[1])
     }
   }
 
