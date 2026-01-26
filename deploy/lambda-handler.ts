@@ -778,7 +778,7 @@ function getDashboardHtml(): string {
 
     function switchTab(tab) {
       activeTab = tab
-      document.querySelectorAll('.tab-btn').forEach(btn => {
+      document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === tab)
       })
       // Hide/show appropriate content
@@ -1726,45 +1726,44 @@ function getDashboardHtml(): string {
     /* Dashboard */
     .dash { max-width: 1400px; margin: 0 auto; padding: 1rem }
     .header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--border); margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap }
-    .header-left { display: flex; align-items: center; gap: 1rem }
+    .header-left { display: flex; align-items: center; gap: 1rem; flex-shrink: 0 }
     .back-btn { background: none; border: none; color: var(--muted); cursor: pointer; padding: 0.5rem; border-radius: 6px; display: flex; align-items: center; justify-content: center }
     .back-btn:hover { background: var(--bg2); color: var(--text) }
     .site-name-header { font-size: 1.25rem; font-weight: 600 }
-    .header-right { display: flex; align-items: center; gap: 1rem }
+    .header-nav { display: flex; align-items: center; gap: 0.25rem }
+    .nav-btn { background: none; border: none; color: var(--muted); padding: 0.5rem 0.875rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; transition: all 0.15s; white-space: nowrap }
+    .nav-btn:hover { color: var(--text); background: var(--bg2) }
+    .nav-btn.active { color: var(--accent); background: var(--bg2) }
+    .header-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0 }
     .realtime-badge { display: flex; align-items: center; gap: 0.5rem; background: var(--bg2); padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.875rem }
     .pulse { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite }
     @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.3 } }
 
     /* Controls */
-    .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap }
+    .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 1rem; flex-wrap: wrap }
+    .controls-right { display: flex; align-items: center; gap: 0.75rem }
     .date-range { display: flex; gap: 0.25rem; background: var(--bg2); padding: 0.25rem; border-radius: 8px }
     .date-btn { background: none; border: none; color: var(--muted); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; transition: all 0.15s }
     .date-btn:hover { color: var(--text) }
     .date-btn.active { background: var(--accent); color: white }
-    .refresh-group { display: flex; align-items: center; gap: 0.75rem }
     .last-updated { font-size: 0.75rem; color: var(--muted) }
     .refresh-btn { background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 0.5rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s }
     .refresh-btn:hover { border-color: var(--accent); color: var(--text) }
     .refresh-btn.spinning svg { animation: spinReverse 1s linear infinite }
     @keyframes spinReverse { to { transform: rotate(-360deg) } }
+    .filters-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap }
 
     /* Theme Toggle */
     .theme-toggle { background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 0.5rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s }
     .theme-toggle:hover { border-color: var(--accent); color: var(--text) }
 
-    /* Tabs */
-    .tabs-nav { display: flex; gap: 0.25rem; margin-bottom: 1rem; background: var(--bg2); padding: 0.25rem; border-radius: 8px; width: fit-content }
-    .tab-btn { background: none; border: none; color: var(--muted); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; transition: all 0.15s }
-    .tab-btn:hover { color: var(--text) }
-    .tab-btn.active { background: var(--accent); color: white }
+    /* Export Button (icon only in header) */
+    .export-btn { display: flex; align-items: center; justify-content: center; background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 0.5rem; border-radius: 6px; cursor: pointer; transition: all 0.15s }
+    .export-btn:hover { border-color: var(--accent); color: var(--text) }
 
-    /* Filters & Export */
-    .filter-group { display: flex; gap: 0.5rem }
+    /* Filters */
     .filter-select { background: var(--bg2); border: 1px solid var(--border); color: var(--text); padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8125rem; cursor: pointer }
     .filter-select:hover { border-color: var(--accent) }
-    .action-group { display: flex; align-items: center; gap: 0.75rem }
-    .export-btn { display: flex; align-items: center; gap: 0.5rem; background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.8125rem; transition: all 0.15s }
-    .export-btn:hover { border-color: var(--accent); color: var(--text) }
 
     /* Comparison Stats */
     .stat-change { font-size: 0.6875rem; margin-top: 0.25rem }
@@ -1904,8 +1903,9 @@ function getDashboardHtml(): string {
     .no-data .step-content p { font-size: 0.8125rem; color: var(--muted); margin: 0 }
 
     /* Responsive */
+    @media (max-width: 1200px) { .header { flex-wrap: wrap } .header-nav { order: 3; width: 100%; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch } .header-nav::-webkit-scrollbar { display: none } }
     @media (max-width: 1024px) { .stats { grid-template-columns: repeat(3, 1fr) } .grid { grid-template-columns: 1fr } }
-    @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, 1fr) } .header { flex-direction: column; align-items: flex-start } .header-right { width: 100%; justify-content: space-between } .controls { flex-direction: column; align-items: stretch } .date-range { justify-content: center } }
+    @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, 1fr) } .controls { flex-direction: column; align-items: stretch } .controls-right { justify-content: space-between } .date-range { justify-content: center } .filters-row { justify-content: center } .nav-btn { padding: 0.5rem 0.625rem; font-size: 0.8125rem } }
   </style>
 </head>
 <body>
@@ -1923,23 +1923,21 @@ function getDashboardHtml(): string {
         </button>
         <span id="current-site-name" class="site-name-header">Analytics Dashboard</span>
       </div>
+      <nav class="header-nav">
+        <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+        <button class="nav-btn" data-tab="sessions" onclick="switchTab('sessions')">Sessions</button>
+        <button class="nav-btn" data-tab="flow" onclick="switchTab('flow')">User Flow</button>
+        <button class="nav-btn" data-tab="vitals" onclick="switchTab('vitals')">Web Vitals</button>
+        <button class="nav-btn" data-tab="errors" onclick="switchTab('errors')">Errors</button>
+        <button class="nav-btn" data-tab="insights" onclick="switchTab('insights')">Insights</button>
+      </nav>
       <div class="header-right">
         <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
           <svg id="theme-icon-dark" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
           <svg id="theme-icon-light" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none"><circle cx="12" cy="12" r="5" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         </button>
-        <div class="realtime-badge"><span class="pulse"></span><span id="realtime-count">0 visitors online</span></div>
       </div>
     </header>
-
-    <div class="tabs-nav">
-      <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
-      <button class="tab-btn" data-tab="sessions" onclick="switchTab('sessions')">Sessions</button>
-      <button class="tab-btn" data-tab="flow" onclick="switchTab('flow')">User Flow</button>
-      <button class="tab-btn" data-tab="vitals" onclick="switchTab('vitals')">Web Vitals</button>
-      <button class="tab-btn" data-tab="errors" onclick="switchTab('errors')">Errors</button>
-      <button class="tab-btn" data-tab="insights" onclick="switchTab('insights')">Insights</button>
-    </div>
 
     <div class="controls">
       <div class="date-range">
@@ -1951,30 +1949,31 @@ function getDashboardHtml(): string {
         <button class="date-btn" data-range="30d" onclick="setDateRange('30d')">30d</button>
         <button class="date-btn" data-range="90d" onclick="setDateRange('90d')">90d</button>
       </div>
-      <div class="filter-group">
-        <select id="filter-country" class="filter-select" onchange="applyFilter('country', this.value)">
-          <option value="">All Countries</option>
-        </select>
-        <select id="filter-device" class="filter-select" onchange="applyFilter('device', this.value)">
-          <option value="">All Devices</option>
-          <option value="desktop">Desktop</option>
-          <option value="mobile">Mobile</option>
-          <option value="tablet">Tablet</option>
-        </select>
-        <select id="filter-browser" class="filter-select" onchange="applyFilter('browser', this.value)">
-          <option value="">All Browsers</option>
-        </select>
-      </div>
-      <div class="action-group">
-        <button class="export-btn" onclick="exportData('csv')" title="Export CSV">
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          Export
-        </button>
+      <div class="controls-right">
+        <div class="realtime-badge"><span class="pulse"></span><span id="realtime-count">0 visitors online</span></div>
         <span id="last-updated" class="last-updated"></span>
         <button id="refresh-btn" class="refresh-btn" onclick="fetchDashboardData()" title="Refresh data">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         </button>
+        <button class="export-btn" onclick="exportData('csv')" title="Export CSV">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        </button>
       </div>
+    </div>
+
+    <div class="filters-row">
+      <select id="filter-country" class="filter-select" onchange="applyFilter('country', this.value)">
+        <option value="">All Countries</option>
+      </select>
+      <select id="filter-device" class="filter-select" onchange="applyFilter('device', this.value)">
+        <option value="">All Devices</option>
+        <option value="desktop">Desktop</option>
+        <option value="mobile">Mobile</option>
+        <option value="tablet">Tablet</option>
+      </select>
+      <select id="filter-browser" class="filter-select" onchange="applyFilter('browser', this.value)">
+        <option value="">All Browsers</option>
+      </select>
     </div>
 
     <div class="stats">
