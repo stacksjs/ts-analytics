@@ -8,7 +8,7 @@
  * Enable by setting SQS_BUFFERING_ENABLED=true and SQS_QUEUE_URL env vars.
  */
 
-import { router } from './router'
+import { router } from '../src/router'
 import { handleLambdaEvent, type LambdaEvent, type LambdaContext, type LambdaResponse } from './lambda-adapter'
 
 /**

@@ -2,11 +2,11 @@
  * Performance & Web Vitals handlers
  */
 
-import { generateId } from '../../src/index'
+import { generateId } from '../index'
 import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
-import { getQueryParams } from '../lambda-adapter'
+import { getQueryParams } from '../../deploy/lambda-adapter'
 
 /**
  * GET /api/sites/{siteId}/vitals

@@ -1,12 +1,4 @@
-/**
- * Dashboard HTML template
- *
- * This is the main Analytics Dashboard SPA (~2700 lines)
- * Extracted from the original lambda-handler.ts
- */
-
-export function getDashboardHtml(): string {
-  return `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -195,10 +187,10 @@ export function getDashboardHtml(): string {
           <p>No sites found</p>
           <p style="font-size:0.75rem;margin-top:0.5rem">Create a site using the CLI to start tracking</p>
           <code style="font-size:0.75rem;background:#2d3344;padding:0.5rem 1rem;border-radius:4px;margin-top:1rem">cloud analytics:sites:create "My Site" --domain example.com</code>
-        </div>\`
+        </div>
         return
       }
-      container.innerHTML = availableSites.map(s => \`
+      container.innerHTML = availableSites.map(s => 
         <button class="site-card" onclick="selectSite('\${s.id}', '\${(s.name || '').replace(/'/g, "\\\\'")}')">
           <div class="site-icon"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg></div>
           <div class="site-info"><span class="site-name">\${s.name || 'Unnamed'}</span><span class="site-domain">\${s.domains?.[0] || s.id}</span></div>
@@ -305,8 +297,8 @@ export function getDashboardHtml(): string {
         case '90d': start = new Date(now - 90*24*60*60*1000); break
         default: start = new Date(now - 30*24*60*60*1000)
       }
-      let params = \`?startDate=\${start.toISOString()}&endDate=\${end}\`
-      if (forTimeseries) params += \`&period=\${period}\`
+      let params = \`?startDate=\${start.toISOString()}&endDate=\${end}
+      if (forTimeseries) params += \`&period=\${period}
       return params
     }
 
@@ -321,7 +313,7 @@ export function getDashboardHtml(): string {
       const spinStartTime = Date.now()
       document.getElementById('refresh-btn').classList.add('spinning')
 
-      const baseUrl = \`\${API_ENDPOINT}/api/sites/\${siteId}\`
+      const baseUrl = \`\${API_ENDPOINT}/api/sites/\${siteId}
       const params = getDateRangeParams(false)
       const tsParams = getDateRangeParams(true)
 
@@ -493,7 +485,7 @@ export function getDashboardHtml(): string {
       const entryNodes = nodes.filter(n => n.id === '/' || links.every(l => l.target !== n.id || l.source === n.id))
       const otherNodes = nodes.filter(n => !entryNodes.includes(n))
 
-      tabContent.innerHTML = \`
+      tabContent.innerHTML = 
         <div style="grid-column:1/-1">
           <h3 style="margin-bottom:0.5rem;font-size:1rem">User Flow</h3>
           <p style="font-size:0.75rem;color:var(--muted);margin-bottom:1.5rem">Showing top paths from \${analyzedSessions} of \${totalSessions} multi-page sessions</p>
@@ -502,7 +494,7 @@ export function getDashboardHtml(): string {
             <!-- Entry pages -->
             <div style="min-width:200px">
               <h4 style="font-size:0.6875rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem">Entry Pages</h4>
-              \${entryNodes.slice(0, 8).map(n => \`
+              \${entryNodes.slice(0, 8).map(n => 
                 <div style="background:var(--bg);border:1px solid var(--border);padding:0.5rem 0.75rem;border-radius:6px;margin-bottom:0.5rem">
                   <div style="font-size:0.8125rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${n.id}</div>
                   <div style="font-size:0.6875rem;color:var(--muted)">\${n.count} visits</div>
@@ -513,7 +505,7 @@ export function getDashboardHtml(): string {
             <!-- Flow connections -->
             <div style="min-width:300px;flex:1">
               <h4 style="font-size:0.6875rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem">Top Flows</h4>
-              \${links.slice(0, 15).map(l => \`
+              \${links.slice(0, 15).map(l => 
                 <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;font-size:0.75rem">
                   <span style="background:var(--bg);padding:0.25rem 0.5rem;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">\${l.source}</span>
                   <span style="color:var(--accent)">→</span>
@@ -526,7 +518,7 @@ export function getDashboardHtml(): string {
             <!-- Top pages by traffic -->
             <div style="min-width:200px">
               <h4 style="font-size:0.6875rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem">Most Visited</h4>
-              \${nodes.slice(0, 10).map((n, i) => \`
+              \${nodes.slice(0, 10).map((n, i) => 
                 <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
                   <span style="width:18px;height:18px;background:var(--accent);color:white;border-radius:50%;font-size:0.6875rem;display:flex;align-items:center;justify-content:center">\${i + 1}</span>
                   <span style="font-size:0.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">\${n.id}</span>
@@ -538,7 +530,7 @@ export function getDashboardHtml(): string {
 
           \${links.length === 0 ? '<div class="empty-cell">No flow data available. Users need to visit multiple pages in a session.</div>' : ''}
         </div>
-      \`
+      
     }
 
     // Fetch sessions list
@@ -560,11 +552,11 @@ export function getDashboardHtml(): string {
     function renderSessions() {
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
-      tabContent.innerHTML = \`
+      tabContent.innerHTML = 
         <div style="grid-column: 1/-1">
           <h3 style="margin-bottom:1rem;font-size:1rem">Sessions (\${sessions.length})</h3>
           <div class="session-list">
-            \${sessions.length === 0 ? '<div class="empty-cell">No sessions found</div>' : sessions.map(s => \`
+            \${sessions.length === 0 ? '<div class="empty-cell">No sessions found</div>' : sessions.map(s => 
               <div class="session-card" onclick="viewSession('\${s.id}')">
                 <div class="session-header">
                   <span style="font-weight:500">\${s.entryPath || '/'}</span>
@@ -581,7 +573,7 @@ export function getDashboardHtml(): string {
             \`).join('')}
           </div>
         </div>
-      \`
+      
     }
 
     // Format duration
@@ -631,7 +623,7 @@ export function getDashboardHtml(): string {
       // Get unique paths visited
       const paths = [...new Set(pageviews.map(p => p.path))]
 
-      modal.innerHTML = \`
+      modal.innerHTML = 
         <div class="session-modal-content" style="max-width:1000px">
           <div class="modal-header">
             <h3>Session: \${s.id?.slice(0,8) || 'Unknown'}</h3>
@@ -647,7 +639,7 @@ export function getDashboardHtml(): string {
               <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">\${s.country || '?'}</div><div class="stat-lbl">Country</div></div>
             </div>
 
-            \${clicks.length > 0 ? \`
+            \${clicks.length > 0 ? 
             <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Click Heatmap (\${clicks.length} clicks)</h4>
             <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
               \${paths.map((p, i) => \`<button class="date-btn \${i===0?'active':''}" onclick="showPathHeatmap('\${p}')">\${p}</button>\`).join('')}
@@ -662,7 +654,7 @@ export function getDashboardHtml(): string {
 
             <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Session Journey</h4>
             <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
-              \${pageviews.map((p, i) => \`
+              \${pageviews.map((p, i) => 
                 <div style="background:var(--bg);border:1px solid var(--border);padding:0.5rem 0.75rem;border-radius:6px;font-size:0.75rem">
                   <div style="color:var(--text)">\${p.path}</div>
                   <div style="color:var(--muted);font-size:0.6875rem">\${new Date(p.timestamp).toLocaleTimeString()}</div>
@@ -673,7 +665,7 @@ export function getDashboardHtml(): string {
 
             <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Timeline (\${timeline.length} events)</h4>
             <div class="timeline" style="max-height:300px;overflow-y:auto">
-              \${timeline.map(t => \`
+              \${timeline.map(t => 
                 <div class="timeline-item">
                   <div class="timeline-type \${t.type === 'error' ? 'error' : ''}">\${t.type}</div>
                   <div class="timeline-content">
@@ -689,7 +681,7 @@ export function getDashboardHtml(): string {
             </div>
           </div>
         </div>
-      \`
+      
       modal.classList.add('active')
 
       // Render initial heatmap if we have clicks
@@ -719,7 +711,7 @@ export function getDashboardHtml(): string {
       container.innerHTML = pathClicks.map(c => {
         const x = (c.viewportX || 0) * scale
         const y = (c.viewportY || 0) * scale
-        return \`<div style="position:absolute;left:\${x}px;top:\${y}px;width:20px;height:20px;background:rgba(239,68,68,0.5);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 0 10px rgba(239,68,68,0.5)"></div>\`
+        return \`<div style="position:absolute;left:\${x}px;top:\${y}px;width:20px;height:20px;background:rgba(239,68,68,0.5);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 0 10px rgba(239,68,68,0.5)"></div>
       }).join('')
     }
 
@@ -773,16 +765,16 @@ export function getDashboardHtml(): string {
         if (metric === 'CLS') return (value / 1000).toFixed(3)
         return value + 'ms'
       }
-      tabContent.innerHTML = \`
+      tabContent.innerHTML = 
         <div style="grid-column:1/-1">
-          \${perfBudgetViolations.length > 0 ? \`
+          \${perfBudgetViolations.length > 0 ? 
             <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:1rem;margin-bottom:1.5rem">
               <h4 style="font-size:0.875rem;color:#ef4444;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem">
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                 Performance Budget Violations
               </h4>
               <div style="display:flex;flex-wrap:wrap;gap:0.75rem">
-                \${perfBudgetViolations.map(v => \`
+                \${perfBudgetViolations.map(v => 
                   <div style="background:var(--bg);border-radius:6px;padding:0.5rem 0.75rem;font-size:0.8125rem">
                     <strong>\${v.metric}</strong>: \${v.currentValue}\${v.metric === 'CLS' ? '' : 'ms'}
                     <span style="color:#ef4444">(exceeds \${v.threshold}\${v.metric === 'CLS' ? '' : 'ms'} by \${v.exceededBy}\${v.metric === 'CLS' ? '' : 'ms'})</span>
@@ -793,12 +785,12 @@ export function getDashboardHtml(): string {
           \` : ''}
           <h3 style="margin-bottom:1rem;font-size:1rem">Core Web Vitals</h3>
           <div class="vitals-grid">
-            \${vitals.map(v => \`
+            \${vitals.map(v => 
               <div class="vital-card">
                 <div class="vital-name">\${v.metric}</div>
                 <div class="vital-value \${getColor(v)}">\${v.samples > 0 ? formatValue(v.metric, v.p75) : '—'}</div>
                 <div style="font-size:0.6875rem;color:var(--muted)">\${v.samples} samples</div>
-                \${v.samples > 0 ? \`
+                \${v.samples > 0 ? 
                   <div class="vital-bar">
                     <span class="good" style="width:\${v.good}%"></span>
                     <span class="needs-improvement" style="width:\${v.needsImprovement}%"></span>
@@ -814,7 +806,7 @@ export function getDashboardHtml(): string {
             <strong>INP</strong> (Interaction to Next Paint): Responsiveness.
           </p>
         </div>
-      \`
+      
     }
 
     // Error state
@@ -935,7 +927,7 @@ export function getDashboardHtml(): string {
         else statusCounts.new++
       })
 
-      tabContent.innerHTML = \`
+      tabContent.innerHTML = 
         <div style="grid-column:1/-1">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
             <h3 style="font-size:1.125rem;font-weight:600">JavaScript Errors</h3>
@@ -946,7 +938,7 @@ export function getDashboardHtml(): string {
                 <option value="resolved" \${errorStatusFilter === 'resolved' ? 'selected' : ''}>Resolved (\${statusCounts.resolved})</option>
                 <option value="ignored" \${errorStatusFilter === 'ignored' ? 'selected' : ''}>Ignored (\${statusCounts.ignored})</option>
               </select>
-              \${statusCounts.new > 0 ? \`
+              \${statusCounts.new > 0 ? 
                 <button onclick="bulkResolveErrors()" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem;background:#22c55e22;border-color:#22c55e;color:#22c55e">✓ Resolve All New</button>
                 <button onclick="bulkIgnoreErrors()" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Ignore All New</button>
               \` : ''}
@@ -975,7 +967,7 @@ export function getDashboardHtml(): string {
           </div>
 
           <!-- Error list -->
-          \${filteredErrors.length === 0 ? \`
+          \${filteredErrors.length === 0 ? 
             <div style="text-align:center;padding:3rem;color:var(--muted)">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 1rem;opacity:0.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               <div style="font-size:1rem;margin-bottom:0.5rem">\${errorStatusFilter === 'all' ? 'No errors recorded' : 'No ' + errorStatusFilter + ' errors'}</div>
@@ -984,7 +976,7 @@ export function getDashboardHtml(): string {
           \` : filteredErrors.map(e => {
             const errorId = getErrorId(e.message)
             const status = getErrorStatus(e.message)
-            return \`
+            return 
             <div style="position:relative;margin-bottom:1rem">
               <a href="/errors/\${encodeURIComponent(errorId)}?siteId=\${siteId}" style="text-decoration:none;color:inherit;display:block">
                 <div class="error-card" style="border-left:4px solid \${severityColors[e.severity] || '#6b7280'};cursor:pointer;transition:all 0.15s;\${status === 'resolved' ? 'opacity:0.6;' : ''}\${status === 'ignored' ? 'opacity:0.4;' : ''}" onmouseover="this.style.transform='translateX(4px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none';this.style.boxShadow='none'">
@@ -1039,7 +1031,7 @@ export function getDashboardHtml(): string {
             </div>
           \`}).join('')}
         </div>
-      \`
+      
     }
 
     // Render insights
@@ -1053,10 +1045,10 @@ export function getDashboardHtml(): string {
         device: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>',
         engagement: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>'
       }
-      tabContent.innerHTML = \`
+      tabContent.innerHTML = 
         <div style="grid-column:1/-1">
           <h3 style="margin-bottom:1rem;font-size:1rem">Insights</h3>
-          \${comparisonStats ? \`
+          \${comparisonStats ? 
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
               <div class="stat" style="padding:1rem">
                 <div class="stat-val" style="font-size:1.25rem">\${fmt(comparisonStats.thisWeekViews)}</div>
@@ -1077,7 +1069,7 @@ export function getDashboardHtml(): string {
               </div>
             </div>
           \` : ''}
-          \${insights.length === 0 ? '<div class="empty-cell">No insights available yet. Check back when you have more data.</div>' : insights.map(i => \`
+          \${insights.length === 0 ? '<div class="empty-cell">No insights available yet. Check back when you have more data.</div>' : insights.map(i => 
             <div class="insight-card">
               <div class="insight-icon \${i.severity}">\${icons[i.type] || icons.traffic}</div>
               <div class="insight-content">
@@ -1087,7 +1079,7 @@ export function getDashboardHtml(): string {
             </div>
           \`).join('')}
         </div>
-      \`
+      
     }
 
     // Live view state
@@ -1123,7 +1115,7 @@ export function getDashboardHtml(): string {
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
 
-      tabContent.innerHTML = \`
+      tabContent.innerHTML = 
         <div style="grid-column:1/-1">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
             <h3 style="font-size:1rem;display:flex;align-items:center;gap:0.5rem">
@@ -1132,11 +1124,11 @@ export function getDashboardHtml(): string {
             </h3>
             <span style="font-size:0.75rem;color:var(--muted)">Auto-refreshing every 5s</span>
           </div>
-          \${liveActivities.length === 0 ? \`
+          \${liveActivities.length === 0 ? 
             <div class="empty-cell">No recent activity. Visitors will appear here in real-time.</div>
-          \` : \`
+          \` : 
             <div style="display:flex;flex-direction:column;gap:0.5rem">
-              \${liveActivities.map(a => \`
+              \${liveActivities.map(a => 
                 <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;display:flex;align-items:center;gap:1rem">
                   <div style="width:8px;height:8px;background:var(--success);border-radius:50%"></div>
                   <div style="flex:1;min-width:0">
@@ -1149,7 +1141,7 @@ export function getDashboardHtml(): string {
             </div>
           \`}
         </div>
-      \`
+      
     }
 
     function timeAgo(timestamp) {
@@ -1184,7 +1176,7 @@ export function getDashboardHtml(): string {
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
 
-      tabContent.innerHTML = \`
+      tabContent.innerHTML = 
         <div style="grid-column:1/-1">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
             <h3 style="font-size:1rem">Conversion Funnels</h3>
@@ -1193,12 +1185,12 @@ export function getDashboardHtml(): string {
               New Funnel
             </button>
           </div>
-          \${funnels.length === 0 ? \`
+          \${funnels.length === 0 ? 
             <div class="empty-cell">
               <p>No funnels configured yet.</p>
               <p style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">Create a funnel to track conversion rates through your key user flows.</p>
             </div>
-          \` : funnels.map(f => \`
+          \` : funnels.map(f => 
             <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:0.75rem">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
                 <h4 style="font-size:0.875rem">\${f.name}</h4>
@@ -1207,14 +1199,14 @@ export function getDashboardHtml(): string {
                 </button>
               </div>
               <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-                \${(f.steps || []).map((s, i) => \`
+                \${(f.steps || []).map((s, i) => 
                   <span style="font-size:0.6875rem;padding:0.25rem 0.5rem;background:var(--bg);border-radius:4px">\${i + 1}. \${s.name}</span>
                 \`).join('<span style="color:var(--accent)">→</span>')}
               </div>
             </div>
           \`).join('')}
         </div>
-      \`
+      
     }
 
     // Analyze funnel
@@ -1235,14 +1227,14 @@ export function getDashboardHtml(): string {
 
       const { funnel, steps, totalSessions, overallConversion } = data
 
-      tabContent.innerHTML = \`
+      tabContent.innerHTML = 
         <div style="grid-column:1/-1">
           <button onclick="fetchFunnels()" style="background:none;border:none;color:var(--muted);cursor:pointer;margin-bottom:1rem;font-size:0.8125rem">← Back to Funnels</button>
           <h3 style="font-size:1rem;margin-bottom:0.5rem">\${funnel.name}</h3>
           <p style="font-size:0.75rem;color:var(--muted);margin-bottom:1.5rem">\${totalSessions} sessions analyzed • \${overallConversion}% overall conversion</p>
 
           <div style="display:flex;gap:0.5rem;align-items:stretch">
-            \${steps.map((s, i) => \`
+            \${steps.map((s, i) => 
               <div style="flex:1;text-align:center">
                 <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:0.5rem">
                   <div style="font-size:1.5rem;font-weight:600;color:var(--text)">\${s.visitors}</div>
@@ -1255,7 +1247,7 @@ export function getDashboardHtml(): string {
             \`).join('')}
           </div>
         </div>
-      \`
+      
     }
 
     function showCreateFunnelModal() {
@@ -1321,7 +1313,7 @@ export function getDashboardHtml(): string {
 
       const { retention, team, webhooks, emailReports, apiKeys, alerts, uptime, perfBudgets } = settingsData
 
-      tabContent.innerHTML = \`
+      tabContent.innerHTML = 
         <div style="grid-column:1/-1">
           <h3 style="font-size:1rem;margin-bottom:1.5rem">Settings</h3>
 
@@ -1335,11 +1327,11 @@ export function getDashboardHtml(): string {
                   <button class="export-btn" onclick="createApiKey()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ New Key</button>
                 </div>
                 <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Generate API keys for programmatic access to your analytics data.</p>
-                \${(apiKeys.apiKeys || []).length === 0 ? \`
+                \${(apiKeys.apiKeys || []).length === 0 ? 
                   <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No API keys yet.</p>
-                \` : \`
+                \` : 
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(apiKeys.apiKeys || []).map(k => \`
+                    \${(apiKeys.apiKeys || []).map(k => 
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
                         <div>
                           <div style="font-size:0.8125rem;font-weight:500">\${k.name || 'API Key'}</div>
@@ -1359,11 +1351,11 @@ export function getDashboardHtml(): string {
                   <button class="export-btn" onclick="createAlert()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ New Alert</button>
                 </div>
                 <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Get notified on traffic spikes, drops, or error rate changes.</p>
-                \${(alerts.alerts || []).length === 0 ? \`
+                \${(alerts.alerts || []).length === 0 ? 
                   <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No alerts configured.</p>
-                \` : \`
+                \` : 
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(alerts.alerts || []).map(a => \`
+                    \${(alerts.alerts || []).map(a => 
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
                         <div>
                           <div style="font-size:0.8125rem;font-weight:500">\${a.name}</div>
@@ -1383,11 +1375,11 @@ export function getDashboardHtml(): string {
                   <button class="export-btn" onclick="createUptimeMonitor()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ Add Monitor</button>
                 </div>
                 <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Monitor endpoint availability and response times.</p>
-                \${(uptime.monitors || []).length === 0 ? \`
+                \${(uptime.monitors || []).length === 0 ? 
                   <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No monitors configured.</p>
-                \` : \`
+                \` : 
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(uptime.monitors || []).map(m => \`
+                    \${(uptime.monitors || []).map(m => 
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
                         <div>
                           <div style="font-size:0.8125rem;font-weight:500">\${m.url}</div>
@@ -1407,11 +1399,11 @@ export function getDashboardHtml(): string {
                   <button class="export-btn" onclick="createPerfBudget()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ Add Budget</button>
                 </div>
                 <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Set thresholds for Core Web Vitals and get alerts when exceeded.</p>
-                \${(perfBudgets.budgets || []).length === 0 ? \`
+                \${(perfBudgets.budgets || []).length === 0 ? 
                   <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No budgets configured.</p>
-                \` : \`
+                \` : 
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(perfBudgets.budgets || []).map(b => \`
+                    \${(perfBudgets.budgets || []).map(b => 
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
                         <div>
                           <div style="font-size:0.8125rem;font-weight:500">\${b.metric}</div>
@@ -1446,11 +1438,11 @@ export function getDashboardHtml(): string {
                   <h4 style="font-size:0.875rem">Team Members</h4>
                   <button class="export-btn" onclick="inviteTeamMember()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Invite</button>
                 </div>
-                \${(team.members || []).length === 0 ? \`
+                \${(team.members || []).length === 0 ? 
                   <p style="font-size:0.75rem;color:var(--muted)">No team members yet.</p>
-                \` : \`
+                \` : 
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(team.members || []).map(m => \`
+                    \${(team.members || []).map(m => 
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
                         <span style="font-size:0.8125rem">\${m.email}</span>
                         <span style="font-size:0.6875rem;color:var(--muted)">\${m.role} • \${m.status}</span>
@@ -1466,11 +1458,11 @@ export function getDashboardHtml(): string {
                   <h4 style="font-size:0.875rem">Webhooks (Slack/Discord)</h4>
                   <button class="export-btn" onclick="addWebhook()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Add</button>
                 </div>
-                \${(webhooks.webhooks || []).length === 0 ? \`
+                \${(webhooks.webhooks || []).length === 0 ? 
                   <p style="font-size:0.75rem;color:var(--muted)">No webhooks configured. Add a Slack or Discord webhook to receive alerts.</p>
-                \` : \`
+                \` : 
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(webhooks.webhooks || []).map(w => \`
+                    \${(webhooks.webhooks || []).map(w => 
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
                         <span style="font-size:0.8125rem">\${w.type} • \${w.url.slice(0,30)}...</span>
                         <button class="icon-btn danger" onclick="deleteWebhook('\${w.id}')">×</button>
@@ -1486,11 +1478,11 @@ export function getDashboardHtml(): string {
                   <h4 style="font-size:0.875rem">Email Reports</h4>
                   <button class="export-btn" onclick="addEmailReport()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Add</button>
                 </div>
-                \${(emailReports.reports || []).length === 0 ? \`
+                \${(emailReports.reports || []).length === 0 ? 
                   <p style="font-size:0.75rem;color:var(--muted)">No email reports scheduled.</p>
-                \` : \`
+                \` : 
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(emailReports.reports || []).map(r => \`
+                    \${(emailReports.reports || []).map(r => 
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
                         <span style="font-size:0.8125rem">\${r.email} • \${r.frequency}</span>
                         <button class="icon-btn danger" onclick="deleteEmailReport('\${r.id}')">×</button>
@@ -1512,7 +1504,7 @@ export function getDashboardHtml(): string {
             </div>
           </div>
         </div>
-      \`
+      
     }
 
     // Settings action functions
@@ -1704,7 +1696,7 @@ export function getDashboardHtml(): string {
     async function exportData(format) {
       const params = getDateRangeParams(false)
       const type = activeTab === 'sessions' ? 'sessions' : activeTab === 'events' ? 'events' : 'pageviews'
-      const url = \`\${API_ENDPOINT}/api/sites/\${siteId}/export\${params}&format=\${format}&type=\${type}\`
+      const url = \`\${API_ENDPOINT}/api/sites/\${siteId}/export\${params}&format=\${format}&type=\${type}
       if (format === 'csv') {
         window.open(url, '_blank')
       } else {
@@ -1785,9 +1777,9 @@ export function getDashboardHtml(): string {
         ? pages.slice(0,10).map(p => {
             const pageUrl = siteHostname ? \`https://\${siteHostname}\${p.path}\` : p.path
             const linkHtml = siteHostname
-              ? \`<a href="\${pageUrl}" target="_blank" rel="noopener" class="page-link" title="Visit \${pageUrl}">\${p.path}<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px;opacity:0.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a>\`
+              ? \`<a href="\${pageUrl}" target="_blank" rel="noopener" class="page-link" title="Visit \${pageUrl}">\${p.path}<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px;opacity:0.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a>
               : p.path
-            return \`<tr><td class="name" title="\${p.path}">\${linkHtml}</td><td class="value">\${fmt(p.entries||0)}</td><td class="value">\${fmt(p.visitors||0)}</td><td class="value">\${fmt(p.views||0)}</td></tr>\`
+            return \`<tr><td class="name" title="\${p.path}">\${linkHtml}</td><td class="value">\${fmt(p.entries||0)}</td><td class="value">\${fmt(p.visitors||0)}</td><td class="value">\${fmt(p.views||0)}</td></tr>
           }).join('')
         : '<tr><td colspan="4" class="empty-cell">No page data</td></tr>'
 
@@ -1799,9 +1791,9 @@ export function getDashboardHtml(): string {
             const domain = source.replace(/^https?:\\/\\//, '').split('/')[0]
             const favicon = isLink ? \`<img src="https://www.google.com/s2/favicons?domain=\${domain}&sz=16" width="14" height="14" style="vertical-align:middle;margin-right:6px;border-radius:2px" onerror="this.style.display='none'">\` : ''
             const linkHtml = isLink
-              ? \`<a href="\${source.startsWith('http') ? source : 'https://' + source}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px">\${favicon}\${source}<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a>\`
+              ? \`<a href="\${source.startsWith('http') ? source : 'https://' + source}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px">\${favicon}\${source}<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a>
               : source
-            return \`<tr><td class="name">\${linkHtml}</td><td class="value">\${fmt(r.visitors||0)}</td><td class="value">\${fmt(r.views||0)}</td></tr>\`
+            return \`<tr><td class="name">\${linkHtml}</td><td class="value">\${fmt(r.visitors||0)}</td><td class="value">\${fmt(r.views||0)}</td></tr>
           }).join('')
         : '<tr><td colspan="3" class="empty-cell">No referrer data</td></tr>'
 
@@ -1839,8 +1831,8 @@ export function getDashboardHtml(): string {
                 </div>
               </div>
               <span style="min-width:50px;text-align:right;font-weight:600">\${fmt(e.count||0)}</span>
-            </div>\`
-          }).join('')}</div>\`
+            </div>
+          }).join('')}</div>
         : '<div class="empty-cell" style="padding:1rem">No custom events tracked</div>'
 
       renderChart()
@@ -1856,7 +1848,7 @@ export function getDashboardHtml(): string {
         return
       }
 
-      container.innerHTML = \`
+      container.innerHTML = 
         <table class="data-table">
           <thead><tr>
             <th>Goal</th>
@@ -1866,7 +1858,7 @@ export function getDashboardHtml(): string {
             <th style="text-align:right">Actions</th>
           </tr></thead>
           <tbody>
-            \${goals.map(g => \`
+            \${goals.map(g => 
               <tr>
                 <td class="name">\${g.name}</td>
                 <td><span class="goal-type-badge \${g.type}">\${g.type}</span></td>
@@ -1884,7 +1876,7 @@ export function getDashboardHtml(): string {
             \`).join('')}
           </tbody>
         </table>
-      \`
+      
     }
 
     function showCreateGoalModal() {
@@ -1937,8 +1929,8 @@ export function getDashboardHtml(): string {
       }
 
       const url = editingGoal
-        ? \`\${API_ENDPOINT}/api/sites/\${siteId}/goals/\${editingGoal.id}\`
-        : \`\${API_ENDPOINT}/api/sites/\${siteId}/goals\`
+        ? \`\${API_ENDPOINT}/api/sites/\${siteId}/goals/\${editingGoal.id}
+        : \`\${API_ENDPOINT}/api/sites/\${siteId}/goals
       const method = editingGoal ? 'PUT' : 'POST'
 
       try {
@@ -2732,5 +2724,4 @@ export function getDashboardHtml(): string {
     </div>
   </div>
 </body>
-</html>`
-}
+</html>

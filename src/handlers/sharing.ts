@@ -2,10 +2,10 @@
  * Share link handlers
  */
 
-import { generateId } from '../../src/index'
+import { generateId } from '../index'
 import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { jsonResponse, errorResponse } from '../utils/response'
-import { getQueryParams } from '../lambda-adapter'
+import { getQueryParams } from '../../deploy/lambda-adapter'
 
 /**
  * Generate a secure share token

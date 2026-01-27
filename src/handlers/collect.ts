@@ -7,7 +7,7 @@ import {
   hashVisitorId,
   getDailySalt,
   type AnalyticsEvent,
-} from '../../src/index'
+} from '../index'
 import type { Session as SessionType } from '../../src/types'
 import {
   PageView as PageViewModel,
@@ -24,7 +24,7 @@ import { getSession, setSession } from '../utils/cache'
 import { parseUserAgent } from '../utils/user-agent'
 import { getCountryFromHeaders, getCountryFromIP, parseReferrerSource } from '../utils/geolocation'
 import { jsonResponse, errorResponse } from '../utils/response'
-import { getLambdaEvent, getClientIP, getUserAgent, getHeaders } from '../lambda-adapter'
+import { getLambdaEvent, getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
 
 /**
  * POST /collect or /t

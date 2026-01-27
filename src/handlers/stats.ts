@@ -5,7 +5,7 @@
 import { dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { parseDateRange, formatDuration } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
-import { getQueryParams } from '../lambda-adapter'
+import { getQueryParams } from '../../deploy/lambda-adapter'
 
 /**
  * GET /api/sites/{siteId}/stats

@@ -1,26 +1,75 @@
 /**
  * View handlers for HTML pages
  *
- * Note: These templates are embedded as strings for single-file Lambda deployment.
- * In a future iteration, these can be migrated to stx templates.
+ * Uses STX templates from src/views/ for rendering.
  */
 
-import { generateTrackingScript, generateMinimalTrackingScript } from '../../src/index'
+import { processDirectives, extractVariables, defaultConfig } from '@stacksjs/stx'
+import { generateTrackingScript, generateMinimalTrackingScript } from '../index'
 import { htmlResponse, jsResponse } from '../utils/response'
-import { getQueryParams, getLambdaEvent } from '../lambda-adapter'
+import { getQueryParams, getLambdaEvent } from '../../deploy/lambda-adapter'
+import path from 'node:path'
 
-// The dashboard HTML is large (~2700 lines) and is imported from a separate file
-// to keep this module manageable
-import { getDashboardHtml } from '../views/dashboard'
-import { getErrorDetailHtml } from '../views/error-detail'
-import { getTestErrorsHtml } from '../views/test-errors'
-import { getDetailPageHtml } from '../views/detail'
+// Views directory path
+const VIEWS_DIR = path.resolve(import.meta.dir, '../views')
+
+/**
+ * Render an STX template with context
+ */
+async function renderStx(templateName: string, props: Record<string, unknown> = {}): Promise<string> {
+  const templatePath = path.join(VIEWS_DIR, templateName)
+  const content = await Bun.file(templatePath).text()
+
+  // Extract script content and template
+  const scriptMatch = content.match(/<script\s+server\s*>([\s\S]*?)<\/script>/i)
+  const scriptContent = scriptMatch ? scriptMatch[1] : ''
+  let templateContent = scriptMatch
+    ? content.replace(/<script\s+server\s*>[\s\S]*?<\/script>/i, '')
+    : content
+
+  // Replace <script client> with regular <script> for output
+  templateContent = templateContent.replace(/<script\s+client\s*>/gi, '<script>')
+
+  // Build context with props
+  const context: Record<string, unknown> = {
+    __filename: templatePath,
+    __dirname: path.dirname(templatePath),
+    props,
+    ...props,
+  }
+
+  // Extract variables from server script
+  if (scriptContent) {
+    await extractVariables(scriptContent, context, templatePath)
+  }
+
+  // Process STX directives
+  const config = {
+    ...defaultConfig,
+    componentsDir: path.join(VIEWS_DIR, 'components'),
+    layoutsDir: path.join(VIEWS_DIR, 'layouts'),
+    partialsDir: path.join(VIEWS_DIR, 'partials'),
+  }
+
+  const result = await processDirectives(templateContent, context, templatePath, config)
+  return result
+}
 
 /**
  * GET /dashboard or /
  */
-export async function handleDashboard(_request: Request): Promise<Response> {
-  return htmlResponse(getDashboardHtml())
+export async function handleDashboard(request: Request): Promise<Response> {
+  const query = getQueryParams(request)
+  const event = getLambdaEvent(request)
+  const siteId = query.siteId || ''
+  const apiEndpoint = `https://${event?.requestContext?.domainName || 'analytics.stacksjs.com'}`
+
+  const html = await renderStx('dashboard.stx', {
+    siteId,
+    apiEndpoint,
+  })
+
+  return htmlResponse(html)
 }
 
 /**
@@ -32,7 +81,12 @@ export async function handleTestErrors(request: Request): Promise<Response> {
   const siteId = query.siteId || 'test-site'
   const apiEndpoint = `https://${event?.requestContext?.domainName || 'analytics.stacksjs.com'}`
 
-  return htmlResponse(getTestErrorsHtml(siteId, apiEndpoint))
+  const html = await renderStx('test-errors.stx', {
+    siteId,
+    apiEndpoint,
+  })
+
+  return htmlResponse(html)
 }
 
 /**
@@ -44,7 +98,13 @@ export async function handleErrorDetailPage(request: Request, errorId: string): 
   const siteId = query.siteId || ''
   const apiEndpoint = `https://${event?.requestContext?.domainName || 'analytics.stacksjs.com'}`
 
-  return htmlResponse(getErrorDetailHtml(errorId, siteId, apiEndpoint))
+  const html = await renderStx('error-detail.stx', {
+    errorId,
+    siteId,
+    apiEndpoint,
+  })
+
+  return htmlResponse(html)
 }
 
 /**
@@ -79,9 +139,17 @@ export async function handleDetailPage(request: Request, section: string): Promi
   }
 
   const title = titles[section] || section
-  const icon = icons[section] || icons.pages
+  const iconPath = icons[section] || icons.pages
 
-  return htmlResponse(getDetailPageHtml(section, siteId, apiEndpoint, title, icon))
+  const html = await renderStx('detail.stx', {
+    section,
+    siteId,
+    apiEndpoint,
+    title,
+    iconPath,
+  })
+
+  return htmlResponse(html)
 }
 
 /**

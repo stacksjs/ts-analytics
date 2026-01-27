@@ -2,13 +2,13 @@
  * Goal CRUD handlers
  */
 
-import { generateId } from '../../src/index'
+import { generateId } from '../index'
 import { Goal, Conversion } from '../../src/models/orm'
 import { dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { invalidateGoalCache } from '../utils/cache'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
-import { getQueryParams } from '../lambda-adapter'
+import { getQueryParams } from '../../deploy/lambda-adapter'
 
 /**
  * POST /api/sites/{siteId}/goals
