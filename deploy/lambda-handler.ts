@@ -695,6 +695,31 @@ function getDashboardHtml(): string {
       fetchDashboardData()
     }
 
+    async function addAnnotation() {
+      const type = prompt('Annotation type (deployment, campaign, incident, general):') || 'general'
+      if (!['deployment', 'campaign', 'incident', 'general'].includes(type)) {
+        alert('Invalid type. Use: deployment, campaign, incident, or general')
+        return
+      }
+      const title = prompt('Title (e.g., "v2.0 Release"):')
+      if (!title) return
+      const description = prompt('Description (optional):') || ''
+      const dateStr = prompt('Date (YYYY-MM-DD, leave empty for today):')
+      const date = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString()
+
+      try {
+        await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/annotations\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, title, description, date })
+        })
+        fetchDashboardData() // Refresh to show new annotation
+      } catch (e) {
+        console.error('Failed to add annotation:', e)
+        alert('Failed to add annotation')
+      }
+    }
+
     function getDateRangeParams(forTimeseries) {
       const now = new Date()
       const end = now.toISOString()
@@ -1150,10 +1175,23 @@ function getDashboardHtml(): string {
       if (modal) modal.classList.remove('active')
     }
 
+    // Vitals state
+    let perfBudgetViolations = []
+
     // Render vitals
-    function renderVitals() {
+    async function renderVitals() {
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
+
+      // Fetch performance budget violations
+      try {
+        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/performance-budgets/check\`)
+        const data = await res.json()
+        perfBudgetViolations = data.violations || []
+      } catch (e) {
+        perfBudgetViolations = []
+      }
+
       const getColor = (v) => {
         if (!v || v.samples === 0) return ''
         if (v.good >= 75) return 'good'
@@ -1166,6 +1204,22 @@ function getDashboardHtml(): string {
       }
       tabContent.innerHTML = \`
         <div style="grid-column:1/-1">
+          \${perfBudgetViolations.length > 0 ? \`
+            <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:1rem;margin-bottom:1.5rem">
+              <h4 style="font-size:0.875rem;color:#ef4444;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                Performance Budget Violations
+              </h4>
+              <div style="display:flex;flex-wrap:wrap;gap:0.75rem">
+                \${perfBudgetViolations.map(v => \`
+                  <div style="background:var(--bg);border-radius:6px;padding:0.5rem 0.75rem;font-size:0.8125rem">
+                    <strong>\${v.metric}</strong>: \${v.currentValue}\${v.metric === 'CLS' ? '' : 'ms'}
+                    <span style="color:#ef4444">(exceeds \${v.threshold}\${v.metric === 'CLS' ? '' : 'ms'} by \${v.exceededBy}\${v.metric === 'CLS' ? '' : 'ms'})</span>
+                  </div>
+                \`).join('')}
+              </div>
+            </div>
+          \` : ''}
           <h3 style="margin-bottom:1rem;font-size:1rem">Core Web Vitals</h3>
           <div class="vitals-grid">
             \${vitals.map(v => \`
@@ -1208,9 +1262,10 @@ function getDashboardHtml(): string {
     }
 
     // Update error status
-    async function updateErrorStatus(errorId, status, e) {
+    async function updateErrorStatus(encodedErrorId, status, e) {
       e.preventDefault()
       e.stopPropagation()
+      const errorId = decodeURIComponent(encodedErrorId)
       try {
         await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/errors/status\`, {
           method: 'POST',
@@ -1222,6 +1277,51 @@ function getDashboardHtml(): string {
       } catch (err) {
         console.error('Failed to update error status:', err)
       }
+    }
+
+    // Bulk error resolution
+    async function bulkResolveErrors() {
+      if (!confirm('Mark all new errors as resolved?')) return
+      const newErrors = errors.filter(e => {
+        const id = btoa(e.message || '').slice(0, 20)
+        return !errorStatuses[id] || errorStatuses[id].status === 'new'
+      })
+      for (const e of newErrors) {
+        const errorId = btoa(e.message || '').slice(0, 20)
+        try {
+          await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/errors/status\`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ errorId, status: 'resolved' })
+          })
+          errorStatuses[errorId] = { status: 'resolved' }
+        } catch (err) {
+          console.error('Failed to resolve error:', err)
+        }
+      }
+      renderErrors()
+    }
+
+    async function bulkIgnoreErrors() {
+      if (!confirm('Ignore all new errors?')) return
+      const newErrors = errors.filter(e => {
+        const id = btoa(e.message || '').slice(0, 20)
+        return !errorStatuses[id] || errorStatuses[id].status === 'new'
+      })
+      for (const e of newErrors) {
+        const errorId = btoa(e.message || '').slice(0, 20)
+        try {
+          await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/errors/status\`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ errorId, status: 'ignored' })
+          })
+          errorStatuses[errorId] = { status: 'ignored' }
+        } catch (err) {
+          console.error('Failed to ignore error:', err)
+        }
+      }
+      renderErrors()
     }
 
     // Render errors - Ignition-style clickable error cards
@@ -1268,13 +1368,17 @@ function getDashboardHtml(): string {
         <div style="grid-column:1/-1">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
             <h3 style="font-size:1.125rem;font-weight:600">JavaScript Errors</h3>
-            <div style="display:flex;align-items:center;gap:1rem">
+            <div style="display:flex;align-items:center;gap:0.75rem">
               <select class="filter-select" style="width:auto;font-size:0.75rem" onchange="errorStatusFilter=this.value;renderErrors()">
                 <option value="all" \${errorStatusFilter === 'all' ? 'selected' : ''}>All (\${errors.length})</option>
                 <option value="new" \${errorStatusFilter === 'new' ? 'selected' : ''}>New (\${statusCounts.new})</option>
                 <option value="resolved" \${errorStatusFilter === 'resolved' ? 'selected' : ''}>Resolved (\${statusCounts.resolved})</option>
                 <option value="ignored" \${errorStatusFilter === 'ignored' ? 'selected' : ''}>Ignored (\${statusCounts.ignored})</option>
               </select>
+              \${statusCounts.new > 0 ? \`
+                <button onclick="bulkResolveErrors()" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem;background:#22c55e22;border-color:#22c55e;color:#22c55e">✓ Resolve All New</button>
+                <button onclick="bulkIgnoreErrors()" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Ignore All New</button>
+              \` : ''}
               <span style="font-size:0.875rem;color:var(--muted)">\${filteredErrors.length} error\${filteredErrors.length !== 1 ? 's' : ''}</span>
             </div>
           </div>
@@ -1350,9 +1454,9 @@ function getDashboardHtml(): string {
                   <!-- Actions and link -->
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
                     <div style="display:flex;gap:0.5rem" onclick="event.stopPropagation()">
-                      \${status !== 'resolved' ? \`<button onclick="updateErrorStatus('\${errorId}', 'resolved', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem;background:#22c55e22;border-color:#22c55e;color:#22c55e">✓ Resolve</button>\` : ''}
-                      \${status !== 'ignored' ? \`<button onclick="updateErrorStatus('\${errorId}', 'ignored', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Ignore</button>\` : ''}
-                      \${status !== 'new' ? \`<button onclick="updateErrorStatus('\${errorId}', 'new', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Reopen</button>\` : ''}
+                      \${status !== 'resolved' ? \`<button onclick="updateErrorStatus('\${encodeURIComponent(errorId)}', 'resolved', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem;background:#22c55e22;border-color:#22c55e;color:#22c55e">✓ Resolve</button>\` : ''}
+                      \${status !== 'ignored' ? \`<button onclick="updateErrorStatus('\${encodeURIComponent(errorId)}', 'ignored', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Ignore</button>\` : ''}
+                      \${status !== 'new' ? \`<button onclick="updateErrorStatus('\${encodeURIComponent(errorId)}', 'new', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Reopen</button>\` : ''}
                     </div>
                     <div style="color:var(--accent);font-size:0.8125rem;display:flex;align-items:center">
                       View details
@@ -2913,7 +3017,13 @@ function getDashboardHtml(): string {
 
     <div id="main-content">
       <div class="chart-box" style="position:relative">
-        <div class="chart-title">Pageviews Over Time</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <div class="chart-title" style="margin-bottom:0">Pageviews Over Time</div>
+          <button onclick="addAnnotation()" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem" title="Mark an event on the chart">
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px;vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Annotation
+          </button>
+        </div>
         <canvas id="chart"></canvas>
         <div id="chartTooltip" class="chart-tooltip"></div>
         <div id="chart-empty" class="chart-empty">
