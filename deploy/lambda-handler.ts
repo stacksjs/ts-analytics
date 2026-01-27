@@ -684,6 +684,17 @@ function getDashboardHtml(): string {
       fetchDashboardData()
     }
 
+    function toggleComparison() {
+      showComparison = !showComparison
+      const btn = document.getElementById('compare-btn')
+      if (btn) {
+        btn.classList.toggle('active', showComparison)
+        btn.style.background = showComparison ? 'var(--accent)' : ''
+        btn.style.color = showComparison ? 'white' : ''
+      }
+      fetchDashboardData()
+    }
+
     function getDateRangeParams(forTimeseries) {
       const now = new Date()
       const end = now.toISOString()
@@ -703,6 +714,11 @@ function getDashboardHtml(): string {
       return params
     }
 
+    // Annotations and comparison state
+    let annotations = []
+    let showComparison = false
+    let comparisonData = null
+
     async function fetchDashboardData() {
       if (isLoading) return
       isLoading = true
@@ -714,7 +730,7 @@ function getDashboardHtml(): string {
       const tsParams = getDateRangeParams(true)
 
       try {
-        const [statsRes, realtimeRes, pagesRes, referrersRes, devicesRes, browsersRes, countriesRes, timeseriesRes, eventsRes, campaignsRes, goalsRes, vitalsRes, errorsRes, insightsRes] = await Promise.all([
+        const fetchPromises = [
           fetch(\`\${baseUrl}/stats\${params}\`).then(r => r.json()).catch(() => ({})),
           fetch(\`\${baseUrl}/realtime\`).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
           fetch(\`\${baseUrl}/pages\${params}\`).then(r => r.json()).catch(() => ({ pages: [] })),
@@ -729,7 +745,19 @@ function getDashboardHtml(): string {
           fetch(\`\${baseUrl}/vitals\${params}\`).then(r => r.json()).catch(() => ({ vitals: [] })),
           fetch(\`\${baseUrl}/errors\${params}\`).then(r => r.json()).catch(() => ({ errors: [] })),
           fetch(\`\${baseUrl}/insights\`).then(r => r.json()).catch(() => ({ insights: [] })),
-        ])
+          fetch(\`\${baseUrl}/annotations\${params}\`).then(r => r.json()).catch(() => ({ annotations: [] })),
+        ]
+
+        // Add comparison data fetch if enabled
+        if (showComparison) {
+          fetchPromises.push(fetch(\`\${baseUrl}/comparison\${params}\`).then(r => r.json()).catch(() => null))
+        }
+
+        const results = await Promise.all(fetchPromises)
+        const [statsRes, realtimeRes, pagesRes, referrersRes, devicesRes, browsersRes, countriesRes, timeseriesRes, eventsRes, campaignsRes, goalsRes, vitalsRes, errorsRes, insightsRes, annotationsRes] = results
+        if (showComparison && results[15]) {
+          comparisonData = results[15]
+        }
 
         previousStats = { ...stats }
         stats = {
@@ -756,6 +784,7 @@ function getDashboardHtml(): string {
         errors = errorsRes.errors || []
         insights = insightsRes.insights || []
         comparisonStats = insightsRes.stats || null
+        annotations = annotationsRes.annotations || []
         lastUpdated = new Date()
 
         // Mark site as having data if we see any (don't show setup for empty time ranges)
@@ -832,7 +861,7 @@ function getDashboardHtml(): string {
         } else if (tab === 'vitals') {
           renderVitals()
         } else if (tab === 'errors') {
-          renderErrors()
+          fetchErrorStatuses().then(() => renderErrors())
         } else if (tab === 'insights') {
           renderInsights()
         } else if (tab === 'live') {
@@ -1163,6 +1192,38 @@ function getDashboardHtml(): string {
       \`
     }
 
+    // Error state
+    let errorStatuses = {}
+    let errorStatusFilter = 'all'
+
+    // Fetch error statuses
+    async function fetchErrorStatuses() {
+      try {
+        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/errors/statuses\`)
+        const data = await res.json()
+        errorStatuses = data.statuses || {}
+      } catch (e) {
+        console.error('Failed to fetch error statuses:', e)
+      }
+    }
+
+    // Update error status
+    async function updateErrorStatus(errorId, status, e) {
+      e.preventDefault()
+      e.stopPropagation()
+      try {
+        await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/errors/status\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ errorId, status })
+        })
+        errorStatuses[errorId] = { status }
+        renderErrors()
+      } catch (err) {
+        console.error('Failed to update error status:', err)
+      }
+    }
+
     // Render errors - Ignition-style clickable error cards
     function renderErrors() {
       const tabContent = document.getElementById('tab-content')
@@ -1176,90 +1237,132 @@ function getDashboardHtml(): string {
         low: 'linear-gradient(135deg, #65a30d 0%, #4d7c0f 100%)'
       }
       const severityLabels = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
+      const statusColors = { new: '#3b82f6', resolved: '#22c55e', ignored: '#6b7280', regression: '#f59e0b' }
+      const statusLabels = { new: 'New', resolved: 'Resolved', ignored: 'Ignored', regression: 'Regression' }
 
       // Generate error ID from message for linking
       function getErrorId(msg) {
         return btoa(msg || '').slice(0, 20)
       }
 
+      // Get status for error
+      function getErrorStatus(msg) {
+        const id = getErrorId(msg)
+        return errorStatuses[id]?.status || 'new'
+      }
+
+      // Filter errors by status
+      const filteredErrors = errorStatusFilter === 'all'
+        ? errors
+        : errors.filter(e => getErrorStatus(e.message) === errorStatusFilter)
+
+      // Count by status
+      const statusCounts = { new: 0, resolved: 0, ignored: 0 }
+      errors.forEach(e => {
+        const status = getErrorStatus(e.message)
+        if (statusCounts[status] !== undefined) statusCounts[status]++
+        else statusCounts.new++
+      })
+
       tabContent.innerHTML = \`
         <div style="grid-column:1/-1">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
             <h3 style="font-size:1.125rem;font-weight:600">JavaScript Errors</h3>
-            <span style="font-size:0.875rem;color:var(--muted)">\${errors.length} unique error\${errors.length !== 1 ? 's' : ''}</span>
+            <div style="display:flex;align-items:center;gap:1rem">
+              <select class="filter-select" style="width:auto;font-size:0.75rem" onchange="errorStatusFilter=this.value;renderErrors()">
+                <option value="all" \${errorStatusFilter === 'all' ? 'selected' : ''}>All (\${errors.length})</option>
+                <option value="new" \${errorStatusFilter === 'new' ? 'selected' : ''}>New (\${statusCounts.new})</option>
+                <option value="resolved" \${errorStatusFilter === 'resolved' ? 'selected' : ''}>Resolved (\${statusCounts.resolved})</option>
+                <option value="ignored" \${errorStatusFilter === 'ignored' ? 'selected' : ''}>Ignored (\${statusCounts.ignored})</option>
+              </select>
+              <span style="font-size:0.875rem;color:var(--muted)">\${filteredErrors.length} error\${filteredErrors.length !== 1 ? 's' : ''}</span>
+            </div>
           </div>
 
           <!-- Severity summary cards -->
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
             <div style="background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.3);border-radius:8px;padding:1rem;text-align:center">
-              <div style="font-size:2rem;font-weight:700;color:#dc2626">\${errors.filter(e => e.severity === 'critical').length}</div>
+              <div style="font-size:2rem;font-weight:700;color:#dc2626">\${filteredErrors.filter(e => e.severity === 'critical').length}</div>
               <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Critical</div>
             </div>
             <div style="background:rgba(234,88,12,0.1);border:1px solid rgba(234,88,12,0.3);border-radius:8px;padding:1rem;text-align:center">
-              <div style="font-size:2rem;font-weight:700;color:#ea580c">\${errors.filter(e => e.severity === 'high').length}</div>
+              <div style="font-size:2rem;font-weight:700;color:#ea580c">\${filteredErrors.filter(e => e.severity === 'high').length}</div>
               <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">High</div>
             </div>
             <div style="background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.3);border-radius:8px;padding:1rem;text-align:center">
-              <div style="font-size:2rem;font-weight:700;color:#d97706">\${errors.filter(e => e.severity === 'medium').length}</div>
+              <div style="font-size:2rem;font-weight:700;color:#d97706">\${filteredErrors.filter(e => e.severity === 'medium').length}</div>
               <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Medium</div>
             </div>
             <div style="background:rgba(101,163,13,0.1);border:1px solid rgba(101,163,13,0.3);border-radius:8px;padding:1rem;text-align:center">
-              <div style="font-size:2rem;font-weight:700;color:#65a30d">\${errors.filter(e => e.severity === 'low').length}</div>
+              <div style="font-size:2rem;font-weight:700;color:#65a30d">\${filteredErrors.filter(e => e.severity === 'low').length}</div>
               <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Low</div>
             </div>
           </div>
 
           <!-- Error list -->
-          \${errors.length === 0 ? \`
+          \${filteredErrors.length === 0 ? \`
             <div style="text-align:center;padding:3rem;color:var(--muted)">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 1rem;opacity:0.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <div style="font-size:1rem;margin-bottom:0.5rem">No errors recorded</div>
-              <div style="font-size:0.875rem">Your application is running smoothly!</div>
+              <div style="font-size:1rem;margin-bottom:0.5rem">\${errorStatusFilter === 'all' ? 'No errors recorded' : 'No ' + errorStatusFilter + ' errors'}</div>
+              <div style="font-size:0.875rem">\${errorStatusFilter === 'all' ? 'Your application is running smoothly!' : 'Try a different filter.'}</div>
             </div>
-          \` : errors.map(e => \`
-            <a href="/errors/\${encodeURIComponent(getErrorId(e.message))}?siteId=\${siteId}" style="text-decoration:none;color:inherit;display:block">
-              <div class="error-card" style="border-left:4px solid \${severityColors[e.severity] || '#6b7280'};cursor:pointer;transition:all 0.15s;margin-bottom:1rem" onmouseover="this.style.transform='translateX(4px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none';this.style.boxShadow='none'">
-                <!-- Error header with gradient -->
-                <div style="background:\${severityGradients[e.severity] || severityGradients.medium};margin:-1rem -1rem 1rem -1rem;padding:1rem;border-radius:8px 8px 0 0">
-                  <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
-                    <span style="background:rgba(255,255,255,0.2);color:white;font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em">\${severityLabels[e.severity] || 'Unknown'}</span>
-                    <span style="background:rgba(0,0,0,0.2);color:rgba(255,255,255,0.9);font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px">\${e.category || 'Error'}</span>
-                    <span style="margin-left:auto;color:rgba(255,255,255,0.75);font-size:0.75rem">\${e.count} event\${e.count !== 1 ? 's' : ''}</span>
+          \` : filteredErrors.map(e => {
+            const errorId = getErrorId(e.message)
+            const status = getErrorStatus(e.message)
+            return \`
+            <div style="position:relative;margin-bottom:1rem">
+              <a href="/errors/\${encodeURIComponent(errorId)}?siteId=\${siteId}" style="text-decoration:none;color:inherit;display:block">
+                <div class="error-card" style="border-left:4px solid \${severityColors[e.severity] || '#6b7280'};cursor:pointer;transition:all 0.15s;\${status === 'resolved' ? 'opacity:0.6;' : ''}\${status === 'ignored' ? 'opacity:0.4;' : ''}" onmouseover="this.style.transform='translateX(4px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none';this.style.boxShadow='none'">
+                  <!-- Error header with gradient -->
+                  <div style="background:\${severityGradients[e.severity] || severityGradients.medium};margin:-1rem -1rem 1rem -1rem;padding:1rem;border-radius:8px 8px 0 0">
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+                      <span style="background:rgba(255,255,255,0.2);color:white;font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em">\${severityLabels[e.severity] || 'Unknown'}</span>
+                      <span style="background:rgba(0,0,0,0.2);color:rgba(255,255,255,0.9);font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px">\${e.category || 'Error'}</span>
+                      <span style="background:\${statusColors[status]};color:white;font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px;text-transform:uppercase">\${statusLabels[status] || 'New'}</span>
+                      <span style="margin-left:auto;color:rgba(255,255,255,0.75);font-size:0.75rem">\${e.count} event\${e.count !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div style="color:white;font-size:0.8125rem;opacity:0.8">\${e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source'}</div>
                   </div>
-                  <div style="color:white;font-size:0.8125rem;opacity:0.8">\${e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source'}</div>
-                </div>
 
-                <!-- Error message -->
-                <div style="font-size:0.9375rem;font-weight:500;color:var(--text);margin-bottom:0.75rem;line-height:1.5">\${e.message || 'Unknown error'}</div>
+                  <!-- Error message -->
+                  <div style="font-size:0.9375rem;font-weight:500;color:var(--text);margin-bottom:0.75rem;line-height:1.5">\${e.message || 'Unknown error'}</div>
 
-                <!-- Error metadata -->
-                <div style="display:flex;flex-wrap:wrap;gap:1rem;font-size:0.8125rem;color:var(--muted)">
-                  <div style="display:flex;align-items:center;gap:0.375rem">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    First: \${e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A'}
+                  <!-- Error metadata -->
+                  <div style="display:flex;flex-wrap:wrap;gap:1rem;font-size:0.8125rem;color:var(--muted)">
+                    <div style="display:flex;align-items:center;gap:0.375rem">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      First: \${e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A'}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.375rem">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                      Last: \${new Date(e.lastSeen).toLocaleString()}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.375rem">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                      \${(e.browsers || []).join(', ') || 'Unknown'}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.375rem">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
+                      \${(e.paths || []).length} page\${(e.paths || []).length !== 1 ? 's' : ''}
+                    </div>
                   </div>
-                  <div style="display:flex;align-items:center;gap:0.375rem">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    Last: \${new Date(e.lastSeen).toLocaleString()}
-                  </div>
-                  <div style="display:flex;align-items:center;gap:0.375rem">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-                    \${(e.browsers || []).join(', ') || 'Unknown'}
-                  </div>
-                  <div style="display:flex;align-items:center;gap:0.375rem">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
-                    \${(e.paths || []).length} page\${(e.paths || []).length !== 1 ? 's' : ''}
+
+                  <!-- Actions and link -->
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+                    <div style="display:flex;gap:0.5rem" onclick="event.stopPropagation()">
+                      \${status !== 'resolved' ? \`<button onclick="updateErrorStatus('\${errorId}', 'resolved', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem;background:#22c55e22;border-color:#22c55e;color:#22c55e">✓ Resolve</button>\` : ''}
+                      \${status !== 'ignored' ? \`<button onclick="updateErrorStatus('\${errorId}', 'ignored', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Ignore</button>\` : ''}
+                      \${status !== 'new' ? \`<button onclick="updateErrorStatus('\${errorId}', 'new', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Reopen</button>\` : ''}
+                    </div>
+                    <div style="color:var(--accent);font-size:0.8125rem;display:flex;align-items:center">
+                      View details
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:0.25rem"><path d="M9 18l6-6-6-6"/></svg>
+                    </div>
                   </div>
                 </div>
-
-                <!-- Click hint -->
-                <div style="display:flex;align-items:center;justify-content:flex-end;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);color:var(--accent);font-size:0.8125rem">
-                  View details
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:0.25rem"><path d="M9 18l6-6-6-6"/></svg>
-                </div>
-              </div>
-            </a>
-          \`).join('')}
+              </a>
+            </div>
+          \`}).join('')}
         </div>
       \`
     }
@@ -1525,108 +1628,296 @@ function getDashboardHtml(): string {
 
       // Fetch various settings
       try {
-        const [retentionRes, teamRes, webhooksRes, emailReportsRes] = await Promise.all([
+        const [retentionRes, teamRes, webhooksRes, emailReportsRes, apiKeysRes, alertsRes, uptimeRes, perfBudgetsRes] = await Promise.all([
           fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/retention\`).then(r => r.json()).catch(() => ({ retentionDays: 365 })),
           fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/team\`).then(r => r.json()).catch(() => ({ members: [] })),
           fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/webhooks\`).then(r => r.json()).catch(() => ({ webhooks: [] })),
-          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/email-reports\`).then(r => r.json()).catch(() => ({ reports: [] }))
+          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/email-reports\`).then(r => r.json()).catch(() => ({ reports: [] })),
+          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/api-keys\`).then(r => r.json()).catch(() => ({ apiKeys: [] })),
+          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/alerts\`).then(r => r.json()).catch(() => ({ alerts: [] })),
+          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/uptime\`).then(r => r.json()).catch(() => ({ monitors: [] })),
+          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/performance-budgets\`).then(r => r.json()).catch(() => ({ budgets: [] }))
         ])
 
-        settingsData = { retention: retentionRes, team: teamRes, webhooks: webhooksRes, emailReports: emailReportsRes }
+        settingsData = { retention: retentionRes, team: teamRes, webhooks: webhooksRes, emailReports: emailReportsRes, apiKeys: apiKeysRes, alerts: alertsRes, uptime: uptimeRes, perfBudgets: perfBudgetsRes }
       } catch (e) {
         console.error('Failed to fetch settings:', e)
       }
 
-      const { retention, team, webhooks, emailReports } = settingsData
+      const { retention, team, webhooks, emailReports, apiKeys, alerts, uptime, perfBudgets } = settingsData
 
       tabContent.innerHTML = \`
         <div style="grid-column:1/-1">
           <h3 style="font-size:1rem;margin-bottom:1.5rem">Settings</h3>
 
-          <!-- Data Retention -->
-          <div class="panel" style="margin-bottom:1rem">
-            <h4 style="font-size:0.875rem;margin-bottom:0.75rem">Data Retention</h4>
-            <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Configure how long to keep analytics data.</p>
-            <select id="retention-select" class="filter-select" style="width:auto" onchange="updateRetention(this.value)">
-              <option value="30" \${retention.retentionDays === 30 ? 'selected' : ''}>30 days</option>
-              <option value="90" \${retention.retentionDays === 90 ? 'selected' : ''}>90 days</option>
-              <option value="180" \${retention.retentionDays === 180 ? 'selected' : ''}>180 days</option>
-              <option value="365" \${retention.retentionDays === 365 ? 'selected' : ''}>1 year</option>
-              <option value="730" \${retention.retentionDays === 730 ? 'selected' : ''}>2 years</option>
-            </select>
-          </div>
-
-          <!-- Team Members -->
-          <div class="panel" style="margin-bottom:1rem">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-              <h4 style="font-size:0.875rem">Team Members</h4>
-              <button class="export-btn" onclick="inviteTeamMember()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Invite</button>
-            </div>
-            \${(team.members || []).length === 0 ? \`
-              <p style="font-size:0.75rem;color:var(--muted)">No team members yet.</p>
-            \` : \`
-              <div style="display:flex;flex-direction:column;gap:0.5rem">
-                \${(team.members || []).map(m => \`
-                  <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                    <span style="font-size:0.8125rem">\${m.email}</span>
-                    <span style="font-size:0.6875rem;color:var(--muted)">\${m.role} • \${m.status}</span>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem">
+            <!-- Left Column -->
+            <div>
+              <!-- API Keys -->
+              <div class="panel" style="margin-bottom:1rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                  <h4 style="font-size:0.875rem">API Keys</h4>
+                  <button class="export-btn" onclick="createApiKey()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ New Key</button>
+                </div>
+                <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Generate API keys for programmatic access to your analytics data.</p>
+                \${(apiKeys.apiKeys || []).length === 0 ? \`
+                  <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No API keys yet.</p>
+                \` : \`
+                  <div style="display:flex;flex-direction:column;gap:0.5rem">
+                    \${(apiKeys.apiKeys || []).map(k => \`
+                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
+                        <div>
+                          <div style="font-size:0.8125rem;font-weight:500">\${k.name || 'API Key'}</div>
+                          <code style="font-size:0.6875rem;color:var(--muted)">\${k.key}</code>
+                        </div>
+                        <button class="icon-btn danger" onclick="deleteApiKey('\${k.key}')">×</button>
+                      </div>
+                    \`).join('')}
                   </div>
-                \`).join('')}
+                \`}
               </div>
-            \`}
-          </div>
 
-          <!-- Webhooks -->
-          <div class="panel" style="margin-bottom:1rem">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-              <h4 style="font-size:0.875rem">Webhooks (Slack/Discord)</h4>
-              <button class="export-btn" onclick="addWebhook()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Add</button>
-            </div>
-            \${(webhooks.webhooks || []).length === 0 ? \`
-              <p style="font-size:0.75rem;color:var(--muted)">No webhooks configured. Add a Slack or Discord webhook to receive alerts.</p>
-            \` : \`
-              <div style="display:flex;flex-direction:column;gap:0.5rem">
-                \${(webhooks.webhooks || []).map(w => \`
-                  <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                    <span style="font-size:0.8125rem">\${w.type} • \${w.url}</span>
-                    <button class="icon-btn danger" onclick="deleteWebhook('\${w.id}')">×</button>
+              <!-- Alerts -->
+              <div class="panel" style="margin-bottom:1rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                  <h4 style="font-size:0.875rem">Alerts</h4>
+                  <button class="export-btn" onclick="createAlert()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ New Alert</button>
+                </div>
+                <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Get notified on traffic spikes, drops, or error rate changes.</p>
+                \${(alerts.alerts || []).length === 0 ? \`
+                  <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No alerts configured.</p>
+                \` : \`
+                  <div style="display:flex;flex-direction:column;gap:0.5rem">
+                    \${(alerts.alerts || []).map(a => \`
+                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
+                        <div>
+                          <div style="font-size:0.8125rem;font-weight:500">\${a.name}</div>
+                          <div style="font-size:0.6875rem;color:var(--muted)">\${a.type} • >\${a.threshold}%</div>
+                        </div>
+                        <button class="icon-btn danger" onclick="deleteAlert('\${a.id}')">×</button>
+                      </div>
+                    \`).join('')}
                   </div>
-                \`).join('')}
+                \`}
               </div>
-            \`}
-          </div>
 
-          <!-- Email Reports -->
-          <div class="panel" style="margin-bottom:1rem">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-              <h4 style="font-size:0.875rem">Email Reports</h4>
-              <button class="export-btn" onclick="addEmailReport()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Add</button>
-            </div>
-            \${(emailReports.reports || []).length === 0 ? \`
-              <p style="font-size:0.75rem;color:var(--muted)">No email reports scheduled.</p>
-            \` : \`
-              <div style="display:flex;flex-direction:column;gap:0.5rem">
-                \${(emailReports.reports || []).map(r => \`
-                  <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                    <span style="font-size:0.8125rem">\${r.email} • \${r.frequency}</span>
-                    <button class="icon-btn danger" onclick="deleteEmailReport('\${r.id}')">×</button>
+              <!-- Uptime Monitoring -->
+              <div class="panel" style="margin-bottom:1rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                  <h4 style="font-size:0.875rem">Uptime Monitoring</h4>
+                  <button class="export-btn" onclick="createUptimeMonitor()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ Add Monitor</button>
+                </div>
+                <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Monitor endpoint availability and response times.</p>
+                \${(uptime.monitors || []).length === 0 ? \`
+                  <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No monitors configured.</p>
+                \` : \`
+                  <div style="display:flex;flex-direction:column;gap:0.5rem">
+                    \${(uptime.monitors || []).map(m => \`
+                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
+                        <div>
+                          <div style="font-size:0.8125rem;font-weight:500">\${m.url}</div>
+                          <div style="font-size:0.6875rem;color:var(--muted)">Every \${m.interval} min</div>
+                        </div>
+                        <button class="icon-btn danger" onclick="deleteUptimeMonitor('\${m.id}')">×</button>
+                      </div>
+                    \`).join('')}
                   </div>
-                \`).join('')}
+                \`}
               </div>
-            \`}
-          </div>
 
-          <!-- GDPR -->
-          <div class="panel">
-            <h4 style="font-size:0.875rem;margin-bottom:0.75rem">GDPR Tools</h4>
-            <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Handle data export and deletion requests.</p>
-            <div style="display:flex;gap:0.5rem">
-              <button class="export-btn" onclick="gdprExport()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Export Data</button>
-              <button class="export-btn" onclick="gdprDelete()" style="padding:0.375rem 0.75rem;font-size:0.75rem;border-color:var(--error);color:var(--error)">Delete Data</button>
+              <!-- Performance Budgets -->
+              <div class="panel" style="margin-bottom:1rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                  <h4 style="font-size:0.875rem">Performance Budgets</h4>
+                  <button class="export-btn" onclick="createPerfBudget()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ Add Budget</button>
+                </div>
+                <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Set thresholds for Core Web Vitals and get alerts when exceeded.</p>
+                \${(perfBudgets.budgets || []).length === 0 ? \`
+                  <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No budgets configured.</p>
+                \` : \`
+                  <div style="display:flex;flex-direction:column;gap:0.5rem">
+                    \${(perfBudgets.budgets || []).map(b => \`
+                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
+                        <div>
+                          <div style="font-size:0.8125rem;font-weight:500">\${b.metric}</div>
+                          <div style="font-size:0.6875rem;color:var(--muted)">Max: \${b.threshold}\${b.metric === 'CLS' ? '' : 'ms'}</div>
+                        </div>
+                        <button class="icon-btn danger" onclick="deletePerfBudget('\${b.id}')">×</button>
+                      </div>
+                    \`).join('')}
+                  </div>
+                \`}
+              </div>
+            </div>
+
+            <!-- Right Column -->
+            <div>
+              <!-- Data Retention -->
+              <div class="panel" style="margin-bottom:1rem">
+                <h4 style="font-size:0.875rem;margin-bottom:0.75rem">Data Retention</h4>
+                <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Configure how long to keep analytics data.</p>
+                <select id="retention-select" class="filter-select" style="width:auto" onchange="updateRetention(this.value)">
+                  <option value="30" \${retention.retentionDays === 30 ? 'selected' : ''}>30 days</option>
+                  <option value="90" \${retention.retentionDays === 90 ? 'selected' : ''}>90 days</option>
+                  <option value="180" \${retention.retentionDays === 180 ? 'selected' : ''}>180 days</option>
+                  <option value="365" \${retention.retentionDays === 365 ? 'selected' : ''}>1 year</option>
+                  <option value="730" \${retention.retentionDays === 730 ? 'selected' : ''}>2 years</option>
+                </select>
+              </div>
+
+              <!-- Team Members -->
+              <div class="panel" style="margin-bottom:1rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                  <h4 style="font-size:0.875rem">Team Members</h4>
+                  <button class="export-btn" onclick="inviteTeamMember()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Invite</button>
+                </div>
+                \${(team.members || []).length === 0 ? \`
+                  <p style="font-size:0.75rem;color:var(--muted)">No team members yet.</p>
+                \` : \`
+                  <div style="display:flex;flex-direction:column;gap:0.5rem">
+                    \${(team.members || []).map(m => \`
+                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
+                        <span style="font-size:0.8125rem">\${m.email}</span>
+                        <span style="font-size:0.6875rem;color:var(--muted)">\${m.role} • \${m.status}</span>
+                      </div>
+                    \`).join('')}
+                  </div>
+                \`}
+              </div>
+
+              <!-- Webhooks -->
+              <div class="panel" style="margin-bottom:1rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                  <h4 style="font-size:0.875rem">Webhooks (Slack/Discord)</h4>
+                  <button class="export-btn" onclick="addWebhook()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Add</button>
+                </div>
+                \${(webhooks.webhooks || []).length === 0 ? \`
+                  <p style="font-size:0.75rem;color:var(--muted)">No webhooks configured. Add a Slack or Discord webhook to receive alerts.</p>
+                \` : \`
+                  <div style="display:flex;flex-direction:column;gap:0.5rem">
+                    \${(webhooks.webhooks || []).map(w => \`
+                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
+                        <span style="font-size:0.8125rem">\${w.type} • \${w.url.slice(0,30)}...</span>
+                        <button class="icon-btn danger" onclick="deleteWebhook('\${w.id}')">×</button>
+                      </div>
+                    \`).join('')}
+                  </div>
+                \`}
+              </div>
+
+              <!-- Email Reports -->
+              <div class="panel" style="margin-bottom:1rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                  <h4 style="font-size:0.875rem">Email Reports</h4>
+                  <button class="export-btn" onclick="addEmailReport()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Add</button>
+                </div>
+                \${(emailReports.reports || []).length === 0 ? \`
+                  <p style="font-size:0.75rem;color:var(--muted)">No email reports scheduled.</p>
+                \` : \`
+                  <div style="display:flex;flex-direction:column;gap:0.5rem">
+                    \${(emailReports.reports || []).map(r => \`
+                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
+                        <span style="font-size:0.8125rem">\${r.email} • \${r.frequency}</span>
+                        <button class="icon-btn danger" onclick="deleteEmailReport('\${r.id}')">×</button>
+                      </div>
+                    \`).join('')}
+                  </div>
+                \`}
+              </div>
+
+              <!-- GDPR -->
+              <div class="panel">
+                <h4 style="font-size:0.875rem;margin-bottom:0.75rem">GDPR Tools</h4>
+                <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Handle data export and deletion requests.</p>
+                <div style="display:flex;gap:0.5rem">
+                  <button class="export-btn" onclick="gdprExport()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Export Data</button>
+                  <button class="export-btn" onclick="gdprDelete()" style="padding:0.375rem 0.75rem;font-size:0.75rem;border-color:var(--error);color:var(--error)">Delete Data</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       \`
+    }
+
+    // Settings action functions
+    function createApiKey() {
+      const name = prompt('Enter a name for this API key:')
+      if (!name) return
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/api-keys\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      }).then(r => r.json()).then(data => {
+        if (data.apiKey?.key) {
+          alert('API Key created! Make sure to copy it now:\\n\\n' + data.apiKey.key + '\\n\\nThis key will not be shown again.')
+        }
+        renderSettings()
+      }).catch(e => console.error(e))
+    }
+
+    function deleteApiKey(keyId) {
+      if (!confirm('Delete this API key? This cannot be undone.')) return
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/api-keys/\${keyId}\`, { method: 'DELETE' })
+        .then(() => renderSettings()).catch(e => console.error(e))
+    }
+
+    function createAlert() {
+      const name = prompt('Alert name:')
+      if (!name) return
+      const type = prompt('Alert type (traffic_spike, traffic_drop, error_rate):') || 'traffic_spike'
+      const threshold = prompt('Threshold percentage (e.g., 50):') || '50'
+      const email = prompt('Email for notifications (optional):')
+
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/alerts\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, type, threshold: parseInt(threshold), email })
+      }).then(() => renderSettings()).catch(e => console.error(e))
+    }
+
+    function deleteAlert(alertId) {
+      if (!confirm('Delete this alert?')) return
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/alerts/\${alertId}\`, { method: 'DELETE' })
+        .then(() => renderSettings()).catch(e => console.error(e))
+    }
+
+    function createUptimeMonitor() {
+      const url = prompt('URL to monitor (e.g., https://example.com/api/health):')
+      if (!url) return
+      const interval = prompt('Check interval in minutes (default: 5):') || '5'
+
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/uptime\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, interval: parseInt(interval) })
+      }).then(() => renderSettings()).catch(e => console.error(e))
+    }
+
+    function deleteUptimeMonitor(monitorId) {
+      if (!confirm('Delete this monitor?')) return
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/uptime/\${monitorId}\`, { method: 'DELETE' })
+        .then(() => renderSettings()).catch(e => console.error(e))
+    }
+
+    function createPerfBudget() {
+      const metric = prompt('Metric (LCP, FID, CLS, TTFB, INP, FCP):')
+      if (!metric) return
+      const threshold = prompt(\`Threshold value (\${metric === 'CLS' ? 'e.g., 0.1' : 'e.g., 2500ms'}):\`)
+      if (!threshold) return
+      const email = prompt('Email for alerts (optional):')
+
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/performance-budgets\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metric: metric.toUpperCase(), threshold: parseFloat(threshold), alertEmail: email })
+      }).then(() => renderSettings()).catch(e => console.error(e))
+    }
+
+    function deletePerfBudget(budgetId) {
+      if (!confirm('Delete this performance budget?')) return
+      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/performance-budgets/\${budgetId}\`, { method: 'DELETE' })
+        .then(() => renderSettings()).catch(e => console.error(e))
     }
 
     async function updateRetention(days) {
@@ -1763,6 +2054,15 @@ function getDashboardHtml(): string {
     function renderDashboard(animate = false) {
       const duration = 600 // Animation duration in ms
 
+      // Helper to render comparison badge
+      function compBadge(change) {
+        if (!showComparison || !comparisonData || change === undefined) return ''
+        const isUp = change > 0
+        const color = isUp ? '#22c55e' : '#ef4444'
+        const arrow = isUp ? '↑' : '↓'
+        return '<span style="font-size:0.6875rem;color:' + color + ';margin-left:4px">' + arrow + Math.abs(change) + '%</span>'
+      }
+
       // Update stats with animation
       if (animate && previousStats) {
         animateValue(document.getElementById('stat-realtime'), previousStats.realtime, stats.realtime, duration, fmt)
@@ -1773,11 +2073,11 @@ function getDashboardHtml(): string {
         document.getElementById('stat-avgtime').textContent = stats.avgTime
       } else {
         document.getElementById('stat-realtime').textContent = fmt(stats.realtime)
-        document.getElementById('stat-sessions').textContent = fmt(stats.sessions)
-        document.getElementById('stat-people').textContent = fmt(stats.people)
-        document.getElementById('stat-views').textContent = fmt(stats.views)
-        document.getElementById('stat-bounce').textContent = stats.bounceRate + '%'
-        document.getElementById('stat-avgtime').textContent = stats.avgTime
+        document.getElementById('stat-sessions').innerHTML = fmt(stats.sessions) + (comparisonData ? compBadge(comparisonData.changes?.sessions) : '')
+        document.getElementById('stat-people').innerHTML = fmt(stats.people) + (comparisonData ? compBadge(comparisonData.changes?.visitors) : '')
+        document.getElementById('stat-views').innerHTML = fmt(stats.views) + (comparisonData ? compBadge(comparisonData.changes?.pageviews) : '')
+        document.getElementById('stat-bounce').innerHTML = stats.bounceRate + '%' + (comparisonData ? compBadge(comparisonData.changes?.bounceRate) : '')
+        document.getElementById('stat-avgtime').innerHTML = stats.avgTime + (comparisonData ? compBadge(comparisonData.changes?.avgDuration) : '')
       }
       document.getElementById('realtime-count').textContent = stats.realtime === 1 ? '1 visitor online' : stats.realtime + ' visitors online'
 
@@ -1846,8 +2146,26 @@ function getDashboardHtml(): string {
         ? campaigns.slice(0,8).map(c => \`<tr><td class="name">\${c.name || c.source || 'Unknown'}</td><td class="value">\${fmt(c.visitors||0)}</td><td class="value">\${fmt(c.views||0)}</td></tr>\`).join('')
         : '<tr><td colspan="3" class="empty-cell">No campaign data</td></tr>'
 
+      // Enhanced events display with mini chart
+      const totalEventCount = events.reduce((sum, e) => sum + (e.count || 0), 0)
+      const maxEventCount = Math.max(...events.map(e => e.count || 0), 1)
       document.getElementById('events-container').innerHTML = events.length
-        ? \`<table class="data-table"><thead><tr><th>Event</th><th style="text-align:right">Count</th><th style="text-align:right">Unique</th></tr></thead><tbody>\${events.slice(0,10).map(e => \`<tr><td class="name">\${e.name}</td><td class="value">\${fmt(e.count||0)}</td><td class="value">\${fmt(e.unique||e.visitors||0)}</td></tr>\`).join('')}</tbody></table>\`
+        ? \`<div style="display:flex;flex-direction:column;gap:0.5rem">\${events.slice(0,8).map(e => {
+            const pct = Math.round(((e.count || 0) / totalEventCount) * 100)
+            const barWidth = Math.round(((e.count || 0) / maxEventCount) * 100)
+            return \`<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8125rem">
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+                  <span style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${e.name}</span>
+                  <span style="color:var(--muted);margin-left:0.5rem">\${pct}%</span>
+                </div>
+                <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+                  <div style="height:100%;width:\${barWidth}%;background:var(--accent2);border-radius:2px;transition:width 0.3s"></div>
+                </div>
+              </div>
+              <span style="min-width:50px;text-align:right;font-weight:600">\${fmt(e.count||0)}</span>
+            </div>\`
+          }).join('')}</div>\`
         : '<div class="empty-cell" style="padding:1rem">No custom events tracked</div>'
 
       renderChart()
@@ -2104,6 +2422,43 @@ function getDashboardHtml(): string {
           ctx.fill()
           if (i === hoverIdx) { ctx.strokeStyle = colors.accent2; ctx.lineWidth = 2; ctx.stroke() }
         })
+
+        // Annotation markers
+        const annotationColors = { deployment: '#22c55e', campaign: '#3b82f6', incident: '#ef4444', general: '#8b5cf6' }
+        if (annotations.length > 0) {
+          annotations.forEach(ann => {
+            // Find the x position for this annotation date
+            const annDate = new Date(ann.date).toISOString().split('T')[0]
+            const idx = timeSeriesData.findIndex(d => {
+              const tDate = new Date(d.date).toISOString().split('T')[0]
+              return tDate === annDate
+            })
+            if (idx >= 0 && idx < points.length) {
+              const px = points[idx].x
+              const color = annotationColors[ann.type] || annotationColors.general
+              // Draw vertical line
+              ctx.beginPath()
+              ctx.strokeStyle = color
+              ctx.lineWidth = 2
+              ctx.setLineDash([4, 2])
+              ctx.moveTo(px, pad.top)
+              ctx.lineTo(px, pad.top + h)
+              ctx.stroke()
+              ctx.setLineDash([])
+              // Draw marker circle at top
+              ctx.beginPath()
+              ctx.fillStyle = color
+              ctx.arc(px, pad.top - 8, 5, 0, Math.PI * 2)
+              ctx.fill()
+              // Draw tiny icon based on type
+              ctx.fillStyle = 'white'
+              ctx.font = '8px sans-serif'
+              ctx.textAlign = 'center'
+              const icons = { deployment: '↑', campaign: '📢', incident: '!', general: '•' }
+              ctx.fillText(icons[ann.type] || '•', px, pad.top - 5)
+            }
+          })
+        }
 
         // Y-axis labels
         ctx.fillStyle = colors.muted
@@ -2464,6 +2819,11 @@ function getDashboardHtml(): string {
         <button class="date-btn" data-range="7d" onclick="setDateRange('7d')">7d</button>
         <button class="date-btn" data-range="30d" onclick="setDateRange('30d')">30d</button>
         <button class="date-btn" data-range="90d" onclick="setDateRange('90d')">90d</button>
+        <span style="border-left:1px solid var(--border);height:24px;margin:0 0.5rem"></span>
+        <button id="compare-btn" class="date-btn" onclick="toggleComparison()" title="Compare with previous period" style="font-size:0.6875rem;padding:0.25rem 0.5rem">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px;vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Compare
+        </button>
       </div>
       <div class="controls-right">
         <div class="realtime-badge"><span class="pulse"></span><span id="realtime-count">0 visitors online</span></div>
@@ -4052,13 +4412,45 @@ async function handleDetailPage(section: string, event: LambdaEvent) {
       else if (section === 'events') {
         const events = data.events || []
         if (!events.length) { content.innerHTML = '<div class="empty-cell">No custom events tracked</div>'; return }
+
+        // Calculate totals
+        const totalCount = events.reduce((sum, e) => sum + (e.count || 0), 0)
+        const totalUnique = events.reduce((sum, e) => sum + (e.unique || e.visitors || 0), 0)
+        const totalValue = events.reduce((sum, e) => sum + ((e.count || 0) * (e.avgValue || 0)), 0)
         const maxCount = Math.max(...events.map(e => e.count || 0))
-        html = '<table class="data-table"><thead><tr><th>Event</th><th style="text-align:right">Count</th><th style="text-align:right">Unique</th><th style="text-align:right">Avg Value</th><th style="width:100px"></th></tr></thead><tbody>'
+
+        // Summary cards
+        html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">'
+        html += '<div style="background:var(--bg3);border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--primary)">' + fmt(events.length) + '</div><div style="font-size:0.75rem;color:var(--muted)">Unique Events</div></div>'
+        html += '<div style="background:var(--bg3);border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--text)">' + fmt(totalCount) + '</div><div style="font-size:0.75rem;color:var(--muted)">Total Events</div></div>'
+        html += '<div style="background:var(--bg3);border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--text)">' + fmt(totalUnique) + '</div><div style="font-size:0.75rem;color:var(--muted)">Unique Users</div></div>'
+        html += '<div style="background:var(--bg3);border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--text)">' + (totalValue > 0 ? '$' + totalValue.toFixed(2) : '-') + '</div><div style="font-size:0.75rem;color:var(--muted)">Total Value</div></div>'
+        html += '</div>'
+
+        // Visual chart for top 5 events
+        const top5 = events.slice(0, 5)
+        html += '<div style="margin-bottom:1.5rem;padding:1rem;background:var(--bg3);border-radius:8px"><h4 style="font-size:0.875rem;color:var(--text2);margin-bottom:1rem">Top Events</h4>'
+        html += '<div style="display:flex;flex-direction:column;gap:0.75rem">'
+        top5.forEach(e => {
+          const pct = totalCount > 0 ? ((e.count || 0) / totalCount * 100).toFixed(1) : 0
+          const barPct = maxCount > 0 ? ((e.count || 0) / maxCount * 100) : 0
+          html += '<div><div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:0.8125rem"><span style="font-weight:500">' + e.name + '</span><span style="color:var(--muted)">' + fmt(e.count || 0) + ' (' + pct + '%)</span></div>'
+          html += '<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden"><div style="height:100%;background:linear-gradient(90deg, var(--primary), #a855f7);border-radius:4px;transition:width 0.3s;width:' + barPct + '%"></div></div></div>'
+        })
+        html += '</div></div>'
+
+        // Search/filter
+        html += '<div style="margin-bottom:1rem"><input type="text" id="event-search" placeholder="Filter events..." style="width:100%;padding:0.75rem;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.875rem" oninput="filterEvents(this.value)"></div>'
+
+        // Full table
+        html += '<table class="data-table" id="events-table"><thead><tr><th>Event</th><th style="text-align:right">Count</th><th style="text-align:right">% of Total</th><th style="text-align:right">Unique</th><th style="text-align:right">Avg Value</th><th style="width:100px"></th></tr></thead><tbody>'
         events.forEach(e => {
           const pct = maxCount > 0 ? ((e.count || 0) / maxCount * 100) : 0
-          html += '<tr><td class="name">' + e.name + '</td><td class="value">' + fmt(e.count || 0) + '</td><td class="value">' + fmt(e.unique || e.visitors || 0) + '</td><td class="value">' + (e.avgValue ? e.avgValue.toFixed(2) : '-') + '</td><td><div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div></td></tr>'
+          const pctOfTotal = totalCount > 0 ? ((e.count || 0) / totalCount * 100).toFixed(1) : 0
+          html += '<tr data-name="' + e.name.toLowerCase() + '"><td class="name">' + e.name + '</td><td class="value">' + fmt(e.count || 0) + '</td><td class="value">' + pctOfTotal + '%</td><td class="value">' + fmt(e.unique || e.visitors || 0) + '</td><td class="value">' + (e.avgValue ? e.avgValue.toFixed(2) : '-') + '</td><td><div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div></td></tr>'
         })
         html += '</tbody></table>'
+        html += '<script>function filterEvents(q){const rows=document.querySelectorAll("#events-table tbody tr");rows.forEach(r=>{r.style.display=r.dataset.name.includes(q.toLowerCase())?"":"none"})}</' + 'script>'
       }
       else if (section === 'goals') {
         const goals = data.goals || []
@@ -6785,6 +7177,233 @@ async function handleGetVitalsTrends(siteId: string, event: LambdaEvent) {
 }
 
 // ============================================================================
+// Error Resolution Handlers
+// ============================================================================
+
+async function handleUpdateErrorStatus(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { errorId, status, note } = body
+
+    if (!errorId || !status) {
+      return response({ error: 'errorId and status are required' }, 400)
+    }
+
+    if (!['new', 'resolved', 'ignored', 'regression'].includes(status)) {
+      return response({ error: 'Status must be new, resolved, ignored, or regression' }, 400)
+    }
+
+    const timestamp = new Date().toISOString()
+
+    // Store error status
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: `SITE#${siteId}`,
+        sk: `ERROR_STATUS#${errorId}`,
+        errorId,
+        siteId,
+        status,
+        note: note || '',
+        updatedAt: timestamp,
+        updatedBy: 'dashboard', // Could be user email if auth is implemented
+      }),
+    })
+
+    return response({ errorId, status, updatedAt: timestamp })
+  } catch (error) {
+    console.error('Update error status error:', error)
+    return response({ error: 'Failed to update error status' }, 500)
+  }
+}
+
+async function handleGetErrorStatuses(siteId: string, event: LambdaEvent) {
+  try {
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':sk': { S: 'ERROR_STATUS#' },
+      },
+    })
+
+    const statuses: Record<string, any> = {}
+    for (const item of result.Items || []) {
+      const data = unmarshall(item)
+      statuses[data.errorId] = data
+    }
+
+    return response({ statuses })
+  } catch (error) {
+    console.error('Get error statuses error:', error)
+    return response({ error: 'Failed to fetch error statuses' }, 500)
+  }
+}
+
+// ============================================================================
+// Performance Budgets Handlers
+// ============================================================================
+
+async function handleCreatePerformanceBudget(siteId: string, event: LambdaEvent) {
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { metric, threshold, alertEmail } = body
+
+    if (!metric || threshold === undefined) {
+      return response({ error: 'metric and threshold are required' }, 400)
+    }
+
+    const validMetrics = ['LCP', 'FID', 'CLS', 'TTFB', 'INP', 'FCP']
+    if (!validMetrics.includes(metric)) {
+      return response({ error: `metric must be one of: ${validMetrics.join(', ')}` }, 400)
+    }
+
+    const budgetId = generateId()
+    const timestamp = new Date().toISOString()
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: `SITE#${siteId}`,
+        sk: `PERF_BUDGET#${budgetId}`,
+        id: budgetId,
+        siteId,
+        metric,
+        threshold: Number(threshold),
+        alertEmail: alertEmail || null,
+        isActive: true,
+        createdAt: timestamp,
+        lastTriggered: null,
+      }),
+    })
+
+    return response({ id: budgetId, metric, threshold, alertEmail, isActive: true })
+  } catch (error) {
+    console.error('Create performance budget error:', error)
+    return response({ error: 'Failed to create performance budget' }, 500)
+  }
+}
+
+async function handleGetPerformanceBudgets(siteId: string, event: LambdaEvent) {
+  try {
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':sk': { S: 'PERF_BUDGET#' },
+      },
+    })
+
+    const budgets = (result.Items || []).map((item: any) => unmarshall(item))
+    return response({ budgets })
+  } catch (error) {
+    console.error('Get performance budgets error:', error)
+    return response({ error: 'Failed to fetch performance budgets' }, 500)
+  }
+}
+
+async function handleDeletePerformanceBudget(siteId: string, budgetId: string) {
+  try {
+    await dynamodb.deleteItem({
+      TableName: TABLE_NAME,
+      Key: marshall({ pk: `SITE#${siteId}`, sk: `PERF_BUDGET#${budgetId}` }),
+    })
+    return response({ success: true })
+  } catch (error) {
+    console.error('Delete performance budget error:', error)
+    return response({ error: 'Failed to delete performance budget' }, 500)
+  }
+}
+
+async function handleCheckPerformanceBudgets(siteId: string, event: LambdaEvent) {
+  try {
+    // Get budgets
+    const budgetsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':sk': { S: 'PERF_BUDGET#' },
+      },
+    })
+
+    const budgets = (budgetsResult.Items || []).map((item: any) => unmarshall(item)).filter((b: any) => b.isActive)
+
+    if (budgets.length === 0) {
+      return response({ violations: [], checked: 0 })
+    }
+
+    // Get recent vitals (last 24 hours)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const vitalsResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `VITAL#${oneDayAgo.toISOString()}` },
+        ':end': { S: `VITAL#${new Date().toISOString()}` },
+      },
+      Limit: 1000,
+    })
+
+    const vitals = (vitalsResult.Items || []).map((item: any) => unmarshall(item))
+
+    // Calculate p75 for each metric
+    const metricValues: Record<string, number[]> = {}
+    for (const v of vitals) {
+      if (!metricValues[v.metric]) metricValues[v.metric] = []
+      metricValues[v.metric].push(v.value)
+    }
+
+    const p75Values: Record<string, number> = {}
+    for (const [metric, values] of Object.entries(metricValues)) {
+      const sorted = values.sort((a, b) => a - b)
+      p75Values[metric] = sorted[Math.floor(sorted.length * 0.75)] || 0
+    }
+
+    // Check violations
+    const violations = []
+    for (const budget of budgets) {
+      const currentP75 = p75Values[budget.metric]
+      if (currentP75 !== undefined && currentP75 > budget.threshold) {
+        violations.push({
+          budgetId: budget.id,
+          metric: budget.metric,
+          threshold: budget.threshold,
+          currentValue: Math.round(currentP75),
+          exceededBy: Math.round(currentP75 - budget.threshold),
+          alertEmail: budget.alertEmail,
+        })
+      }
+    }
+
+    return response({ violations, checked: budgets.length, p75Values })
+  } catch (error) {
+    console.error('Check performance budgets error:', error)
+    return response({ error: 'Failed to check performance budgets' }, 500)
+  }
+}
+
+// ============================================================================
+// Delete Uptime Monitor Handler
+// ============================================================================
+
+async function handleDeleteUptimeMonitor(siteId: string, monitorId: string) {
+  try {
+    await dynamodb.deleteItem({
+      TableName: TABLE_NAME,
+      Key: marshall({ pk: `SITE#${siteId}`, sk: `UPTIME#${monitorId}` }),
+    })
+    return response({ success: true })
+  } catch (error) {
+    console.error('Delete uptime monitor error:', error)
+    return response({ error: 'Failed to delete uptime monitor' }, 500)
+  }
+}
+
+// ============================================================================
 // Uptime Monitoring Handlers
 // ============================================================================
 
@@ -7629,6 +8248,18 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
       if (path.endsWith('/errors')) {
         return handleGetErrors(siteId, event)
       }
+      // /api/sites/{siteId}/errors/statuses
+      if (path.endsWith('/errors/statuses')) {
+        return handleGetErrorStatuses(siteId, event)
+      }
+      // /api/sites/{siteId}/performance-budgets/check
+      if (path.endsWith('/performance-budgets/check')) {
+        return handleCheckPerformanceBudgets(siteId, event)
+      }
+      // /api/sites/{siteId}/performance-budgets
+      if (path.endsWith('/performance-budgets')) {
+        return handleGetPerformanceBudgets(siteId, event)
+      }
       // /api/sites/{siteId}/export
       if (path.endsWith('/export')) {
         return handleExport(siteId, event)
@@ -7775,6 +8406,14 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
     if (path.endsWith('/gdpr/delete')) {
       return handleGdprDelete(siteIdForPost, event)
     }
+    // /api/sites/{siteId}/errors/status
+    if (path.endsWith('/errors/status')) {
+      return handleUpdateErrorStatus(siteIdForPost, event)
+    }
+    // /api/sites/{siteId}/performance-budgets
+    if (path.endsWith('/performance-budgets')) {
+      return handleCreatePerformanceBudget(siteIdForPost, event)
+    }
   }
 
   // PUT routes
@@ -7821,6 +8460,16 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
     const reportDeleteMatch = path.match(/\/email-reports\/([^/]+)$/)
     if (reportDeleteMatch) {
       return handleDeleteEmailReport(siteIdForPost, reportDeleteMatch[1])
+    }
+    // /api/sites/{siteId}/uptime/{monitorId}
+    const uptimeDeleteMatch = path.match(/\/uptime\/([^/]+)$/)
+    if (uptimeDeleteMatch && !path.includes('/history')) {
+      return handleDeleteUptimeMonitor(siteIdForPost, uptimeDeleteMatch[1])
+    }
+    // /api/sites/{siteId}/performance-budgets/{budgetId}
+    const budgetDeleteMatch = path.match(/\/performance-budgets\/([^/]+)$/)
+    if (budgetDeleteMatch && !path.includes('/check')) {
+      return handleDeletePerformanceBudget(siteIdForPost, budgetDeleteMatch[1])
     }
   }
 
