@@ -3211,6 +3211,28 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
   var site=s.dataset.site,api=s.dataset.api;
   ${options.honorDnt ? 'if(n.doNotTrack==="1")return;' : ''}
   var q=[],sk='_tsa_sid',sid;try{sid=sessionStorage.getItem(sk)}catch(e){}if(!sid){sid=Math.random().toString(36).slice(2);try{sessionStorage.setItem(sk,sid)}catch(e){}}
+  // Client-side browser detection
+  var br=s.dataset.browser||'';
+  if(!br)try{
+    var ua=n.userAgent||'';
+    var uad=n.userAgentData;
+    // Check userAgentData.brands for non-generic browser brands
+    if(uad&&uad.brands){
+      var b=uad.brands.find(function(x){return x.brand&&!/chromium|not.*brand|google chrome/i.test(x.brand)});
+      if(b)br=b.brand;
+    }
+    // Fallback to UA string patterns
+    if(!br||br==='Google Chrome'){
+      if(/Arc\//i.test(ua))br='Arc';
+      else if(/Edg\//i.test(ua))br='Edge';
+      else if(/OPR\/|Opera/i.test(ua))br='Opera';
+      else if(/Brave/i.test(ua))br='Brave';
+      else if(/Vivaldi/i.test(ua))br='Vivaldi';
+      else if(/Firefox/i.test(ua))br='Firefox';
+      else if(/Safari/i.test(ua)&&!/Chrome/i.test(ua))br='Safari';
+      else if(/Chrome/i.test(ua))br='Chrome';
+    }
+  }catch(e){}
   function t(e,p){
     var x=new XMLHttpRequest();
     x.open('POST',api+'${endpoint}',true);
@@ -3218,7 +3240,8 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
     x.send(JSON.stringify({
       s:site,sid:sid,e:e,p:p||{},
       u:location.href,r:d.referrer,t:d.title,
-      sw:screen.width,sh:screen.height
+      sw:screen.width,sh:screen.height,
+      br:br
     }));
   }
   function pv(){t('pageview');}

@@ -244,13 +244,23 @@ function parseUserAgent(ua: string) {
   }
 
   // Detect browser - order matters (more specific first)
+  // Chromium-based browsers should be detected before Chrome
   let browser = 'Unknown'
-  if (/dia\//i.test(ua)) browser = 'Dia'
+  // Dia browser - check various possible formats
+  if (/\bdia\b|diahq|diabrowser/i.test(ua)) browser = 'Dia'
   else if (/arc\//i.test(ua)) browser = 'Arc'
   else if (/edg/i.test(ua)) browser = 'Edge'
-  else if (/opr|opera/i.test(ua)) browser = 'Opera'
+  else if (/opr\b|opera/i.test(ua)) browser = 'Opera'
   else if (/brave/i.test(ua)) browser = 'Brave'
   else if (/vivaldi/i.test(ua)) browser = 'Vivaldi'
+  else if (/yabrowser/i.test(ua)) browser = 'Yandex'
+  else if (/whale/i.test(ua)) browser = 'Whale'
+  else if (/puffin/i.test(ua)) browser = 'Puffin'
+  else if (/qqbrowser/i.test(ua)) browser = 'QQ Browser'
+  else if (/ucbrowser/i.test(ua)) browser = 'UC Browser'
+  else if (/samsungbrowser/i.test(ua)) browser = 'Samsung Internet'
+  else if (/silk/i.test(ua)) browser = 'Amazon Silk'
+  else if (/duckduckgo/i.test(ua)) browser = 'DuckDuckGo'
   else if (/firefox|fxios/i.test(ua)) browser = 'Firefox'
   else if (/chrome|chromium|crios/i.test(ua)) browser = 'Chrome'
   else if (/safari/i.test(ua) && !/chrome|chromium/i.test(ua)) browser = 'Safari'
@@ -513,6 +523,7 @@ function getDashboardHtml(): string {
     let activeTab = 'dashboard' // 'dashboard', 'sessions', 'vitals', 'errors', 'insights'
     let filters = { country: '', device: '', browser: '', referrer: '' }
     let comparisonStats = null
+    let liveRefreshInterval = null
 
     // Theme management
     function getPreferredTheme() {
@@ -777,51 +788,51 @@ function getDashboardHtml(): string {
     let revenueData = null
 
     function switchTab(tab) {
+      // Clear live refresh interval when switching away from live tab
+      if (activeTab === 'live' && tab !== 'live' && liveRefreshInterval) {
+        clearInterval(liveRefreshInterval)
+        liveRefreshInterval = null
+      }
+
       activeTab = tab
       document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === tab)
       })
       // Hide/show appropriate content
-      const mainContent = document.getElementById('main-content')
       const statsSection = document.querySelector('.stats')
       const chartBox = document.querySelector('.chart-box')
+      const dashboardPanels = document.getElementById('dashboard-panels')
+      const tabContent = document.getElementById('tab-content')
 
       if (tab === 'dashboard') {
         if (statsSection) statsSection.style.display = 'grid'
         if (chartBox) chartBox.style.display = 'block'
+        if (dashboardPanels) dashboardPanels.style.display = 'block'
+        if (tabContent) tabContent.style.display = 'none'
         renderDashboard()
-      } else if (tab === 'sessions') {
+      } else {
         if (statsSection) statsSection.style.display = 'none'
         if (chartBox) chartBox.style.display = 'none'
-        fetchSessions()
-      } else if (tab === 'flow') {
-        if (statsSection) statsSection.style.display = 'none'
-        if (chartBox) chartBox.style.display = 'none'
-        fetchUserFlow()
-      } else if (tab === 'vitals') {
-        if (statsSection) statsSection.style.display = 'none'
-        if (chartBox) chartBox.style.display = 'none'
-        renderVitals()
-      } else if (tab === 'errors') {
-        if (statsSection) statsSection.style.display = 'none'
-        if (chartBox) chartBox.style.display = 'none'
-        renderErrors()
-      } else if (tab === 'insights') {
-        if (statsSection) statsSection.style.display = 'none'
-        if (chartBox) chartBox.style.display = 'none'
-        renderInsights()
-      } else if (tab === 'live') {
-        if (statsSection) statsSection.style.display = 'none'
-        if (chartBox) chartBox.style.display = 'none'
-        fetchLiveView()
-      } else if (tab === 'funnels') {
-        if (statsSection) statsSection.style.display = 'none'
-        if (chartBox) chartBox.style.display = 'none'
-        fetchFunnels()
-      } else if (tab === 'settings') {
-        if (statsSection) statsSection.style.display = 'none'
-        if (chartBox) chartBox.style.display = 'none'
-        renderSettings()
+        if (dashboardPanels) dashboardPanels.style.display = 'none'
+        if (tabContent) tabContent.style.display = 'block'
+
+        if (tab === 'sessions') {
+          fetchSessions()
+        } else if (tab === 'flow') {
+          fetchUserFlow()
+        } else if (tab === 'vitals') {
+          renderVitals()
+        } else if (tab === 'errors') {
+          renderErrors()
+        } else if (tab === 'insights') {
+          renderInsights()
+        } else if (tab === 'live') {
+          fetchLiveView()
+        } else if (tab === 'funnels') {
+          fetchFunnels()
+        } else if (tab === 'settings') {
+          renderSettings()
+        }
       }
     }
 
@@ -839,8 +850,8 @@ function getDashboardHtml(): string {
 
     // Render user flow visualization
     function renderUserFlow() {
-      const grid = document.querySelector('.grid')
-      if (!grid || !flowData) return
+      const tabContent = document.getElementById('tab-content')
+      if (!tabContent || !flowData) return
 
       const { nodes, links, totalSessions, analyzedSessions } = flowData
 
@@ -848,7 +859,7 @@ function getDashboardHtml(): string {
       const entryNodes = nodes.filter(n => n.id === '/' || links.every(l => l.target !== n.id || l.source === n.id))
       const otherNodes = nodes.filter(n => !entryNodes.includes(n))
 
-      grid.innerHTML = \`
+      tabContent.innerHTML = \`
         <div style="grid-column:1/-1">
           <h3 style="margin-bottom:0.5rem;font-size:1rem">User Flow</h3>
           <p style="font-size:0.75rem;color:var(--muted);margin-bottom:1.5rem">Showing top paths from \${analyzedSessions} of \${totalSessions} multi-page sessions</p>
@@ -913,9 +924,9 @@ function getDashboardHtml(): string {
 
     // Render sessions list
     function renderSessions() {
-      const grid = document.querySelector('.grid')
-      if (!grid) return
-      grid.innerHTML = \`
+      const tabContent = document.getElementById('tab-content')
+      if (!tabContent) return
+      tabContent.innerHTML = \`
         <div style="grid-column: 1/-1">
           <h3 style="margin-bottom:1rem;font-size:1rem">Sessions (\${sessions.length})</h3>
           <div class="session-list">
@@ -987,7 +998,7 @@ function getDashboardHtml(): string {
       const paths = [...new Set(pageviews.map(p => p.path))]
 
       modal.innerHTML = \`
-        <div class="modal" style="max-width:1000px">
+        <div class="session-modal-content" style="max-width:1000px">
           <div class="modal-header">
             <h3>Session: \${s.id?.slice(0,8) || 'Unknown'}</h3>
             <button class="modal-close" onclick="closeModal()">
@@ -1103,8 +1114,8 @@ function getDashboardHtml(): string {
 
     // Render vitals
     function renderVitals() {
-      const grid = document.querySelector('.grid')
-      if (!grid) return
+      const tabContent = document.getElementById('tab-content')
+      if (!tabContent) return
       const getColor = (v) => {
         if (!v || v.samples === 0) return ''
         if (v.good >= 75) return 'good'
@@ -1115,7 +1126,7 @@ function getDashboardHtml(): string {
         if (metric === 'CLS') return (value / 1000).toFixed(3)
         return value + 'ms'
       }
-      grid.innerHTML = \`
+      tabContent.innerHTML = \`
         <div style="grid-column:1/-1">
           <h3 style="margin-bottom:1rem;font-size:1rem">Core Web Vitals</h3>
           <div class="vitals-grid">
@@ -1145,9 +1156,9 @@ function getDashboardHtml(): string {
 
     // Render errors
     function renderErrors() {
-      const grid = document.querySelector('.grid')
-      if (!grid) return
-      grid.innerHTML = \`
+      const tabContent = document.getElementById('tab-content')
+      if (!tabContent) return
+      tabContent.innerHTML = \`
         <div style="grid-column:1/-1">
           <h3 style="margin-bottom:1rem;font-size:1rem">JavaScript Errors (\${errors.length} unique)</h3>
           \${errors.length === 0 ? '<div class="empty-cell">No errors recorded</div>' : errors.map(e => \`
@@ -1168,8 +1179,8 @@ function getDashboardHtml(): string {
 
     // Render insights
     function renderInsights() {
-      const grid = document.querySelector('.grid')
-      if (!grid) return
+      const tabContent = document.getElementById('tab-content')
+      if (!tabContent) return
       const icons = {
         traffic: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>',
         referrer: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/></svg>',
@@ -1177,7 +1188,7 @@ function getDashboardHtml(): string {
         device: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>',
         engagement: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>'
       }
-      grid.innerHTML = \`
+      tabContent.innerHTML = \`
         <div style="grid-column:1/-1">
           <h3 style="margin-bottom:1rem;font-size:1rem">Insights</h3>
           \${comparisonStats ? \`
@@ -1216,7 +1227,6 @@ function getDashboardHtml(): string {
 
     // Live view state
     let liveActivities = []
-    let liveRefreshInterval = null
 
     // Fetch live view
     async function fetchLiveView() {
@@ -1245,10 +1255,10 @@ function getDashboardHtml(): string {
 
     // Render live view
     function renderLiveView() {
-      const grid = document.querySelector('.grid')
-      if (!grid) return
+      const tabContent = document.getElementById('tab-content')
+      if (!tabContent) return
 
-      grid.innerHTML = \`
+      tabContent.innerHTML = \`
         <div style="grid-column:1/-1">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
             <h3 style="font-size:1rem;display:flex;align-items:center;gap:0.5rem">
@@ -1278,10 +1288,15 @@ function getDashboardHtml(): string {
     }
 
     function timeAgo(timestamp) {
-      const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000)
+      if (!timestamp) return 'Just now'
+      const time = new Date(timestamp).getTime()
+      if (isNaN(time)) return 'Just now'
+      const seconds = Math.floor((Date.now() - time) / 1000)
+      if (seconds < 0 || isNaN(seconds)) return 'Just now'
       if (seconds < 60) return 'Just now'
       if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago'
-      return Math.floor(seconds / 3600) + 'h ago'
+      if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago'
+      return Math.floor(seconds / 86400) + 'd ago'
     }
 
     // Funnels state
@@ -1301,10 +1316,10 @@ function getDashboardHtml(): string {
 
     // Render funnels
     function renderFunnels() {
-      const grid = document.querySelector('.grid')
-      if (!grid) return
+      const tabContent = document.getElementById('tab-content')
+      if (!tabContent) return
 
-      grid.innerHTML = \`
+      tabContent.innerHTML = \`
         <div style="grid-column:1/-1">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
             <h3 style="font-size:1rem">Conversion Funnels</h3>
@@ -1350,12 +1365,12 @@ function getDashboardHtml(): string {
     }
 
     function showFunnelAnalysis(data) {
-      const grid = document.querySelector('.grid')
-      if (!grid) return
+      const tabContent = document.getElementById('tab-content')
+      if (!tabContent) return
 
       const { funnel, steps, totalSessions, overallConversion } = data
 
-      grid.innerHTML = \`
+      tabContent.innerHTML = \`
         <div style="grid-column:1/-1">
           <button onclick="fetchFunnels()" style="background:none;border:none;color:var(--muted);cursor:pointer;margin-bottom:1rem;font-size:0.8125rem">← Back to Funnels</button>
           <h3 style="font-size:1rem;margin-bottom:0.5rem">\${funnel.name}</h3>
@@ -1418,8 +1433,8 @@ function getDashboardHtml(): string {
 
     // Render settings
     async function renderSettings() {
-      const grid = document.querySelector('.grid')
-      if (!grid) return
+      const tabContent = document.getElementById('tab-content')
+      if (!tabContent) return
 
       // Fetch various settings
       try {
@@ -1437,7 +1452,7 @@ function getDashboardHtml(): string {
 
       const { retention, team, webhooks, emailReports } = settingsData
 
-      grid.innerHTML = \`
+      tabContent.innerHTML = \`
         <div style="grid-column:1/-1">
           <h3 style="font-size:1rem;margin-bottom:1.5rem">Settings</h3>
 
@@ -2219,9 +2234,14 @@ function getDashboardHtml(): string {
     .insight-desc { font-size: 0.8125rem; color: var(--muted) }
 
     /* Session Detail Modal */
-    .modal-overlay { position: fixed; inset: 0; background: var(--overlay); display: flex; align-items: center; justify-content: center; z-index: 1000; display: none }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 1000 }
     .modal-overlay.active { display: flex }
-    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 800px; max-height: 90vh; overflow: auto }
+    .session-modal-content { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 800px; max-height: 90vh; overflow: auto }
+    .session-modal-content .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg2); z-index: 1 }
+    .session-modal-content .modal-header h3 { font-size: 1rem; color: var(--text) }
+    .session-modal-content .modal-close { background: none; border: none; color: var(--muted); cursor: pointer; padding: 0.5rem }
+    .session-modal-content .modal-close:hover { color: var(--text) }
+    .session-modal-content .modal-body { padding: 1rem }
     .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 1 }
     .modal-header h3 { font-size: 1rem }
     .modal-close { background: none; border: none; color: var(--muted); cursor: pointer; padding: 0.5rem }
@@ -2283,19 +2303,19 @@ function getDashboardHtml(): string {
     .goal-type-badge.event { background: rgba(16,185,129,0.2); color: var(--success) }
     .goal-type-badge.duration { background: rgba(245,158,11,0.2); color: #f59e0b }
 
-    /* Modal */
-    .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay); display: flex; align-items: center; justify-content: center; z-index: 1000 }
-    .modal-content { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; max-width: 420px; width: 90% }
-    .modal-content h3 { margin-bottom: 1.5rem; font-size: 1.125rem; color: var(--text) }
-    .modal-content label { display: block; margin-bottom: 1rem; font-size: 0.8125rem; color: var(--text2) }
-    .modal-content input, .modal-content select { width: 100%; padding: 0.625rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); margin-top: 0.375rem; font-size: 0.875rem }
-    .modal-content input:focus, .modal-content select:focus { outline: none; border-color: var(--accent) }
-    .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border) }
-    .modal-actions button { padding: 0.625rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500 }
-    .modal-actions button[type="button"] { background: var(--bg3); border: 1px solid var(--border); color: var(--text) }
-    .modal-actions button[type="button"]:hover { background: var(--bg) }
-    .modal-actions button[type="submit"] { background: var(--accent); border: none; color: white }
-    .modal-actions button[type="submit"]:hover { background: var(--accent2) }
+    /* Goal Modal */
+    .goal-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 1000 }
+    .goal-modal .modal-content { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; max-width: 420px; width: 90% }
+    .goal-modal .modal-content h3 { margin-bottom: 1.5rem; font-size: 1.125rem; color: var(--text) }
+    .goal-modal .modal-content label { display: block; margin-bottom: 1rem; font-size: 0.8125rem; color: var(--text2) }
+    .goal-modal .modal-content input, .goal-modal .modal-content select { width: 100%; padding: 0.625rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); margin-top: 0.375rem; font-size: 0.875rem }
+    .goal-modal .modal-content input:focus, .goal-modal .modal-content select:focus { outline: none; border-color: var(--accent) }
+    .goal-modal .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border) }
+    .goal-modal .modal-actions button { padding: 0.625rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500 }
+    .goal-modal .modal-actions button[type="button"] { background: var(--bg3); border: 1px solid var(--border); color: var(--text) }
+    .goal-modal .modal-actions button[type="button"]:hover { background: var(--bg) }
+    .goal-modal .modal-actions button[type="submit"] { background: var(--accent); border: none; color: white }
+    .goal-modal .modal-actions button[type="submit"]:hover { background: var(--accent2) }
 
     /* No Data Message */
     .no-data { background: var(--bg2); border-radius: 8px; padding: 3rem; text-align: center; border: 1px solid var(--border); margin-bottom: 1.5rem }
@@ -2455,97 +2475,101 @@ function getDashboardHtml(): string {
         </div>
       </div>
 
-      <div class="grid">
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Top Pages</div>
-            <a href="#" onclick="navigateTo('pages')" class="view-all">View all &rarr;</a>
+      <div id="dashboard-panels">
+        <div class="grid">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Top Pages</div>
+              <a href="#" onclick="navigateTo('pages')" class="view-all">View all &rarr;</a>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>Path</th><th style="text-align:right">Entries</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th></tr></thead>
+              <tbody id="pages-body"><tr><td colspan="4" class="empty-cell">Loading...</td></tr></tbody>
+            </table>
           </div>
-          <table class="data-table">
-            <thead><tr><th>Path</th><th style="text-align:right">Entries</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th></tr></thead>
-            <tbody id="pages-body"><tr><td colspan="4" class="empty-cell">Loading...</td></tr></tbody>
-          </table>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>Top Referrers</div>
+              <a href="#" onclick="navigateTo('referrers')" class="view-all">View all &rarr;</a>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>Source</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th></tr></thead>
+              <tbody id="referrers-body"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
+            </table>
+          </div>
         </div>
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>Top Referrers</div>
-            <a href="#" onclick="navigateTo('referrers')" class="view-all">View all &rarr;</a>
+
+        <div class="grid">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>Devices</div>
+              <a href="#" onclick="navigateTo('devices')" class="view-all">View all &rarr;</a>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>Type</th><th style="text-align:right">Visitors</th><th style="text-align:right">%</th></tr></thead>
+              <tbody id="devices-body"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
+            </table>
           </div>
-          <table class="data-table">
-            <thead><tr><th>Source</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th></tr></thead>
-            <tbody id="referrers-body"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
-          </table>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>Browsers</div>
+              <a href="#" onclick="navigateTo('browsers')" class="view-all">View all &rarr;</a>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>Browser</th><th style="text-align:right">Visitors</th><th style="text-align:right">%</th></tr></thead>
+              <tbody id="browsers-body"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Countries</div>
+              <a href="#" onclick="navigateTo('countries')" class="view-all">View all &rarr;</a>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>Country</th><th style="text-align:right">Visitors</th></tr></thead>
+              <tbody id="countries-body"><tr><td colspan="2" class="empty-cell">Loading...</td></tr></tbody>
+            </table>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>Campaigns</div>
+              <a href="#" onclick="navigateTo('campaigns')" class="view-all">View all &rarr;</a>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>Campaign</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th></tr></thead>
+              <tbody id="campaigns-body"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="events">
+          <div class="panel-header">
+            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Custom Events</div>
+            <a href="#" onclick="navigateTo('events')" class="view-all">View all &rarr;</a>
+          </div>
+          <div id="events-container"><div class="empty-cell">Loading...</div></div>
+        </div>
+
+        <div class="goals-section">
+          <div class="panel-header">
+            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Goals</div>
+            <div style="display:flex;gap:1rem;align-items:center">
+              <a href="#" onclick="navigateTo('goals')" class="view-all">View all &rarr;</a>
+              <button onclick="showCreateGoalModal()" class="create-goal-btn">+ Add Goal</button>
+            </div>
+          </div>
+          <div id="goals-container"><div class="empty-cell">Loading...</div></div>
         </div>
       </div>
 
-      <div class="grid">
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>Devices</div>
-            <a href="#" onclick="navigateTo('devices')" class="view-all">View all &rarr;</a>
-          </div>
-          <table class="data-table">
-            <thead><tr><th>Type</th><th style="text-align:right">Visitors</th><th style="text-align:right">%</th></tr></thead>
-            <tbody id="devices-body"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
-          </table>
-        </div>
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>Browsers</div>
-            <a href="#" onclick="navigateTo('browsers')" class="view-all">View all &rarr;</a>
-          </div>
-          <table class="data-table">
-            <thead><tr><th>Browser</th><th style="text-align:right">Visitors</th><th style="text-align:right">%</th></tr></thead>
-            <tbody id="browsers-body"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="grid">
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Countries</div>
-            <a href="#" onclick="navigateTo('countries')" class="view-all">View all &rarr;</a>
-          </div>
-          <table class="data-table">
-            <thead><tr><th>Country</th><th style="text-align:right">Visitors</th></tr></thead>
-            <tbody id="countries-body"><tr><td colspan="2" class="empty-cell">Loading...</td></tr></tbody>
-          </table>
-        </div>
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>Campaigns</div>
-            <a href="#" onclick="navigateTo('campaigns')" class="view-all">View all &rarr;</a>
-          </div>
-          <table class="data-table">
-            <thead><tr><th>Campaign</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th></tr></thead>
-            <tbody id="campaigns-body"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="events">
-        <div class="panel-header">
-          <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Custom Events</div>
-          <a href="#" onclick="navigateTo('events')" class="view-all">View all &rarr;</a>
-        </div>
-        <div id="events-container"><div class="empty-cell">Loading...</div></div>
-      </div>
-
-      <div class="goals-section">
-        <div class="panel-header">
-          <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Goals</div>
-          <div style="display:flex;gap:1rem;align-items:center">
-            <a href="#" onclick="navigateTo('goals')" class="view-all">View all &rarr;</a>
-            <button onclick="showCreateGoalModal()" class="create-goal-btn">+ Add Goal</button>
-          </div>
-        </div>
-        <div id="goals-container"><div class="empty-cell">Loading...</div></div>
-      </div>
+      <div id="tab-content" style="display:none"></div>
     </div>
 
     <!-- Goal Modal -->
-    <div id="goal-modal" class="modal" style="display:none">
+    <div id="goal-modal" class="goal-modal" style="display:none">
       <div class="modal-content">
         <h3 id="goal-modal-title">Create Goal</h3>
         <form id="goal-form" onsubmit="saveGoal(event)">
@@ -2610,6 +2634,8 @@ async function handleCollect(event: LambdaEvent) {
 
           // Parse device info for the event
           const deviceInfo = parseUserAgent(userAgent)
+          // Use client-detected browser if provided (more accurate for Chromium-based browsers)
+          const browser = payload.br || deviceInfo.browser
           const referrerSource = parseReferrerSource(payload.r)
 
           let parsedUrl: URL
@@ -2642,7 +2668,7 @@ async function handleCollect(event: LambdaEvent) {
               utmMedium: parsedUrl.searchParams.get('utm_medium') || undefined,
               utmCampaign: parsedUrl.searchParams.get('utm_campaign') || undefined,
               deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
-              browser: deviceInfo.browser,
+              browser,
               os: deviceInfo.os,
               country,
               screenWidth: payload.sw,
@@ -2720,6 +2746,8 @@ async function handleCollect(event: LambdaEvent) {
 
     if (payload.e === 'pageview') {
       const deviceInfo = parseUserAgent(userAgent)
+      // Use client-detected browser if provided (more accurate for Chromium-based browsers)
+      const browser = payload.br || deviceInfo.browser
       const referrerSource = parseReferrerSource(payload.r)
 
       // Get country from headers (CloudFront/Cloudflare) or fallback to IP geolocation
@@ -2745,7 +2773,7 @@ async function handleCollect(event: LambdaEvent) {
         utmMedium: parsedUrl.searchParams.get('utm_medium') || undefined,
         utmCampaign: parsedUrl.searchParams.get('utm_campaign') || undefined,
         deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
-        browser: deviceInfo.browser,
+        browser,
         os: deviceInfo.os,
         country,
         screenWidth: payload.sw,
@@ -2777,7 +2805,7 @@ async function handleCollect(event: LambdaEvent) {
           utmMedium: parsedUrl.searchParams.get('utm_medium') || undefined,
           utmCampaign: parsedUrl.searchParams.get('utm_campaign') || undefined,
           deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
-          browser: deviceInfo.browser,
+          browser,
           os: deviceInfo.os,
           country,
           pageViewCount: 1,
@@ -2946,6 +2974,7 @@ async function handleCollect(event: LambdaEvent) {
       // Handle Core Web Vitals event (LCP, FID, CLS, TTFB, INP)
       const props = payload.p || {}
       const deviceInfo = parseUserAgent(userAgent)
+      const browser = payload.br || deviceInfo.browser
 
       await dynamodb.putItem({
         TableName: TABLE_NAME,
@@ -2960,7 +2989,7 @@ async function handleCollect(event: LambdaEvent) {
           value: props.value || 0,
           rating: props.rating || 'unknown',
           deviceType: deviceInfo.deviceType,
-          browser: deviceInfo.browser,
+          browser,
           timestamp: timestamp.toISOString(),
           ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60, // 90 days TTL
         }),
@@ -2970,6 +2999,7 @@ async function handleCollect(event: LambdaEvent) {
       // Handle JavaScript error event
       const props = payload.p || {}
       const deviceInfo = parseUserAgent(userAgent)
+      const browser = payload.br || deviceInfo.browser
 
       await dynamodb.putItem({
         TableName: TABLE_NAME,
@@ -2986,7 +3016,7 @@ async function handleCollect(event: LambdaEvent) {
           col: props.col || 0,
           stack: String(props.stack || '').slice(0, 2000),
           deviceType: deviceInfo.deviceType,
-          browser: deviceInfo.browser,
+          browser,
           os: deviceInfo.os,
           timestamp: timestamp.toISOString(),
           ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30 days TTL
@@ -5813,13 +5843,15 @@ async function handleGetLiveView(siteId: string, event: LambdaEvent) {
   try {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
 
-    // Get recent pageviews
+    // Get recent pageviews (SK format: PAGEVIEW#{timestamp}#{id})
+    // Use BETWEEN to only get PAGEVIEW# records within the time range
     const result = await dynamodb.query({
       TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND sk > :since',
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${siteId}` },
-        ':since': { S: `PAGEVIEW#${fiveMinutesAgo.toISOString()}` },
+        ':start': { S: `PAGEVIEW#${fiveMinutesAgo.toISOString()}` },
+        ':end': { S: `PAGEVIEW#${new Date().toISOString()}~` }, // ~ comes after any valid timestamp char
       },
       ScanIndexForward: false,
       Limit: 50,
@@ -5828,6 +5860,12 @@ async function handleGetLiveView(siteId: string, event: LambdaEvent) {
     const activities = (result.Items || [])
       .map((item: any) => {
         const data = unmarshall(item)
+        // Extract timestamp from SK if not in data (SK format: PAGEVIEW#timestamp#id)
+        let timestamp = data.timestamp
+        if (!timestamp && data.sk) {
+          const parts = data.sk.split('#')
+          if (parts.length >= 2) timestamp = parts[1]
+        }
         return {
           id: data.id,
           type: 'pageview',
@@ -5837,9 +5875,10 @@ async function handleGetLiveView(siteId: string, event: LambdaEvent) {
           device: data.deviceType,
           browser: data.browser,
           referrer: data.referrer,
-          timestamp: data.timestamp,
+          timestamp,
         }
       })
+      .filter((a: any) => a.timestamp) // Only include items with valid timestamps
       .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
     return response({ activities, timestamp: new Date().toISOString() })
@@ -6477,6 +6516,50 @@ async function getStatsForPeriod(siteId: string, start: Date, end: Date) {
     bounceRate: sessions.length > 0 ? Math.round((bounces / sessions.length) * 100) : 0,
     avgDuration: durations.length > 0 ? Math.round(durations.reduce((a: number, b: number) => a + b, 0) / durations.length / 1000) : 0,
   }
+}
+
+// Cache for site ID to domain mapping
+const siteIdToDomainCache = new Map<string, string>()
+
+// Helper to get the domain for a site ID (used for querying data)
+// The tracking script uses the domain as siteId, but dashboard uses site record ID
+async function getSiteDomain(siteId: string): Promise<string> {
+  // Check cache first
+  if (siteIdToDomainCache.has(siteId)) {
+    return siteIdToDomainCache.get(siteId)!
+  }
+
+  // If siteId looks like a domain already (contains a dot), use it directly
+  if (siteId.includes('.')) {
+    return siteId
+  }
+
+  try {
+    // Look up the site by ID to get its domain
+    const result = await dynamodb.scan({
+      TableName: TABLE_NAME,
+      FilterExpression: 'begins_with(pk, :sitePrefix) AND begins_with(sk, :sitePrefix) AND id = :id',
+      ExpressionAttributeValues: {
+        ':sitePrefix': { S: 'SITE#' },
+        ':id': { S: siteId },
+      },
+      ProjectionExpression: 'id, domains',
+    })
+
+    if (result.Items && result.Items.length > 0) {
+      const domains = result.Items[0].domains?.L?.map((d: any) => d.S) || []
+      if (domains.length > 0) {
+        const domain = domains[0]
+        siteIdToDomainCache.set(siteId, domain)
+        return domain
+      }
+    }
+  } catch (error) {
+    console.error('Error looking up site domain:', error)
+  }
+
+  // Fallback to using the siteId as-is
+  return siteId
 }
 
 // Handler to list all sites
