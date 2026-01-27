@@ -86,7 +86,7 @@ export interface CollectPayload {
   /** Session ID */
   sid: string
   /** Event type */
-  e: 'pageview' | 'event' | 'outbound'
+  e: 'pageview' | 'event' | 'outbound' | 'error'
   /** Event properties */
   p?: Record<string, unknown>
   /** Current URL */
@@ -418,6 +418,41 @@ export class AnalyticsAPI {
 
         const eventCommand = this.store.recordCustomEventCommand(customEvent)
         await ctx.executeCommand(eventCommand)
+      }
+      else if (payload.e === 'error') {
+        // JavaScript error - tracked as custom event with error details
+        const errorProps = payload.p || {}
+        const customEvent: CustomEvent = {
+          id: AnalyticsStore.generateId(),
+          siteId: payload.s,
+          visitorId,
+          sessionId,
+          name: 'error',
+          properties: {
+            message: String(errorProps.message || 'Unknown error'),
+            source: String(errorProps.source || ''),
+            line: typeof errorProps.line === 'number' ? errorProps.line : 0,
+            col: typeof errorProps.col === 'number' ? errorProps.col : 0,
+            stack: String(errorProps.stack || ''),
+          },
+          path: parsedUrl.pathname,
+          timestamp,
+        }
+
+        const eventCommand = this.store.recordCustomEventCommand(customEvent)
+        await ctx.executeCommand(eventCommand)
+
+        // Update session event count
+        if (session) {
+          session.eventCount += 1
+          session.endedAt = timestamp
+          const sessionCommand = this.store.upsertSessionCommand(session)
+          await ctx.executeCommand(sessionCommand)
+
+          if (ctx.sessionStore) {
+            await ctx.sessionStore.set(`${payload.s}:${sessionId}`, session, 1800)
+          }
+        }
       }
 
       // Return 1x1 transparent GIF or empty response

@@ -803,6 +803,15 @@ function getDashboardHtml(): string {
       const chartBox = document.querySelector('.chart-box')
       const dashboardPanels = document.getElementById('dashboard-panels')
       const tabContent = document.getElementById('tab-content')
+      const controlsBar = document.getElementById('controls-bar')
+      const filtersBar = document.getElementById('filters-bar')
+
+      // Tabs that need date range and filters
+      const tabsWithControls = ['dashboard', 'sessions', 'flow', 'live', 'funnels']
+      const showControls = tabsWithControls.includes(tab)
+
+      if (controlsBar) controlsBar.style.display = showControls ? 'flex' : 'none'
+      if (filtersBar) filtersBar.style.display = showControls ? 'flex' : 'none'
 
       if (tab === 'dashboard') {
         if (statsSection) statsSection.style.display = 'grid'
@@ -1154,24 +1163,102 @@ function getDashboardHtml(): string {
       \`
     }
 
-    // Render errors
+    // Render errors - Ignition-style clickable error cards
     function renderErrors() {
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
+
+      const severityColors = { critical: '#dc2626', high: '#ea580c', medium: '#d97706', low: '#65a30d' }
+      const severityGradients = {
+        critical: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+        high: 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
+        medium: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+        low: 'linear-gradient(135deg, #65a30d 0%, #4d7c0f 100%)'
+      }
+      const severityLabels = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
+
+      // Generate error ID from message for linking
+      function getErrorId(msg) {
+        return btoa(msg || '').slice(0, 20)
+      }
+
       tabContent.innerHTML = \`
         <div style="grid-column:1/-1">
-          <h3 style="margin-bottom:1rem;font-size:1rem">JavaScript Errors (\${errors.length} unique)</h3>
-          \${errors.length === 0 ? '<div class="empty-cell">No errors recorded</div>' : errors.map(e => \`
-            <div class="error-card">
-              <div class="error-message">\${e.message || 'Unknown error'}</div>
-              <div class="error-meta">
-                <span>\${e.count}x</span>
-                <span>\${e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source'}</span>
-                <span>Last: \${new Date(e.lastSeen).toLocaleString()}</span>
-                <span>Browsers: \${(e.browsers || []).join(', ')}</span>
-              </div>
-              \${e.stack ? '<div class="error-stack">' + e.stack + '</div>' : ''}
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+            <h3 style="font-size:1.125rem;font-weight:600">JavaScript Errors</h3>
+            <span style="font-size:0.875rem;color:var(--muted)">\${errors.length} unique error\${errors.length !== 1 ? 's' : ''}</span>
+          </div>
+
+          <!-- Severity summary cards -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
+            <div style="background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.3);border-radius:8px;padding:1rem;text-align:center">
+              <div style="font-size:2rem;font-weight:700;color:#dc2626">\${errors.filter(e => e.severity === 'critical').length}</div>
+              <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Critical</div>
             </div>
+            <div style="background:rgba(234,88,12,0.1);border:1px solid rgba(234,88,12,0.3);border-radius:8px;padding:1rem;text-align:center">
+              <div style="font-size:2rem;font-weight:700;color:#ea580c">\${errors.filter(e => e.severity === 'high').length}</div>
+              <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">High</div>
+            </div>
+            <div style="background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.3);border-radius:8px;padding:1rem;text-align:center">
+              <div style="font-size:2rem;font-weight:700;color:#d97706">\${errors.filter(e => e.severity === 'medium').length}</div>
+              <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Medium</div>
+            </div>
+            <div style="background:rgba(101,163,13,0.1);border:1px solid rgba(101,163,13,0.3);border-radius:8px;padding:1rem;text-align:center">
+              <div style="font-size:2rem;font-weight:700;color:#65a30d">\${errors.filter(e => e.severity === 'low').length}</div>
+              <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Low</div>
+            </div>
+          </div>
+
+          <!-- Error list -->
+          \${errors.length === 0 ? \`
+            <div style="text-align:center;padding:3rem;color:var(--muted)">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 1rem;opacity:0.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <div style="font-size:1rem;margin-bottom:0.5rem">No errors recorded</div>
+              <div style="font-size:0.875rem">Your application is running smoothly!</div>
+            </div>
+          \` : errors.map(e => \`
+            <a href="/errors/\${encodeURIComponent(getErrorId(e.message))}?siteId=\${siteId}" style="text-decoration:none;color:inherit;display:block">
+              <div class="error-card" style="border-left:4px solid \${severityColors[e.severity] || '#6b7280'};cursor:pointer;transition:all 0.15s;margin-bottom:1rem" onmouseover="this.style.transform='translateX(4px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none';this.style.boxShadow='none'">
+                <!-- Error header with gradient -->
+                <div style="background:\${severityGradients[e.severity] || severityGradients.medium};margin:-1rem -1rem 1rem -1rem;padding:1rem;border-radius:8px 8px 0 0">
+                  <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+                    <span style="background:rgba(255,255,255,0.2);color:white;font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em">\${severityLabels[e.severity] || 'Unknown'}</span>
+                    <span style="background:rgba(0,0,0,0.2);color:rgba(255,255,255,0.9);font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px">\${e.category || 'Error'}</span>
+                    <span style="margin-left:auto;color:rgba(255,255,255,0.75);font-size:0.75rem">\${e.count} event\${e.count !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div style="color:white;font-size:0.8125rem;opacity:0.8">\${e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source'}</div>
+                </div>
+
+                <!-- Error message -->
+                <div style="font-size:0.9375rem;font-weight:500;color:var(--text);margin-bottom:0.75rem;line-height:1.5">\${e.message || 'Unknown error'}</div>
+
+                <!-- Error metadata -->
+                <div style="display:flex;flex-wrap:wrap;gap:1rem;font-size:0.8125rem;color:var(--muted)">
+                  <div style="display:flex;align-items:center;gap:0.375rem">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    First: \${e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A'}
+                  </div>
+                  <div style="display:flex;align-items:center;gap:0.375rem">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Last: \${new Date(e.lastSeen).toLocaleString()}
+                  </div>
+                  <div style="display:flex;align-items:center;gap:0.375rem">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                    \${(e.browsers || []).join(', ') || 'Unknown'}
+                  </div>
+                  <div style="display:flex;align-items:center;gap:0.375rem">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
+                    \${(e.paths || []).length} page\${(e.paths || []).length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+
+                <!-- Click hint -->
+                <div style="display:flex;align-items:center;justify-content:flex-end;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);color:var(--accent);font-size:0.8125rem">
+                  View details
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:0.25rem"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
+              </div>
+            </a>
           \`).join('')}
         </div>
       \`
@@ -2368,7 +2455,7 @@ function getDashboardHtml(): string {
       </div>
     </header>
 
-    <div class="controls">
+    <div id="controls-bar" class="controls">
       <div class="date-range">
         <button class="date-btn" data-range="1h" onclick="setDateRange('1h')">1h</button>
         <button class="date-btn active" data-range="6h" onclick="setDateRange('6h')">6h</button>
@@ -2390,7 +2477,7 @@ function getDashboardHtml(): string {
       </div>
     </div>
 
-    <div class="filters-row">
+    <div id="filters-bar" class="filters-row">
       <select id="filter-country" class="filter-select" onchange="applyFilter('country', this.value)">
         <option value="">All Countries</option>
       </select>
@@ -3044,6 +3131,656 @@ async function handleDashboard() {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
     },
     body: getDashboardHtml(),
+  }
+}
+
+async function handleTestErrors(event: LambdaEvent) {
+  const siteId = event.queryStringParameters?.siteId || 'test-site'
+  const apiEndpoint = `https://${event.requestContext?.domainName || 'analytics.stacksjs.com'}`
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error Tracking Test Page</title>
+  <style>
+    :root { --bg: #1a1f2e; --card: #242938; --text: #fff; --muted: #9ca3af; --accent: #818cf8; --error: #ef4444; --success: #10b981; --warning: #f59e0b; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 2rem; min-height: 100vh; }
+    h1 { margin-bottom: 0.5rem; }
+    .subtitle { color: var(--muted); margin-bottom: 2rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .card { background: var(--card); border-radius: 8px; padding: 1.25rem; }
+    .card h3 { font-size: 0.875rem; color: var(--muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .card p { font-size: 0.875rem; color: var(--muted); margin-bottom: 1rem; }
+    button { background: var(--accent); color: white; border: none; padding: 0.75rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; width: 100%; transition: opacity 0.2s; }
+    button:hover { opacity: 0.9; }
+    button.error { background: var(--error); }
+    button.warning { background: var(--warning); }
+    .log { background: #0d1117; border-radius: 8px; padding: 1rem; margin-top: 1rem; font-family: monospace; font-size: 0.8125rem; max-height: 300px; overflow-y: auto; }
+    .log-entry { padding: 0.5rem 0; border-bottom: 1px solid #21262d; }
+    .log-entry:last-child { border-bottom: none; }
+    .log-entry.error { color: var(--error); }
+    .log-entry.success { color: var(--success); }
+    .log-entry.info { color: var(--accent); }
+    .stats { display: flex; gap: 2rem; margin-bottom: 2rem; }
+    .stat { text-align: center; }
+    .stat-value { font-size: 2rem; font-weight: 600; }
+    .stat-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>Error Tracking Test Page</h1>
+  <p class="subtitle">Test JavaScript error capture for site: <strong>${siteId}</strong></p>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-value" id="errors-triggered">0</div>
+      <div class="stat-label">Errors Triggered</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="errors-sent">0</div>
+      <div class="stat-label">Errors Sent</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>TypeError</h3>
+      <p>Trigger a TypeError by accessing property of undefined</p>
+      <button onclick="triggerTypeError()">Trigger TypeError</button>
+    </div>
+    <div class="card">
+      <h3>ReferenceError</h3>
+      <p>Trigger a ReferenceError by using undefined variable</p>
+      <button onclick="triggerReferenceError()">Trigger ReferenceError</button>
+    </div>
+    <div class="card">
+      <h3>SyntaxError (JSON)</h3>
+      <p>Trigger a SyntaxError by parsing invalid JSON</p>
+      <button onclick="triggerJSONError()">Trigger JSON Error</button>
+    </div>
+    <div class="card">
+      <h3>RangeError</h3>
+      <p>Trigger a RangeError with invalid array length</p>
+      <button onclick="triggerRangeError()">Trigger RangeError</button>
+    </div>
+    <div class="card">
+      <h3>Unhandled Promise</h3>
+      <p>Trigger an unhandled promise rejection</p>
+      <button onclick="triggerPromiseError()" class="warning">Trigger Promise Error</button>
+    </div>
+    <div class="card">
+      <h3>Network Error</h3>
+      <p>Trigger a network fetch error</p>
+      <button onclick="triggerNetworkError()" class="warning">Trigger Network Error</button>
+    </div>
+    <div class="card">
+      <h3>Custom Error</h3>
+      <p>Throw a custom application error</p>
+      <button onclick="triggerCustomError()">Trigger Custom Error</button>
+    </div>
+    <div class="card">
+      <h3>All Errors</h3>
+      <p>Trigger all error types sequentially</p>
+      <button onclick="triggerAllErrors()" class="error">Trigger All Errors</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Event Log</h3>
+    <div id="log" class="log">
+      <div class="log-entry info">Ready to capture errors...</div>
+    </div>
+  </div>
+
+  <p style="margin-top:2rem;color:var(--muted)">
+    View captured errors: <a href="/dashboard?siteId=${siteId}" target="_blank">Open Dashboard</a> &rarr; Errors Tab
+  </p>
+
+  <!-- Analytics tracking script -->
+  <script data-site="${siteId}" data-api="${apiEndpoint}" defer>
+  (function(){
+    'use strict';
+    var d=document,w=window,n=navigator,s=d.currentScript;
+    var site=s.dataset.site,api=s.dataset.api;
+    var q=[],sk='_tsa_sid',sid;try{sid=sessionStorage.getItem(sk)}catch(e){}if(!sid){sid=Math.random().toString(36).slice(2);try{sessionStorage.setItem(sk,sid)}catch(e){}}
+    var br=s.dataset.browser||'';
+    if(!br)try{
+      var ua=n.userAgent||'';
+      if(/Chrome/i.test(ua)&&!/Edge/i.test(ua))br='Chrome';
+      else if(/Firefox/i.test(ua))br='Firefox';
+      else if(/Safari/i.test(ua)&&!/Chrome/i.test(ua))br='Safari';
+      else if(/Edge/i.test(ua))br='Edge';
+    }catch(e){}
+    function t(e,p){
+      var x=new XMLHttpRequest();
+      x.open('POST',api+'/collect',true);
+      x.setRequestHeader('Content-Type','application/json');
+      x.onload=function(){window.errorsSent=(window.errorsSent||0)+1;updateStats()};
+      x.send(JSON.stringify({s:site,sid:sid,e:e,p:p||{},u:location.href,r:d.referrer,t:d.title,sw:screen.width,sh:screen.height,br:br}));
+    }
+    function pv(){t('pageview');}
+    if(d.readyState==='complete')pv();else w.addEventListener('load',pv);
+    w.trackEvent=function(n,v){t('event',{name:n,value:v});};
+    // Error tracking
+    var errorsSent=new Set();
+    function sendError(msg,source,line,col,stack){
+      var key=msg+source+line;
+      if(errorsSent.has(key))return;
+      errorsSent.add(key);
+      t('error',{message:String(msg).slice(0,500),source:source,line:line,col:col,stack:String(stack||'').slice(0,2000)});
+      log('Sent error: '+msg,'success');
+    }
+    w.addEventListener('error',function(e){
+      window.errorsTriggered=(window.errorsTriggered||0)+1;updateStats();
+      sendError(e.message,e.filename,e.lineno,e.colno,e.error&&e.error.stack);
+    });
+    w.addEventListener('unhandledrejection',function(e){
+      window.errorsTriggered=(window.errorsTriggered||0)+1;updateStats();
+      var reason=e.reason||{};
+      sendError('Unhandled Promise: '+(reason.message||reason),reason.fileName||'',reason.lineNumber||0,0,reason.stack);
+    });
+  })();
+  </script>
+
+  <script>
+    function log(msg, type = 'info') {
+      const logEl = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+      entry.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
+      logEl.insertBefore(entry, logEl.firstChild);
+    }
+
+    function updateStats() {
+      document.getElementById('errors-triggered').textContent = window.errorsTriggered || 0;
+      document.getElementById('errors-sent').textContent = window.errorsSent || 0;
+    }
+
+    function triggerTypeError() {
+      log('Triggering TypeError...', 'info');
+      try {
+        const obj = undefined;
+        obj.someProperty.nested; // This will throw
+      } catch (e) {
+        throw e; // Re-throw to be caught by window.onerror
+      }
+    }
+
+    function triggerReferenceError() {
+      log('Triggering ReferenceError...', 'info');
+      undefinedVariableThatDoesNotExist.doSomething();
+    }
+
+    function triggerJSONError() {
+      log('Triggering JSON SyntaxError...', 'info');
+      JSON.parse('<html>not valid json</html>');
+    }
+
+    function triggerRangeError() {
+      log('Triggering RangeError...', 'info');
+      new Array(-1);
+    }
+
+    function triggerPromiseError() {
+      log('Triggering unhandled Promise rejection...', 'info');
+      Promise.reject(new Error('Async operation failed: Database connection timeout'));
+    }
+
+    function triggerNetworkError() {
+      log('Triggering network error...', 'info');
+      fetch('https://invalid-domain-that-does-not-exist.example/api')
+        .then(r => r.json());
+    }
+
+    function triggerCustomError() {
+      log('Triggering custom error...', 'info');
+      throw new Error('Custom application error: User authentication failed');
+    }
+
+    async function triggerAllErrors() {
+      log('Triggering all error types...', 'info');
+      const errors = [
+        () => triggerTypeError(),
+        () => triggerReferenceError(),
+        () => triggerJSONError(),
+        () => triggerRangeError(),
+        () => triggerPromiseError(),
+        () => triggerCustomError(),
+      ];
+      for (const fn of errors) {
+        try { fn(); } catch (e) { /* caught by window.onerror */ }
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+  </script>
+</body>
+</html>`
+
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    },
+    body: html,
+  }
+}
+
+async function handleErrorDetailPage(errorId: string, event: LambdaEvent) {
+  const siteId = event.queryStringParameters?.siteId || 'test-site'
+  const apiEndpoint = `https://${event.requestContext?.domainName || 'analytics.stacksjs.com'}`
+
+  // Fetch the specific error data
+  const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
+  const endDate = new Date()
+
+  let errorData = null
+  let occurrences: any[] = []
+
+  try {
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `ERROR#${startDate.toISOString()}` },
+        ':end': { S: `ERROR#${endDate.toISOString()}` },
+      },
+      ScanIndexForward: false,
+    }) as { Items?: any[] }
+
+    const allErrors = (result.Items || []).map(unmarshall)
+
+    // Find errors matching this errorId (message hash)
+    const matchingErrors = allErrors.filter(e => {
+      const msgHash = Buffer.from(e.message || '').toString('base64').slice(0, 20)
+      return msgHash === errorId || e.message === errorId
+    })
+
+    if (matchingErrors.length > 0) {
+      // Aggregate the error data
+      const first = matchingErrors[matchingErrors.length - 1]
+      const last = matchingErrors[0]
+      const browsers = new Set(matchingErrors.map(e => e.browser).filter(Boolean))
+      const devices = new Set(matchingErrors.map(e => e.deviceType).filter(Boolean))
+      const paths = new Set(matchingErrors.map(e => e.path).filter(Boolean))
+      const { category, severity } = categorizeError(first.message || '')
+
+      errorData = {
+        message: first.message,
+        source: first.source,
+        line: first.line,
+        col: first.col,
+        stack: first.stack,
+        count: matchingErrors.length,
+        firstSeen: first.timestamp,
+        lastSeen: last.timestamp,
+        browsers: Array.from(browsers),
+        devices: Array.from(devices),
+        paths: Array.from(paths),
+        category,
+        severity,
+      }
+      occurrences = matchingErrors.slice(0, 50) // Last 50 occurrences
+    }
+  } catch (error) {
+    console.error('Error fetching error detail:', error)
+  }
+
+  const severityColors: Record<string, string> = {
+    critical: '#dc2626',
+    high: '#ea580c',
+    medium: '#d97706',
+    low: '#65a30d',
+  }
+
+  // Pre-process stack trace to avoid nested template literals
+  function renderStackTrace(stack: string): string {
+    if (!stack) return ''
+    return stack.split('\n').map((line: string) => {
+      const match = line.match(/at\s+(.+?)\s+\((.+?):(\d+):(\d+)\)/) || line.match(/at\s+(.+?):(\d+):(\d+)/)
+      if (match) {
+        const fn = escapeHtml(match[1] || 'anonymous')
+        const file = match[2] || match[1]
+        const fileParts = file.split('/').slice(-2).join('/')
+        const lineNum = match[3] || match[2]
+        return '<div class="stack-frame"><div class="frame-function">' + fn + '</div><div class="frame-location"><span class="frame-file">' + escapeHtml(fileParts) + '</span>:<span class="frame-line">' + lineNum + '</span></div></div>'
+      }
+      return line.trim() ? '<div class="stack-frame"><div class="frame-function">' + escapeHtml(line) + '</div></div>' : ''
+    }).join('')
+  }
+
+  // Pre-process occurrences timeline
+  function renderOccurrences(occs: any[]): string {
+    return occs.map((o: any) =>
+      '<div class="timeline-item"><span class="timeline-time">' + new Date(o.timestamp).toLocaleString() + '</span><span class="timeline-browser">' + (o.browser || 'Unknown') + '</span><span class="timeline-path">' + (o.path || '/') + '</span></div>'
+    ).join('')
+  }
+
+  // Pre-process tags
+  function renderTags(items: string[]): string {
+    return items.map((item: string) => '<span class="tag">' + escapeHtml(item) + '</span>').join('')
+  }
+
+  const stackTraceHtml = errorData?.stack ? renderStackTrace(errorData.stack) : ''
+  const occurrencesHtml = renderOccurrences(occurrences)
+  const browsersHtml = errorData ? renderTags(errorData.browsers) : ''
+  const devicesHtml = errorData ? renderTags(errorData.devices) : ''
+  const pathsHtml = errorData ? renderTags(errorData.paths.slice(0, 10)) : ''
+  const extraPathsCount = errorData && errorData.paths.length > 10 ? errorData.paths.length - 10 : 0
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error Detail - ${errorData ? (errorData.message || '').slice(0, 50) : 'Not Found'}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #e8e8e8;
+      background: #1a1a2e;
+      min-height: 100vh;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: #818cf8; text-decoration: none; margin-bottom: 1.5rem; font-size: 0.875rem; }
+    .back-link:hover { text-decoration: underline; }
+
+    /* Error Header - Ignition Style */
+    .error-header {
+      background: linear-gradient(135deg, ${errorData ? severityColors[errorData.severity] || '#dc3545' : '#dc3545'} 0%, ${errorData ? (errorData.severity === 'critical' ? '#991b1b' : errorData.severity === 'high' ? '#c2410c' : errorData.severity === 'medium' ? '#b45309' : '#4d7c0f') : '#c82333'} 100%);
+      color: white;
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    .error-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .badge {
+      display: inline-flex; align-items: center; padding: 0.25rem 0.75rem;
+      border-radius: 9999px; font-size: 0.75rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .badge-severity { background: rgba(255,255,255,0.2); color: white; }
+    .badge-category { background: rgba(0,0,0,0.2); color: rgba(255,255,255,0.9); }
+    .error-title { font-size: 0.875rem; font-weight: 500; opacity: 0.8; margin-bottom: 0.5rem; }
+    .error-message { font-size: 1.25rem; font-weight: 600; word-break: break-word; line-height: 1.4; }
+    .error-meta { font-size: 0.8125rem; opacity: 0.75; margin-top: 1rem; display: flex; gap: 1.5rem; flex-wrap: wrap; }
+
+    /* Cards */
+    .card {
+      background: #252540;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+      border: 1px solid #3a3a5a;
+    }
+    .card-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #3a3a5a;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.9375rem;
+    }
+    .card-body { padding: 1.5rem; }
+
+    /* Stats Grid */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card {
+      background: #1a1a2e;
+      border: 1px solid #3a3a5a;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .stat-value { font-size: 1.75rem; font-weight: 700; color: #fff; }
+    .stat-label { font-size: 0.75rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
+    .stat-card.critical .stat-value { color: #ef4444; }
+    .stat-card.high .stat-value { color: #f97316; }
+
+    /* Stack Trace */
+    .stack-trace {
+      background: #0d1117;
+      border-radius: 8px;
+      overflow: hidden;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', Menlo, monospace;
+      font-size: 0.8125rem;
+    }
+    .stack-frame {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #21262d;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .stack-frame:hover { background: #161b22; }
+    .stack-frame:last-child { border-bottom: none; }
+    .frame-function { color: #79c0ff; font-weight: 500; }
+    .frame-location { color: #8b949e; font-size: 0.75rem; margin-top: 0.25rem; }
+    .frame-line { color: #f85149; font-weight: 600; }
+    .frame-file { color: #7ee787; }
+
+    /* Code Snippet */
+    .code-snippet {
+      background: #0d1117;
+      color: #c9d1d9;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'SF Mono', Monaco, Menlo, monospace;
+      font-size: 0.8125rem;
+      line-height: 1.8;
+    }
+    .code-line { display: flex; }
+    .code-line-number {
+      width: 3rem;
+      text-align: right;
+      padding-right: 1rem;
+      color: #6e7681;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .code-line-content { flex: 1; white-space: pre; }
+    .code-line.highlight { background: rgba(248, 81, 73, 0.15); }
+    .code-line.highlight .code-line-number { color: #f85149; }
+
+    /* Info Table */
+    .info-table { width: 100%; border-collapse: collapse; }
+    .info-table td { padding: 0.75rem 0; border-bottom: 1px solid #3a3a5a; vertical-align: top; }
+    .info-table tr:last-child td { border-bottom: none; }
+    .info-table td:first-child { font-weight: 500; width: 140px; color: #9ca3af; }
+    .info-table td:last-child { color: #e8e8e8; }
+
+    /* Tag list */
+    .tag-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .tag {
+      display: inline-flex; align-items: center; padding: 0.25rem 0.625rem;
+      background: #1a1a2e; border: 1px solid #3a3a5a; border-radius: 6px;
+      font-size: 0.75rem; color: #d1d5db;
+    }
+
+    /* Occurrences Timeline */
+    .timeline { max-height: 400px; overflow-y: auto; }
+    .timeline-item {
+      display: flex; gap: 1rem; padding: 0.75rem 0;
+      border-bottom: 1px solid #3a3a5a; font-size: 0.8125rem;
+    }
+    .timeline-item:last-child { border-bottom: none; }
+    .timeline-time { color: #9ca3af; white-space: nowrap; width: 140px; flex-shrink: 0; }
+    .timeline-browser { color: #818cf8; width: 80px; flex-shrink: 0; }
+    .timeline-path { color: #7ee787; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Actions */
+    .actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.625rem 1rem; border-radius: 8px; font-size: 0.875rem;
+      font-weight: 500; cursor: pointer; border: none; transition: all 0.15s;
+    }
+    .btn-primary { background: #818cf8; color: white; }
+    .btn-primary:hover { background: #6366f1; }
+    .btn-secondary { background: #3a3a5a; color: #e8e8e8; }
+    .btn-secondary:hover { background: #4a4a6a; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/dashboard?siteId=${siteId}" class="back-link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back to Dashboard
+    </a>
+
+    ${errorData ? `
+    <div class="error-header">
+      <div class="error-badges">
+        <span class="badge badge-severity">${errorData.severity}</span>
+        <span class="badge badge-category">${errorData.category}</span>
+      </div>
+      <div class="error-title">${errorData.category} in ${errorData.source ? errorData.source.split('/').pop() : 'Unknown'}</div>
+      <div class="error-message">${escapeHtml(errorData.message)}</div>
+      <div class="error-meta">
+        <span>${errorData.count} occurrence${errorData.count !== 1 ? 's' : ''}</span>
+        <span>Line ${errorData.line || '?'}${errorData.col ? ':' + errorData.col : ''}</span>
+        <span>First: ${new Date(errorData.firstSeen).toLocaleDateString()}</span>
+        <span>Last: ${new Date(errorData.lastSeen).toLocaleString()}</span>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card ${errorData.count > 100 ? 'critical' : errorData.count > 10 ? 'high' : ''}">
+        <div class="stat-value">${errorData.count}</div>
+        <div class="stat-label">Total Events</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${errorData.browsers.length}</div>
+        <div class="stat-label">Browsers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${errorData.paths.length}</div>
+        <div class="stat-label">Pages</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${Math.ceil((new Date(errorData.lastSeen).getTime() - new Date(errorData.firstSeen).getTime()) / (1000 * 60 * 60 * 24))}d</div>
+        <div class="stat-label">Duration</div>
+      </div>
+    </div>
+
+    <!-- Stack Trace -->
+    ${errorData.stack ? `
+    <div class="card">
+      <div class="card-header">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+        Stack Trace
+      </div>
+      <div class="card-body" style="padding:0">
+        <div class="stack-trace">
+          ${stackTraceHtml}
+        </div>
+      </div>
+    </div>
+    ` : ''}
+
+    <!-- Error Context -->
+    <div class="card">
+      <div class="card-header">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        Error Context
+      </div>
+      <div class="card-body">
+        <table class="info-table">
+          <tr>
+            <td>Source File</td>
+            <td>${errorData.source ? escapeHtml(errorData.source) : 'Unknown'}</td>
+          </tr>
+          <tr>
+            <td>Line</td>
+            <td>${errorData.line || 'Unknown'}${errorData.col ? ':' + errorData.col : ''}</td>
+          </tr>
+          <tr>
+            <td>Browsers</td>
+            <td>
+              <div class="tag-list">
+                ${browsersHtml}
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>Devices</td>
+            <td>
+              <div class="tag-list">
+                ${devicesHtml}
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>Affected Pages</td>
+            <td>
+              <div class="tag-list">
+                ${pathsHtml}
+                ${extraPathsCount > 0 ? '<span class="tag">+' + extraPathsCount + ' more</span>' : ''}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Recent Occurrences -->
+    <div class="card">
+      <div class="card-header">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Recent Occurrences (${occurrences.length})
+      </div>
+      <div class="card-body" style="padding:0.75rem 1.5rem">
+        <div class="timeline">
+          ${occurrencesHtml}
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(\`\${errorData.message}\\n\\n\${errorData.stack || ''}\`).then(() => alert('Copied to clipboard!'))">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        Copy Error
+      </button>
+      <a href="/dashboard?siteId=${siteId}" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Back to Dashboard
+      </a>
+    </div>
+    ` : `
+    <div class="card">
+      <div class="card-body" style="text-align:center;padding:3rem">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" style="margin:0 auto 1rem"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <h3 style="color:#9ca3af;margin-bottom:0.5rem">Error Not Found</h3>
+        <p style="color:#6b7280;font-size:0.875rem">The error you're looking for doesn't exist or has expired.</p>
+        <a href="/dashboard?siteId=${siteId}" class="btn btn-primary" style="margin-top:1.5rem;display:inline-flex">Back to Dashboard</a>
+      </div>
+    </div>
+    `}
+  </div>
+</body>
+</html>`
+
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    },
+    body: html,
   }
 }
 
@@ -4734,6 +5471,66 @@ async function handleGetVitals(siteId: string, event: LambdaEvent) {
 // Errors API
 // ============================================================================
 
+// Escape HTML special characters for safe rendering
+function escapeHtml(str: string): string {
+  if (!str) return ''
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// Categorize error by message pattern
+function categorizeError(message: string): { category: string; severity: 'critical' | 'high' | 'medium' | 'low' } {
+  const msg = message.toLowerCase()
+
+  // Critical errors - security, data loss, complete failures
+  if (msg.includes('securityerror') || msg.includes('cross-origin') || msg.includes('cors')) {
+    return { category: 'Security', severity: 'critical' }
+  }
+  if (msg.includes('chunkloaderror') || msg.includes('loading chunk') || msg.includes('failed to fetch dynamically')) {
+    return { category: 'Code Splitting', severity: 'critical' }
+  }
+
+  // High severity - functionality broken
+  if (msg.includes('typeerror') || msg.includes('cannot read prop')) {
+    return { category: 'TypeError', severity: 'high' }
+  }
+  if (msg.includes('referenceerror') || msg.includes('is not defined')) {
+    return { category: 'ReferenceError', severity: 'high' }
+  }
+  if (msg.includes('syntaxerror') || msg.includes('unexpected token')) {
+    return { category: 'SyntaxError', severity: 'high' }
+  }
+
+  // Medium severity - degraded experience
+  if (msg.includes('networkerror') || msg.includes('failed to fetch') || msg.includes('network request failed')) {
+    return { category: 'Network', severity: 'medium' }
+  }
+  if (msg.includes('unhandled promise') || msg.includes('uncaught (in promise)')) {
+    return { category: 'Async/Promise', severity: 'medium' }
+  }
+  if (msg.includes('timeout') || msg.includes('timed out')) {
+    return { category: 'Timeout', severity: 'medium' }
+  }
+
+  // Low severity - minor issues
+  if (msg.includes('rangeerror')) {
+    return { category: 'RangeError', severity: 'low' }
+  }
+  if (msg.includes('urierror')) {
+    return { category: 'URIError', severity: 'low' }
+  }
+  if (msg.includes('evalerror')) {
+    return { category: 'EvalError', severity: 'low' }
+  }
+
+  // Default
+  return { category: 'Unknown', severity: 'medium' }
+}
+
 async function handleGetErrors(siteId: string, event: LambdaEvent) {
   try {
     const { startDate, endDate } = parseDateRange(event.queryStringParameters)
@@ -4753,16 +5550,28 @@ async function handleGetErrors(siteId: string, event: LambdaEvent) {
     const errors = (result.Items || []).map(unmarshall)
 
     // Group by message for aggregation
-    const grouped: Record<string, { message: string; count: number; lastSeen: string; browsers: Set<string>; paths: Set<string>; sample: any }> = {}
+    const grouped: Record<string, {
+      message: string
+      count: number
+      firstSeen: string
+      lastSeen: string
+      browsers: Set<string>
+      paths: Set<string>
+      devices: Set<string>
+      sample: any
+    }> = {}
+
     for (const e of errors) {
       const key = e.message || 'Unknown error'
       if (!grouped[key]) {
         grouped[key] = {
           message: key,
           count: 0,
+          firstSeen: e.timestamp,
           lastSeen: e.timestamp,
           browsers: new Set(),
           paths: new Set(),
+          devices: new Set(),
           sample: e,
         }
       }
@@ -4771,28 +5580,60 @@ async function handleGetErrors(siteId: string, event: LambdaEvent) {
         grouped[key].lastSeen = e.timestamp
         grouped[key].sample = e
       }
+      if (e.timestamp < grouped[key].firstSeen) {
+        grouped[key].firstSeen = e.timestamp
+      }
       if (e.browser) grouped[key].browsers.add(e.browser)
       if (e.path) grouped[key].paths.add(e.path)
+      if (e.deviceType) grouped[key].devices.add(e.deviceType)
     }
 
+    // Calculate severity stats
+    const severityCounts = { critical: 0, high: 0, medium: 0, low: 0 }
+    const categoryCounts: Record<string, number> = {}
+
     const errorList = Object.values(grouped)
-      .map(g => ({
-        message: g.message,
-        count: g.count,
-        lastSeen: g.lastSeen,
-        browsers: Array.from(g.browsers),
-        paths: Array.from(g.paths).slice(0, 5),
-        source: g.sample.source,
-        line: g.sample.line,
-        stack: g.sample.stack,
-      }))
-      .sort((a, b) => b.count - a.count)
+      .map(g => {
+        const { category, severity } = categorizeError(g.message)
+        severityCounts[severity]++
+        categoryCounts[category] = (categoryCounts[category] || 0) + g.count
+
+        return {
+          message: g.message,
+          count: g.count,
+          firstSeen: g.firstSeen,
+          lastSeen: g.lastSeen,
+          browsers: Array.from(g.browsers),
+          paths: Array.from(g.paths).slice(0, 5),
+          devices: Array.from(g.devices),
+          source: g.sample.source,
+          line: g.sample.line,
+          col: g.sample.col,
+          stack: g.sample.stack,
+          category,
+          severity,
+        }
+      })
+      .sort((a, b) => {
+        // Sort by severity first, then by count
+        const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 }
+        if (severityOrder[a.severity] !== severityOrder[b.severity]) {
+          return severityOrder[a.severity] - severityOrder[b.severity]
+        }
+        return b.count - a.count
+      })
       .slice(0, limit)
 
     return response({
       errors: errorList,
       total: errors.length,
       uniqueErrors: Object.keys(grouped).length,
+      severityCounts,
+      categoryCounts,
+      dateRange: {
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+      },
     })
   } catch (error) {
     console.error('Errors error:', error)
@@ -6667,6 +7508,16 @@ export async function handler(event: LambdaEvent): Promise<LambdaResponse> {
 
   if ((path === '/dashboard' || path === '/') && method === 'GET') {
     return handleDashboard()
+  }
+
+  if (path === '/test-errors' && method === 'GET') {
+    return handleTestErrors(event)
+  }
+
+  // Error detail page route
+  const errorDetailMatch = path.match(/^\/errors\/([^/]+)$/)
+  if (errorDetailMatch && method === 'GET') {
+    return handleErrorDetailPage(decodeURIComponent(errorDetailMatch[1]), event)
   }
 
   // Detail page routes

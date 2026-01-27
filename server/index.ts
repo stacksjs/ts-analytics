@@ -196,13 +196,14 @@ await router.post('/collect', async (req) => {
     const payload = await req.json() as {
       s: string // siteId
       sid: string // sessionId
-      e: 'pageview' | 'event' | 'outbound'
+      e: 'pageview' | 'event' | 'outbound' | 'error'
       p?: Record<string, unknown>
       u: string // url
       r?: string // referrer
       t?: string // title
       sw?: number // screen width
       sh?: number // screen height
+      br?: string // browser (client-detected)
     }
 
     if (!payload?.s || !payload?.e || !payload?.u) {
@@ -355,6 +356,34 @@ await router.post('/collect', async (req) => {
         })
         setSession(sessionKey, session)
       }
+    }
+    else if (payload.e === 'error') {
+      // JavaScript error tracking
+      const errorProps = payload.p || {}
+      const deviceInfo = parseUserAgent(userAgent)
+      const browser = payload.br || deviceInfo.browser
+
+      await dynamodb.putItem({
+        TableName: TABLE_NAME,
+        Item: {
+          pk: { S: `SITE#${payload.s}` },
+          sk: { S: `ERROR#${timestamp.toISOString()}#${generateId()}` },
+          siteId: { S: payload.s },
+          sessionId: { S: sessionId },
+          visitorId: { S: visitorId },
+          path: { S: parsedUrl.pathname },
+          message: { S: String(errorProps.message || '').slice(0, 500) },
+          source: { S: String(errorProps.source || '') },
+          line: { N: String(errorProps.line || 0) },
+          col: { N: String(errorProps.col || 0) },
+          stack: { S: String(errorProps.stack || '').slice(0, 2000) },
+          deviceType: { S: deviceInfo.deviceType },
+          browser: { S: browser },
+          os: { S: deviceInfo.os },
+          timestamp: { S: timestamp.toISOString() },
+          ttl: { N: String(Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60) }, // 30 days TTL
+        },
+      })
     }
 
     return new Response(null, { status: 204 })
