@@ -1,0 +1,19 @@
+<script server>
+export const title = props.title || 'Page Title'
+export const iconPath = props.iconPath || ''
+export const subtitle = props.subtitle || ''
+</script>
+
+<header class="mb-6">
+  <h1 class="flex items-center gap-3 text-2xl font-semibold text-white">
+    @if (iconPath)
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {!! iconPath !!}
+      </svg>
+    @endif
+    {{ title }}
+  </h1>
+  @if (subtitle)
+    <p class="text-gray-400 mt-2">{{ subtitle }}</p>
+  @endif
+</header>

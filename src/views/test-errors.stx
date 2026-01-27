@@ -3,144 +3,114 @@ export const siteId = props.siteId || 'test-site'
 export const apiEndpoint = props.apiEndpoint || ''
 </script>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Error Tracking Test Page</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0f1117; color: #e5e7eb; padding: 2rem; }
-    .container { max-width: 800px; margin: 0 auto; }
-    h1 { margin-bottom: 1rem; }
-    h2 { margin-bottom: 0.5rem; font-size: 1.125rem; }
-    p { color: #9ca3af; margin-bottom: 1rem; }
-    button { background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; cursor: pointer; margin: 0.5rem; font-size: 0.875rem; }
-    button:hover { background: #2563eb; }
-    .section { margin: 2rem 0; padding: 1.5rem; background: #1f2937; border-radius: 0.5rem; }
-    .back { color: #60a5fa; text-decoration: none; display: inline-block; margin-bottom: 1rem; }
-    .back:hover { text-decoration: underline; }
-    .log { margin-top: 1rem; padding: 1rem; background: #111827; border-radius: 0.25rem; font-family: monospace; font-size: 0.875rem; max-height: 200px; overflow-y: auto; }
-    .log-entry { padding: 0.25rem 0; border-bottom: 1px solid #374151; }
-    .log-entry:last-child { border-bottom: none; }
-    .log-entry.error { color: #f87171; }
-    .log-entry.success { color: #34d399; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <a class="back" href="/dashboard?siteId={{ siteId }}">&larr; Back to Dashboard</a>
-    <h1>Error Tracking Test Page</h1>
-    <p>Site ID: {{ siteId }}</p>
+@layout('layouts/base', { title: 'Error Tracking Test - Analytics', containerClass: 'max-w-3xl', siteId, apiEndpoint })
 
-    <div class="section">
-      <h2>Test JavaScript Errors</h2>
-      <p>Click the buttons below to trigger different types of JavaScript errors. These will be captured and sent to the analytics API.</p>
-      <button onclick="testSyntaxError()">Trigger Syntax Error</button>
-      <button onclick="testTypeError()">Trigger Type Error</button>
-      <button onclick="testReferenceError()">Trigger Reference Error</button>
-      <button onclick="testCustomError()">Trigger Custom Error</button>
-      <button onclick="testAsyncError()">Trigger Async Error</button>
-    </div>
+@section('content')
+  @component('BackLink', { href: '/dashboard?siteId=' + siteId })
+  @endcomponent
 
-    <div class="section">
-      <h2>Event Log</h2>
-      <div id="log" class="log">
-        <div class="log-entry">Ready to capture errors...</div>
-      </div>
+  @component('PageHeader', {
+    title: 'Error Tracking Test',
+    subtitle: 'Site ID: ' + siteId
+  })
+  @endcomponent
+
+  <div class="bg-gray-800 rounded-lg p-6 mb-6">
+    <h2 class="text-lg font-medium mb-2">Test JavaScript Errors</h2>
+    <p class="text-gray-400 mb-4">Click the buttons below to trigger different types of JavaScript errors. These will be captured and sent to the analytics API.</p>
+
+    <div class="flex flex-wrap gap-2">
+      <button onclick="testSyntaxError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Syntax Error</button>
+      <button onclick="testTypeError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Type Error</button>
+      <button onclick="testReferenceError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Reference Error</button>
+      <button onclick="testCustomError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Custom Error</button>
+      <button onclick="testAsyncError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Async Error</button>
     </div>
   </div>
 
-  <script client>
-    const API = '{{ apiEndpoint }}'
-    const SITE_ID = '{{ siteId }}'
+  <div class="bg-gray-800 rounded-lg p-6">
+    <h2 class="text-lg font-medium mb-4">Event Log</h2>
+    <div id="log" class="bg-gray-900 rounded p-4 font-mono text-sm max-h-48 overflow-y-auto">
+      <div class="py-1 border-b border-gray-700">Ready to capture errors...</div>
+    </div>
+  </div>
+@endsection
 
-    function log(message, type = 'info') {
-      const logEl = document.getElementById('log')
-      const entry = document.createElement('div')
-      entry.className = 'log-entry ' + type
-      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`
-      logEl.appendChild(entry)
-      logEl.scrollTop = logEl.scrollHeight
-    }
+@push('scripts')
+<script>
+  const API = window.ANALYTICS_API
+  const SITE_ID = window.ANALYTICS_SITE_ID
 
-    function testSyntaxError() {
-      log('Triggering syntax error...')
-      eval('function() {')
-    }
+  function log(message, type = 'info') {
+    const logEl = document.getElementById('log')
+    const entry = document.createElement('div')
+    entry.className = 'py-1 border-b border-gray-700 last:border-0'
+    if (type === 'error') entry.classList.add('text-red-400')
+    if (type === 'success') entry.classList.add('text-green-400')
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`
+    logEl.appendChild(entry)
+    logEl.scrollTop = logEl.scrollHeight
+  }
 
-    function testTypeError() {
-      log('Triggering type error...')
-      null.toString()
-    }
+  function testSyntaxError() {
+    log('Triggering syntax error...')
+    eval('function() {')
+  }
 
-    function testReferenceError() {
-      log('Triggering reference error...')
-      undefinedVariable.doSomething()
-    }
+  function testTypeError() {
+    log('Triggering type error...')
+    null.toString()
+  }
 
-    function testCustomError() {
-      log('Triggering custom error...')
-      throw new Error('Test custom error from test page')
-    }
+  function testReferenceError() {
+    log('Triggering reference error...')
+    undefinedVariable.doSomething()
+  }
 
-    async function testAsyncError() {
-      log('Triggering async error...')
-      await Promise.reject(new Error('Test async error'))
-    }
+  function testCustomError() {
+    log('Triggering custom error...')
+    throw new Error('Test custom error from test page')
+  }
 
-    window.onerror = function(msg, source, line, col, error) {
-      log(`Caught: ${msg}`, 'error')
+  async function testAsyncError() {
+    log('Triggering async error...')
+    await Promise.reject(new Error('Test async error'))
+  }
 
-      fetch(API + '/collect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          s: SITE_ID,
-          e: 'error',
-          u: window.location.href,
-          p: {
-            message: msg,
-            source: source,
-            line: line,
-            col: col,
-            stack: error?.stack
-          }
-        })
-      }).then(() => {
-        log('Error sent to API', 'success')
-      }).catch(err => {
-        log('Failed to send error: ' + err.message, 'error')
+  window.onerror = function(msg, source, line, col, error) {
+    log(`Caught: ${msg}`, 'error')
+
+    fetch(API + '/collect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        s: SITE_ID,
+        e: 'error',
+        u: window.location.href,
+        p: { message: msg, source, line, col, stack: error?.stack }
       })
+    }).then(() => log('Error sent to API', 'success'))
+      .catch(err => log('Failed to send error: ' + err.message, 'error'))
 
-      return false
-    }
+    return false
+  }
 
-    window.onunhandledrejection = function(event) {
-      log(`Unhandled rejection: ${event.reason}`, 'error')
+  window.onunhandledrejection = function(event) {
+    log(`Unhandled rejection: ${event.reason}`, 'error')
 
-      fetch(API + '/collect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          s: SITE_ID,
-          e: 'error',
-          u: window.location.href,
-          p: {
-            message: String(event.reason),
-            type: 'unhandledrejection',
-            stack: event.reason?.stack
-          }
-        })
-      }).then(() => {
-        log('Error sent to API', 'success')
-      }).catch(err => {
-        log('Failed to send error: ' + err.message, 'error')
+    fetch(API + '/collect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        s: SITE_ID,
+        e: 'error',
+        u: window.location.href,
+        p: { message: String(event.reason), type: 'unhandledrejection', stack: event.reason?.stack }
       })
-    }
+    }).then(() => log('Error sent to API', 'success'))
+      .catch(err => log('Failed to send error: ' + err.message, 'error'))
+  }
 
-    log('Error handlers initialized', 'success')
-  </script>
-</body>
-</html>
+  log('Error handlers initialized', 'success')
+</script>
+@endpush

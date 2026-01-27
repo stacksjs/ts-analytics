@@ -1,0 +1,11 @@
+<script server>
+export const href = props.href || '/dashboard'
+export const text = props.text || 'Back to Dashboard'
+</script>
+
+<a href="{{ href }}" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline mb-4">
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+  </svg>
+  {{ text }}
+</a>

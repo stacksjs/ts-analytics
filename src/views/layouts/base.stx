@@ -1,26 +1,24 @@
 <script server>
 export const title = props.title || 'Analytics Dashboard'
-export const theme = props.theme || 'dark'
+export const containerClass = props.containerClass || 'max-w-6xl'
 export const apiEndpoint = props.apiEndpoint || ''
 export const siteId = props.siteId || ''
 </script>
 
 <!DOCTYPE html>
-<html lang="en" data-theme="{{ theme }}">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }}</title>
-  <style>
-    @yield('styles')
-  </style>
-  @stack('head')
 </head>
-<body>
-  @yield('content')
+<body class="bg-gray-900 text-gray-200 font-sans antialiased min-h-screen p-8">
+  <div class="{{ containerClass }} mx-auto">
+    @yield('content')
+  </div>
 
   <script>
-    window.ANALYTICS_API_ENDPOINT = '{{ apiEndpoint }}'
+    window.ANALYTICS_API = '{{ apiEndpoint }}'
     window.ANALYTICS_SITE_ID = '{{ siteId }}'
   </script>
   @stack('scripts')

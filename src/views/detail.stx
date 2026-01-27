@@ -6,152 +6,115 @@ export const title = props.title || 'Details'
 export const iconPath = props.iconPath || '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>'
 </script>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ title }} - Analytics</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0f1117; color: #e5e7eb; padding: 2rem; }
-    .container { max-width: 1200px; margin: 0 auto; }
-    h1 { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
-    h1 svg { width: 24px; height: 24px; }
-    .back { color: #60a5fa; text-decoration: none; margin-bottom: 1rem; display: inline-block; }
-    .back:hover { text-decoration: underline; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #374151; }
-    th { color: #9ca3af; font-weight: 500; }
-    tr:hover { background: #1f2937; }
-    .loading { color: #9ca3af; padding: 2rem; text-align: center; }
-    .error { color: #f87171; padding: 2rem; text-align: center; }
-    .empty { color: #9ca3af; padding: 2rem; text-align: center; }
-    .pagination { display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: center; }
-    .pagination button { background: #374151; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.25rem; cursor: pointer; }
-    .pagination button:hover { background: #4b5563; }
-    .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .search { margin-bottom: 1rem; }
-    .search input { background: #1f2937; border: 1px solid #374151; color: white; padding: 0.5rem 1rem; border-radius: 0.25rem; width: 100%; max-width: 300px; }
-    .search input:focus { outline: none; border-color: #3b82f6; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <a class="back" href="/dashboard?siteId={{ siteId }}">&larr; Back to Dashboard</a>
-    <h1>
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! iconPath !!}</svg>
-      {{ title }}
-    </h1>
+@layout('layouts/base', { title: title + ' - Analytics', siteId, apiEndpoint })
 
-    <div class="search">
-      <input type="text" id="search" placeholder="Search..." oninput="filterData()">
-    </div>
+@section('content')
+  @component('BackLink', { href: '/dashboard?siteId=' + siteId })
+  @endcomponent
 
-    <div id="content" class="loading">Loading...</div>
+  @component('PageHeader', { title: title, iconPath: iconPath })
+  @endcomponent
+
+  <div class="mb-4">
+    <input
+      type="text"
+      id="search"
+      placeholder="Search..."
+      oninput="filterData()"
+      class="w-full max-w-xs px-4 py-2 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+    >
   </div>
 
-  <script client>
-    const API = '{{ apiEndpoint }}'
-    const SITE_ID = '{{ siteId }}'
-    const SECTION = '{{ section }}'
+  <div id="content" class="text-gray-400 text-center py-8">Loading...</div>
+@endsection
 
-    let allData = []
-    let filteredData = []
-    let currentPage = 1
-    const pageSize = 50
+@push('scripts')
+<script>
+  const API = window.ANALYTICS_API
+  const SITE_ID = window.ANALYTICS_SITE_ID
+  const SECTION = '{{ section }}'
 
-    async function loadData() {
-      try {
-        const res = await fetch(`${API}/api/sites/${SITE_ID}/${SECTION}`)
-        if (!res.ok) throw new Error('Failed to load')
-        const data = await res.json()
-        allData = data[SECTION] || data.pages || data.referrers || data.browsers || data.countries || data.campaigns || data.events || data.goals || []
-        filteredData = [...allData]
-        renderData()
-      } catch (err) {
-        document.getElementById('content').innerHTML = '<p class="error">Failed to load data</p>'
-      }
-    }
+  let allData = []
+  let filteredData = []
+  let currentPage = 1
+  const pageSize = 50
 
-    function filterData() {
-      const query = document.getElementById('search').value.toLowerCase()
-      if (!query) {
-        filteredData = [...allData]
-      } else {
-        filteredData = allData.filter(item => {
-          return Object.values(item).some(val =>
-            String(val).toLowerCase().includes(query)
-          )
-        })
-      }
-      currentPage = 1
+  async function loadData() {
+    try {
+      const res = await fetch(`${API}/api/sites/${SITE_ID}/${SECTION}`)
+      if (!res.ok) throw new Error('Failed to load')
+      const data = await res.json()
+      allData = data[SECTION] || data.pages || data.referrers || data.browsers || data.countries || data.campaigns || data.events || data.goals || []
+      filteredData = [...allData]
       renderData()
+    } catch (err) {
+      document.getElementById('content').innerHTML = '<p class="text-red-400 text-center py-8">Failed to load data</p>'
+    }
+  }
+
+  function filterData() {
+    const query = document.getElementById('search').value.toLowerCase()
+    filteredData = query
+      ? allData.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(query)))
+      : [...allData]
+    currentPage = 1
+    renderData()
+  }
+
+  function renderData() {
+    if (filteredData.length === 0) {
+      document.getElementById('content').innerHTML = '<p class="text-gray-400 text-center py-8">No data available</p>'
+      return
     }
 
-    function renderData() {
-      if (filteredData.length === 0) {
-        document.getElementById('content').innerHTML = '<p class="empty">No data available</p>'
-        return
-      }
+    const start = (currentPage - 1) * pageSize
+    const pageData = filteredData.slice(start, start + pageSize)
+    const totalPages = Math.ceil(filteredData.length / pageSize)
+    const keys = Object.keys(filteredData[0])
 
-      const start = (currentPage - 1) * pageSize
-      const end = start + pageSize
-      const pageData = filteredData.slice(start, end)
-      const totalPages = Math.ceil(filteredData.length / pageSize)
+    let html = '<div class="overflow-x-auto"><table class="w-full">'
+    html += '<thead><tr class="border-b border-gray-700">'
+    keys.forEach(k => html += `<th class="px-3 py-3 text-left text-gray-400 font-medium text-sm">${formatKey(k)}</th>`)
+    html += '</tr></thead><tbody>'
 
-      const keys = Object.keys(filteredData[0])
-      let html = '<table><thead><tr>'
-      keys.forEach(k => html += `<th>${formatKey(k)}</th>`)
-      html += '</tr></thead><tbody>'
+    pageData.forEach(item => {
+      html += '<tr class="border-b border-gray-800 hover:bg-gray-800/50">'
+      keys.forEach(k => html += `<td class="px-3 py-3 text-sm">${formatValue(item[k], k)}</td>`)
+      html += '</tr>'
+    })
+    html += '</tbody></table></div>'
 
-      pageData.forEach(item => {
-        html += '<tr>'
-        keys.forEach(k => html += `<td>${formatValue(item[k], k)}</td>`)
-        html += '</tr>'
-      })
-
-      html += '</tbody></table>'
-
-      if (totalPages > 1) {
-        html += `<div class="pagination">
-          <button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
-          <span style="padding: 0.5rem; color: #9ca3af;">Page ${currentPage} of ${totalPages}</span>
-          <button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
-        </div>`
-      }
-
-      document.getElementById('content').innerHTML = html
+    if (totalPages > 1) {
+      html += `<div class="flex items-center justify-center gap-4 mt-4">
+        <button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}
+          class="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm">Previous</button>
+        <span class="text-gray-400 text-sm">Page ${currentPage} of ${totalPages}</span>
+        <button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}
+          class="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm">Next</button>
+      </div>`
     }
 
-    function goToPage(page) {
-      currentPage = page
-      renderData()
-    }
+    document.getElementById('content').innerHTML = html
+  }
 
-    function formatKey(key) {
-      return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
-    }
+  function goToPage(page) { currentPage = page; renderData() }
 
-    function formatValue(value, key) {
-      if (value === null || value === undefined) return '-'
-      if (key.includes('time') || key.includes('Time')) {
-        if (typeof value === 'number') {
-          const mins = Math.floor(value / 60000)
-          const secs = Math.floor((value % 60000) / 1000)
-          return `${mins}:${secs.toString().padStart(2, '0')}`
-        }
-      }
-      if (key.includes('rate') || key.includes('Rate') || key === 'percentage') {
-        return typeof value === 'number' ? value.toFixed(1) + '%' : value
-      }
-      if (typeof value === 'number') {
-        return value.toLocaleString()
-      }
-      return String(value)
-    }
+  function formatKey(key) {
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
+  }
 
-    loadData()
-  </script>
-</body>
-</html>
+  function formatValue(value, key) {
+    if (value == null) return '-'
+    if ((key.includes('time') || key.includes('Time')) && typeof value === 'number') {
+      const mins = Math.floor(value / 60000)
+      const secs = Math.floor((value % 60000) / 1000)
+      return `${mins}:${secs.toString().padStart(2, '0')}`
+    }
+    if ((key.includes('rate') || key.includes('Rate') || key === 'percentage') && typeof value === 'number')
+      return value.toFixed(1) + '%'
+    return typeof value === 'number' ? value.toLocaleString() : String(value)
+  }
+
+  loadData()
+</script>
+@endpush
