@@ -98,16 +98,13 @@ button {
 }
 
 /* Spinner animation */
-/* Spin animation - clockwise, completes full rotation */
+/* Spin animation - counterclockwise (left), continuous until stopped */
 @keyframes spin {
   from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  to { transform: rotate(-360deg); }
 }
 .spinning svg {
-  animation: spin 0.6s ease-in-out;
-}
-.spinning.spin-continuous svg {
-  animation: spin 0.6s linear infinite;
+  animation: spin 0.5s linear infinite;
 }
 
 /* Custom scrollbar */

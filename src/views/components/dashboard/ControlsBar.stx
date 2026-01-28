@@ -172,11 +172,11 @@ const { activeRange, realtimeCount, lastUpdated, showCompare, ranges } = withDef
   color: var(--text);
 }
 .refresh-btn.spinning svg {
-  animation: spin 1s linear infinite;
+  animation: spin 0.5s linear infinite;
 }
 @keyframes spin {
   from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  to { transform: rotate(-360deg); }
 }
 
 @media (max-width: 640px) {

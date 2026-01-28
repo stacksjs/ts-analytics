@@ -454,10 +454,14 @@
         isLoading = false
         // Finish STX loading indicator
         if (window.stxLoading) window.stxLoading.finish()
-        // Ensure spin animation completes at least one full rotation (600ms)
+        // Ensure spin animation completes full rotations (500ms per rotation)
         const spinDuration = Date.now() - spinStartTime
-        const minSpinTime = 600
-        const remainingTime = Math.max(0, minSpinTime - spinDuration)
+        const rotationTime = 500
+        // Calculate time to next rotation boundary (at least 1 full rotation)
+        const completedRotations = Math.floor(spinDuration / rotationTime)
+        const minRotations = Math.max(1, completedRotations + 1)
+        const targetTime = minRotations * rotationTime
+        const remainingTime = targetTime - spinDuration
         setTimeout(() => {
           refreshBtn?.classList.remove('spinning')
         }, remainingTime)
@@ -2407,5 +2411,10 @@
       bulkResolveErrors,
       bulkIgnoreErrors,
       showPathHeatmap,
+      addAnnotation,
+      toggleComparison,
+      applyFilter,
+      fetchDashboardData,
+      exportData,
     })
 
