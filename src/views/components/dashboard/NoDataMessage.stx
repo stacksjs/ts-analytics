@@ -3,21 +3,9 @@
  * NoDataMessage Component
  *
  * Displays instructions when no analytics data is available.
+ * Props: siteId, apiEndpoint (passed from parent)
  */
-import { defineProps, withDefaults } from 'stx'
-
-interface NoDataMessageProps {
-  siteId?: string
-  apiEndpoint?: string
-}
-
-const { siteId, apiEndpoint } = withDefaults(
-  defineProps<NoDataMessageProps>(),
-  {
-    siteId: '',
-    apiEndpoint: '',
-  }
-)
+// Props are automatically available from parent context
 </script>
 
 <div id="no-data-msg" class="no-data" style="display:none">

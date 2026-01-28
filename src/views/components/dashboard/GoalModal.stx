@@ -1,185 +1,65 @@
 <script server>
 /**
- * GoalModal Component
- *
- * Modal for creating/editing goals.
+ * GoalModal Component - Uses Tailwind classes
  */
-import { defineProps, withDefaults } from 'stx'
-
-interface Goal {
-  id?: string
-  name: string
-  type: 'pageview' | 'event' | 'duration'
-  pattern?: string
-  matchType?: 'exact' | 'contains' | 'regex'
-  duration?: number
-  value?: number
-}
-
-interface GoalModalProps {
-  goal?: Goal | null
-  isOpen?: boolean
-}
-
-const { goal, isOpen } = withDefaults(
-  defineProps<GoalModalProps>(),
-  {
-    goal: null,
-    isOpen: false,
-  }
-)
-
-const isEditing = goal && goal.id
-const modalTitle = isEditing ? 'Edit Goal' : 'Create Goal'
 </script>
 
-<div id="goal-modal" class="goal-modal" style="display:none">
-  <div class="modal-content">
-    <h3 id="goal-modal-title">{{ modalTitle }}</h3>
+<div id="goal-modal" class="fixed inset-0 bg-black/75 flex items-center justify-center z-[1000]" style="display:none">
+  <div class="bg-[var(--bg2)] border border-[var(--border)] rounded-xl p-6 max-w-[420px] w-[90%]">
+    <h3 id="goal-modal-title" class="mb-6 text-lg text-[var(--text)]">Create Goal</h3>
     <form id="goal-form" onsubmit="saveGoal(event)">
-      <label>
+      <label class="block mb-4 text-[0.8125rem] text-[var(--text2)]">
         Name
-        <input
-          type="text"
-          id="goal-name"
-          required
-          placeholder="e.g. Sign Up Completed"
-          value="{{ goal?.name || '' }}"
-        >
+        <input type="text" id="goal-name" required placeholder="e.g. Sign Up Completed"
+          class="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-md text-[var(--text)] mt-1.5 text-sm focus:outline-none focus:border-[var(--accent)]">
       </label>
-      <label>
+      <label class="block mb-4 text-[0.8125rem] text-[var(--text2)]">
         Type
-        <select id="goal-type" onchange="updateGoalForm()">
-          <option value="pageview" {{ goal?.type === 'pageview' || !goal ? 'selected' : '' }}>Destination (Page Path)</option>
-          <option value="event" {{ goal?.type === 'event' ? 'selected' : '' }}>Event</option>
-          <option value="duration" {{ goal?.type === 'duration' ? 'selected' : '' }}>Duration (Time on Site)</option>
+        <select id="goal-type" onchange="updateGoalForm()"
+          class="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-md text-[var(--text)] mt-1.5 text-sm focus:outline-none focus:border-[var(--accent)]">
+          <option value="pageview" selected>Destination (Page Path)</option>
+          <option value="event">Event</option>
+          <option value="duration">Duration (Time on Site)</option>
         </select>
       </label>
-      <div id="goal-pattern-group" style="{{ goal?.type === 'duration' ? 'display:none' : '' }}">
-        <label>
+      <div id="goal-pattern-group">
+        <label class="block mb-4 text-[0.8125rem] text-[var(--text2)]">
           Pattern
-          <input
-            type="text"
-            id="goal-pattern"
-            placeholder="/thank-you or /checkout/*"
-            value="{{ goal?.pattern || '' }}"
-          >
+          <input type="text" id="goal-pattern" placeholder="/thank-you or /checkout/*"
+            class="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-md text-[var(--text)] mt-1.5 text-sm focus:outline-none focus:border-[var(--accent)]">
         </label>
-        <label>
+        <label class="block mb-4 text-[0.8125rem] text-[var(--text2)]">
           Match Type
-          <select id="goal-match-type">
-            <option value="exact" {{ goal?.matchType === 'exact' || !goal?.matchType ? 'selected' : '' }}>Exact Match</option>
-            <option value="contains" {{ goal?.matchType === 'contains' ? 'selected' : '' }}>Contains</option>
-            <option value="regex" {{ goal?.matchType === 'regex' ? 'selected' : '' }}>Regular Expression</option>
+          <select id="goal-match-type"
+            class="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-md text-[var(--text)] mt-1.5 text-sm focus:outline-none focus:border-[var(--accent)]">
+            <option value="exact" selected>Exact Match</option>
+            <option value="contains">Contains</option>
+            <option value="regex">Regular Expression</option>
           </select>
         </label>
       </div>
-      <div id="goal-duration-group" style="{{ goal?.type === 'duration' ? '' : 'display:none' }}">
-        <label>
+      <div id="goal-duration-group" style="display:none">
+        <label class="block mb-4 text-[0.8125rem] text-[var(--text2)]">
           Minutes on Site
-          <input
-            type="number"
-            id="goal-duration"
-            min="1"
-            value="{{ goal?.duration || 5 }}"
-          >
+          <input type="number" id="goal-duration" min="1" value="5"
+            class="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-md text-[var(--text)] mt-1.5 text-sm focus:outline-none focus:border-[var(--accent)]">
         </label>
       </div>
-      <label>
+      <label class="block mb-4 text-[0.8125rem] text-[var(--text2)]">
         Value per Conversion (optional)
-        <input
-          type="number"
-          id="goal-value"
-          step="0.01"
-          placeholder="0.00"
-          value="{{ goal?.value || '' }}"
-        >
+        <input type="number" id="goal-value" step="0.01" placeholder="0.00"
+          class="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-md text-[var(--text)] mt-1.5 text-sm focus:outline-none focus:border-[var(--accent)]">
       </label>
-      <div class="modal-actions">
-        <button type="button" onclick="closeGoalModal()">Cancel</button>
-        <button type="submit">Save Goal</button>
+      <div class="flex gap-3 justify-end mt-6 pt-4 border-t border-[var(--border)]">
+        <button type="button" onclick="closeGoalModal()"
+          class="px-5 py-2.5 rounded-md cursor-pointer text-sm font-medium bg-[var(--bg3)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--bg)] transition-colors">
+          Cancel
+        </button>
+        <button type="submit"
+          class="px-5 py-2.5 rounded-md cursor-pointer text-sm font-medium bg-[var(--accent)] border-none text-white hover:bg-[var(--accent2)] transition-colors">
+          Save Goal
+        </button>
       </div>
     </form>
   </div>
 </div>
-
-<style>
-.goal-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-.goal-modal .modal-content {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.5rem;
-  max-width: 420px;
-  width: 90%;
-}
-.goal-modal .modal-content h3 {
-  margin-bottom: 1.5rem;
-  font-size: 1.125rem;
-  color: var(--text);
-}
-.goal-modal .modal-content label {
-  display: block;
-  margin-bottom: 1rem;
-  font-size: 0.8125rem;
-  color: var(--text2);
-}
-.goal-modal .modal-content input,
-.goal-modal .modal-content select {
-  width: 100%;
-  padding: 0.625rem;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  margin-top: 0.375rem;
-  font-size: 0.875rem;
-}
-.goal-modal .modal-content input:focus,
-.goal-modal .modal-content select:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-.goal-modal .modal-actions {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-}
-.goal-modal .modal-actions button {
-  padding: 0.625rem 1.25rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-.goal-modal .modal-actions button[type="button"] {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  color: var(--text);
-}
-.goal-modal .modal-actions button[type="button"]:hover {
-  background: var(--bg);
-}
-.goal-modal .modal-actions button[type="submit"] {
-  background: var(--accent);
-  border: none;
-  color: white;
-}
-.goal-modal .modal-actions button[type="submit"]:hover {
-  background: var(--accent2);
-}
-</style>

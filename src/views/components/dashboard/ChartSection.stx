@@ -3,29 +3,17 @@
  * ChartSection Component
  *
  * Time series chart with annotation button.
+ * Props: title, showAnnotation, loading (passed from parent)
  */
-import { defineProps, withDefaults } from 'stx'
-
-interface ChartSectionProps {
-  title?: string
-  showAnnotation?: boolean
-  loading?: boolean
-}
-
-const { title, showAnnotation, loading } = withDefaults(
-  defineProps<ChartSectionProps>(),
-  {
-    title: 'Pageviews Over Time',
-    showAnnotation: true,
-    loading: false,
-  }
-)
+// Use defaults if props not provided
+const chartTitle = (props && props.title) || 'Pageviews Over Time'
+const showAnnotationBtn = props && props.showAnnotation !== undefined ? props.showAnnotation : true
 </script>
 
 <div class="chart-box" style="position:relative">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-    <div class="chart-title" style="margin-bottom:0">{{ title }}</div>
-    @if (showAnnotation)
+    <div class="chart-title" style="margin-bottom:0">{{ chartTitle }}</div>
+    @if (showAnnotationBtn)
       <button onclick="addAnnotation()" class="annotation-btn" title="Mark an event on the chart">
         <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px;vertical-align:middle">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>

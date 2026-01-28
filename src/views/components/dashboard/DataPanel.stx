@@ -84,10 +84,12 @@ const { id, title, icon, viewAllLink, columns, bodyId } = withDefaults(
 }
 .view-all {
   font-size: 0.75rem;
-  color: var(--accent);
+  color: var(--muted);
   text-decoration: none;
+  transition: color 0.15s ease;
 }
 .view-all:hover {
+  color: var(--text);
   text-decoration: underline;
 }
 .data-table {

@@ -156,8 +156,8 @@ async function deployLambdaAPI() {
   const lambdaViewsDir = './dist/lambda/views'
   fs.mkdirSync(lambdaViewsDir, { recursive: true })
 
-  // Copy pre-built views to lambda directory
-  const viewFiles = fs.readdirSync(viewsDir)
+  // Copy pre-built views to lambda directory (only .html and .json files)
+  const viewFiles = fs.readdirSync(viewsDir).filter(f => f.endsWith('.html') || f.endsWith('.json'))
   for (const file of viewFiles) {
     const src = `${viewsDir}/${file}`
     const dest = `${lambdaViewsDir}/${file}`
