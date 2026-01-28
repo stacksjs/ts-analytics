@@ -1,0 +1,88 @@
+<script server>
+/**
+ * EventsSection Component
+ *
+ * Displays custom events.
+ */
+import { defineProps, withDefaults } from 'stx'
+
+interface Event {
+  name: string
+  count: number
+  value?: number
+}
+
+interface EventsSectionProps {
+  events?: Event[]
+  loading?: boolean
+}
+
+const { events, loading } = withDefaults(
+  defineProps<EventsSectionProps>(),
+  {
+    events: () => [],
+    loading: false,
+  }
+)
+</script>
+
+<div class="events">
+  <div class="panel-header">
+    <div class="panel-title">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+      Custom Events
+    </div>
+    <a href="#" onclick="navigateTo('events')" class="view-all">View all &rarr;</a>
+  </div>
+  <div id="events-container">
+    @if (loading)
+      <div class="empty-cell">Loading...</div>
+    @elseif (events.length === 0)
+      <div class="empty-cell">No events recorded</div>
+    @else
+      <div class="events-grid">
+        @foreach (events as event)
+          <div class="event-item">
+            <span class="event-name">{{ event.name }}</span>
+            <span class="event-count">{{ event.count }}</span>
+          </div>
+        @endforeach
+      </div>
+    @endif
+  </div>
+</div>
+
+<style>
+.events {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+}
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+.event-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.625rem 0.75rem;
+  background: var(--bg);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.event-name {
+  font-size: 0.8125rem;
+  color: var(--text);
+  font-weight: 500;
+}
+.event-count {
+  font-size: 0.875rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+</style>

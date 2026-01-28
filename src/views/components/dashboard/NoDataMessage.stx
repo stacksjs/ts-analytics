@@ -1,0 +1,115 @@
+<script server>
+/**
+ * NoDataMessage Component
+ *
+ * Displays instructions when no analytics data is available.
+ */
+import { defineProps, withDefaults } from 'stx'
+
+interface NoDataMessageProps {
+  siteId?: string
+  apiEndpoint?: string
+}
+
+const { siteId, apiEndpoint } = withDefaults(
+  defineProps<NoDataMessageProps>(),
+  {
+    siteId: '',
+    apiEndpoint: '',
+  }
+)
+</script>
+
+<div id="no-data-msg" class="no-data" style="display:none">
+  <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--warning);margin-bottom:1rem">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+  </svg>
+  <h3>No analytics data yet</h3>
+  <p>Add the tracking script to your website to start collecting data.</p>
+  <code id="tracking-script"></code>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+      <h4>Copy the script tag</h4>
+      <p>Copy the code above and paste it in your HTML</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+      <h4>Add to your pages</h4>
+      <p>Place it in the &lt;head&gt; section of your website</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+      <h4>View your analytics</h4>
+      <p>Data will appear here within a few seconds of your first visit</p>
+    </div>
+  </div>
+</div>
+
+<style>
+.no-data {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 3rem;
+  text-align: center;
+  border: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+.no-data h3 {
+  margin-bottom: 0.5rem;
+  color: var(--warning);
+}
+.no-data p {
+  color: var(--text2);
+  margin-bottom: 1rem;
+}
+.no-data code {
+  display: block;
+  background: var(--bg);
+  padding: 1rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  margin-top: 1rem;
+  color: var(--accent2);
+  word-break: break-all;
+  text-align: left;
+}
+.no-data .step {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  text-align: left;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+.no-data .step-num {
+  background: var(--accent);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.no-data .step-content {
+  flex: 1;
+}
+.no-data .step-content h4 {
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+.no-data .step-content p {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  margin: 0;
+}
+</style>

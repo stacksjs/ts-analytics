@@ -1,0 +1,105 @@
+<script server>
+/**
+ * ChartSection Component
+ *
+ * Time series chart with annotation button.
+ */
+import { defineProps, withDefaults } from 'stx'
+
+interface ChartSectionProps {
+  title?: string
+  showAnnotation?: boolean
+  loading?: boolean
+}
+
+const { title, showAnnotation, loading } = withDefaults(
+  defineProps<ChartSectionProps>(),
+  {
+    title: 'Pageviews Over Time',
+    showAnnotation: true,
+    loading: false,
+  }
+)
+</script>
+
+<div class="chart-box" style="position:relative">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+    <div class="chart-title" style="margin-bottom:0">{{ title }}</div>
+    @if (showAnnotation)
+      <button onclick="addAnnotation()" class="annotation-btn" title="Mark an event on the chart">
+        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px;vertical-align:middle">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Annotation
+      </button>
+    @endif
+  </div>
+  <canvas id="chart"></canvas>
+  <div id="chartTooltip" class="chart-tooltip"></div>
+  <div id="chart-empty" class="chart-empty" style="display:none">
+    <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.5;margin-bottom:0.5rem">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+    </svg>
+    <p>No time series data available</p>
+  </div>
+</div>
+
+<style>
+.chart-box {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+.chart-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+.annotation-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.6875rem;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s;
+}
+.annotation-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+.chart-tooltip {
+  position: absolute;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  pointer-events: none;
+  z-index: 10;
+  display: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--muted);
+  text-align: center;
+}
+.chart-empty p {
+  font-size: 0.875rem;
+}
+#chart {
+  width: 100%;
+  height: 200px;
+}
+</style>

@@ -1,0 +1,178 @@
+<script server>
+/**
+ * GoalsSection Component
+ *
+ * Displays goals with conversion stats.
+ */
+import { defineProps, withDefaults } from 'stx'
+
+interface Goal {
+  id: string
+  name: string
+  type: 'pageview' | 'event' | 'duration'
+  conversions: number
+  conversionRate: number
+}
+
+interface GoalsSectionProps {
+  goals?: Goal[]
+  loading?: boolean
+}
+
+const { goals, loading } = withDefaults(
+  defineProps<GoalsSectionProps>(),
+  {
+    goals: () => [],
+    loading: false,
+  }
+)
+</script>
+
+<div class="goals-section">
+  <div class="panel-header">
+    <div class="panel-title">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      Goals
+    </div>
+    <div style="display:flex;gap:1rem;align-items:center">
+      <a href="#" onclick="navigateTo('goals')" class="view-all">View all &rarr;</a>
+      <button onclick="showCreateGoalModal()" class="create-goal-btn">+ Add Goal</button>
+    </div>
+  </div>
+  <div id="goals-container">
+    @if (loading)
+      <div class="empty-cell">Loading...</div>
+    @elseif (goals.length === 0)
+      <div class="empty-cell">No goals configured. Create your first goal to track conversions.</div>
+    @else
+      <div class="goals-list">
+        @foreach (goals as goal)
+          <div class="goal-item">
+            <div class="goal-info">
+              <span class="goal-name">{{ goal.name }}</span>
+              <span class="goal-type-badge {{ goal.type }}">{{ goal.type }}</span>
+            </div>
+            <div class="goal-stats">
+              <span class="goal-conversions">{{ goal.conversions }}</span>
+              <span class="goal-rate">{{ (goal.conversionRate * 100).toFixed(1) }}%</span>
+            </div>
+            <div class="goal-actions">
+              <button class="icon-btn" onclick="editGoal('{{ goal.id }}')" title="Edit">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+              </button>
+              <button class="icon-btn danger" onclick="deleteGoal('{{ goal.id }}')" title="Delete">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        @endforeach
+      </div>
+    @endif
+  </div>
+</div>
+
+<style>
+.goals-section {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  margin-top: 1.5rem;
+}
+.create-goal-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.create-goal-btn:hover {
+  background: var(--accent2);
+}
+.goals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.goal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: var(--bg);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.goal-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.goal-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.goal-type-badge {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.goal-type-badge.pageview {
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--accent);
+}
+.goal-type-badge.event {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+}
+.goal-type-badge.duration {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+.goal-stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.goal-conversions {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.goal-rate {
+  font-size: 0.8125rem;
+  color: var(--success);
+}
+.goal-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  margin-left: 0.25rem;
+}
+.icon-btn:hover {
+  background: var(--bg3);
+  color: var(--text);
+}
+.icon-btn.danger:hover {
+  color: var(--error);
+}
+</style>

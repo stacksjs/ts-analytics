@@ -1,0 +1,194 @@
+<script server>
+/**
+ * ControlsBar Component
+ *
+ * Date range selector, realtime badge, and action buttons.
+ */
+import { defineProps, withDefaults } from 'stx'
+
+interface DateRangeOption {
+  value: string
+  label: string
+}
+
+interface ControlsBarProps {
+  activeRange?: string
+  realtimeCount?: number
+  lastUpdated?: string
+  showCompare?: boolean
+  ranges?: DateRangeOption[]
+}
+
+const defaultRanges: DateRangeOption[] = [
+  { value: '1h', label: '1h' },
+  { value: '6h', label: '6h' },
+  { value: '12h', label: '12h' },
+  { value: '24h', label: '24h' },
+  { value: '7d', label: '7d' },
+  { value: '30d', label: '30d' },
+  { value: '90d', label: '90d' },
+]
+
+const { activeRange, realtimeCount, lastUpdated, showCompare, ranges } = withDefaults(
+  defineProps<ControlsBarProps>(),
+  {
+    activeRange: '6h',
+    realtimeCount: 0,
+    lastUpdated: '',
+    showCompare: false,
+    ranges: () => defaultRanges,
+  }
+)
+</script>
+
+<div id="controls-bar" class="controls">
+  <div class="date-range">
+    @foreach (ranges as range)
+      <button
+        class="date-btn {{ range.value === activeRange ? 'active' : '' }}"
+        data-range="{{ range.value }}"
+        onclick="setDateRange('{{ range.value }}')"
+      >
+        {{ range.label }}
+      </button>
+    @endforeach
+    <span style="border-left:1px solid var(--border);height:24px;margin:0 0.5rem"></span>
+    <button
+      id="compare-btn"
+      class="date-btn {{ showCompare ? 'active' : '' }}"
+      onclick="toggleComparison()"
+      title="Compare with previous period"
+      style="font-size:0.6875rem;padding:0.25rem 0.5rem"
+    >
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px;vertical-align:middle">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+      </svg>
+      Compare
+    </button>
+  </div>
+  <div class="controls-right">
+    <div class="realtime-badge">
+      <span class="pulse"></span>
+      <span id="realtime-count">{{ realtimeCount }} visitors online</span>
+    </div>
+    <span id="last-updated" class="last-updated">{{ lastUpdated }}</span>
+    <button id="refresh-btn" class="refresh-btn" onclick="fetchDashboardData()" title="Refresh data">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+    </button>
+    <button class="export-btn" onclick="exportData('csv')" title="Export CSV">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<style>
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.date-btn {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 0.375rem 0.625rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.date-btn:hover {
+  background: var(--bg3);
+  color: var(--text);
+}
+.date-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.realtime-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--success);
+}
+.pulse {
+  width: 8px;
+  height: 8px;
+  background: var(--success);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.last-updated {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.refresh-btn,
+.export-btn {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.refresh-btn:hover,
+.export-btn:hover {
+  background: var(--bg3);
+  color: var(--text);
+}
+.refresh-btn.spinning svg {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .controls-right {
+    justify-content: space-between;
+  }
+  .date-range {
+    justify-content: center;
+  }
+}
+</style>

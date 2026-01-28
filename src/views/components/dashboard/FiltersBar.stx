@@ -1,0 +1,115 @@
+<script server>
+/**
+ * FiltersBar Component
+ *
+ * Filter dropdowns for country, device, and browser.
+ */
+import { defineProps, withDefaults } from 'stx'
+
+interface FilterOption {
+  value: string
+  label: string
+}
+
+interface FiltersBarProps {
+  countries?: FilterOption[]
+  devices?: FilterOption[]
+  browsers?: FilterOption[]
+  selectedCountry?: string
+  selectedDevice?: string
+  selectedBrowser?: string
+}
+
+const defaultDevices: FilterOption[] = [
+  { value: '', label: 'All Devices' },
+  { value: 'desktop', label: 'Desktop' },
+  { value: 'mobile', label: 'Mobile' },
+  { value: 'tablet', label: 'Tablet' },
+]
+
+const { countries, devices, browsers, selectedCountry, selectedDevice, selectedBrowser } = withDefaults(
+  defineProps<FiltersBarProps>(),
+  {
+    countries: () => [],
+    devices: () => defaultDevices,
+    browsers: () => [],
+    selectedCountry: '',
+    selectedDevice: '',
+    selectedBrowser: '',
+  }
+)
+</script>
+
+<div id="filters-bar" class="filters-row">
+  <select
+    id="filter-country"
+    class="filter-select"
+    onchange="applyFilter('country', this.value)"
+  >
+    <option value="">All Countries</option>
+    @foreach (countries as country)
+      <option value="{{ country.value }}" {{ country.value === selectedCountry ? 'selected' : '' }}>
+        {{ country.label }}
+      </option>
+    @endforeach
+  </select>
+
+  <select
+    id="filter-device"
+    class="filter-select"
+    onchange="applyFilter('device', this.value)"
+  >
+    @foreach (devices as device)
+      <option value="{{ device.value }}" {{ device.value === selectedDevice ? 'selected' : '' }}>
+        {{ device.label }}
+      </option>
+    @endforeach
+  </select>
+
+  <select
+    id="filter-browser"
+    class="filter-select"
+    onchange="applyFilter('browser', this.value)"
+  >
+    <option value="">All Browsers</option>
+    @foreach (browsers as browser)
+      <option value="{{ browser.value }}" {{ browser.value === selectedBrowser ? 'selected' : '' }}>
+        {{ browser.label }}
+      </option>
+    @endforeach
+  </select>
+</div>
+
+<style>
+.filters-row {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.filter-select {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  min-width: 140px;
+}
+.filter-select:hover {
+  border-color: var(--accent);
+}
+.filter-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .filters-row {
+    justify-content: center;
+  }
+}
+</style>

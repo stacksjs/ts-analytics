@@ -1,0 +1,134 @@
+<script server>
+/**
+ * StatsRow Component
+ *
+ * Displays the main stats cards (realtime, sessions, visitors, etc.)
+ */
+import { defineProps, withDefaults } from 'stx'
+
+interface Stat {
+  id: string
+  label: string
+  icon: string
+  highlight?: boolean
+}
+
+interface StatsRowProps {
+  stats?: Stat[]
+}
+
+const defaultStats: Stat[] = [
+  {
+    id: 'realtime',
+    label: 'Realtime',
+    icon: 'M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41',
+    highlight: true,
+  },
+  {
+    id: 'sessions',
+    label: 'Sessions',
+    icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  },
+  {
+    id: 'people',
+    label: 'Visitors',
+    icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+  },
+  {
+    id: 'views',
+    label: 'Pageviews',
+    icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z',
+  },
+  {
+    id: 'avgtime',
+    label: 'Avg Time',
+    icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  },
+  {
+    id: 'bounce',
+    label: 'Bounce Rate',
+    icon: 'M13 17h8m0 0V9m0 8l-8-8-4 4-6-6',
+  },
+]
+
+const { stats } = withDefaults(
+  defineProps<StatsRowProps>(),
+  {
+    stats: () => defaultStats,
+  }
+)
+</script>
+
+<div class="stats">
+  @foreach (stats as stat)
+    <div class="stat {{ stat.highlight ? 'highlight' : '' }}">
+      <svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        @if (stat.id === 'realtime')
+          <circle cx="12" cy="12" r="3"/>
+        @endif
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ stat.icon }}"/>
+      </svg>
+      <div class="stat-val" id="stat-{{ stat.id }}">—</div>
+      <div class="stat-lbl">{{ stat.label }}</div>
+    </div>
+  @endforeach
+</div>
+
+<style>
+.stats {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1rem;
+  padding: 1.5rem;
+}
+.stat {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+.stat:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.stat.highlight {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  border-color: transparent;
+}
+.stat.highlight .stat-val,
+.stat.highlight .stat-lbl,
+.stat.highlight .stat-icon {
+  color: white;
+}
+.stat-icon {
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.stat-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.stat-lbl {
+  font-size: 0.75rem;
+  color: var(--text2);
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+@media (max-width: 1024px) {
+  .stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+</style>

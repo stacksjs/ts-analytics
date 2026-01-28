@@ -1,0 +1,93 @@
+<script server>
+/**
+ * SiteSelector Component
+ *
+ * Displays the site selection screen with list of available sites
+ * and a form to create new sites.
+ */
+import { defineProps, withDefaults } from 'stx'
+
+interface SiteSelectorProps {
+  sites?: Array<{ id: string; name: string; domain?: string }>
+  loading?: boolean
+}
+
+const { sites, loading } = withDefaults(
+  defineProps<SiteSelectorProps>(),
+  {
+    sites: () => [],
+    loading: false,
+  }
+)
+</script>
+
+<div id="site-selector" class="site-selector" style="display:none">
+  <h1>Analytics Dashboard</h1>
+  <p>Select a site to view analytics</p>
+  <div id="site-list" class="site-list">
+    <!-- Create Site Form -->
+    <div class="create-site-form" style="margin-bottom:1.5rem;width:100%;max-width:500px">
+      <h3 style="font-size:0.875rem;margin-bottom:0.75rem;color:var(--text2)">Create New Site</h3>
+      <form onsubmit="createSite(event)" style="display:flex;gap:0.5rem">
+        <input type="text" id="new-site-name" placeholder="Site name (e.g. My Website)" required style="flex:1;padding:0.5rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:0.875rem">
+        <input type="text" id="new-site-domain" placeholder="Domain (optional)" style="flex:1;padding:0.5rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:0.875rem">
+        <button type="submit" style="padding:0.5rem 1rem;border-radius:6px;background:var(--accent);color:white;border:none;cursor:pointer;font-weight:500">Create</button>
+      </form>
+      <p id="create-site-error" style="color:var(--error);font-size:0.75rem;margin-top:0.5rem;display:none"></p>
+    </div>
+
+    <!-- Sites will be rendered here dynamically -->
+  </div>
+</div>
+
+<style>
+.site-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  text-align: center;
+}
+.site-selector h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+.site-selector p {
+  color: var(--text2);
+  margin-bottom: 2rem;
+}
+.site-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 600px;
+}
+.site-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+.site-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.site-card h3 {
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+.site-card p {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin: 0;
+}
+</style>
