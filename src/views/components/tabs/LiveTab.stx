@@ -1,0 +1,114 @@
+<script server>
+/**
+ * LiveTab Component
+ *
+ * Displays real-time visitor activity.
+ */
+</script>
+
+<template id="live-tab-template">
+  <div class="tab-panel">
+    <div class="tab-header">
+      <h3 class="tab-title">
+        <span class="live-pulse"></span>
+        Live Activity
+      </h3>
+      <span class="live-refresh-note">Auto-refreshing every 5s</span>
+    </div>
+    <div id="live-activities" class="live-activities">
+      <div class="empty-state">No recent activity. Visitors will appear here in real-time.</div>
+    </div>
+  </div>
+</template>
+
+<template id="live-activity-template">
+  <div class="live-activity-card">
+    <div class="live-dot"></div>
+    <div class="live-activity-content">
+      <div class="live-activity-path">{path}</div>
+      <div class="live-activity-meta">{country} • {device} • {browser}</div>
+    </div>
+    <div class="live-activity-time">{timeAgo}</div>
+  </div>
+</template>
+
+<style>
+.tab-panel {
+  grid-column: 1 / -1;
+}
+.tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.tab-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+.live-pulse {
+  width: 8px;
+  height: 8px;
+  background: var(--success);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+.live-refresh-note {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.live-activities {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.live-activity-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--success);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.live-activity-content {
+  flex: 1;
+  min-width: 0;
+}
+.live-activity-path {
+  font-size: 0.875rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.live-activity-meta {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.live-activity-time {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+</style>

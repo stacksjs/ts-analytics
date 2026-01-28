@@ -1,0 +1,144 @@
+<script server>
+/**
+ * VitalsTab Component
+ *
+ * Displays Core Web Vitals metrics.
+ */
+</script>
+
+<template id="vitals-tab-template">
+  <div class="tab-panel">
+    <div id="vitals-violations" class="vitals-violations" style="display:none"></div>
+    <h3 class="tab-title">Core Web Vitals</h3>
+    <div id="vitals-grid" class="vitals-grid">
+      <div class="empty-state">Loading vitals...</div>
+    </div>
+    <p class="vitals-legend">
+      <strong>LCP</strong> (Largest Contentful Paint): Loading performance.
+      <strong>FID</strong> (First Input Delay): Interactivity.
+      <strong>CLS</strong> (Cumulative Layout Shift): Visual stability.
+      <strong>TTFB</strong> (Time to First Byte): Server response.
+      <strong>INP</strong> (Interaction to Next Paint): Responsiveness.
+    </p>
+  </div>
+</template>
+
+<template id="vital-card-template">
+  <div class="vital-card">
+    <div class="vital-name">{metric}</div>
+    <div class="vital-value {rating}">{value}</div>
+    <div class="vital-samples">{samples} samples</div>
+    <div class="vital-bar">
+      <span class="good" style="width:{good}%"></span>
+      <span class="needs-improvement" style="width:{needsImprovement}%"></span>
+      <span class="poor" style="width:{poor}%"></span>
+    </div>
+  </div>
+</template>
+
+<style>
+.tab-panel {
+  grid-column: 1 / -1;
+}
+.tab-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+.vitals-violations {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+.vitals-violations h4 {
+  font-size: 0.875rem;
+  color: #ef4444;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem 0;
+}
+.violations-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.violation-item {
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--text);
+}
+.violation-item .exceeded {
+  color: #ef4444;
+}
+.vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+.vital-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+.vital-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+.vital-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+.vital-value.good { color: #22c55e; }
+.vital-value.needs-improvement { color: #f59e0b; }
+.vital-value.poor { color: #ef4444; }
+.vital-samples {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.vital-bar {
+  display: flex;
+  height: 6px;
+  background: var(--bg3);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+.vital-bar span {
+  height: 100%;
+}
+.vital-bar .good { background: #22c55e; }
+.vital-bar .needs-improvement { background: #f59e0b; }
+.vital-bar .poor { background: #ef4444; }
+.vitals-legend {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.vitals-legend strong {
+  color: var(--text);
+}
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  grid-column: 1 / -1;
+}
+</style>

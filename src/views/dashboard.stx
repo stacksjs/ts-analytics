@@ -169,5 +169,13 @@
 
     <goal-modal />
   </div>
+
+  <!-- Tab Templates -->
+  @include('components/Modal.stx')
+  @include('components/tabs/SessionsTab.stx')
+  @include('components/tabs/VitalsTab.stx')
+  @include('components/tabs/LiveTab.stx')
+  @include('components/tabs/ErrorsTab.stx')
+  @include('components/tabs/FunnelsTab.stx')
 </body>
 </html>

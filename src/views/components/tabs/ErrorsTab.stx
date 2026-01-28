@@ -1,0 +1,283 @@
+<script server>
+/**
+ * ErrorsTab Component
+ *
+ * Displays JavaScript errors with Ignition-style cards.
+ */
+</script>
+
+<template id="errors-tab-template">
+  <div class="tab-panel">
+    <div class="tab-header">
+      <h3 class="tab-title">JavaScript Errors</h3>
+      <div class="errors-actions">
+        <select id="error-status-filter" class="filter-select" onchange="errorStatusFilter=this.value;renderErrors()">
+          <option value="all">All Errors</option>
+          <option value="new">New</option>
+          <option value="resolved">Resolved</option>
+          <option value="ignored">Ignored</option>
+        </select>
+        <button id="bulk-resolve-btn" class="btn btn-resolve" onclick="bulkResolveErrors()">✓ Resolve All New</button>
+        <button id="bulk-ignore-btn" class="btn btn-secondary" onclick="bulkIgnoreErrors()">Ignore All New</button>
+        <span id="errors-count" class="errors-count"></span>
+      </div>
+    </div>
+    <div id="severity-summary" class="severity-summary"></div>
+    <div id="errors-list" class="errors-list">
+      <div class="empty-state">Loading errors...</div>
+    </div>
+  </div>
+</template>
+
+<template id="error-card-template">
+  <div class="error-card-wrapper">
+    <a class="error-card">
+      <div class="error-card-gradient">
+        <div class="error-badges">
+          <span class="error-severity"></span>
+          <span class="error-category"></span>
+          <span class="error-status"></span>
+          <span class="error-count"></span>
+        </div>
+        <div class="error-source"></div>
+      </div>
+      <div class="error-message"></div>
+      <div class="error-meta">
+        <span class="error-first-seen"></span>
+        <span class="error-last-seen"></span>
+        <span class="error-browsers"></span>
+        <span class="error-paths"></span>
+      </div>
+      <div class="error-card-footer">
+        <div class="error-actions-inline"></div>
+        <div class="error-view-link">View details <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+      </div>
+    </a>
+  </div>
+</template>
+
+<style>
+.tab-panel {
+  grid-column: 1 / -1;
+}
+.tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.tab-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+.errors-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.errors-count {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.severity-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.severity-card {
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+.severity-card.critical { background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); }
+.severity-card.high { background: rgba(234, 88, 12, 0.1); border: 1px solid rgba(234, 88, 12, 0.3); }
+.severity-card.medium { background: rgba(217, 119, 6, 0.1); border: 1px solid rgba(217, 119, 6, 0.3); }
+.severity-card.low { background: rgba(101, 163, 13, 0.1); border: 1px solid rgba(101, 163, 13, 0.3); }
+.severity-card-count {
+  font-size: 2rem;
+  font-weight: 700;
+}
+.severity-card.critical .severity-card-count { color: #dc2626; }
+.severity-card.high .severity-card-count { color: #ea580c; }
+.severity-card.medium .severity-card-count { color: #d97706; }
+.severity-card.low .severity-card-count { color: #65a30d; }
+.severity-card-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.errors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.error-card-wrapper {
+  position: relative;
+}
+.error-card {
+  display: block;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.15s ease;
+  overflow: hidden;
+  cursor: pointer;
+}
+.error-card:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.error-card.resolved { opacity: 0.6; }
+.error-card.ignored { opacity: 0.4; }
+.error-card-gradient {
+  padding: 1rem;
+  border-radius: 8px 8px 0 0;
+  margin: -1px -1px 1rem -1px;
+}
+.error-card-gradient.critical { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
+.error-card-gradient.high { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); }
+.error-card-gradient.medium { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
+.error-card-gradient.low { background: linear-gradient(135deg, #65a30d 0%, #4d7c0f 100%); }
+.error-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.error-severity {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 0.6875rem;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+.error-category {
+  background: rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.6875rem;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 9999px;
+}
+.error-status {
+  font-size: 0.6875rem;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  color: white;
+}
+.error-status.new { background: #3b82f6; }
+.error-status.resolved { background: #22c55e; }
+.error-status.ignored { background: #6b7280; }
+.error-count {
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.75rem;
+}
+.error-source {
+  color: white;
+  font-size: 0.8125rem;
+  opacity: 0.8;
+}
+.error-message {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text);
+  margin: 0 1rem 0.75rem;
+  line-height: 1.5;
+}
+.error-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  margin: 0 1rem 0.75rem;
+}
+.error-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.error-meta svg {
+  width: 14px;
+  height: 14px;
+}
+.error-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 1rem 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+.error-actions-inline {
+  display: flex;
+  gap: 0.5rem;
+}
+.error-view-link {
+  color: var(--accent);
+  font-size: 0.8125rem;
+  display: flex;
+  align-items: center;
+}
+.error-view-link svg {
+  margin-left: 0.25rem;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text);
+}
+.btn:hover {
+  background: var(--bg);
+}
+.btn-resolve {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+.btn-secondary {
+  background: var(--bg3);
+  color: var(--text);
+  border-color: var(--border);
+}
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 3rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.empty-state svg {
+  margin: 0 auto 1rem;
+  opacity: 0.5;
+}
+.empty-state-title {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+.empty-state-hint {
+  font-size: 0.875rem;
+}
+</style>

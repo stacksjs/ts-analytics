@@ -1,0 +1,91 @@
+<script server>
+/**
+ * SessionsTab Component
+ *
+ * Displays user sessions list.
+ */
+</script>
+
+<template id="sessions-tab-template">
+  <div class="tab-panel">
+    <h3 class="tab-title">Sessions (<span id="sessions-count">0</span>)</h3>
+    <div id="sessions-list" class="sessions-list">
+      <div class="empty-state">Loading sessions...</div>
+    </div>
+  </div>
+</template>
+
+<template id="session-card-template">
+  <div class="session-card">
+    <div class="session-card-header">
+      <span class="session-path"></span>
+      <span class="session-time"></span>
+    </div>
+    <div class="session-card-meta">
+      <span class="session-pages"></span>
+      <span class="session-duration"></span>
+      <span class="session-browser"></span>
+      <span class="session-country"></span>
+    </div>
+  </div>
+</template>
+
+<style>
+.tab-panel {
+  grid-column: 1 / -1;
+}
+.tab-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.session-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.session-card:hover {
+  border-color: var(--accent);
+  background: var(--bg3);
+}
+.session-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.session-path {
+  font-weight: 500;
+  color: var(--text);
+}
+.session-time {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.session-card-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.session-card-meta .bounced {
+  color: var(--error);
+}
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+</style>

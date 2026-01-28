@@ -661,32 +661,59 @@
       }
     }
 
-    // Render sessions list
+    // Render sessions list using template
     function renderSessions() {
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
-      tabContent.innerHTML = `
-        <div style="grid-column: 1/-1">
-          <h3 style="margin-bottom:1rem;font-size:1rem">Sessions (${sessions.length})</h3>
-          <div class="session-list">
-            ${sessions.length === 0 ? '<div class="empty-cell">No sessions found</div>' : sessions.map(s => `
-              <div class="session-card" onclick="viewSession('${s.id}')">
-                <div class="session-header">
-                  <span style="font-weight:500">${s.entryPath || '/'}</span>
-                  <span style="font-size:0.75rem;color:var(--muted)">${new Date(s.startedAt).toLocaleString()}</span>
-                </div>
-                <div class="session-meta">
-                  <span>${s.pageViewCount || 0} pages</span>
-                  <span>${formatDuration(s.duration)}</span>
-                  <span>${s.browser || 'Unknown'}</span>
-                  <span>${s.country || 'Unknown'}</span>
-                  ${s.isBounce ? '<span style="color:var(--error)">Bounced</span>' : ''}
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `
+
+      const template = document.getElementById('sessions-tab-template') as HTMLTemplateElement
+      if (!template) return
+
+      const clone = template.content.cloneNode(true) as DocumentFragment
+      const countEl = clone.querySelector('#sessions-count')
+      const listEl = clone.querySelector('#sessions-list')
+
+      if (countEl) countEl.textContent = String(sessions.length)
+      if (!listEl) return
+
+      if (sessions.length === 0) {
+        listEl.innerHTML = '<div class="empty-state">No sessions found</div>'
+      } else {
+        const cardTemplate = document.getElementById('session-card-template') as HTMLTemplateElement
+        if (!cardTemplate) return
+
+        listEl.innerHTML = ''
+        sessions.forEach(s => {
+          const card = cardTemplate.content.cloneNode(true) as DocumentFragment
+          const cardEl = card.querySelector('.session-card') as HTMLElement
+          const pathEl = card.querySelector('.session-path')
+          const timeEl = card.querySelector('.session-time')
+          const pagesEl = card.querySelector('.session-pages')
+          const durationEl = card.querySelector('.session-duration')
+          const browserEl = card.querySelector('.session-browser')
+          const countryEl = card.querySelector('.session-country')
+          const metaEl = card.querySelector('.session-card-meta')
+
+          if (cardEl) cardEl.setAttribute('onclick', `viewSession('${s.id}')`)
+          if (pathEl) pathEl.textContent = s.entryPath || '/'
+          if (timeEl) timeEl.textContent = new Date(s.startedAt).toLocaleString()
+          if (pagesEl) pagesEl.textContent = `${s.pageViewCount || 0} pages`
+          if (durationEl) durationEl.textContent = formatDuration(s.duration)
+          if (browserEl) browserEl.textContent = s.browser || 'Unknown'
+          if (countryEl) countryEl.textContent = s.country || 'Unknown'
+          if (s.isBounce && metaEl) {
+            const bounced = document.createElement('span')
+            bounced.className = 'bounced'
+            bounced.textContent = 'Bounced'
+            metaEl.appendChild(bounced)
+          }
+
+          listEl.appendChild(card)
+        })
+      }
+
+      tabContent.innerHTML = ''
+      tabContent.appendChild(clone)
     }
 
     // Format duration
@@ -716,7 +743,7 @@
       if (!modal) {
         modal = document.createElement('div')
         modal.id = 'session-modal'
-        modal.className = 'modal-overlay'
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;padding:1rem'
         modal.onclick = (e) => { if (e.target === modal) closeModal() }
         document.body.appendChild(modal)
       }
@@ -737,19 +764,19 @@
       const paths = [...new Set(pageviews.map(p => p.path))]
 
       modal.innerHTML = `
-        <div class="session-modal-content" style="max-width:1000px">
-          <div class="modal-header">
-            <h3>Session: ${s.id?.slice(0,8) || 'Unknown'}</h3>
-            <button class="modal-close" onclick="closeModal()">
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;width:100%;max-width:1000px;max-height:90vh;overflow-y:auto">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border)">
+            <h3 style="font-size:1rem;font-weight:600;margin:0;color:var(--text)">Session: ${s.id?.slice(0,8) || 'Unknown'}</h3>
+            <button style="background:none;border:none;color:var(--muted);cursor:pointer;padding:0.25rem;display:flex;align-items:center;justify-content:center;border-radius:4px" onmouseover="this.style.background='var(--bg3)';this.style.color='var(--text)'" onmouseout="this.style.background='none';this.style.color='var(--muted)'" onclick="closeModal()">
               <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
-          <div class="modal-body">
+          <div style="padding:1.5rem">
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
-              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">${s.pageViewCount || 0}</div><div class="stat-lbl">Pages</div></div>
-              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">${formatDuration(s.duration)}</div><div class="stat-lbl">Duration</div></div>
-              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">${s.browser || '?'}</div><div class="stat-lbl">Browser</div></div>
-              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">${s.country || '?'}</div><div class="stat-lbl">Country</div></div>
+              <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.25rem;font-weight:700;color:var(--text)">${s.pageViewCount || 0}</div><div style="font-size:0.6875rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.25rem">Pages</div></div>
+              <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.25rem;font-weight:700;color:var(--text)">${formatDuration(s.duration)}</div><div style="font-size:0.6875rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.25rem">Duration</div></div>
+              <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.25rem;font-weight:700;color:var(--text)">${s.browser || '?'}</div><div style="font-size:0.6875rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.25rem">Browser</div></div>
+              <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.25rem;font-weight:700;color:var(--text)">${s.country || '?'}</div><div style="font-size:0.6875rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.25rem">Country</div></div>
             </div>
 
             ${clicks.length > 0 ? `
@@ -868,58 +895,74 @@
         perfBudgetViolations = []
       }
 
-      const getColor = (v) => {
+      const getRating = (v: { samples?: number; good?: number; poor?: number }) => {
         if (!v || v.samples === 0) return ''
-        if (v.good >= 75) return 'good'
-        if (v.poor >= 25) return 'poor'
+        if ((v.good ?? 0) >= 75) return 'good'
+        if ((v.poor ?? 0) >= 25) return 'poor'
         return 'needs-improvement'
       }
-      const formatValue = (metric, value) => {
+      const formatValue = (metric: string, value: number) => {
         if (metric === 'CLS') return (value / 1000).toFixed(3)
         return value + 'ms'
       }
-      tabContent.innerHTML = `
-        <div style="grid-column:1/-1">
-          ${perfBudgetViolations.length > 0 ? `
-            <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:1rem;margin-bottom:1.5rem">
-              <h4 style="font-size:0.875rem;color:#ef4444;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem">
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                Performance Budget Violations
-              </h4>
-              <div style="display:flex;flex-wrap:wrap;gap:0.75rem">
-                ${perfBudgetViolations.map(v => `
-                  <div style="background:var(--bg);border-radius:6px;padding:0.5rem 0.75rem;font-size:0.8125rem">
-                    <strong>${v.metric}</strong>: ${v.currentValue}${v.metric === 'CLS' ? '' : 'ms'}
-                    <span style="color:#ef4444">(exceeds ${v.threshold}${v.metric === 'CLS' ? '' : 'ms'} by ${v.exceededBy}${v.metric === 'CLS' ? '' : 'ms'})</span>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          ` : ''}
-          <h3 style="margin-bottom:1rem;font-size:1rem">Core Web Vitals</h3>
-          <div class="vitals-grid">
-            ${vitals.map(v => `
-              <div class="vital-card">
-                <div class="vital-name">${v.metric}</div>
-                <div class="vital-value ${getColor(v)}">${v.samples > 0 ? formatValue(v.metric, v.p75) : '—'}</div>
-                <div style="font-size:0.6875rem;color:var(--muted)">${v.samples} samples</div>
-                ${v.samples > 0 ? `
-                  <div class="vital-bar">
-                    <span class="good" style="width:${v.good}%"></span>
-                    <span class="needs-improvement" style="width:${v.needsImprovement}%"></span>
-                    <span class="poor" style="width:${v.poor}%"></span>
-                  </div>
-                ` : ''}
-              </div>
-            `).join('')}
-          </div>
-          <p style="margin-top:1rem;font-size:0.75rem;color:var(--muted)">
-            <strong>LCP</strong> (Largest Contentful Paint): Loading performance. <strong>FID</strong> (First Input Delay): Interactivity.
-            <strong>CLS</strong> (Cumulative Layout Shift): Visual stability. <strong>TTFB</strong> (Time to First Byte): Server response.
-            <strong>INP</strong> (Interaction to Next Paint): Responsiveness.
-          </p>
-        </div>
-      `
+
+      // Clone the vitals tab template
+      const template = document.getElementById('vitals-tab-template') as HTMLTemplateElement
+      if (!template) return
+      const clone = template.content.cloneNode(true) as DocumentFragment
+
+      // Handle violations
+      const violationsEl = clone.querySelector('#vitals-violations') as HTMLElement
+      if (perfBudgetViolations.length > 0 && violationsEl) {
+        violationsEl.style.display = 'block'
+        const violationItems = perfBudgetViolations.map(v => {
+          const unit = v.metric === 'CLS' ? '' : 'ms'
+          return `<div class="violation-item"><strong>${v.metric}</strong>: ${v.currentValue}${unit} <span class="exceeded">(exceeds ${v.threshold}${unit} by ${v.exceededBy}${unit})</span></div>`
+        })
+        violationsEl.innerHTML = `<h4><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg> Performance Budget Violations</h4><div class="violations-list">${violationItems.join('')}</div>`
+      }
+
+      // Build vitals grid
+      const vitalsGrid = clone.querySelector('#vitals-grid') as HTMLElement
+      if (!vitalsGrid) return
+
+      const cardTemplate = document.getElementById('vital-card-template') as HTMLTemplateElement
+      if (!cardTemplate) return
+
+      vitalsGrid.innerHTML = ''
+      vitals.forEach(v => {
+        const card = cardTemplate.content.cloneNode(true) as DocumentFragment
+        const rating = getRating(v)
+
+        const nameEl = card.querySelector('.vital-name')
+        const valueEl = card.querySelector('.vital-value')
+        const samplesEl = card.querySelector('.vital-samples')
+        const barEl = card.querySelector('.vital-bar')
+
+        if (nameEl) nameEl.textContent = v.metric
+        if (valueEl) {
+          valueEl.textContent = v.samples > 0 ? formatValue(v.metric, v.p75) : '—'
+          if (rating) valueEl.classList.add(rating)
+        }
+        if (samplesEl) samplesEl.textContent = `${v.samples} samples`
+        if (barEl) {
+          if (v.samples > 0) {
+            const goodBar = barEl.querySelector('.good') as HTMLElement
+            const niBar = barEl.querySelector('.needs-improvement') as HTMLElement
+            const poorBar = barEl.querySelector('.poor') as HTMLElement
+            if (goodBar) goodBar.style.width = `${v.good}%`
+            if (niBar) niBar.style.width = `${v.needsImprovement}%`
+            if (poorBar) poorBar.style.width = `${v.poor}%`
+          } else {
+            (barEl as HTMLElement).style.display = 'none'
+          }
+        }
+
+        vitalsGrid.appendChild(card)
+      })
+
+      tabContent.innerHTML = ''
+      tabContent.appendChild(clone)
     }
 
     // Error state
@@ -1005,146 +1048,158 @@
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
 
-      const severityColors = { critical: '#dc2626', high: '#ea580c', medium: '#d97706', low: '#65a30d' }
-      const severityGradients = {
-        critical: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-        high: 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
-        medium: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
-        low: 'linear-gradient(135deg, #65a30d 0%, #4d7c0f 100%)'
-      }
-      const severityLabels = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
-      const statusColors = { new: '#3b82f6', resolved: '#22c55e', ignored: '#6b7280', regression: '#f59e0b' }
-      const statusLabels = { new: 'New', resolved: 'Resolved', ignored: 'Ignored', regression: 'Regression' }
+      const severityLabels: Record<string, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
+      const statusLabels: Record<string, string> = { new: 'New', resolved: 'Resolved', ignored: 'Ignored', regression: 'Regression' }
 
-      // Generate error ID from message for linking
-      function getErrorId(msg) {
+      function getErrorId(msg: string) {
         return btoa(msg || '').slice(0, 20)
       }
 
-      // Get status for error
-      function getErrorStatus(msg) {
+      function getErrorStatus(msg: string) {
         const id = getErrorId(msg)
         return errorStatuses[id]?.status || 'new'
       }
 
-      // Filter errors by status
       const filteredErrors = errorStatusFilter === 'all'
         ? errors
         : errors.filter(e => getErrorStatus(e.message) === errorStatusFilter)
 
-      // Count by status
-      const statusCounts = { new: 0, resolved: 0, ignored: 0 }
+      const statusCounts: Record<string, number> = { new: 0, resolved: 0, ignored: 0 }
       errors.forEach(e => {
         const status = getErrorStatus(e.message)
         if (statusCounts[status] !== undefined) statusCounts[status]++
         else statusCounts.new++
       })
 
-      tabContent.innerHTML = `
-        <div style="grid-column:1/-1">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
-            <h3 style="font-size:1.125rem;font-weight:600">JavaScript Errors</h3>
-            <div style="display:flex;align-items:center;gap:0.75rem">
-              <select class="filter-select" style="width:auto;font-size:0.75rem" onchange="errorStatusFilter=this.value;renderErrors()">
-                <option value="all" ${errorStatusFilter === 'all' ? 'selected' : ''}>All (${errors.length})</option>
-                <option value="new" ${errorStatusFilter === 'new' ? 'selected' : ''}>New (${statusCounts.new})</option>
-                <option value="resolved" ${errorStatusFilter === 'resolved' ? 'selected' : ''}>Resolved (${statusCounts.resolved})</option>
-                <option value="ignored" ${errorStatusFilter === 'ignored' ? 'selected' : ''}>Ignored (${statusCounts.ignored})</option>
-              </select>
-              ${statusCounts.new > 0 ? `
-                <button onclick="bulkResolveErrors()" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem;background:#22c55e22;border-color:#22c55e;color:#22c55e">✓ Resolve All New</button>
-                <button onclick="bulkIgnoreErrors()" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Ignore All New</button>
-              ` : ''}
-              <span style="font-size:0.875rem;color:var(--muted)">${filteredErrors.length} error${filteredErrors.length !== 1 ? 's' : ''}</span>
-            </div>
-          </div>
+      const severityCounts: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 }
+      filteredErrors.forEach(e => {
+        if (severityCounts[e.severity] !== undefined) severityCounts[e.severity]++
+      })
 
-          <!-- Severity summary cards -->
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
-            <div style="background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.3);border-radius:8px;padding:1rem;text-align:center">
-              <div style="font-size:2rem;font-weight:700;color:#dc2626">${filteredErrors.filter(e => e.severity === 'critical').length}</div>
-              <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Critical</div>
-            </div>
-            <div style="background:rgba(234,88,12,0.1);border:1px solid rgba(234,88,12,0.3);border-radius:8px;padding:1rem;text-align:center">
-              <div style="font-size:2rem;font-weight:700;color:#ea580c">${filteredErrors.filter(e => e.severity === 'high').length}</div>
-              <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">High</div>
-            </div>
-            <div style="background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.3);border-radius:8px;padding:1rem;text-align:center">
-              <div style="font-size:2rem;font-weight:700;color:#d97706">${filteredErrors.filter(e => e.severity === 'medium').length}</div>
-              <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Medium</div>
-            </div>
-            <div style="background:rgba(101,163,13,0.1);border:1px solid rgba(101,163,13,0.3);border-radius:8px;padding:1rem;text-align:center">
-              <div style="font-size:2rem;font-weight:700;color:#65a30d">${filteredErrors.filter(e => e.severity === 'low').length}</div>
-              <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Low</div>
-            </div>
-          </div>
+      const template = document.getElementById('errors-tab-template') as HTMLTemplateElement
+      if (!template) return
+      const clone = template.content.cloneNode(true) as DocumentFragment
 
-          <!-- Error list -->
-          ${filteredErrors.length === 0 ? `
-            <div style="text-align:center;padding:3rem;color:var(--muted)">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 1rem;opacity:0.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <div style="font-size:1rem;margin-bottom:0.5rem">${errorStatusFilter === 'all' ? 'No errors recorded' : 'No ' + errorStatusFilter + ' errors'}</div>
-              <div style="font-size:0.875rem">${errorStatusFilter === 'all' ? 'Your application is running smoothly!' : 'Try a different filter.'}</div>
-            </div>
-          ` : filteredErrors.map(e => {
-            const errorId = getErrorId(e.message)
-            const status = getErrorStatus(e.message)
-            return `
-            <div style="position:relative;margin-bottom:1rem">
-              <a href="/errors/${encodeURIComponent(errorId)}?siteId=${siteId}" style="text-decoration:none;color:inherit;display:block">
-                <div class="error-card" style="border-left:4px solid ${severityColors[e.severity] || '#6b7280'};cursor:pointer;transition:all 0.15s;${status === 'resolved' ? 'opacity:0.6;' : ''}${status === 'ignored' ? 'opacity:0.4;' : ''}" onmouseover="this.style.transform='translateX(4px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none';this.style.boxShadow='none'">
-                  <!-- Error header with gradient -->
-                  <div style="background:${severityGradients[e.severity] || severityGradients.medium};margin:-1rem -1rem 1rem -1rem;padding:1rem;border-radius:8px 8px 0 0">
-                    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
-                      <span style="background:rgba(255,255,255,0.2);color:white;font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em">${severityLabels[e.severity] || 'Unknown'}</span>
-                      <span style="background:rgba(0,0,0,0.2);color:rgba(255,255,255,0.9);font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px">${e.category || 'Error'}</span>
-                      <span style="background:${statusColors[status]};color:white;font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px;text-transform:uppercase">${statusLabels[status] || 'New'}</span>
-                      <span style="margin-left:auto;color:rgba(255,255,255,0.75);font-size:0.75rem">${e.count} event${e.count !== 1 ? 's' : ''}</span>
-                    </div>
-                    <div style="color:white;font-size:0.8125rem;opacity:0.8">${e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source'}</div>
-                  </div>
+      // Update filter dropdown
+      const filterSelect = clone.querySelector('#error-status-filter') as HTMLSelectElement
+      if (filterSelect) {
+        filterSelect.value = errorStatusFilter
+        const options = filterSelect.querySelectorAll('option')
+        options[0].textContent = `All (${errors.length})`
+        options[1].textContent = `New (${statusCounts.new})`
+        options[2].textContent = `Resolved (${statusCounts.resolved})`
+        options[3].textContent = `Ignored (${statusCounts.ignored})`
+      }
 
-                  <!-- Error message -->
-                  <div style="font-size:0.9375rem;font-weight:500;color:var(--text);margin-bottom:0.75rem;line-height:1.5">${e.message || 'Unknown error'}</div>
+      // Show/hide bulk actions
+      const bulkResolveBtn = clone.querySelector('#bulk-resolve-btn') as HTMLElement
+      const bulkIgnoreBtn = clone.querySelector('#bulk-ignore-btn') as HTMLElement
+      if (statusCounts.new === 0) {
+        bulkResolveBtn?.remove()
+        bulkIgnoreBtn?.remove()
+      }
 
-                  <!-- Error metadata -->
-                  <div style="display:flex;flex-wrap:wrap;gap:1rem;font-size:0.8125rem;color:var(--muted)">
-                    <div style="display:flex;align-items:center;gap:0.375rem">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                      First: ${e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A'}
-                    </div>
-                    <div style="display:flex;align-items:center;gap:0.375rem">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                      Last: ${new Date(e.lastSeen).toLocaleString()}
-                    </div>
-                    <div style="display:flex;align-items:center;gap:0.375rem">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-                      ${(e.browsers || []).join(', ') || 'Unknown'}
-                    </div>
-                    <div style="display:flex;align-items:center;gap:0.375rem">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
-                      ${(e.paths || []).length} page${(e.paths || []).length !== 1 ? 's' : ''}
-                    </div>
-                  </div>
+      // Update count
+      const countEl = clone.querySelector('#errors-count')
+      if (countEl) countEl.textContent = `${filteredErrors.length} error${filteredErrors.length !== 1 ? 's' : ''}`
 
-                  <!-- Actions and link -->
-                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
-                    <div style="display:flex;gap:0.5rem" onclick="event.stopPropagation()">
-                      ${status !== 'resolved' ? `<button onclick="updateErrorStatus('${encodeURIComponent(errorId)}', 'resolved', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem;background:#22c55e22;border-color:#22c55e;color:#22c55e">✓ Resolve</button>` : ''}
-                      ${status !== 'ignored' ? `<button onclick="updateErrorStatus('${encodeURIComponent(errorId)}', 'ignored', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Ignore</button>` : ''}
-                      ${status !== 'new' ? `<button onclick="updateErrorStatus('${encodeURIComponent(errorId)}', 'new', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Reopen</button>` : ''}
-                    </div>
-                    <div style="color:var(--accent);font-size:0.8125rem;display:flex;align-items:center">
-                      View details
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:0.25rem"><path d="M9 18l6-6-6-6"/></svg>
-                    </div>
-                  </div>
-                </div>
-              </a>
-            </div>
-          `}).join('')}
-        </div>
-      `
+      // Build severity summary
+      const summaryEl = clone.querySelector('#severity-summary') as HTMLElement
+      if (summaryEl) {
+        const severities = ['critical', 'high', 'medium', 'low']
+        severities.forEach(sev => {
+          const card = document.createElement('div')
+          card.className = `severity-card ${sev}`
+          card.innerHTML = `<div class="severity-card-count">${severityCounts[sev]}</div><div class="severity-card-label">${severityLabels[sev]}</div>`
+          summaryEl.appendChild(card)
+        })
+      }
+
+      // Build errors list
+      const listEl = clone.querySelector('#errors-list') as HTMLElement
+      if (!listEl) return
+
+      if (filteredErrors.length === 0) {
+        const emptyTitle = errorStatusFilter === 'all' ? 'No errors recorded' : `No ${errorStatusFilter} errors`
+        const emptyHint = errorStatusFilter === 'all' ? 'Your application is running smoothly!' : 'Try a different filter.'
+        listEl.innerHTML = `<div class="empty-state"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="empty-state-title">${emptyTitle}</div><div class="empty-state-hint">${emptyHint}</div></div>`
+      } else {
+        const cardTemplate = document.getElementById('error-card-template') as HTMLTemplateElement
+        if (!cardTemplate) return
+
+        listEl.innerHTML = ''
+        filteredErrors.forEach(e => {
+          const errorId = getErrorId(e.message)
+          const status = getErrorStatus(e.message)
+          const severity = e.severity || 'medium'
+
+          const card = cardTemplate.content.cloneNode(true) as DocumentFragment
+          const wrapper = card.querySelector('.error-card-wrapper') as HTMLElement
+          const link = card.querySelector('.error-card') as HTMLAnchorElement
+          const gradient = card.querySelector('.error-card-gradient') as HTMLElement
+          const severityEl = card.querySelector('.error-severity')
+          const categoryEl = card.querySelector('.error-category')
+          const statusEl = card.querySelector('.error-status')
+          const countEl = card.querySelector('.error-count')
+          const sourceEl = card.querySelector('.error-source')
+          const messageEl = card.querySelector('.error-message')
+          const firstSeenEl = card.querySelector('.error-first-seen')
+          const lastSeenEl = card.querySelector('.error-last-seen')
+          const browsersEl = card.querySelector('.error-browsers')
+          const pathsEl = card.querySelector('.error-paths')
+          const actionsEl = card.querySelector('.error-actions-inline')
+
+          if (link) {
+            link.href = `/errors/${encodeURIComponent(errorId)}?siteId=${siteId}`
+            if (status === 'resolved') link.classList.add('resolved')
+            if (status === 'ignored') link.classList.add('ignored')
+          }
+          if (gradient) gradient.classList.add(severity)
+          if (severityEl) severityEl.textContent = severityLabels[severity] || 'Unknown'
+          if (categoryEl) categoryEl.textContent = e.category || 'Error'
+          if (statusEl) {
+            statusEl.textContent = statusLabels[status] || 'New'
+            statusEl.classList.add(status)
+          }
+          if (countEl) countEl.textContent = `${e.count} event${e.count !== 1 ? 's' : ''}`
+          if (sourceEl) sourceEl.textContent = e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source'
+          if (messageEl) messageEl.textContent = e.message || 'Unknown error'
+          if (firstSeenEl) firstSeenEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> First: ${e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A'}`
+          if (lastSeenEl) lastSeenEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Last: ${new Date(e.lastSeen).toLocaleString()}`
+          if (browsersEl) browsersEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg> ${(e.browsers || []).join(', ') || 'Unknown'}`
+          if (pathsEl) pathsEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg> ${(e.paths || []).length} page${(e.paths || []).length !== 1 ? 's' : ''}`
+
+          if (actionsEl) {
+            actionsEl.setAttribute('onclick', 'event.preventDefault();event.stopPropagation()')
+            if (status !== 'resolved') {
+              const btn = document.createElement('button')
+              btn.className = 'btn btn-resolve'
+              btn.textContent = '✓ Resolve'
+              btn.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); updateErrorStatus(encodeURIComponent(errorId), 'resolved', ev) }
+              actionsEl.appendChild(btn)
+            }
+            if (status !== 'ignored') {
+              const btn = document.createElement('button')
+              btn.className = 'btn btn-secondary'
+              btn.textContent = 'Ignore'
+              btn.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); updateErrorStatus(encodeURIComponent(errorId), 'ignored', ev) }
+              actionsEl.appendChild(btn)
+            }
+            if (status !== 'new') {
+              const btn = document.createElement('button')
+              btn.className = 'btn btn-secondary'
+              btn.textContent = 'Reopen'
+              btn.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); updateErrorStatus(encodeURIComponent(errorId), 'new', ev) }
+              actionsEl.appendChild(btn)
+            }
+          }
+
+          listEl.appendChild(card)
+        })
+      }
+
+      tabContent.innerHTML = ''
+      tabContent.appendChild(clone)
     }
 
     // Render insights
@@ -1228,33 +1283,36 @@
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
 
-      tabContent.innerHTML = `
-        <div style="grid-column:1/-1">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-            <h3 style="font-size:1rem;display:flex;align-items:center;gap:0.5rem">
-              <span class="pulse"></span>
-              Live Activity
-            </h3>
-            <span style="font-size:0.75rem;color:var(--muted)">Auto-refreshing every 5s</span>
-          </div>
-          ${liveActivities.length === 0 ? `
-            <div class="empty-cell">No recent activity. Visitors will appear here in real-time.</div>
-          ` : `
-            <div style="display:flex;flex-direction:column;gap:0.5rem">
-              ${liveActivities.map(a => `
-                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;display:flex;align-items:center;gap:1rem">
-                  <div style="width:8px;height:8px;background:var(--success);border-radius:50%"></div>
-                  <div style="flex:1;min-width:0">
-                    <div style="font-size:0.875rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.path || '/'}</div>
-                    <div style="font-size:0.6875rem;color:var(--muted)">${a.country || 'Unknown'} • ${a.device || 'Unknown'} • ${a.browser || 'Unknown'}</div>
-                  </div>
-                  <div style="font-size:0.6875rem;color:var(--muted);white-space:nowrap">${timeAgo(a.timestamp)}</div>
-                </div>
-              `).join('')}
-            </div>
-          `}
-        </div>
-      `
+      const template = document.getElementById('live-tab-template') as HTMLTemplateElement
+      if (!template) return
+      const clone = template.content.cloneNode(true) as DocumentFragment
+
+      const activitiesEl = clone.querySelector('#live-activities') as HTMLElement
+      if (!activitiesEl) return
+
+      if (liveActivities.length === 0) {
+        activitiesEl.innerHTML = '<div class="empty-state">No recent activity. Visitors will appear here in real-time.</div>'
+      } else {
+        const activityTemplate = document.getElementById('live-activity-template') as HTMLTemplateElement
+        if (!activityTemplate) return
+
+        activitiesEl.innerHTML = ''
+        liveActivities.forEach(a => {
+          const card = activityTemplate.content.cloneNode(true) as DocumentFragment
+          const pathEl = card.querySelector('.live-activity-path')
+          const metaEl = card.querySelector('.live-activity-meta')
+          const timeEl = card.querySelector('.live-activity-time')
+
+          if (pathEl) pathEl.textContent = a.path || '/'
+          if (metaEl) metaEl.textContent = `${a.country || 'Unknown'} • ${a.device || 'Unknown'} • ${a.browser || 'Unknown'}`
+          if (timeEl) timeEl.textContent = timeAgo(a.timestamp)
+
+          activitiesEl.appendChild(card)
+        })
+      }
+
+      tabContent.innerHTML = ''
+      tabContent.appendChild(clone)
     }
 
     function timeAgo(timestamp) {
@@ -1289,37 +1347,51 @@
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
 
-      tabContent.innerHTML = `
-        <div style="grid-column:1/-1">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-            <h3 style="font-size:1rem">Conversion Funnels</h3>
-            <button class="export-btn" onclick="showCreateFunnelModal()" style="padding:0.5rem 1rem">
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-              New Funnel
-            </button>
-          </div>
-          ${funnels.length === 0 ? `
-            <div class="empty-cell">
-              <p>No funnels configured yet.</p>
-              <p style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">Create a funnel to track conversion rates through your key user flows.</p>
-            </div>
-          ` : funnels.map(f => `
-            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:0.75rem">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-                <h4 style="font-size:0.875rem">${f.name}</h4>
-                <button class="icon-btn" onclick="analyzeFunnel('${f.id}')" title="View analysis">
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                </button>
-              </div>
-              <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-                ${(f.steps || []).map((s, i) => `
-                  <span style="font-size:0.6875rem;padding:0.25rem 0.5rem;background:var(--bg);border-radius:4px">${i + 1}. ${s.name}</span>
-                `).join('<span style="color:var(--accent)">→</span>')}
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      `
+      const template = document.getElementById('funnels-tab-template') as HTMLTemplateElement
+      if (!template) return
+      const clone = template.content.cloneNode(true) as DocumentFragment
+
+      const listEl = clone.querySelector('#funnels-list') as HTMLElement
+      if (!listEl) return
+
+      if (funnels.length === 0) {
+        listEl.innerHTML = '<div class="empty-state"><p>No funnels configured yet.</p><p class="empty-state-hint">Create a funnel to track conversion rates through your key user flows.</p></div>'
+      } else {
+        const cardTemplate = document.getElementById('funnel-card-template') as HTMLTemplateElement
+        if (!cardTemplate) return
+
+        listEl.innerHTML = ''
+        funnels.forEach(f => {
+          const card = cardTemplate.content.cloneNode(true) as DocumentFragment
+          const nameEl = card.querySelector('.funnel-name')
+          const analyzeBtn = card.querySelector('.btn-icon')
+          const stepsEl = card.querySelector('.funnel-steps')
+
+          if (nameEl) nameEl.textContent = f.name
+          if (analyzeBtn) analyzeBtn.setAttribute('onclick', `analyzeFunnel('${f.id}')`)
+          if (stepsEl) {
+            stepsEl.innerHTML = ''
+            const steps = f.steps || []
+            steps.forEach((s, i) => {
+              const stepSpan = document.createElement('span')
+              stepSpan.className = 'funnel-step'
+              stepSpan.textContent = `${i + 1}. ${s.name}`
+              stepsEl.appendChild(stepSpan)
+              if (i < steps.length - 1) {
+                const arrow = document.createElement('span')
+                arrow.className = 'funnel-step-arrow'
+                arrow.textContent = '→'
+                stepsEl.appendChild(arrow)
+              }
+            })
+          }
+
+          listEl.appendChild(card)
+        })
+      }
+
+      tabContent.innerHTML = ''
+      tabContent.appendChild(clone)
     }
 
     // Analyze funnel
@@ -2410,6 +2482,7 @@
       updateErrorStatus,
       bulkResolveErrors,
       bulkIgnoreErrors,
+      renderErrors,
       showPathHeatmap,
       addAnnotation,
       toggleComparison,
