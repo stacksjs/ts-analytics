@@ -2339,4 +2339,4 @@
     })
 
     window.addEventListener('resize', () => { if (timeSeriesData.length) renderChart() })
-  </script>
+

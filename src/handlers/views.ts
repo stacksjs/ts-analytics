@@ -114,7 +114,7 @@ async function renderStxDirect(templateName: string, props: Record<string, unkno
   // Process STX directives
   const config = {
     ...defaultConfig,
-    componentsDir: path.join(VIEWS_DIR, 'components'),
+    componentsDir: path.join(VIEWS_DIR, 'components/dashboard'),
     layoutsDir: path.join(VIEWS_DIR, 'layouts'),
     partialsDir: path.join(VIEWS_DIR, 'partials'),
   }

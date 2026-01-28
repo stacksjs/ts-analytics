@@ -4,93 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Analytics Dashboard</title>
-  <script src="./scripts/dashboard.js" stx-inline></script>
-  <link href="./styles/dashboard.css" rel="stylesheet" stx-inline>
+  <script src="./scripts/dashboard.ts"></script>
+  <dashboard-styles />
 </head>
 <body>
-  <div id="site-selector" class="site-selector" style="display:none">
-    <h1>Analytics Dashboard</h1>
-    <p>Select a site to view analytics</p>
-    <div id="site-list" class="site-list"></div>
-  </div>
+  <site-selector />
 
   <div id="dashboard" class="dash" style="display:none">
-    <header class="header">
-      <div class="header-left">
-        <button class="back-btn" onclick="goBack()" title="Back to sites">
-          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-        </button>
-        <span id="current-site-name" class="site-name-header">Analytics Dashboard</span>
-      </div>
-      <nav class="header-nav">
-        <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
-        <button class="nav-btn" data-tab="live" onclick="switchTab('live')">Live</button>
-        <button class="nav-btn" data-tab="sessions" onclick="switchTab('sessions')">Sessions</button>
-        <button class="nav-btn" data-tab="funnels" onclick="switchTab('funnels')">Funnels</button>
-        <button class="nav-btn" data-tab="flow" onclick="switchTab('flow')">User Flow</button>
-        <button class="nav-btn" data-tab="vitals" onclick="switchTab('vitals')">Web Vitals</button>
-        <button class="nav-btn" data-tab="errors" onclick="switchTab('errors')">Errors</button>
-        <button class="nav-btn" data-tab="insights" onclick="switchTab('insights')">Insights</button>
-        <button class="nav-btn" data-tab="settings" onclick="switchTab('settings')">Settings</button>
-      </nav>
-      <div class="header-right">
-        <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
-          <svg id="theme-icon-dark" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-          <svg id="theme-icon-light" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none"><circle cx="12" cy="12" r="5" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-        </button>
-      </div>
-    </header>
+    <dashboard-header />
+    <controls-bar />
+    <filters-bar />
+    <stats-row />
 
-    <div id="controls-bar" class="controls">
-      <div class="date-range">
-        <button class="date-btn" data-range="1h" onclick="setDateRange('1h')">1h</button>
-        <button class="date-btn active" data-range="6h" onclick="setDateRange('6h')">6h</button>
-        <button class="date-btn" data-range="12h" onclick="setDateRange('12h')">12h</button>
-        <button class="date-btn" data-range="24h" onclick="setDateRange('24h')">24h</button>
-        <button class="date-btn" data-range="7d" onclick="setDateRange('7d')">7d</button>
-        <button class="date-btn" data-range="30d" onclick="setDateRange('30d')">30d</button>
-        <button class="date-btn" data-range="90d" onclick="setDateRange('90d')">90d</button>
-        <span style="border-left:1px solid var(--border);height:24px;margin:0 0.5rem"></span>
-        <button id="compare-btn" class="date-btn" onclick="toggleComparison()" title="Compare with previous period" style="font-size:0.6875rem;padding:0.25rem 0.5rem">
-          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px;vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-          Compare
-        </button>
-      </div>
-      <div class="controls-right">
-        <div class="realtime-badge"><span class="pulse"></span><span id="realtime-count">0 visitors online</span></div>
-        <span id="last-updated" class="last-updated"></span>
-        <button id="refresh-btn" class="refresh-btn" onclick="fetchDashboardData()" title="Refresh data">
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-        </button>
-        <button class="export-btn" onclick="exportData('csv')" title="Export CSV">
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        </button>
-      </div>
-    </div>
-
-    <div id="filters-bar" class="filters-row">
-      <select id="filter-country" class="filter-select" onchange="applyFilter('country', this.value)">
-        <option value="">All Countries</option>
-      </select>
-      <select id="filter-device" class="filter-select" onchange="applyFilter('device', this.value)">
-        <option value="">All Devices</option>
-        <option value="desktop">Desktop</option>
-        <option value="mobile">Mobile</option>
-        <option value="tablet">Tablet</option>
-      </select>
-      <select id="filter-browser" class="filter-select" onchange="applyFilter('browser', this.value)">
-        <option value="">All Browsers</option>
-      </select>
-    </div>
-
-    <div class="stats">
-      <div class="stat highlight"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg><div class="stat-val" id="stat-realtime">—</div><div class="stat-lbl">Realtime</div></div>
-      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="stat-val" id="stat-sessions">—</div><div class="stat-lbl">Sessions</div></div>
-      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg><div class="stat-val" id="stat-people">—</div><div class="stat-lbl">Visitors</div></div>
-      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg><div class="stat-val" id="stat-views">—</div><div class="stat-lbl">Pageviews</div></div>
-      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="stat-val" id="stat-avgtime">—</div><div class="stat-lbl">Avg Time</div></div>
-      <div class="stat"><svg class="stat-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg><div class="stat-val" id="stat-bounce">—</div><div class="stat-lbl">Bounce Rate</div></div>
-    </div>
     <script>
       // Immediately populate from cache before any other JS runs
       (function() {
@@ -114,50 +39,10 @@
       })();
     </script>
 
-    <div id="no-data-msg" class="no-data" style="display:none">
-      <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--warning);margin-bottom:1rem"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-      <h3>No analytics data yet</h3>
-      <p>Add the tracking script to your website to start collecting data.</p>
-      <code id="tracking-script"></code>
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-content">
-          <h4>Copy the script tag</h4>
-          <p>Copy the code above and paste it in your HTML</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-content">
-          <h4>Add to your pages</h4>
-          <p>Place it in the &lt;head&gt; section of your website</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-content">
-          <h4>View your analytics</h4>
-          <p>Data will appear here within a few seconds of your first visit</p>
-        </div>
-      </div>
-    </div>
+    <no-data-message />
 
     <div id="main-content">
-      <div class="chart-box" style="position:relative">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-          <div class="chart-title" style="margin-bottom:0">Pageviews Over Time</div>
-          <button onclick="addAnnotation()" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem" title="Mark an event on the chart">
-            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px;vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Annotation
-          </button>
-        </div>
-        <canvas id="chart"></canvas>
-        <div id="chartTooltip" class="chart-tooltip"></div>
-        <div id="chart-empty" class="chart-empty">
-          <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.5;margin-bottom:0.5rem"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-          <p>No time series data available</p>
-        </div>
-      </div>
+      <chart-section />
 
       <div id="dashboard-panels">
         <div class="grid">
@@ -229,63 +114,14 @@
           </div>
         </div>
 
-        <div class="events">
-          <div class="panel-header">
-            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Custom Events</div>
-            <a href="#" onclick="navigateTo('events')" class="view-all">View all &rarr;</a>
-          </div>
-          <div id="events-container"><div class="empty-cell">Loading...</div></div>
-        </div>
-
-        <div class="goals-section">
-          <div class="panel-header">
-            <div class="panel-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Goals</div>
-            <div style="display:flex;gap:1rem;align-items:center">
-              <a href="#" onclick="navigateTo('goals')" class="view-all">View all &rarr;</a>
-              <button onclick="showCreateGoalModal()" class="create-goal-btn">+ Add Goal</button>
-            </div>
-          </div>
-          <div id="goals-container"><div class="empty-cell">Loading...</div></div>
-        </div>
+        <events-section />
+        <goals-section />
       </div>
 
       <div id="tab-content" style="display:none"></div>
     </div>
 
-    <!-- Goal Modal -->
-    <div id="goal-modal" class="goal-modal" style="display:none">
-      <div class="modal-content">
-        <h3 id="goal-modal-title">Create Goal</h3>
-        <form id="goal-form" onsubmit="saveGoal(event)">
-          <label>Name<input type="text" id="goal-name" required placeholder="e.g. Sign Up Completed"></label>
-          <label>Type
-            <select id="goal-type" onchange="updateGoalForm()">
-              <option value="pageview">Destination (Page Path)</option>
-              <option value="event">Event</option>
-              <option value="duration">Duration (Time on Site)</option>
-            </select>
-          </label>
-          <div id="goal-pattern-group">
-            <label>Pattern<input type="text" id="goal-pattern" placeholder="/thank-you or /checkout/*"></label>
-            <label>Match Type
-              <select id="goal-match-type">
-                <option value="exact">Exact Match</option>
-                <option value="contains">Contains</option>
-                <option value="regex">Regular Expression</option>
-              </select>
-            </label>
-          </div>
-          <div id="goal-duration-group" style="display:none">
-            <label>Minutes on Site<input type="number" id="goal-duration" min="1" value="5"></label>
-          </div>
-          <label>Value per Conversion (optional)<input type="number" id="goal-value" step="0.01" placeholder="0.00"></label>
-          <div class="modal-actions">
-            <button type="button" onclick="closeGoalModal()">Cancel</button>
-            <button type="submit">Save Goal</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <goal-modal />
   </div>
 </body>
 </html>
