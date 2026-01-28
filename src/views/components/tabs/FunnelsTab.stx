@@ -41,7 +41,27 @@
 </template>
 
 <template id="funnel-step-template">
-  <span class="funnel-step">{index}. {name}</span>
+  <span class="funnel-step"></span>
+</template>
+
+<template id="funnel-analysis-template">
+  <div class="tab-panel">
+    <button class="back-link" onclick="fetchFunnels()">← Back to Funnels</button>
+    <h3 class="funnel-analysis-title"></h3>
+    <p class="funnel-analysis-summary"></p>
+    <div class="funnel-steps-analysis"></div>
+  </div>
+</template>
+
+<template id="funnel-analysis-step-template">
+  <div class="analysis-step">
+    <div class="analysis-step-card">
+      <div class="analysis-step-visitors"></div>
+      <div class="analysis-step-rate"></div>
+    </div>
+    <div class="analysis-step-name"></div>
+    <div class="analysis-step-drop"></div>
+  </div>
 </template>
 
 <style>
@@ -145,5 +165,70 @@
 .btn-icon:hover {
   background: var(--bg3);
   color: var(--text);
+}
+.back-link {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: 1rem;
+  font-size: 0.8125rem;
+  padding: 0;
+}
+.back-link:hover {
+  color: var(--text);
+}
+.funnel-analysis-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+.funnel-analysis-summary {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+.funnel-steps-analysis {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+.analysis-step {
+  flex: 1;
+  text-align: center;
+}
+.analysis-step-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+}
+.analysis-step-visitors {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.analysis-step-rate {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+.analysis-step-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.analysis-step-drop {
+  font-size: 0.6875rem;
+  color: var(--error);
+  margin-top: 0.25rem;
+}
+.analysis-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  font-size: 1.5rem;
 }
 </style>

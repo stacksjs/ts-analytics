@@ -1,0 +1,122 @@
+<script server>
+/**
+ * EmptyStates Component
+ *
+ * Provides reusable empty state templates for various dashboard sections.
+ */
+</script>
+
+<template id="sessions-empty-template">
+  <div class="empty-state">No sessions found</div>
+</template>
+
+<template id="heatmap-empty-template">
+  <div class="heatmap-empty">No clicks on this page</div>
+</template>
+
+<template id="insights-list-empty-template">
+  <div class="empty-state">No insights available yet. Check back when you have more data.</div>
+</template>
+
+<template id="live-activity-empty-template">
+  <div class="empty-state">No recent activity. Visitors will appear here in real-time.</div>
+</template>
+
+<template id="funnels-empty-template">
+  <div class="empty-state">
+    <p>No funnels configured yet.</p>
+    <p class="empty-state-hint">Create a funnel to track conversion rates through your key user flows.</p>
+  </div>
+</template>
+
+<template id="events-empty-template">
+  <div class="empty-cell">No custom events tracked</div>
+</template>
+
+<template id="goals-empty-template">
+  <div class="goals-empty">No goals configured. Click "+ Add Goal" to create one.</div>
+</template>
+
+<template id="site-selector-loading-template">
+  <div class="loading">
+    <div class="spinner"></div>
+    <p>Loading sites...</p>
+  </div>
+</template>
+
+<template id="site-selector-error-template">
+  <div class="error">
+    <p>Failed to load sites</p>
+    <button onclick="fetchSites()">Retry</button>
+  </div>
+</template>
+
+<style>
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.empty-state-hint {
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+.empty-cell {
+  text-align: center;
+  color: var(--muted);
+  padding: 1rem;
+}
+.goals-empty {
+  padding: 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.heatmap-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--muted);
+}
+.loading {
+  text-align: center;
+  padding: 2rem;
+}
+.loading .spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 0.5rem;
+}
+.loading p {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.error {
+  text-align: center;
+  padding: 2rem;
+  color: var(--error);
+}
+.error button {
+  margin-top: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+}
+.error button:hover {
+  background: var(--bg2);
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>

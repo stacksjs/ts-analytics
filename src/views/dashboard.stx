@@ -172,10 +172,18 @@
 
   <!-- Tab Templates -->
   @include('components/Modal.stx')
+  @include('components/SessionModal.stx')
   @include('components/tabs/SessionsTab.stx')
   @include('components/tabs/VitalsTab.stx')
   @include('components/tabs/LiveTab.stx')
   @include('components/tabs/ErrorsTab.stx')
   @include('components/tabs/FunnelsTab.stx')
+  @include('components/tabs/InsightsTab.stx')
+  @include('components/tabs/FlowTab.stx')
+  @include('components/tabs/SettingsTab.stx')
+  @include('components/dashboard/GoalsSection.stx')
+  @include('components/dashboard/EventsSection.stx')
+  @include('components/dashboard/TableRows.stx')
+  @include('components/shared/EmptyStates.stx')
 </body>
 </html>

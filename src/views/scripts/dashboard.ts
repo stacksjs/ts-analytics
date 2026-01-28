@@ -174,7 +174,11 @@
 
     async function fetchSites() {
       const container = document.getElementById('site-list')
-      container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading sites...</p></div>'
+      const loadingTemplate = document.getElementById('site-selector-loading-template') as HTMLTemplateElement
+      if (loadingTemplate) {
+        container.innerHTML = ''
+        container.appendChild(loadingTemplate.content.cloneNode(true))
+      }
       try {
         const res = await fetch(`${API_ENDPOINT}/api/sites`)
         if (!res.ok) throw new Error('Failed to fetch')
@@ -182,7 +186,11 @@
         availableSites = data.sites || []
         renderSiteSelector()
       } catch (err) {
-        container.innerHTML = '<div class="error"><p>Failed to load sites</p><button onclick="fetchSites()">Retry</button></div>'
+        const errorTemplate = document.getElementById('site-selector-error-template') as HTMLTemplateElement
+        if (errorTemplate) {
+          container.innerHTML = ''
+          container.appendChild(errorTemplate.content.cloneNode(true))
+        }
       }
     }
 
@@ -434,7 +442,11 @@
         campaigns = campaignsRes.campaigns || []
         events = eventsRes.events || []
         goals = goalsRes.goals || []
-        timeSeriesData = timeseriesRes.timeSeries || []
+        timeSeriesData = (timeseriesRes.timeSeries || []).map(t => ({
+          date: t.timestamp || t.date,
+          views: t.views,
+          visitors: t.visitors
+        }))
         vitals = vitalsRes.vitals || []
         errors = errorsRes.errors || []
         insights = insightsRes.insights || []
@@ -471,6 +483,43 @@
     function fmt(n) {
       if (n === undefined || n === null) return '0'
       return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'k' : String(n)
+    }
+
+    // Helper function to render table rows from templates
+    function renderTableRows<T>(
+      tbodyId: string,
+      data: T[],
+      templateId: string,
+      emptyColspan: number,
+      emptyText: string,
+      populateRow: (row: DocumentFragment, item: T) => void
+    ) {
+      const tbody = document.getElementById(tbodyId)
+      if (!tbody) return
+
+      if (!data.length) {
+        const emptyTemplate = document.getElementById(`empty-row-${emptyColspan}-template`) as HTMLTemplateElement
+        if (emptyTemplate) {
+          const emptyRow = emptyTemplate.content.cloneNode(true) as DocumentFragment
+          const td = emptyRow.querySelector('.empty-cell')
+          if (td) td.textContent = emptyText
+          tbody.innerHTML = ''
+          tbody.appendChild(emptyRow)
+        } else {
+          tbody.innerHTML = `<tr><td colspan="${emptyColspan}" class="empty-cell">${emptyText}</td></tr>`
+        }
+        return
+      }
+
+      const template = document.getElementById(templateId) as HTMLTemplateElement
+      if (!template) return
+
+      tbody.innerHTML = ''
+      data.forEach(item => {
+        const row = template.content.cloneNode(true) as DocumentFragment
+        populateRow(row, item)
+        tbody.appendChild(row)
+      })
     }
 
     // Tab switching with URL routing
@@ -593,57 +642,70 @@
       if (!tabContent || !flowData) return
 
       const { nodes, links, totalSessions, analyzedSessions } = flowData
-
-      // Group nodes by layer (approximation based on incoming/outgoing links)
       const entryNodes = nodes.filter(n => n.id === '/' || links.every(l => l.target !== n.id || l.source === n.id))
-      const otherNodes = nodes.filter(n => !entryNodes.includes(n))
 
-      tabContent.innerHTML = `
-        <div style="grid-column:1/-1">
-          <h3 style="margin-bottom:0.5rem;font-size:1rem">User Flow</h3>
-          <p style="font-size:0.75rem;color:var(--muted);margin-bottom:1.5rem">Showing top paths from ${analyzedSessions} of ${totalSessions} multi-page sessions</p>
+      const template = document.getElementById('flow-tab-template') as HTMLTemplateElement
+      if (!template) return
+      const clone = template.content.cloneNode(true) as DocumentFragment
 
-          <div style="display:flex;gap:2rem;overflow-x:auto;padding-bottom:1rem">
-            <!-- Entry pages -->
-            <div style="min-width:200px">
-              <h4 style="font-size:0.6875rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem">Entry Pages</h4>
-              ${entryNodes.slice(0, 8).map(n => `
-                <div style="background:var(--bg);border:1px solid var(--border);padding:0.5rem 0.75rem;border-radius:6px;margin-bottom:0.5rem">
-                  <div style="font-size:0.8125rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.id}</div>
-                  <div style="font-size:0.6875rem;color:var(--muted)">${n.count} visits</div>
-                </div>
-              `).join('')}
-            </div>
+      // Set summary
+      const summaryEl = clone.querySelector('#flow-summary')
+      if (summaryEl) summaryEl.textContent = `Showing top paths from ${analyzedSessions} of ${totalSessions} multi-page sessions`
 
-            <!-- Flow connections -->
-            <div style="min-width:300px;flex:1">
-              <h4 style="font-size:0.6875rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem">Top Flows</h4>
-              ${links.slice(0, 15).map(l => `
-                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;font-size:0.75rem">
-                  <span style="background:var(--bg);padding:0.25rem 0.5rem;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">${l.source}</span>
-                  <span style="color:var(--accent)">→</span>
-                  <span style="background:var(--bg);padding:0.25rem 0.5rem;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">${l.target}</span>
-                  <span style="color:var(--muted);margin-left:auto">${l.value}x</span>
-                </div>
-              `).join('')}
-            </div>
+      // Build entry nodes
+      const entryContainer = clone.querySelector('#flow-entry .flow-nodes') as HTMLElement
+      const nodeTemplate = document.getElementById('flow-node-template') as HTMLTemplateElement
+      if (entryContainer && nodeTemplate) {
+        entryNodes.slice(0, 8).forEach(n => {
+          const node = nodeTemplate.content.cloneNode(true) as DocumentFragment
+          const pathEl = node.querySelector('.flow-node-path')
+          const countEl = node.querySelector('.flow-node-count')
+          if (pathEl) pathEl.textContent = n.id
+          if (countEl) countEl.textContent = `${n.count} visits`
+          entryContainer.appendChild(node)
+        })
+      }
 
-            <!-- Top pages by traffic -->
-            <div style="min-width:200px">
-              <h4 style="font-size:0.6875rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem">Most Visited</h4>
-              ${nodes.slice(0, 10).map((n, i) => `
-                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
-                  <span style="width:18px;height:18px;background:var(--accent);color:white;border-radius:50%;font-size:0.6875rem;display:flex;align-items:center;justify-content:center">${i + 1}</span>
-                  <span style="font-size:0.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${n.id}</span>
-                  <span style="font-size:0.6875rem;color:var(--muted)">${n.count}</span>
-                </div>
-              `).join('')}
-            </div>
-          </div>
+      // Build flow links
+      const linksContainer = clone.querySelector('#flow-links .flow-connections') as HTMLElement
+      const linkTemplate = document.getElementById('flow-link-template') as HTMLTemplateElement
+      if (linksContainer && linkTemplate) {
+        links.slice(0, 15).forEach(l => {
+          const link = linkTemplate.content.cloneNode(true) as DocumentFragment
+          const sourceEl = link.querySelector('.flow-link-source')
+          const targetEl = link.querySelector('.flow-link-target')
+          const countEl = link.querySelector('.flow-link-count')
+          if (sourceEl) sourceEl.textContent = l.source
+          if (targetEl) targetEl.textContent = l.target
+          if (countEl) countEl.textContent = `${l.value}x`
+          linksContainer.appendChild(link)
+        })
+      }
 
-          ${links.length === 0 ? '<div class="empty-cell">No flow data available. Users need to visit multiple pages in a session.</div>' : ''}
-        </div>
-      `
+      // Build top visited
+      const visitedContainer = clone.querySelector('#flow-visited .flow-ranks') as HTMLElement
+      const rankTemplate = document.getElementById('flow-rank-template') as HTMLTemplateElement
+      if (visitedContainer && rankTemplate) {
+        nodes.slice(0, 10).forEach((n, i) => {
+          const rank = rankTemplate.content.cloneNode(true) as DocumentFragment
+          const numEl = rank.querySelector('.flow-rank-number')
+          const pathEl = rank.querySelector('.flow-rank-path')
+          const countEl = rank.querySelector('.flow-rank-count')
+          if (numEl) numEl.textContent = String(i + 1)
+          if (pathEl) pathEl.textContent = n.id
+          if (countEl) countEl.textContent = String(n.count)
+          visitedContainer.appendChild(rank)
+        })
+      }
+
+      // Show empty state if no links
+      const emptyEl = clone.querySelector('#flow-empty') as HTMLElement
+      if (emptyEl && links.length === 0) {
+        emptyEl.style.display = 'block'
+      }
+
+      tabContent.innerHTML = ''
+      tabContent.appendChild(clone)
     }
 
     // Fetch sessions list
@@ -677,7 +739,11 @@
       if (!listEl) return
 
       if (sessions.length === 0) {
-        listEl.innerHTML = '<div class="empty-state">No sessions found</div>'
+        const emptyTemplate = document.getElementById('sessions-empty-template') as HTMLTemplateElement
+        if (emptyTemplate) {
+          listEl.innerHTML = ''
+          listEl.appendChild(emptyTemplate.content.cloneNode(true))
+        }
       } else {
         const cardTemplate = document.getElementById('session-card-template') as HTMLTemplateElement
         if (!cardTemplate) return
@@ -743,85 +809,151 @@
       if (!modal) {
         modal = document.createElement('div')
         modal.id = 'session-modal'
-        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;padding:1rem'
+        modal.className = 'modal-overlay'
         modal.onclick = (e) => { if (e.target === modal) closeModal() }
         document.body.appendChild(modal)
       }
+
       const s = sessionDetail.session
       const timeline = sessionDetail.timeline || []
       const clicks = sessionDetail.clicks || []
       const pageviews = sessionDetail.pageviews || []
 
       // Group clicks by path
-      const clicksByPath = {}
+      const clicksByPath: Record<string, any[]> = {}
       for (const c of clicks) {
         const path = c.path || '/'
         if (!clicksByPath[path]) clicksByPath[path] = []
         clicksByPath[path].push(c)
       }
+      const paths = [...new Set(pageviews.map(p => p.path))] as string[]
 
-      // Get unique paths visited
-      const paths = [...new Set(pageviews.map(p => p.path))]
+      const template = document.getElementById('session-modal-template') as HTMLTemplateElement
+      if (!template) return
+      const clone = template.content.cloneNode(true) as DocumentFragment
 
-      modal.innerHTML = `
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;width:100%;max-width:1000px;max-height:90vh;overflow-y:auto">
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border)">
-            <h3 style="font-size:1rem;font-weight:600;margin:0;color:var(--text)">Session: ${s.id?.slice(0,8) || 'Unknown'}</h3>
-            <button style="background:none;border:none;color:var(--muted);cursor:pointer;padding:0.25rem;display:flex;align-items:center;justify-content:center;border-radius:4px" onmouseover="this.style.background='var(--bg3)';this.style.color='var(--text)'" onmouseout="this.style.background='none';this.style.color='var(--muted)'" onclick="closeModal()">
-              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-          </div>
-          <div style="padding:1.5rem">
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
-              <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.25rem;font-weight:700;color:var(--text)">${s.pageViewCount || 0}</div><div style="font-size:0.6875rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.25rem">Pages</div></div>
-              <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.25rem;font-weight:700;color:var(--text)">${formatDuration(s.duration)}</div><div style="font-size:0.6875rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.25rem">Duration</div></div>
-              <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.25rem;font-weight:700;color:var(--text)">${s.browser || '?'}</div><div style="font-size:0.6875rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.25rem">Browser</div></div>
-              <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center"><div style="font-size:1.25rem;font-weight:700;color:var(--text)">${s.country || '?'}</div><div style="font-size:0.6875rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.25rem">Country</div></div>
-            </div>
+      // Session ID
+      const idEl = clone.querySelector('#session-id')
+      if (idEl) idEl.textContent = s.id?.slice(0, 8) || 'Unknown'
 
-            ${clicks.length > 0 ? `
-            <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Click Heatmap (${clicks.length} clicks)</h4>
-            <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
-              ${paths.map((p, i) => `<button class="date-btn ${i===0?'active':''}" onclick="showPathHeatmap('${p}')">${p}</button>`).join('')}
-            </div>
-            <div id="heatmap-container" style="position:relative;width:100%;height:400px;background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:1.5rem">
-              <div id="heatmap-clicks" style="position:absolute;inset:0"></div>
-              <div style="position:absolute;bottom:10px;right:10px;font-size:0.6875rem;color:var(--muted);background:var(--bg2);padding:0.25rem 0.5rem;border-radius:4px">
-                Viewport: ${clicks[0]?.viewportWidth || '?'}x${clicks[0]?.viewportHeight || '?'}
-              </div>
-            </div>
-            ` : ''}
+      // Stats
+      const statsEl = clone.querySelector('#session-stats') as HTMLElement
+      const statTemplate = document.getElementById('session-stat-template') as HTMLTemplateElement
+      if (statsEl && statTemplate) {
+        const statItems = [
+          { value: String(s.pageViewCount || 0), label: 'Pages' },
+          { value: formatDuration(s.duration), label: 'Duration' },
+          { value: s.browser || '?', label: 'Browser' },
+          { value: s.country || '?', label: 'Country' }
+        ]
+        statItems.forEach(item => {
+          const stat = statTemplate.content.cloneNode(true) as DocumentFragment
+          const valueEl = stat.querySelector('.session-stat-value')
+          const labelEl = stat.querySelector('.session-stat-label')
+          if (valueEl) valueEl.textContent = item.value
+          if (labelEl) labelEl.textContent = item.label
+          statsEl.appendChild(stat)
+        })
+      }
 
-            <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Session Journey</h4>
-            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
-              ${pageviews.map((p, i) => `
-                <div style="background:var(--bg);border:1px solid var(--border);padding:0.5rem 0.75rem;border-radius:6px;font-size:0.75rem">
-                  <div style="color:var(--text)">${p.path}</div>
-                  <div style="color:var(--muted);font-size:0.6875rem">${new Date(p.timestamp).toLocaleTimeString()}</div>
-                </div>
-                ${i < pageviews.length - 1 ? '<span style="color:var(--muted)">→</span>' : ''}
-              `).join('')}
-            </div>
+      // Heatmap section
+      if (clicks.length > 0) {
+        const heatmapSection = clone.querySelector('#session-heatmap-section') as HTMLElement
+        if (heatmapSection) {
+          heatmapSection.style.display = 'block'
+          const clicksCount = clone.querySelector('#clicks-count')
+          if (clicksCount) clicksCount.textContent = String(clicks.length)
 
-            <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Timeline (${timeline.length} events)</h4>
-            <div class="timeline" style="max-height:300px;overflow-y:auto">
-              ${timeline.map(t => `
-                <div class="timeline-item">
-                  <div class="timeline-type ${t.type === 'error' ? 'error' : ''}">${t.type}</div>
-                  <div class="timeline-content">
-                    ${t.type === 'pageview' ? '<span style="color:var(--accent)">' + t.data.path + '</span>' : ''}
-                    ${t.type === 'event' ? '<span style="color:var(--success)">' + t.data.name + '</span>' : ''}
-                    ${t.type === 'click' ? 'Click at (' + t.data.viewportX + ', ' + t.data.viewportY + ') on <code>' + (t.data.elementTag || 'element') + '</code>' : ''}
-                    ${t.type === 'vital' ? '<span style="color:var(--warning)">' + t.data.metric + '</span>: ' + t.data.value + 'ms (' + t.data.rating + ')' : ''}
-                    ${t.type === 'error' ? '<span style="color:var(--error)">' + (t.data.message || '').slice(0,100) + '</span>' : ''}
-                  </div>
-                  <div class="timeline-time">${new Date(t.timestamp).toLocaleTimeString()}</div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        </div>
-      `
+          const buttonsEl = clone.querySelector('#heatmap-path-buttons') as HTMLElement
+          if (buttonsEl) {
+            paths.forEach((p, i) => {
+              const btn = document.createElement('button')
+              btn.className = `date-btn ${i === 0 ? 'active' : ''}`
+              btn.textContent = p
+              btn.onclick = () => showPathHeatmap(p)
+              buttonsEl.appendChild(btn)
+            })
+          }
+
+          const viewportEl = clone.querySelector('#heatmap-viewport')
+          if (viewportEl) viewportEl.textContent = `Viewport: ${clicks[0]?.viewportWidth || '?'}x${clicks[0]?.viewportHeight || '?'}`
+        }
+      }
+
+      // Journey
+      const journeyEl = clone.querySelector('#session-journey') as HTMLElement
+      const journeyTemplate = document.getElementById('journey-step-template') as HTMLTemplateElement
+      if (journeyEl && journeyTemplate) {
+        pageviews.forEach((p, i) => {
+          const step = journeyTemplate.content.cloneNode(true) as DocumentFragment
+          const pathEl = step.querySelector('.journey-step-path')
+          const timeEl = step.querySelector('.journey-step-time')
+          if (pathEl) pathEl.textContent = p.path
+          if (timeEl) timeEl.textContent = new Date(p.timestamp).toLocaleTimeString()
+          journeyEl.appendChild(step)
+          if (i < pageviews.length - 1) {
+            const arrow = document.createElement('span')
+            arrow.className = 'journey-arrow'
+            arrow.textContent = '→'
+            journeyEl.appendChild(arrow)
+          }
+        })
+      }
+
+      // Timeline
+      const timelineCountEl = clone.querySelector('#timeline-count')
+      if (timelineCountEl) timelineCountEl.textContent = String(timeline.length)
+
+      const timelineEl = clone.querySelector('#session-timeline') as HTMLElement
+      const timelineTemplate = document.getElementById('timeline-item-template') as HTMLTemplateElement
+      if (timelineEl && timelineTemplate) {
+        timeline.forEach(t => {
+          const item = timelineTemplate.content.cloneNode(true) as DocumentFragment
+          const typeEl = item.querySelector('.timeline-type') as HTMLElement
+          const contentEl = item.querySelector('.timeline-content') as HTMLElement
+          const timeEl = item.querySelector('.timeline-time')
+
+          if (typeEl) {
+            typeEl.textContent = t.type
+            typeEl.classList.add(t.type)
+          }
+          if (contentEl) {
+            const contentTemplateId = `timeline-${t.type}-content`
+            const contentTemplate = document.getElementById(contentTemplateId) as HTMLTemplateElement
+            if (contentTemplate) {
+              const contentClone = contentTemplate.content.cloneNode(true) as DocumentFragment
+              if (t.type === 'pageview') {
+                const pathEl = contentClone.querySelector('.timeline-path')
+                if (pathEl) pathEl.textContent = t.data.path
+              } else if (t.type === 'event') {
+                const nameEl = contentClone.querySelector('.timeline-event-name')
+                if (nameEl) nameEl.textContent = t.data.name
+              } else if (t.type === 'click') {
+                const textEl = contentClone.querySelector('.timeline-click-text')
+                const elemEl = contentClone.querySelector('.timeline-click-element')
+                if (textEl) textEl.textContent = `Click at (${t.data.viewportX}, ${t.data.viewportY}) on`
+                if (elemEl) elemEl.textContent = t.data.elementTag || 'element'
+              } else if (t.type === 'vital') {
+                const metricEl = contentClone.querySelector('.timeline-vital-metric')
+                const valueEl = contentClone.querySelector('.timeline-vital-value')
+                if (metricEl) metricEl.textContent = t.data.metric
+                if (valueEl) valueEl.textContent = `${t.data.value}ms (${t.data.rating})`
+              } else if (t.type === 'error') {
+                const msgEl = contentClone.querySelector('.timeline-error-message')
+                if (msgEl) msgEl.textContent = (t.data.message || '').slice(0, 100)
+              }
+              contentEl.innerHTML = ''
+              contentEl.appendChild(contentClone)
+            }
+          }
+          if (timeEl) timeEl.textContent = new Date(t.timestamp).toLocaleTimeString()
+
+          timelineEl.appendChild(item)
+        })
+      }
+
+      modal.innerHTML = ''
+      modal.appendChild(clone)
       modal.classList.add('active')
 
       // Render initial heatmap if we have clicks
@@ -836,7 +968,11 @@
       if (!container) return
       const pathClicks = clicksByPath[path] || []
       if (pathClicks.length === 0) {
-        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)">No clicks on this page</div>'
+        const emptyTemplate = document.getElementById('heatmap-empty-template') as HTMLTemplateElement
+        if (emptyTemplate) {
+          container.innerHTML = ''
+          container.appendChild(emptyTemplate.content.cloneNode(true))
+        }
         return
       }
 
@@ -915,11 +1051,27 @@
       const violationsEl = clone.querySelector('#vitals-violations') as HTMLElement
       if (perfBudgetViolations.length > 0 && violationsEl) {
         violationsEl.style.display = 'block'
-        const violationItems = perfBudgetViolations.map(v => {
-          const unit = v.metric === 'CLS' ? '' : 'ms'
-          return `<div class="violation-item"><strong>${v.metric}</strong>: ${v.currentValue}${unit} <span class="exceeded">(exceeds ${v.threshold}${unit} by ${v.exceededBy}${unit})</span></div>`
-        })
-        violationsEl.innerHTML = `<h4><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg> Performance Budget Violations</h4><div class="violations-list">${violationItems.join('')}</div>`
+        const violationsTemplate = document.getElementById('violations-content-template') as HTMLTemplateElement
+        const violationItemTemplate = document.getElementById('violation-item-template') as HTMLTemplateElement
+        if (violationsTemplate && violationItemTemplate) {
+          const violationsClone = violationsTemplate.content.cloneNode(true) as DocumentFragment
+          const listEl = violationsClone.querySelector('.violations-list')
+          if (listEl) {
+            perfBudgetViolations.forEach(v => {
+              const unit = v.metric === 'CLS' ? '' : 'ms'
+              const item = violationItemTemplate.content.cloneNode(true) as DocumentFragment
+              const metricEl = item.querySelector('.violation-metric')
+              const valueEl = item.querySelector('.violation-value')
+              const exceededEl = item.querySelector('.violation-exceeded')
+              if (metricEl) metricEl.textContent = v.metric
+              if (valueEl) valueEl.textContent = `${v.currentValue}${unit}`
+              if (exceededEl) exceededEl.textContent = `(exceeds ${v.threshold}${unit} by ${v.exceededBy}${unit})`
+              listEl.appendChild(item)
+            })
+          }
+          violationsEl.innerHTML = ''
+          violationsEl.appendChild(violationsClone)
+        }
       }
 
       // Build vitals grid
@@ -1105,12 +1257,17 @@
 
       // Build severity summary
       const summaryEl = clone.querySelector('#severity-summary') as HTMLElement
-      if (summaryEl) {
+      const severityCardTemplate = document.getElementById('severity-card-template') as HTMLTemplateElement
+      if (summaryEl && severityCardTemplate) {
         const severities = ['critical', 'high', 'medium', 'low']
         severities.forEach(sev => {
-          const card = document.createElement('div')
-          card.className = `severity-card ${sev}`
-          card.innerHTML = `<div class="severity-card-count">${severityCounts[sev]}</div><div class="severity-card-label">${severityLabels[sev]}</div>`
+          const card = severityCardTemplate.content.cloneNode(true) as DocumentFragment
+          const wrapper = card.querySelector('.severity-card') as HTMLElement
+          const countEl = card.querySelector('.severity-card-count')
+          const labelEl = card.querySelector('.severity-card-label')
+          if (wrapper) wrapper.classList.add(sev)
+          if (countEl) countEl.textContent = String(severityCounts[sev])
+          if (labelEl) labelEl.textContent = severityLabels[sev]
           summaryEl.appendChild(card)
         })
       }
@@ -1122,7 +1279,16 @@
       if (filteredErrors.length === 0) {
         const emptyTitle = errorStatusFilter === 'all' ? 'No errors recorded' : `No ${errorStatusFilter} errors`
         const emptyHint = errorStatusFilter === 'all' ? 'Your application is running smoothly!' : 'Try a different filter.'
-        listEl.innerHTML = `<div class="empty-state"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="empty-state-title">${emptyTitle}</div><div class="empty-state-hint">${emptyHint}</div></div>`
+        const emptyTemplate = document.getElementById('errors-empty-template') as HTMLTemplateElement
+        if (emptyTemplate) {
+          const emptyClone = emptyTemplate.content.cloneNode(true) as DocumentFragment
+          const titleEl = emptyClone.querySelector('.empty-state-title')
+          const hintEl = emptyClone.querySelector('.empty-state-hint')
+          if (titleEl) titleEl.textContent = emptyTitle
+          if (hintEl) hintEl.textContent = emptyHint
+          listEl.innerHTML = ''
+          listEl.appendChild(emptyClone)
+        }
       } else {
         const cardTemplate = document.getElementById('error-card-template') as HTMLTemplateElement
         if (!cardTemplate) return
@@ -1164,10 +1330,46 @@
           if (countEl) countEl.textContent = `${e.count} event${e.count !== 1 ? 's' : ''}`
           if (sourceEl) sourceEl.textContent = e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source'
           if (messageEl) messageEl.textContent = e.message || 'Unknown error'
-          if (firstSeenEl) firstSeenEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> First: ${e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A'}`
-          if (lastSeenEl) lastSeenEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Last: ${new Date(e.lastSeen).toLocaleString()}`
-          if (browsersEl) browsersEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg> ${(e.browsers || []).join(', ') || 'Unknown'}`
-          if (pathsEl) pathsEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg> ${(e.paths || []).length} page${(e.paths || []).length !== 1 ? 's' : ''}`
+          if (firstSeenEl) {
+            const tmpl = document.getElementById('error-first-seen-template') as HTMLTemplateElement
+            if (tmpl) {
+              const clone = tmpl.content.cloneNode(true) as DocumentFragment
+              const text = clone.querySelector('.error-meta-text')
+              if (text) text.textContent = `First: ${e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A'}`
+              firstSeenEl.innerHTML = ''
+              firstSeenEl.appendChild(clone)
+            }
+          }
+          if (lastSeenEl) {
+            const tmpl = document.getElementById('error-last-seen-template') as HTMLTemplateElement
+            if (tmpl) {
+              const clone = tmpl.content.cloneNode(true) as DocumentFragment
+              const text = clone.querySelector('.error-meta-text')
+              if (text) text.textContent = `Last: ${new Date(e.lastSeen).toLocaleString()}`
+              lastSeenEl.innerHTML = ''
+              lastSeenEl.appendChild(clone)
+            }
+          }
+          if (browsersEl) {
+            const tmpl = document.getElementById('error-browsers-template') as HTMLTemplateElement
+            if (tmpl) {
+              const clone = tmpl.content.cloneNode(true) as DocumentFragment
+              const text = clone.querySelector('.error-meta-text')
+              if (text) text.textContent = (e.browsers || []).join(', ') || 'Unknown'
+              browsersEl.innerHTML = ''
+              browsersEl.appendChild(clone)
+            }
+          }
+          if (pathsEl) {
+            const tmpl = document.getElementById('error-paths-template') as HTMLTemplateElement
+            if (tmpl) {
+              const clone = tmpl.content.cloneNode(true) as DocumentFragment
+              const text = clone.querySelector('.error-meta-text')
+              if (text) text.textContent = `${(e.paths || []).length} page${(e.paths || []).length !== 1 ? 's' : ''}`
+              pathsEl.innerHTML = ''
+              pathsEl.appendChild(clone)
+            }
+          }
 
           if (actionsEl) {
             actionsEl.setAttribute('onclick', 'event.preventDefault();event.stopPropagation()')
@@ -1206,48 +1408,81 @@
     function renderInsights() {
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
-      const icons = {
+
+      const icons: Record<string, string> = {
         traffic: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>',
         referrer: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/></svg>',
         page: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>',
         device: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>',
         engagement: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>'
       }
-      tabContent.innerHTML = `
-        <div style="grid-column:1/-1">
-          <h3 style="margin-bottom:1rem;font-size:1rem">Insights</h3>
-          ${comparisonStats ? `
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
-              <div class="stat" style="padding:1rem">
-                <div class="stat-val" style="font-size:1.25rem">${fmt(comparisonStats.thisWeekViews)}</div>
-                <div class="stat-lbl">Views This Week</div>
-                ${comparisonStats.change !== 0 ? '<div class="stat-change ' + (comparisonStats.change > 0 ? 'positive' : 'negative') + '">' + (comparisonStats.change > 0 ? '+' : '') + comparisonStats.change + '%</div>' : ''}
-              </div>
-              <div class="stat" style="padding:1rem">
-                <div class="stat-val" style="font-size:1.25rem">${fmt(comparisonStats.lastWeekViews)}</div>
-                <div class="stat-lbl">Views Last Week</div>
-              </div>
-              <div class="stat" style="padding:1rem">
-                <div class="stat-val" style="font-size:1.25rem">${comparisonStats.sessions || 0}</div>
-                <div class="stat-lbl">Sessions</div>
-              </div>
-              <div class="stat" style="padding:1rem">
-                <div class="stat-val" style="font-size:1.25rem">${comparisonStats.bounceRate || 0}%</div>
-                <div class="stat-lbl">Bounce Rate</div>
-              </div>
-            </div>
-          ` : ''}
-          ${insights.length === 0 ? '<div class="empty-cell">No insights available yet. Check back when you have more data.</div>' : insights.map(i => `
-            <div class="insight-card">
-              <div class="insight-icon ${i.severity}">${icons[i.type] || icons.traffic}</div>
-              <div class="insight-content">
-                <div class="insight-title">${i.title}</div>
-                <div class="insight-desc">${i.description}</div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      `
+
+      const template = document.getElementById('insights-tab-template') as HTMLTemplateElement
+      if (!template) return
+      const clone = template.content.cloneNode(true) as DocumentFragment
+
+      // Build stats section
+      const statsEl = clone.querySelector('#insights-stats') as HTMLElement
+      if (statsEl && comparisonStats) {
+        const statItems = [
+          { value: fmt(comparisonStats.thisWeekViews), label: 'Views This Week', change: comparisonStats.change },
+          { value: fmt(comparisonStats.lastWeekViews), label: 'Views Last Week' },
+          { value: String(comparisonStats.sessions || 0), label: 'Sessions' },
+          { value: `${comparisonStats.bounceRate || 0}%`, label: 'Bounce Rate' }
+        ]
+        const statTemplate = document.getElementById('insights-stat-template') as HTMLTemplateElement
+        statItems.forEach(item => {
+          if (statTemplate) {
+            const stat = statTemplate.content.cloneNode(true) as DocumentFragment
+            const valueEl = stat.querySelector('.insights-stat-value')
+            const labelEl = stat.querySelector('.insights-stat-label')
+            const changeEl = stat.querySelector('.insights-stat-change') as HTMLElement
+            if (valueEl) valueEl.textContent = item.value
+            if (labelEl) labelEl.textContent = item.label
+            if (changeEl && item.change !== undefined && item.change !== 0) {
+              changeEl.style.display = 'block'
+              changeEl.classList.add(item.change > 0 ? 'positive' : 'negative')
+              changeEl.textContent = `${item.change > 0 ? '+' : ''}${item.change}%`
+            }
+            statsEl.appendChild(stat)
+          }
+        })
+      }
+
+      // Build insights list
+      const listEl = clone.querySelector('#insights-list') as HTMLElement
+      if (!listEl) return
+
+      if (insights.length === 0) {
+        const emptyTemplate = document.getElementById('insights-list-empty-template') as HTMLTemplateElement
+        if (emptyTemplate) {
+          listEl.innerHTML = ''
+          listEl.appendChild(emptyTemplate.content.cloneNode(true))
+        }
+      } else {
+        const cardTemplate = document.getElementById('insight-card-template') as HTMLTemplateElement
+        if (!cardTemplate) return
+
+        listEl.innerHTML = ''
+        insights.forEach(i => {
+          const card = cardTemplate.content.cloneNode(true) as DocumentFragment
+          const iconEl = card.querySelector('.insight-icon') as HTMLElement
+          const titleEl = card.querySelector('.insight-title')
+          const descEl = card.querySelector('.insight-desc')
+
+          if (iconEl) {
+            iconEl.classList.add(i.severity || 'info')
+            iconEl.innerHTML = icons[i.type] || icons.traffic
+          }
+          if (titleEl) titleEl.textContent = i.title
+          if (descEl) descEl.textContent = i.description
+
+          listEl.appendChild(card)
+        })
+      }
+
+      tabContent.innerHTML = ''
+      tabContent.appendChild(clone)
     }
 
     // Live view state
@@ -1291,7 +1526,11 @@
       if (!activitiesEl) return
 
       if (liveActivities.length === 0) {
-        activitiesEl.innerHTML = '<div class="empty-state">No recent activity. Visitors will appear here in real-time.</div>'
+        const emptyTemplate = document.getElementById('live-activity-empty-template') as HTMLTemplateElement
+        if (emptyTemplate) {
+          activitiesEl.innerHTML = ''
+          activitiesEl.appendChild(emptyTemplate.content.cloneNode(true))
+        }
       } else {
         const activityTemplate = document.getElementById('live-activity-template') as HTMLTemplateElement
         if (!activityTemplate) return
@@ -1355,7 +1594,11 @@
       if (!listEl) return
 
       if (funnels.length === 0) {
-        listEl.innerHTML = '<div class="empty-state"><p>No funnels configured yet.</p><p class="empty-state-hint">Create a funnel to track conversion rates through your key user flows.</p></div>'
+        const emptyTemplate = document.getElementById('funnels-empty-template') as HTMLTemplateElement
+        if (emptyTemplate) {
+          listEl.innerHTML = ''
+          listEl.appendChild(emptyTemplate.content.cloneNode(true))
+        }
       } else {
         const cardTemplate = document.getElementById('funnel-card-template') as HTMLTemplateElement
         if (!cardTemplate) return
@@ -1406,33 +1649,56 @@
       }
     }
 
-    function showFunnelAnalysis(data) {
+    function showFunnelAnalysis(data: { funnel: { name: string }, steps: any[], totalSessions: number, overallConversion: number }) {
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
 
       const { funnel, steps, totalSessions, overallConversion } = data
 
-      tabContent.innerHTML = `
-        <div style="grid-column:1/-1">
-          <button onclick="fetchFunnels()" style="background:none;border:none;color:var(--muted);cursor:pointer;margin-bottom:1rem;font-size:0.8125rem">← Back to Funnels</button>
-          <h3 style="font-size:1rem;margin-bottom:0.5rem">${funnel.name}</h3>
-          <p style="font-size:0.75rem;color:var(--muted);margin-bottom:1.5rem">${totalSessions} sessions analyzed • ${overallConversion}% overall conversion</p>
+      const template = document.getElementById('funnel-analysis-template') as HTMLTemplateElement
+      if (!template) return
+      const clone = template.content.cloneNode(true) as DocumentFragment
 
-          <div style="display:flex;gap:0.5rem;align-items:stretch">
-            ${steps.map((s, i) => `
-              <div style="flex:1;text-align:center">
-                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:0.5rem">
-                  <div style="font-size:1.5rem;font-weight:600;color:var(--text)">${s.visitors}</div>
-                  <div style="font-size:0.6875rem;color:var(--muted);margin-top:0.25rem">${s.conversionRate}% of total</div>
-                </div>
-                <div style="font-size:0.75rem;font-weight:500">${s.name}</div>
-                ${i > 0 ? '<div style="font-size:0.6875rem;color:var(--error);margin-top:0.25rem">↓ ' + s.dropoffRate + '% drop</div>' : ''}
-              </div>
-              ${i < steps.length - 1 ? '<div style="display:flex;align-items:center;color:var(--muted);font-size:1.5rem">→</div>' : ''}
-            `).join('')}
-          </div>
-        </div>
-      `
+      const titleEl = clone.querySelector('.funnel-analysis-title')
+      const summaryEl = clone.querySelector('.funnel-analysis-summary')
+      const stepsEl = clone.querySelector('.funnel-steps-analysis') as HTMLElement
+
+      if (titleEl) titleEl.textContent = funnel.name
+      if (summaryEl) summaryEl.textContent = `${totalSessions} sessions analyzed • ${overallConversion}% overall conversion`
+
+      const stepTemplate = document.getElementById('funnel-analysis-step-template') as HTMLTemplateElement
+      if (stepsEl && stepTemplate) {
+        steps.forEach((s, i) => {
+          const step = stepTemplate.content.cloneNode(true) as DocumentFragment
+          const visitorsEl = step.querySelector('.analysis-step-visitors')
+          const rateEl = step.querySelector('.analysis-step-rate')
+          const nameEl = step.querySelector('.analysis-step-name')
+          const dropEl = step.querySelector('.analysis-step-drop') as HTMLElement
+
+          if (visitorsEl) visitorsEl.textContent = String(s.visitors)
+          if (rateEl) rateEl.textContent = `${s.conversionRate}% of total`
+          if (nameEl) nameEl.textContent = s.name
+          if (dropEl) {
+            if (i > 0) {
+              dropEl.textContent = `↓ ${s.dropoffRate}% drop`
+            } else {
+              dropEl.style.display = 'none'
+            }
+          }
+
+          stepsEl.appendChild(step)
+
+          if (i < steps.length - 1) {
+            const arrow = document.createElement('div')
+            arrow.className = 'analysis-arrow'
+            arrow.textContent = '→'
+            stepsEl.appendChild(arrow)
+          }
+        })
+      }
+
+      tabContent.innerHTML = ''
+      tabContent.appendChild(clone)
     }
 
     function showCreateFunnelModal() {
@@ -1471,7 +1737,28 @@
     }
 
     // Settings state
-    let settingsData = {}
+    let settingsData: Record<string, any> = {}
+
+    // Helper to render a list of items
+    function renderSettingsList(container: HTMLElement, items: any[], template: HTMLTemplateElement, renderItem: (item: any, el: DocumentFragment) => void, emptyText: string) {
+      if (!items || items.length === 0) {
+        const emptyTemplate = document.getElementById('settings-empty-template') as HTMLTemplateElement
+        if (emptyTemplate) {
+          const emptyClone = emptyTemplate.content.cloneNode(true) as DocumentFragment
+          const emptyEl = emptyClone.querySelector('.panel-empty')
+          if (emptyEl) emptyEl.textContent = emptyText
+          container.innerHTML = ''
+          container.appendChild(emptyClone)
+        }
+        return
+      }
+      container.innerHTML = ''
+      items.forEach(item => {
+        const el = template.content.cloneNode(true) as DocumentFragment
+        renderItem(item, el)
+        container.appendChild(el)
+      })
+    }
 
     // Render settings
     async function renderSettings() {
@@ -1490,7 +1777,6 @@
           fetch(`${API_ENDPOINT}/api/sites/${siteId}/uptime`).then(r => r.json()).catch(() => ({ monitors: [] })),
           fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets`).then(r => r.json()).catch(() => ({ budgets: [] }))
         ])
-
         settingsData = { retention: retentionRes, team: teamRes, webhooks: webhooksRes, emailReports: emailReportsRes, apiKeys: apiKeysRes, alerts: alertsRes, uptime: uptimeRes, perfBudgets: perfBudgetsRes }
       } catch (e) {
         console.error('Failed to fetch settings:', e)
@@ -1498,198 +1784,112 @@
 
       const { retention, team, webhooks, emailReports, apiKeys, alerts, uptime, perfBudgets } = settingsData
 
-      tabContent.innerHTML = `
-        <div style="grid-column:1/-1">
-          <h3 style="font-size:1rem;margin-bottom:1.5rem">Settings</h3>
+      const template = document.getElementById('settings-tab-template') as HTMLTemplateElement
+      if (!template) return
+      const clone = template.content.cloneNode(true) as DocumentFragment
 
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem">
-            <!-- Left Column -->
-            <div>
-              <!-- API Keys -->
-              <div class="panel" style="margin-bottom:1rem">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-                  <h4 style="font-size:0.875rem">API Keys</h4>
-                  <button class="export-btn" onclick="createApiKey()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ New Key</button>
-                </div>
-                <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Generate API keys for programmatic access to your analytics data.</p>
-                ${(apiKeys.apiKeys || []).length === 0 ? `
-                  <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No API keys yet.</p>
-                ` : `
-                  <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    ${(apiKeys.apiKeys || []).map(k => `
-                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                        <div>
-                          <div style="font-size:0.8125rem;font-weight:500">${k.name || 'API Key'}</div>
-                          <code style="font-size:0.6875rem;color:var(--muted)">${k.key}</code>
-                        </div>
-                        <button class="icon-btn danger" onclick="deleteApiKey('${k.key}')">×</button>
-                      </div>
-                    `).join('')}
-                  </div>
-                `}
-              </div>
+      // API Keys
+      const apiKeysList = clone.querySelector('#api-keys-list') as HTMLElement
+      const apiKeyTemplate = document.getElementById('api-key-item-template') as HTMLTemplateElement
+      if (apiKeysList && apiKeyTemplate) {
+        renderSettingsList(apiKeysList, apiKeys.apiKeys || [], apiKeyTemplate, (k, el) => {
+          const nameEl = el.querySelector('.list-item-name')
+          const codeEl = el.querySelector('.list-item-code')
+          const deleteBtn = el.querySelector('.btn-icon')
+          if (nameEl) nameEl.textContent = k.name || 'API Key'
+          if (codeEl) codeEl.textContent = k.key
+          if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteApiKey('${k.key}')`)
+        }, 'No API keys yet.')
+      }
 
-              <!-- Alerts -->
-              <div class="panel" style="margin-bottom:1rem">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-                  <h4 style="font-size:0.875rem">Alerts</h4>
-                  <button class="export-btn" onclick="createAlert()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ New Alert</button>
-                </div>
-                <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Get notified on traffic spikes, drops, or error rate changes.</p>
-                ${(alerts.alerts || []).length === 0 ? `
-                  <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No alerts configured.</p>
-                ` : `
-                  <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    ${(alerts.alerts || []).map(a => `
-                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                        <div>
-                          <div style="font-size:0.8125rem;font-weight:500">${a.name}</div>
-                          <div style="font-size:0.6875rem;color:var(--muted)">${a.type} • >${a.threshold}%</div>
-                        </div>
-                        <button class="icon-btn danger" onclick="deleteAlert('${a.id}')">×</button>
-                      </div>
-                    `).join('')}
-                  </div>
-                `}
-              </div>
+      // Alerts
+      const alertsList = clone.querySelector('#alerts-list') as HTMLElement
+      const alertTemplate = document.getElementById('alert-item-template') as HTMLTemplateElement
+      if (alertsList && alertTemplate) {
+        renderSettingsList(alertsList, alerts.alerts || [], alertTemplate, (a, el) => {
+          const nameEl = el.querySelector('.list-item-name')
+          const metaEl = el.querySelector('.list-item-meta')
+          const deleteBtn = el.querySelector('.btn-icon')
+          if (nameEl) nameEl.textContent = a.name
+          if (metaEl) metaEl.textContent = `${a.type} • >${a.threshold}%`
+          if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteAlert('${a.id}')`)
+        }, 'No alerts configured.')
+      }
 
-              <!-- Uptime Monitoring -->
-              <div class="panel" style="margin-bottom:1rem">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-                  <h4 style="font-size:0.875rem">Uptime Monitoring</h4>
-                  <button class="export-btn" onclick="createUptimeMonitor()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ Add Monitor</button>
-                </div>
-                <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Monitor endpoint availability and response times.</p>
-                ${(uptime.monitors || []).length === 0 ? `
-                  <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No monitors configured.</p>
-                ` : `
-                  <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    ${(uptime.monitors || []).map(m => `
-                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                        <div>
-                          <div style="font-size:0.8125rem;font-weight:500">${m.url}</div>
-                          <div style="font-size:0.6875rem;color:var(--muted)">Every ${m.interval} min</div>
-                        </div>
-                        <button class="icon-btn danger" onclick="deleteUptimeMonitor('${m.id}')">×</button>
-                      </div>
-                    `).join('')}
-                  </div>
-                `}
-              </div>
+      // Email Reports
+      const emailList = clone.querySelector('#email-reports-list') as HTMLElement
+      const emailTemplate = document.getElementById('email-report-template') as HTMLTemplateElement
+      if (emailList && emailTemplate) {
+        renderSettingsList(emailList, emailReports.reports || [], emailTemplate, (r, el) => {
+          const nameEl = el.querySelector('.list-item-name')
+          const metaEl = el.querySelector('.list-item-meta')
+          const deleteBtn = el.querySelector('.btn-icon')
+          if (nameEl) nameEl.textContent = r.email
+          if (metaEl) metaEl.textContent = r.frequency
+          if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteEmailReport('${r.id}')`)
+        }, 'No email reports scheduled.')
+      }
 
-              <!-- Performance Budgets -->
-              <div class="panel" style="margin-bottom:1rem">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-                  <h4 style="font-size:0.875rem">Performance Budgets</h4>
-                  <button class="export-btn" onclick="createPerfBudget()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ Add Budget</button>
-                </div>
-                <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Set thresholds for Core Web Vitals and get alerts when exceeded.</p>
-                ${(perfBudgets.budgets || []).length === 0 ? `
-                  <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No budgets configured.</p>
-                ` : `
-                  <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    ${(perfBudgets.budgets || []).map(b => `
-                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                        <div>
-                          <div style="font-size:0.8125rem;font-weight:500">${b.metric}</div>
-                          <div style="font-size:0.6875rem;color:var(--muted)">Max: ${b.threshold}${b.metric === 'CLS' ? '' : 'ms'}</div>
-                        </div>
-                        <button class="icon-btn danger" onclick="deletePerfBudget('${b.id}')">×</button>
-                      </div>
-                    `).join('')}
-                  </div>
-                `}
-              </div>
-            </div>
+      // Uptime
+      const uptimeList = clone.querySelector('#uptime-list') as HTMLElement
+      const uptimeTemplate = document.getElementById('uptime-item-template') as HTMLTemplateElement
+      if (uptimeList && uptimeTemplate) {
+        renderSettingsList(uptimeList, uptime.monitors || [], uptimeTemplate, (m, el) => {
+          const codeEl = el.querySelector('.list-item-code')
+          const metaEl = el.querySelector('.list-item-meta')
+          const deleteBtn = el.querySelector('.btn-icon')
+          if (codeEl) codeEl.textContent = m.url
+          if (metaEl) metaEl.textContent = `Every ${m.interval} min`
+          if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteUptimeMonitor('${m.id}')`)
+        }, 'No monitors configured.')
+      }
 
-            <!-- Right Column -->
-            <div>
-              <!-- Data Retention -->
-              <div class="panel" style="margin-bottom:1rem">
-                <h4 style="font-size:0.875rem;margin-bottom:0.75rem">Data Retention</h4>
-                <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Configure how long to keep analytics data.</p>
-                <select id="retention-select" class="filter-select" style="width:auto" onchange="updateRetention(this.value)">
-                  <option value="30" ${retention.retentionDays === 30 ? 'selected' : ''}>30 days</option>
-                  <option value="90" ${retention.retentionDays === 90 ? 'selected' : ''}>90 days</option>
-                  <option value="180" ${retention.retentionDays === 180 ? 'selected' : ''}>180 days</option>
-                  <option value="365" ${retention.retentionDays === 365 ? 'selected' : ''}>1 year</option>
-                  <option value="730" ${retention.retentionDays === 730 ? 'selected' : ''}>2 years</option>
-                </select>
-              </div>
+      // Team
+      const teamList = clone.querySelector('#team-list') as HTMLElement
+      const teamTemplate = document.getElementById('team-member-template') as HTMLTemplateElement
+      if (teamList && teamTemplate) {
+        renderSettingsList(teamList, team.members || [], teamTemplate, (m, el) => {
+          const nameEl = el.querySelector('.list-item-name')
+          const roleEl = el.querySelector('.list-item-role')
+          if (nameEl) nameEl.textContent = m.email
+          if (roleEl) roleEl.textContent = `${m.role} • ${m.status}`
+        }, 'No team members yet.')
+      }
 
-              <!-- Team Members -->
-              <div class="panel" style="margin-bottom:1rem">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-                  <h4 style="font-size:0.875rem">Team Members</h4>
-                  <button class="export-btn" onclick="inviteTeamMember()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Invite</button>
-                </div>
-                ${(team.members || []).length === 0 ? `
-                  <p style="font-size:0.75rem;color:var(--muted)">No team members yet.</p>
-                ` : `
-                  <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    ${(team.members || []).map(m => `
-                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                        <span style="font-size:0.8125rem">${m.email}</span>
-                        <span style="font-size:0.6875rem;color:var(--muted)">${m.role} • ${m.status}</span>
-                      </div>
-                    `).join('')}
-                  </div>
-                `}
-              </div>
+      // Webhooks
+      const webhooksList = clone.querySelector('#webhooks-list') as HTMLElement
+      const webhookTemplate = document.getElementById('webhook-item-template') as HTMLTemplateElement
+      if (webhooksList && webhookTemplate) {
+        renderSettingsList(webhooksList, webhooks.webhooks || [], webhookTemplate, (w, el) => {
+          const codeEl = el.querySelector('.list-item-code')
+          const eventsEl = el.querySelector('.list-item-events')
+          const deleteBtn = el.querySelector('.btn-icon')
+          if (codeEl) codeEl.textContent = `${w.type} • ${w.url.slice(0, 30)}...`
+          if (eventsEl) eventsEl.remove()
+          if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteWebhook('${w.id}')`)
+        }, 'No webhooks configured.')
+      }
 
-              <!-- Webhooks -->
-              <div class="panel" style="margin-bottom:1rem">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-                  <h4 style="font-size:0.875rem">Webhooks (Slack/Discord)</h4>
-                  <button class="export-btn" onclick="addWebhook()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Add</button>
-                </div>
-                ${(webhooks.webhooks || []).length === 0 ? `
-                  <p style="font-size:0.75rem;color:var(--muted)">No webhooks configured. Add a Slack or Discord webhook to receive alerts.</p>
-                ` : `
-                  <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    ${(webhooks.webhooks || []).map(w => `
-                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                        <span style="font-size:0.8125rem">${w.type} • ${w.url.slice(0,30)}...</span>
-                        <button class="icon-btn danger" onclick="deleteWebhook('${w.id}')">×</button>
-                      </div>
-                    `).join('')}
-                  </div>
-                `}
-              </div>
+      // Performance Budgets
+      const perfList = clone.querySelector('#perf-budgets-list') as HTMLElement
+      const perfTemplate = document.getElementById('perf-budget-template') as HTMLTemplateElement
+      if (perfList && perfTemplate) {
+        renderSettingsList(perfList, perfBudgets.budgets || [], perfTemplate, (b, el) => {
+          const nameEl = el.querySelector('.list-item-name')
+          const metaEl = el.querySelector('.list-item-meta')
+          const deleteBtn = el.querySelector('.btn-icon')
+          if (nameEl) nameEl.textContent = b.metric
+          if (metaEl) metaEl.textContent = `Max: ${b.threshold}${b.metric === 'CLS' ? '' : 'ms'}`
+          if (deleteBtn) deleteBtn.setAttribute('onclick', `deletePerfBudget('${b.id}')`)
+        }, 'No budgets configured.')
+      }
 
-              <!-- Email Reports -->
-              <div class="panel" style="margin-bottom:1rem">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-                  <h4 style="font-size:0.875rem">Email Reports</h4>
-                  <button class="export-btn" onclick="addEmailReport()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Add</button>
-                </div>
-                ${(emailReports.reports || []).length === 0 ? `
-                  <p style="font-size:0.75rem;color:var(--muted)">No email reports scheduled.</p>
-                ` : `
-                  <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    ${(emailReports.reports || []).map(r => `
-                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                        <span style="font-size:0.8125rem">${r.email} • ${r.frequency}</span>
-                        <button class="icon-btn danger" onclick="deleteEmailReport('${r.id}')">×</button>
-                      </div>
-                    `).join('')}
-                  </div>
-                `}
-              </div>
+      // Retention
+      const retentionEl = clone.querySelector('#retention-days')
+      if (retentionEl) retentionEl.textContent = `${retention.retentionDays} days`
 
-              <!-- GDPR -->
-              <div class="panel">
-                <h4 style="font-size:0.875rem;margin-bottom:0.75rem">GDPR Tools</h4>
-                <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Handle data export and deletion requests.</p>
-                <div style="display:flex;gap:0.5rem">
-                  <button class="export-btn" onclick="gdprExport()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Export Data</button>
-                  <button class="export-btn" onclick="gdprDelete()" style="padding:0.375rem 0.75rem;font-size:0.75rem;border-color:var(--error);color:var(--error)">Delete Data</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      `
+      tabContent.innerHTML = ''
+      tabContent.appendChild(clone)
     }
 
     // Settings action functions
@@ -1957,68 +2157,167 @@
       noDataMsg.style.display = 'none'
       mainContent.style.display = 'block'
 
-      // Render tables
-      document.getElementById('pages-body').innerHTML = pages.length
-        ? pages.slice(0,10).map(p => {
-            const pageUrl = siteHostname ? `https://${siteHostname}${p.path}` : p.path
-            const linkHtml = siteHostname
-              ? `<a href="${pageUrl}" target="_blank" rel="noopener" class="page-link" title="Visit ${pageUrl}">${p.path}<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px;opacity:0.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a>`
-              : p.path
-            return `<tr><td class="name" title="${p.path}">${linkHtml}</td><td class="value">${fmt(p.entries||0)}</td><td class="value">${fmt(p.visitors||0)}</td><td class="value">${fmt(p.views||0)}</td></tr>`
-          }).join('')
-        : '<tr><td colspan="4" class="empty-cell">No page data</td></tr>'
+      // Render tables using templates
+      renderTableRows('pages-body', pages.slice(0, 10), 'page-row-template', 4, 'No page data', (row, p) => {
+        const pageCell = row.querySelector('.page-cell')
+        if (pageCell) {
+          if (siteHostname) {
+            const pageUrl = `https://${siteHostname}${p.path}`
+            const link = document.createElement('a')
+            link.href = pageUrl
+            link.target = '_blank'
+            link.rel = 'noopener'
+            link.className = 'page-link'
+            link.title = `Visit ${pageUrl}`
+            link.textContent = p.path
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+            svg.setAttribute('width', '10')
+            svg.setAttribute('height', '10')
+            svg.setAttribute('viewBox', '0 0 24 24')
+            svg.setAttribute('fill', 'none')
+            svg.setAttribute('stroke', 'currentColor')
+            svg.setAttribute('stroke-width', '2')
+            svg.style.marginLeft = '4px'
+            svg.style.opacity = '0.5'
+            svg.innerHTML = '<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>'
+            link.appendChild(svg)
+            pageCell.appendChild(link)
+          } else {
+            pageCell.textContent = p.path
+          }
+          pageCell.setAttribute('title', p.path)
+        }
+        const entriesCell = row.querySelector('.entries-cell')
+        if (entriesCell) entriesCell.textContent = fmt(p.entries || 0)
+        const visitorsCell = row.querySelector('.visitors-cell')
+        if (visitorsCell) visitorsCell.textContent = fmt(p.visitors || 0)
+        const viewsCell = row.querySelector('.views-cell')
+        if (viewsCell) viewsCell.textContent = fmt(p.views || 0)
+      })
 
-      document.getElementById('referrers-body').innerHTML = referrers.length
-        ? referrers.slice(0,10).map(r => {
-            const source = r.source || 'Direct'
-            const sourceLower = source.toLowerCase()
-            const isLink = sourceLower !== 'direct' && !source.includes('(') && source.includes('.')
+      renderTableRows('referrers-body', referrers.slice(0, 10), 'referrer-row-template', 3, 'No referrer data', (row, r) => {
+        const referrerCell = row.querySelector('.referrer-cell')
+        if (referrerCell) {
+          const source = r.source || 'Direct'
+          const sourceLower = source.toLowerCase()
+          const isLink = sourceLower !== 'direct' && !source.includes('(') && source.includes('.')
+          if (isLink) {
             const domain = source.replace(/^https?:\/\//, '').split('/')[0]
-            const favicon = isLink ? `<img src="https://www.google.com/s2/favicons?domain=${domain}&sz=16" width="14" height="14" style="vertical-align:middle;margin-right:6px;border-radius:2px" onerror="this.style.display='none'">` : ''
-            const linkHtml = isLink
-              ? `<a href="${source.startsWith('http') ? source : 'https://' + source}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px">${favicon}${source}<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a>`
-              : source
-            return `<tr><td class="name">${linkHtml}</td><td class="value">${fmt(r.visitors||0)}</td><td class="value">${fmt(r.views||0)}</td></tr>`
-          }).join('')
-        : '<tr><td colspan="3" class="empty-cell">No referrer data</td></tr>'
+            const link = document.createElement('a')
+            link.href = source.startsWith('http') ? source : 'https://' + source
+            link.target = '_blank'
+            link.rel = 'noopener'
+            link.className = 'referrer-link'
+            const img = document.createElement('img')
+            img.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=16`
+            img.width = 14
+            img.height = 14
+            img.className = 'referrer-favicon'
+            img.onerror = () => { img.style.display = 'none' }
+            link.appendChild(img)
+            link.appendChild(document.createTextNode(source))
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+            svg.setAttribute('width', '12')
+            svg.setAttribute('height', '12')
+            svg.setAttribute('fill', 'none')
+            svg.setAttribute('stroke', 'currentColor')
+            svg.setAttribute('viewBox', '0 0 24 24')
+            svg.style.opacity = '0.5'
+            svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>'
+            link.appendChild(svg)
+            referrerCell.appendChild(link)
+          } else {
+            referrerCell.textContent = source
+          }
+        }
+        const visitorsCell = row.querySelector('.visitors-cell')
+        if (visitorsCell) visitorsCell.textContent = fmt(r.visitors || 0)
+        const viewsCell = row.querySelector('.views-cell')
+        if (viewsCell) viewsCell.textContent = fmt(r.views || 0)
+      })
 
-      document.getElementById('devices-body').innerHTML = deviceTypes.length
-        ? deviceTypes.map(d => `<tr><td class="name">${getDeviceIcon(d.type)}${d.type}</td><td class="value">${fmt(d.visitors||0)}</td><td class="value">${d.percentage || 0}%</td></tr>`).join('')
-        : '<tr><td colspan="3" class="empty-cell">No device data</td></tr>'
+      renderTableRows('devices-body', deviceTypes, 'device-row-template', 3, 'No device data', (row, d) => {
+        const deviceCell = row.querySelector('.device-cell')
+        if (deviceCell) deviceCell.innerHTML = getDeviceIcon(d.type) + d.type
+        const visitorsCell = row.querySelector('.visitors-cell')
+        if (visitorsCell) visitorsCell.textContent = fmt(d.visitors || 0)
+        const pctCell = row.querySelector('.pct-cell')
+        if (pctCell) pctCell.textContent = `${d.percentage || 0}%`
+      })
 
-      document.getElementById('browsers-body').innerHTML = browsers.length
-        ? browsers.slice(0,8).map(b => `<tr><td class="name">${getBrowserIcon(b.name)}${b.name}</td><td class="value">${fmt(b.visitors||0)}</td><td class="value">${b.percentage || 0}%</td></tr>`).join('')
-        : '<tr><td colspan="3" class="empty-cell">No browser data</td></tr>'
+      renderTableRows('browsers-body', browsers.slice(0, 8), 'browser-row-template', 3, 'No browser data', (row, b) => {
+        const browserCell = row.querySelector('.browser-cell')
+        if (browserCell) browserCell.innerHTML = getBrowserIcon(b.name) + b.name
+        const visitorsCell = row.querySelector('.visitors-cell')
+        if (visitorsCell) visitorsCell.textContent = fmt(b.visitors || 0)
+        const pctCell = row.querySelector('.pct-cell')
+        if (pctCell) pctCell.textContent = `${b.percentage || 0}%`
+      })
 
-      document.getElementById('countries-body').innerHTML = countries.length
-        ? countries.slice(0,8).map(c => `<tr><td class="name"><span style="margin-right:6px">${getCountryFlag(c.name)}</span>${c.name || c.code || 'Unknown'}</td><td class="value">${fmt(c.visitors||0)}</td></tr>`).join('')
-        : '<tr><td colspan="2" class="empty-cell">No location data</td></tr>'
+      renderTableRows('countries-body', countries.slice(0, 8), 'country-row-template', 2, 'No location data', (row, c) => {
+        const countryCell = row.querySelector('.country-cell')
+        if (countryCell) {
+          const flag = document.createElement('span')
+          flag.className = 'country-flag'
+          flag.textContent = getCountryFlag(c.name)
+          countryCell.appendChild(flag)
+          countryCell.appendChild(document.createTextNode(c.name || c.code || 'Unknown'))
+        }
+        const visitorsCell = row.querySelector('.visitors-cell')
+        if (visitorsCell) visitorsCell.textContent = fmt(c.visitors || 0)
+      })
 
-      document.getElementById('campaigns-body').innerHTML = campaigns.length
-        ? campaigns.slice(0,8).map(c => `<tr><td class="name">${c.name || c.source || 'Unknown'}</td><td class="value">${fmt(c.visitors||0)}</td><td class="value">${fmt(c.views||0)}</td></tr>`).join('')
-        : '<tr><td colspan="3" class="empty-cell">No campaign data</td></tr>'
+      renderTableRows('campaigns-body', campaigns.slice(0, 8), 'campaign-row-template', 3, 'No campaign data', (row, c) => {
+        const campaignCell = row.querySelector('.campaign-cell')
+        if (campaignCell) campaignCell.textContent = c.name || c.source || 'Unknown'
+        const visitorsCell = row.querySelector('.visitors-cell')
+        if (visitorsCell) visitorsCell.textContent = fmt(c.visitors || 0)
+        const viewsCell = row.querySelector('.views-cell')
+        if (viewsCell) viewsCell.textContent = fmt(c.views || 0)
+      })
 
       // Enhanced events display with mini chart
-      const totalEventCount = events.reduce((sum, e) => sum + (e.count || 0), 0)
-      const maxEventCount = Math.max(...events.map(e => e.count || 0), 1)
-      document.getElementById('events-container').innerHTML = events.length
-        ? `<div style="display:flex;flex-direction:column;gap:0.5rem">${events.slice(0,8).map(e => {
-            const pct = Math.round(((e.count || 0) / totalEventCount) * 100)
-            const barWidth = Math.round(((e.count || 0) / maxEventCount) * 100)
-            return `<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8125rem">
-              <div style="flex:1;min-width:0">
-                <div style="display:flex;justify-content:space-between;margin-bottom:2px">
-                  <span style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.name}</span>
-                  <span style="color:var(--muted);margin-left:0.5rem">${pct}%</span>
-                </div>
-                <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
-                  <div style="height:100%;width:${barWidth}%;background:var(--accent2);border-radius:2px;transition:width 0.3s"></div>
-                </div>
-              </div>
-              <span style="min-width:50px;text-align:right;font-weight:600">${fmt(e.count||0)}</span>
-            </div>`
-          }).join('')}</div>`
-        : '<div class="empty-cell" style="padding:1rem">No custom events tracked</div>'
+      const eventsContainer = document.getElementById('events-container')
+      if (eventsContainer) {
+        if (!events.length) {
+          const emptyTemplate = document.getElementById('events-empty-template') as HTMLTemplateElement
+          if (emptyTemplate) {
+            eventsContainer.innerHTML = ''
+            eventsContainer.appendChild(emptyTemplate.content.cloneNode(true))
+          }
+        } else {
+          const listTemplate = document.getElementById('events-list-template') as HTMLTemplateElement
+          const itemTemplate = document.getElementById('event-item-template') as HTMLTemplateElement
+          if (listTemplate && itemTemplate) {
+            const totalEventCount = events.reduce((sum, e) => sum + (e.count || 0), 0)
+            const maxEventCount = Math.max(...events.map(e => e.count || 0), 1)
+
+            const listClone = listTemplate.content.cloneNode(true) as DocumentFragment
+            const listEl = listClone.querySelector('.events-list')
+
+            events.slice(0, 8).forEach(e => {
+              const pct = Math.round(((e.count || 0) / totalEventCount) * 100)
+              const barWidth = Math.round(((e.count || 0) / maxEventCount) * 100)
+
+              const item = itemTemplate.content.cloneNode(true) as DocumentFragment
+              const nameEl = item.querySelector('.event-bar-name')
+              const pctEl = item.querySelector('.event-bar-pct')
+              const fillEl = item.querySelector('.event-bar-fill') as HTMLElement
+              const countEl = item.querySelector('.event-bar-count')
+
+              if (nameEl) nameEl.textContent = e.name
+              if (pctEl) pctEl.textContent = `${pct}%`
+              if (fillEl) fillEl.style.width = `${barWidth}%`
+              if (countEl) countEl.textContent = fmt(e.count || 0)
+
+              listEl?.appendChild(item)
+            })
+
+            eventsContainer.innerHTML = ''
+            eventsContainer.appendChild(listClone)
+          }
+        }
+      }
 
       renderChart()
       renderGoals()
@@ -2029,39 +2328,47 @@
       if (!container) return
 
       if (!goals.length) {
-        container.innerHTML = '<div class="empty-cell" style="padding:1rem">No goals configured. Click "+ Add Goal" to create one.</div>'
+        const emptyTemplate = document.getElementById('goals-empty-template') as HTMLTemplateElement
+        if (emptyTemplate) {
+          container.innerHTML = ''
+          container.appendChild(emptyTemplate.content.cloneNode(true))
+        }
         return
       }
 
-      container.innerHTML = `
-        <table class="data-table">
-          <thead><tr>
-            <th>Goal</th>
-            <th>Type</th>
-            <th style="text-align:right">Conversions</th>
-            <th style="text-align:right">Value</th>
-            <th style="text-align:right">Actions</th>
-          </tr></thead>
-          <tbody>
-            ${goals.map(g => `
-              <tr>
-                <td class="name">${g.name}</td>
-                <td><span class="goal-type-badge ${g.type}">${g.type}</span></td>
-                <td class="value">${fmt(g.conversions || 0)}</td>
-                <td class="value">${g.totalValue ? '$' + g.totalValue.toFixed(2) : '-'}</td>
-                <td class="value">
-                  <button onclick="editGoal('${g.id}')" class="icon-btn" title="Edit">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  </button>
-                  <button onclick="deleteGoal('${g.id}')" class="icon-btn danger" title="Delete">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                  </button>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `
+      const tableTemplate = document.getElementById('goals-table-template') as HTMLTemplateElement
+      const rowTemplate = document.getElementById('goal-row-template') as HTMLTemplateElement
+      if (!tableTemplate || !rowTemplate) return
+
+      const tableClone = tableTemplate.content.cloneNode(true) as DocumentFragment
+      const tbody = tableClone.querySelector('#goals-table-body')
+      if (!tbody) return
+
+      goals.forEach(g => {
+        const row = rowTemplate.content.cloneNode(true) as DocumentFragment
+
+        const nameEl = row.querySelector('.goal-name')
+        const badgeEl = row.querySelector('.goal-type-badge')
+        const conversionsEl = row.querySelector('.goal-conversions')
+        const valueEl = row.querySelector('.goal-value')
+        const editBtn = row.querySelector('.edit-btn')
+        const deleteBtn = row.querySelector('.delete-btn')
+
+        if (nameEl) nameEl.textContent = g.name
+        if (badgeEl) {
+          badgeEl.textContent = g.type
+          badgeEl.classList.add(g.type)
+        }
+        if (conversionsEl) conversionsEl.textContent = fmt(g.conversions || 0)
+        if (valueEl) valueEl.textContent = g.totalValue ? '$' + g.totalValue.toFixed(2) : '-'
+        if (editBtn) editBtn.addEventListener('click', () => editGoal(g.id))
+        if (deleteBtn) deleteBtn.addEventListener('click', () => deleteGoal(g.id))
+
+        tbody.appendChild(row)
+      })
+
+      container.innerHTML = ''
+      container.appendChild(tableClone)
     }
 
     function showCreateGoalModal() {
@@ -2407,7 +2714,7 @@
       }
     })
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       if (siteId) {
         currentSite = { id: siteId }
         document.getElementById('site-selector').style.display = 'none'
@@ -2421,11 +2728,13 @@
           renderDashboard(false)
         }
 
-        fetchDashboardData()
-        refreshInterval = setInterval(fetchDashboardData, 30000)
-
         // Handle initial tab from URL (e.g., /dashboard/sessions?siteId=xxx)
         const initialTab = getTabFromUrl()
+
+        // Wait for data to load before switching to non-dashboard tabs
+        await fetchDashboardData()
+        refreshInterval = setInterval(fetchDashboardData, 30000)
+
         if (initialTab !== 'dashboard') {
           switchTab(initialTab, false) // Don't push to history on initial load
         }

@@ -1,0 +1,173 @@
+<script server>
+/**
+ * FlowTab Component
+ *
+ * Displays user flow visualization.
+ */
+</script>
+
+<template id="flow-tab-template">
+  <div class="tab-panel">
+    <h3 class="tab-title">User Flow</h3>
+    <p id="flow-summary" class="flow-summary"></p>
+    <div class="flow-container">
+      <div class="flow-column" id="flow-entry">
+        <h4 class="flow-column-title">Entry Pages</h4>
+        <div class="flow-nodes"></div>
+      </div>
+      <div class="flow-column flow-links" id="flow-links">
+        <h4 class="flow-column-title">Top Flows</h4>
+        <div class="flow-connections"></div>
+      </div>
+      <div class="flow-column" id="flow-visited">
+        <h4 class="flow-column-title">Most Visited</h4>
+        <div class="flow-ranks"></div>
+      </div>
+    </div>
+    <div id="flow-empty" class="empty-state" style="display:none">No flow data available. Users need to visit multiple pages in a session.</div>
+  </div>
+</template>
+
+<template id="flow-node-template">
+  <div class="flow-node">
+    <div class="flow-node-path"></div>
+    <div class="flow-node-count"></div>
+  </div>
+</template>
+
+<template id="flow-link-template">
+  <div class="flow-link">
+    <span class="flow-link-source"></span>
+    <span class="flow-link-arrow">→</span>
+    <span class="flow-link-target"></span>
+    <span class="flow-link-count"></span>
+  </div>
+</template>
+
+<template id="flow-rank-template">
+  <div class="flow-rank">
+    <span class="flow-rank-number"></span>
+    <span class="flow-rank-path"></span>
+    <span class="flow-rank-count"></span>
+  </div>
+</template>
+
+<style>
+.tab-panel {
+  grid-column: 1 / -1;
+}
+.tab-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+.flow-summary {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+.flow-container {
+  display: flex;
+  gap: 2rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+}
+.flow-column {
+  min-width: 200px;
+}
+.flow-column.flow-links {
+  min-width: 300px;
+  flex: 1;
+}
+.flow-column-title {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+.flow-nodes, .flow-connections, .flow-ranks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.flow-node {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+}
+.flow-node-path {
+  font-size: 0.8125rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.flow-node-count {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.flow-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+.flow-link-source, .flow-link-target {
+  background: var(--bg);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+  color: var(--text);
+}
+.flow-link-arrow {
+  color: var(--accent);
+}
+.flow-link-count {
+  color: var(--muted);
+  margin-left: auto;
+}
+.flow-rank {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.flow-rank-number {
+  width: 18px;
+  height: 18px;
+  background: var(--accent);
+  color: white;
+  border-radius: 50%;
+  font-size: 0.6875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.flow-rank-path {
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  color: var(--text);
+}
+.flow-rank-count {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+</style>

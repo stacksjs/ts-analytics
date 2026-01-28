@@ -1,0 +1,260 @@
+<script server>
+/**
+ * SessionModal Component
+ *
+ * Displays detailed session information with heatmap and timeline.
+ */
+</script>
+
+<template id="session-modal-template">
+  <div class="session-modal-content">
+    <div class="session-modal-header">
+      <h3 class="session-modal-title">Session: <span id="session-id"></span></h3>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="session-modal-body">
+      <div class="session-stats" id="session-stats"></div>
+      <div id="session-heatmap-section" style="display:none">
+        <h4 class="section-title">Click Heatmap (<span id="clicks-count">0</span> clicks)</h4>
+        <div id="heatmap-path-buttons" class="path-buttons"></div>
+        <div id="heatmap-container" class="heatmap-container">
+          <div id="heatmap-clicks" class="heatmap-clicks"></div>
+          <div id="heatmap-viewport" class="heatmap-viewport"></div>
+        </div>
+      </div>
+      <h4 class="section-title">Session Journey</h4>
+      <div id="session-journey" class="session-journey"></div>
+      <h4 class="section-title">Timeline (<span id="timeline-count">0</span> events)</h4>
+      <div id="session-timeline" class="timeline"></div>
+    </div>
+  </div>
+</template>
+
+<template id="session-stat-template">
+  <div class="session-stat">
+    <div class="session-stat-value"></div>
+    <div class="session-stat-label"></div>
+  </div>
+</template>
+
+<template id="journey-step-template">
+  <div class="journey-step">
+    <div class="journey-step-path"></div>
+    <div class="journey-step-time"></div>
+  </div>
+</template>
+
+<template id="timeline-item-template">
+  <div class="timeline-item">
+    <div class="timeline-type"></div>
+    <div class="timeline-content"></div>
+    <div class="timeline-time"></div>
+  </div>
+</template>
+
+<template id="timeline-pageview-content">
+  <span class="timeline-path"></span>
+</template>
+
+<template id="timeline-event-content">
+  <span class="timeline-event-name"></span>
+</template>
+
+<template id="timeline-click-content">
+  <span class="timeline-click-text"></span> <code class="timeline-click-element"></code>
+</template>
+
+<template id="timeline-vital-content">
+  <span class="timeline-vital-metric"></span>: <span class="timeline-vital-value"></span>
+</template>
+
+<template id="timeline-error-content">
+  <span class="timeline-error-message"></span>
+</template>
+
+<style>
+.session-modal-content {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 1000px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.session-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.session-modal-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+.modal-close:hover {
+  background: var(--bg3);
+  color: var(--text);
+}
+.session-modal-body {
+  padding: 1.5rem;
+}
+.session-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.session-stat {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+.session-stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.session-stat-label {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+.section-title {
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+.path-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.heatmap-container {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+.heatmap-clicks {
+  position: absolute;
+  inset: 0;
+}
+.heatmap-viewport {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  font-size: 0.6875rem;
+  color: var(--muted);
+  background: var(--bg2);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+.session-journey {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.journey-step {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+.journey-step-path {
+  color: var(--text);
+}
+.journey-step-time {
+  color: var(--muted);
+  font-size: 0.6875rem;
+}
+.journey-arrow {
+  color: var(--muted);
+}
+.timeline {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  background: var(--bg);
+  border-radius: 4px;
+}
+.timeline-type {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  background: var(--bg2);
+  color: var(--muted);
+  min-width: 60px;
+  text-align: center;
+}
+.timeline-type.pageview { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.timeline-type.event { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.timeline-type.click { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.timeline-type.vital { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.timeline-type.error { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.timeline-content {
+  flex: 1;
+  font-size: 0.8125rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.timeline-time {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.timeline-path { color: var(--accent); }
+.timeline-event-name { color: var(--success); }
+.timeline-click-text { color: var(--text); }
+.timeline-click-element {
+  background: var(--bg2);
+  padding: 0.125rem 0.25rem;
+  border-radius: 2px;
+  font-size: 0.75rem;
+}
+.timeline-vital-metric { color: var(--warning); }
+.timeline-vital-value { color: var(--muted); }
+.timeline-error-message { color: var(--error); }
+</style>

@@ -1,0 +1,124 @@
+<script server>
+/**
+ * TableRows Component
+ *
+ * Provides templates for dashboard table rows.
+ */
+</script>
+
+<!-- Page Row Template -->
+<template id="page-row-template">
+  <tr>
+    <td class="name page-cell"></td>
+    <td class="value entries-cell"></td>
+    <td class="value visitors-cell"></td>
+    <td class="value views-cell"></td>
+  </tr>
+</template>
+
+<!-- Referrer Row Template -->
+<template id="referrer-row-template">
+  <tr>
+    <td class="name referrer-cell"></td>
+    <td class="value visitors-cell"></td>
+    <td class="value views-cell"></td>
+  </tr>
+</template>
+
+<!-- Device Row Template -->
+<template id="device-row-template">
+  <tr>
+    <td class="name device-cell"></td>
+    <td class="value visitors-cell"></td>
+    <td class="value pct-cell"></td>
+  </tr>
+</template>
+
+<!-- Browser Row Template -->
+<template id="browser-row-template">
+  <tr>
+    <td class="name browser-cell"></td>
+    <td class="value visitors-cell"></td>
+    <td class="value pct-cell"></td>
+  </tr>
+</template>
+
+<!-- Country Row Template -->
+<template id="country-row-template">
+  <tr>
+    <td class="name country-cell"></td>
+    <td class="value visitors-cell"></td>
+  </tr>
+</template>
+
+<!-- Campaign Row Template -->
+<template id="campaign-row-template">
+  <tr>
+    <td class="name campaign-cell"></td>
+    <td class="value visitors-cell"></td>
+    <td class="value views-cell"></td>
+  </tr>
+</template>
+
+<!-- Empty Row Templates -->
+<template id="empty-row-4-template">
+  <tr><td colspan="4" class="empty-cell">No data available</td></tr>
+</template>
+
+<template id="empty-row-3-template">
+  <tr><td colspan="3" class="empty-cell">No data available</td></tr>
+</template>
+
+<template id="empty-row-2-template">
+  <tr><td colspan="2" class="empty-cell">No data available</td></tr>
+</template>
+
+<style>
+.name {
+  font-weight: 500;
+  color: var(--text);
+}
+.value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.empty-cell {
+  text-align: center;
+  color: var(--muted);
+  padding: 1rem;
+}
+.page-link {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.page-link:hover {
+  color: var(--accent);
+}
+.page-link svg {
+  margin-left: 4px;
+  opacity: 0.5;
+}
+.referrer-link {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.referrer-link:hover {
+  color: var(--accent);
+}
+.referrer-favicon {
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  margin-right: 6px;
+  border-radius: 2px;
+}
+.country-flag {
+  margin-right: 6px;
+}
+</style>

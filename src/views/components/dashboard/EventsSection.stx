@@ -37,22 +37,29 @@ const { events, loading } = withDefaults(
     <a href="#" onclick="navigateTo('events')" class="view-all">View all &rarr;</a>
   </div>
   <div id="events-container">
-    @if (loading)
-      <div class="empty-cell">Loading...</div>
-    @elseif (events.length === 0)
-      <div class="empty-cell">No events recorded</div>
-    @else
-      <div class="events-grid">
-        @foreach (events as event)
-          <div class="event-item">
-            <span class="event-name">{{ event.name }}</span>
-            <span class="event-count">{{ event.count }}</span>
-          </div>
-        @endforeach
-      </div>
-    @endif
+    <div class="empty-cell">Loading...</div>
   </div>
 </div>
+
+<!-- Client-side templates for dynamic updates -->
+<template id="events-list-template">
+  <div class="events-list"></div>
+</template>
+
+<template id="event-item-template">
+  <div class="event-bar-item">
+    <div class="event-bar-info">
+      <div class="event-bar-header">
+        <span class="event-bar-name"></span>
+        <span class="event-bar-pct"></span>
+      </div>
+      <div class="event-bar-track">
+        <div class="event-bar-fill"></div>
+      </div>
+    </div>
+    <span class="event-bar-count"></span>
+  </div>
+</template>
 
 <style>
 .events {
@@ -84,5 +91,54 @@ const { events, loading } = withDefaults(
   font-size: 0.875rem;
   color: var(--accent);
   font-weight: 600;
+}
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.event-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+.event-bar-info {
+  flex: 1;
+  min-width: 0;
+}
+.event-bar-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.event-bar-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.event-bar-pct {
+  color: var(--muted);
+  margin-left: 0.5rem;
+}
+.event-bar-track {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.event-bar-fill {
+  height: 100%;
+  background: var(--accent2);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.event-bar-count {
+  min-width: 50px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text);
 }
 </style>
