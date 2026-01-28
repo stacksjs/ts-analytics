@@ -156,7 +156,7 @@ export async function handleLambdaEvent(
 
   try {
     const request = eventToRequest(event)
-    const response = await router.handle(request)
+    const response = await router.handleRequest(request)
     return responseToLambda(response)
   } catch (error) {
     console.error('Lambda handler error:', error)

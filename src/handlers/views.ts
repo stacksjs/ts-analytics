@@ -1,22 +1,90 @@
 /**
  * View handlers for HTML pages
  *
- * Uses STX templates from src/views/ for rendering.
+ * Serves pre-built HTML templates with runtime placeholder replacement.
+ * Falls back to STX processing for local development.
  */
 
-import { processDirectives, extractVariables, defaultConfig } from '@stacksjs/stx'
 import { generateTrackingScript, generateMinimalTrackingScript } from '../index'
 import { htmlResponse, jsResponse } from '../utils/response'
 import { getQueryParams, getLambdaEvent } from '../../deploy/lambda-adapter'
 import path from 'node:path'
+import fs from 'node:fs'
 
-// Views directory path
+// Pre-built views directory - check multiple locations in order of priority
+// 1. Lambda deployment: /var/task/views/ (Lambda working directory)
+// 2. Bundled location: views/ relative to this file
+// 3. Development: dist/views/ from project root
+function findViewsDir(): string {
+  const candidates = [
+    '/var/task/views', // Lambda deployment
+    path.resolve(import.meta.dir, './views'), // Relative to bundled file
+    path.resolve(import.meta.dir, '../../dist/views'), // Development
+    path.resolve(process.cwd(), 'views'), // Current working directory
+    path.resolve(process.cwd(), 'dist/views'), // CWD dist
+  ]
+
+  for (const dir of candidates) {
+    try {
+      if (fs.existsSync(path.join(dir, 'dashboard.html'))) {
+        return dir
+      }
+    } catch {
+      // Continue to next candidate
+    }
+  }
+
+  // Fallback to source views for STX processing
+  return path.resolve(import.meta.dir, '../views')
+}
+
+const PREBUILT_DIR = findViewsDir()
+
+// Source views directory (for development fallback with STX processing)
 const VIEWS_DIR = path.resolve(import.meta.dir, '../views')
 
+// Check if pre-built views exist
+const hasPrebuiltViews = fs.existsSync(path.join(PREBUILT_DIR, 'dashboard.html'))
+
+// Placeholder tokens used in pre-built HTML
+const PLACEHOLDERS = {
+  siteId: '{{__SITE_ID__}}',
+  apiEndpoint: '{{__API_ENDPOINT__}}',
+  errorId: '{{__ERROR_ID__}}',
+  section: '{{__SECTION__}}',
+  title: '{{__TITLE__}}',
+  iconPath: '{{__ICON_PATH__}}',
+}
+
 /**
- * Render an STX template with context
+ * Replace placeholders in pre-built HTML
  */
-async function renderStx(templateName: string, props: Record<string, unknown> = {}): Promise<string> {
+function replacePlaceholders(html: string, values: Record<string, string>): string {
+  let result = html
+  for (const [key, placeholder] of Object.entries(PLACEHOLDERS)) {
+    if (values[key] !== undefined) {
+      result = result.replaceAll(placeholder, values[key])
+    }
+  }
+  return result
+}
+
+/**
+ * Load and process a pre-built view
+ */
+async function loadPrebuiltView(name: string, values: Record<string, string>): Promise<string> {
+  const filePath = path.join(PREBUILT_DIR, `${name}.html`)
+  const html = await Bun.file(filePath).text()
+  return replacePlaceholders(html, values)
+}
+
+/**
+ * Fallback: Render STX template directly (for development)
+ */
+async function renderStxDirect(templateName: string, props: Record<string, unknown> = {}): Promise<string> {
+  // Dynamic import to avoid bundling STX in Lambda
+  const { processDirectives, extractVariables, defaultConfig } = await import('@stacksjs/stx')
+
   const templatePath = path.join(VIEWS_DIR, templateName)
   const content = await Bun.file(templatePath).text()
 
@@ -51,7 +119,7 @@ async function renderStx(templateName: string, props: Record<string, unknown> = 
     partialsDir: path.join(VIEWS_DIR, 'partials'),
   }
 
-  const result = await processDirectives(templateContent, context, templatePath, config)
+  const result = await processDirectives(templateContent, context, templatePath, config, new Set())
   return result
 }
 
@@ -64,10 +132,12 @@ export async function handleDashboard(request: Request): Promise<Response> {
   const siteId = query.siteId || ''
   const apiEndpoint = `https://${event?.requestContext?.domainName || 'analytics.stacksjs.com'}`
 
-  const html = await renderStx('dashboard.stx', {
-    siteId,
-    apiEndpoint,
-  })
+  let html: string
+  if (hasPrebuiltViews) {
+    html = await loadPrebuiltView('dashboard', { siteId, apiEndpoint })
+  } else {
+    html = await renderStxDirect('dashboard.stx', { siteId, apiEndpoint })
+  }
 
   return htmlResponse(html)
 }
@@ -81,10 +151,12 @@ export async function handleTestErrors(request: Request): Promise<Response> {
   const siteId = query.siteId || 'test-site'
   const apiEndpoint = `https://${event?.requestContext?.domainName || 'analytics.stacksjs.com'}`
 
-  const html = await renderStx('test-errors.stx', {
-    siteId,
-    apiEndpoint,
-  })
+  let html: string
+  if (hasPrebuiltViews) {
+    html = await loadPrebuiltView('test-errors', { siteId, apiEndpoint })
+  } else {
+    html = await renderStxDirect('test-errors.stx', { siteId, apiEndpoint })
+  }
 
   return htmlResponse(html)
 }
@@ -98,11 +170,12 @@ export async function handleErrorDetailPage(request: Request, errorId: string): 
   const siteId = query.siteId || ''
   const apiEndpoint = `https://${event?.requestContext?.domainName || 'analytics.stacksjs.com'}`
 
-  const html = await renderStx('error-detail.stx', {
-    errorId,
-    siteId,
-    apiEndpoint,
-  })
+  let html: string
+  if (hasPrebuiltViews) {
+    html = await loadPrebuiltView('error-detail', { errorId, siteId, apiEndpoint })
+  } else {
+    html = await renderStxDirect('error-detail.stx', { errorId, siteId, apiEndpoint })
+  }
 
   return htmlResponse(html)
 }
@@ -141,13 +214,12 @@ export async function handleDetailPage(request: Request, section: string): Promi
   const title = titles[section] || section
   const iconPath = icons[section] || icons.pages
 
-  const html = await renderStx('detail.stx', {
-    section,
-    siteId,
-    apiEndpoint,
-    title,
-    iconPath,
-  })
+  let html: string
+  if (hasPrebuiltViews) {
+    html = await loadPrebuiltView('detail', { section, siteId, apiEndpoint, title, iconPath })
+  } else {
+    html = await renderStxDirect('detail.stx', { section, siteId, apiEndpoint, title, iconPath })
+  }
 
   return htmlResponse(html)
 }

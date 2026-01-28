@@ -106,18 +106,35 @@ async function deployLambdaAPI() {
     }
   }
 
-  // Step 2: Bundle and upload Lambda code
-  console.log('\n2. Bundling Lambda function...')
+  // Step 2: Pre-build STX views to HTML
+  console.log('\n2. Pre-building STX views...')
 
-  // Use Bun to bundle the Lambda handler as CommonJS for Lambda compatibility
+  const buildViewsProc = Bun.spawn(['bun', 'run', './scripts/build-views.ts'], {
+    cwd: process.cwd(),
+    stdout: 'inherit',
+    stderr: 'inherit',
+  })
+  await buildViewsProc.exited
+
+  if (buildViewsProc.exitCode !== 0) {
+    throw new Error('Failed to pre-build views')
+  }
+
+  // Step 3: Bundle and upload Lambda code
+  console.log('\n3. Bundling Lambda function...')
+
+  // Use Bun to bundle the Lambda handler for Bun runtime
   const bundleResult = await Bun.build({
     entrypoints: ['./deploy/lambda-handler.ts'],
     outdir: './dist/lambda',
-    target: 'node',
-    format: 'cjs', // CommonJS for Lambda Node.js runtime
+    target: 'bun', // Target Bun runtime (using bun-lambda layer)
+    format: 'esm',
     minify: true,
     sourcemap: 'none',
-    external: ['bunfig'], // bunfig not needed at runtime, causes bundling issues
+    external: [
+      '@stacksjs/stx', // Views are pre-built via STX at deploy time, not needed at runtime
+      'bun-plugin-stx',
+    ],
   })
 
   if (!bundleResult.success) {
@@ -127,18 +144,41 @@ async function deployLambdaAPI() {
 
   console.log('   Bundled successfully')
 
-  // Create zip file
-  const zipPath = './dist/lambda/function.zip'
+  // For Bun runtime, we keep the .js extension
   const jsPath = './dist/lambda/lambda-handler.js'
+  const fs = await import('node:fs')
 
-  // Read the bundled JS and create a simple zip
-  const jsContent = await Bun.file(jsPath).text()
+  // Create zip file with Lambda code and pre-built views
+  const zipPath = './dist/lambda/function.zip'
+  const viewsDir = './dist/views'
 
-  // Create a zip using Bun's built-in capabilities
-  const { Gzip } = await import('bun')
+  // Create views directory in lambda output
+  const lambdaViewsDir = './dist/lambda/views'
+  fs.mkdirSync(lambdaViewsDir, { recursive: true })
 
-  // For Lambda, we need a proper ZIP file. Let's use a simpler approach
-  const proc = Bun.spawn(['zip', '-j', zipPath, jsPath], {
+  // Copy pre-built views to lambda directory
+  const viewFiles = fs.readdirSync(viewsDir)
+  for (const file of viewFiles) {
+    const src = `${viewsDir}/${file}`
+    const dest = `${lambdaViewsDir}/${file}`
+    fs.copyFileSync(src, dest)
+  }
+  console.log(`   Copied ${viewFiles.length} pre-built views`)
+
+  // Create zip with all files
+  const path = await import('node:path')
+  const absoluteZipPath = path.resolve(zipPath)
+  const absoluteJsPath = path.resolve(jsPath)
+
+  // First delete old zip if exists
+  try {
+    fs.unlinkSync(zipPath)
+  } catch {
+    // Ignore if doesn't exist
+  }
+
+  // Add lambda handler
+  let proc = Bun.spawn(['zip', '-j', absoluteZipPath, absoluteJsPath], {
     cwd: process.cwd(),
     stdout: 'inherit',
     stderr: 'inherit',
@@ -148,8 +188,18 @@ async function deployLambdaAPI() {
   if (proc.exitCode !== 0) {
     throw new Error('Failed to create zip file')
   }
+  proc = Bun.spawn(['zip', '-r', absoluteZipPath, 'views'], {
+    cwd: './dist/lambda',
+    stdout: 'inherit',
+    stderr: 'inherit',
+  })
+  await proc.exited
 
-  console.log('   Created deployment package')
+  if (proc.exitCode !== 0) {
+    throw new Error('Failed to add views to zip file')
+  }
+
+  console.log('   Created deployment package with pre-built views')
 
   // Upload to S3 using ts-cloud
   const zipBuffer = await Bun.file(zipPath).arrayBuffer()
@@ -165,8 +215,8 @@ async function deployLambdaAPI() {
 
   console.log(`   Uploaded to s3://${BUCKET_NAME}/${s3Key}`)
 
-  // Step 3: Deploy CloudFormation stack
-  console.log('\n3. Deploying Lambda and API Gateway...')
+  // Step 4: Deploy CloudFormation stack
+  console.log('\n4. Deploying Lambda and API Gateway...')
 
   const template = JSON.stringify({
     AWSTemplateFormatVersion: '2010-09-09',
@@ -228,13 +278,17 @@ async function deployLambdaAPI() {
         },
       },
 
-      // Lambda function
+      // Lambda function (using Bun runtime via custom layer)
       LambdaFunction: {
         Type: 'AWS::Lambda::Function',
         Properties: {
           FunctionName: SERVICE_NAME,
-          Runtime: 'nodejs20.x',
-          Handler: 'lambda-handler.handler',
+          Runtime: 'provided.al2023', // Custom runtime for bun-lambda
+          Handler: 'lambda-handler.fetch', // Bun server format
+          Architectures: ['arm64'], // Required for bun-lambda layer
+          Layers: [
+            `arn:aws:lambda:${REGION}:923076644019:layer:bun-runtime:1`,
+          ],
           Code: {
             S3Bucket: { Ref: 'S3Bucket' },
             S3Key: { Ref: 'S3Key' },
@@ -245,7 +299,6 @@ async function deployLambdaAPI() {
           Environment: {
             Variables: {
               ANALYTICS_TABLE_NAME: { Ref: 'TableName' },
-              AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
               STEALTH_DOMAIN: STEALTH_DOMAIN,
             },
           },
@@ -447,7 +500,7 @@ async function deployLambdaAPI() {
     console.log(`   API Endpoint: ${apiEndpoint}`)
 
     // Test the health endpoint
-    console.log('\n4. Testing API...')
+    console.log('\n5. Testing API...')
     try {
       const healthResponse = await fetch(`${apiEndpoint}/health`)
       const healthData = await healthResponse.json()
@@ -459,7 +512,7 @@ async function deployLambdaAPI() {
 
     // Step 4: Create Route53 A record for custom domain
     if (DOMAIN && BASE_DOMAIN && certificateArn) {
-      console.log('\n5. Setting up custom domain DNS...')
+      console.log('\n6. Setting up custom domain DNS...')
 
       const customDomainTarget = outputs.CustomDomainTarget
       const customDomainHostedZoneId = outputs.CustomDomainHostedZoneId

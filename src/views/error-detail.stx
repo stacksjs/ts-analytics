@@ -1,115 +1,129 @@
-<script server>
-export const errorId = props.errorId || ''
-export const siteId = props.siteId || ''
-export const apiEndpoint = props.apiEndpoint || ''
-</script>
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error Details - Analytics</title>
+</head>
+<body class="bg-gray-900 text-gray-200 font-sans antialiased min-h-screen p-8">
+  <div class="max-w-6xl mx-auto">
+    <a id="backLink" href="/dashboard" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline mb-4">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Back to Dashboard
+    </a>
 
-@layout('layouts/base', { title: 'Error Details - Analytics', siteId, apiEndpoint })
+    <header class="mb-6">
+      <h1 class="text-2xl font-semibold text-white">Error Details</h1>
+    </header>
 
-@section('content')
-  @component('BackLink', { href: '/dashboard?siteId=' + siteId })
-  @endcomponent
+    <div id="errorIdDisplay" class="bg-gray-800 rounded-lg px-4 py-3 font-mono text-sm break-all mb-6">
+      Error ID: Loading...
+    </div>
 
-  @component('PageHeader', { title: 'Error Details' })
-  @endcomponent
-
-  <div class="bg-gray-800 rounded-lg px-4 py-3 font-mono text-sm break-all mb-6">
-    Error ID: {{ errorId }}
+    <div id="error-content" class="text-gray-400 text-center py-8">Loading error details...</div>
   </div>
 
-  <div id="error-content" class="text-gray-400 text-center py-8">Loading error details...</div>
-@endsection
+  <script>
+    // Get params from URL and global config
+    const urlParams = new URLSearchParams(window.location.search)
+    const API = window.ANALYTICS_API || urlParams.get('api') || window.location.origin
+    const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
 
-@push('scripts')
-<script>
-  const API = window.ANALYTICS_API
-  const SITE_ID = window.ANALYTICS_SITE_ID
-  const ERROR_ID = '{{ errorId }}'
+    // Extract error ID from URL path
+    const pathMatch = window.location.pathname.match(/\/errors\/(.+)/)
+    const ERROR_ID = pathMatch ? decodeURIComponent(pathMatch[1]) : ''
 
-  async function loadErrorDetails() {
-    try {
-      const res = await fetch(`${API}/api/sites/${SITE_ID}/errors?errorId=${encodeURIComponent(ERROR_ID)}`)
-      if (!res.ok) throw new Error('Failed to load')
-      const data = await res.json()
-      renderErrorDetails(data)
-    } catch (err) {
-      document.getElementById('error-content').innerHTML = '<p class="text-red-400">Failed to load error details</p>'
-    }
-  }
+    // Update UI
+    document.getElementById('backLink').href = '/dashboard?siteId=' + SITE_ID
+    document.getElementById('errorIdDisplay').textContent = 'Error ID: ' + ERROR_ID
 
-  function renderErrorDetails(data) {
-    const error = data.errors?.[0]
-    if (!error) {
-      document.getElementById('error-content').innerHTML = '<p>Error not found</p>'
-      return
+    async function loadErrorDetails() {
+      try {
+        const res = await fetch(`${API}/api/sites/${SITE_ID}/errors?errorId=${encodeURIComponent(ERROR_ID)}`)
+        if (!res.ok) throw new Error('Failed to load')
+        const data = await res.json()
+        renderErrorDetails(data)
+      } catch (err) {
+        document.getElementById('error-content').innerHTML = '<p class="text-red-400">Failed to load error details</p>'
+      }
     }
 
-    const statusClass = error.status === 'resolved' ? 'bg-green-900 text-green-300' :
-                        error.status === 'ignored' ? 'bg-gray-700 text-gray-300' : 'bg-red-900 text-red-300'
+    function renderErrorDetails(data) {
+      const error = data.errors?.[0]
+      if (!error) {
+        document.getElementById('error-content').innerHTML = '<p>Error not found</p>'
+        return
+      }
 
-    document.getElementById('error-content').innerHTML = `
-      <div class="bg-gray-800 rounded-lg p-6">
-        <div class="flex justify-between items-start mb-4">
-          <h3 class="text-red-400 text-lg font-medium">${escapeHtml(error.message || 'Unknown Error')}</h3>
-          <span class="px-2 py-1 rounded text-xs font-medium ${statusClass}">${error.status || 'open'}</span>
+      const statusClass = error.status === 'resolved' ? 'bg-green-900 text-green-300' :
+                          error.status === 'ignored' ? 'bg-gray-700 text-gray-300' : 'bg-red-900 text-red-300'
+
+      document.getElementById('error-content').innerHTML = `
+        <div class="bg-gray-800 rounded-lg p-6">
+          <div class="flex justify-between items-start mb-4">
+            <h3 class="text-red-400 text-lg font-medium">${escapeHtml(error.message || 'Unknown Error')}</h3>
+            <span class="px-2 py-1 rounded text-xs font-medium ${statusClass}">${error.status || 'open'}</span>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+            <div class="bg-gray-900 rounded p-3">
+              <div class="text-gray-500 text-xs mb-1">First Seen</div>
+              <div class="text-sm font-medium">${new Date(error.firstSeen || error.timestamp).toLocaleString()}</div>
+            </div>
+            <div class="bg-gray-900 rounded p-3">
+              <div class="text-gray-500 text-xs mb-1">Last Seen</div>
+              <div class="text-sm font-medium">${new Date(error.lastSeen || error.timestamp).toLocaleString()}</div>
+            </div>
+            <div class="bg-gray-900 rounded p-3">
+              <div class="text-gray-500 text-xs mb-1">Occurrences</div>
+              <div class="text-sm font-medium">${error.count || 1}</div>
+            </div>
+            <div class="bg-gray-900 rounded p-3">
+              <div class="text-gray-500 text-xs mb-1">Browser</div>
+              <div class="text-sm font-medium">${error.browser || 'Unknown'}</div>
+            </div>
+            <div class="bg-gray-900 rounded p-3">
+              <div class="text-gray-500 text-xs mb-1">Device</div>
+              <div class="text-sm font-medium">${error.deviceType || 'Unknown'}</div>
+            </div>
+            <div class="bg-gray-900 rounded p-3">
+              <div class="text-gray-500 text-xs mb-1">Page</div>
+              <div class="text-sm font-medium truncate">${escapeHtml(error.path || error.url || 'Unknown')}</div>
+            </div>
+          </div>
+
+          ${error.stack ? `<pre class="bg-gray-900 rounded p-4 text-sm overflow-x-auto mt-4">${escapeHtml(error.stack)}</pre>` : ''}
+
+          <div class="flex gap-2 mt-4">
+            ${error.status !== 'resolved' ? `<button onclick="updateStatus('resolved')" class="px-4 py-2 bg-green-700 hover:bg-green-600 rounded text-sm font-medium">Mark Resolved</button>` : ''}
+            ${error.status !== 'ignored' ? `<button onclick="updateStatus('ignored')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium">Ignore</button>` : ''}
+            ${error.status !== 'open' ? `<button onclick="updateStatus('open')" class="px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded text-sm font-medium">Reopen</button>` : ''}
+          </div>
         </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-          <div class="bg-gray-900 rounded p-3">
-            <div class="text-gray-500 text-xs mb-1">First Seen</div>
-            <div class="text-sm font-medium">${new Date(error.firstSeen || error.timestamp).toLocaleString()}</div>
-          </div>
-          <div class="bg-gray-900 rounded p-3">
-            <div class="text-gray-500 text-xs mb-1">Last Seen</div>
-            <div class="text-sm font-medium">${new Date(error.lastSeen || error.timestamp).toLocaleString()}</div>
-          </div>
-          <div class="bg-gray-900 rounded p-3">
-            <div class="text-gray-500 text-xs mb-1">Occurrences</div>
-            <div class="text-sm font-medium">${error.count || 1}</div>
-          </div>
-          <div class="bg-gray-900 rounded p-3">
-            <div class="text-gray-500 text-xs mb-1">Browser</div>
-            <div class="text-sm font-medium">${error.browser || 'Unknown'}</div>
-          </div>
-          <div class="bg-gray-900 rounded p-3">
-            <div class="text-gray-500 text-xs mb-1">Device</div>
-            <div class="text-sm font-medium">${error.deviceType || 'Unknown'}</div>
-          </div>
-          <div class="bg-gray-900 rounded p-3">
-            <div class="text-gray-500 text-xs mb-1">Page</div>
-            <div class="text-sm font-medium truncate">${escapeHtml(error.path || error.url || 'Unknown')}</div>
-          </div>
-        </div>
-
-        ${error.stack ? `<pre class="bg-gray-900 rounded p-4 text-sm overflow-x-auto mt-4">${escapeHtml(error.stack)}</pre>` : ''}
-
-        <div class="flex gap-2 mt-4">
-          ${error.status !== 'resolved' ? `<button onclick="updateStatus('resolved')" class="px-4 py-2 bg-green-700 hover:bg-green-600 rounded text-sm font-medium">Mark Resolved</button>` : ''}
-          ${error.status !== 'ignored' ? `<button onclick="updateStatus('ignored')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium">Ignore</button>` : ''}
-          ${error.status !== 'open' ? `<button onclick="updateStatus('open')" class="px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded text-sm font-medium">Reopen</button>` : ''}
-        </div>
-      </div>
-    `
-  }
-
-  function escapeHtml(str) {
-    if (!str) return ''
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-  }
-
-  async function updateStatus(status) {
-    try {
-      await fetch(`${API}/api/sites/${SITE_ID}/errors/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ errorId: ERROR_ID, status })
-      })
-      loadErrorDetails()
-    } catch (err) {
-      alert('Failed to update status')
+      `
     }
-  }
 
-  loadErrorDetails()
-</script>
-@endpush
+    function escapeHtml(str) {
+      if (!str) return ''
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    }
+
+    async function updateStatus(status) {
+      try {
+        await fetch(`${API}/api/sites/${SITE_ID}/errors/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ errorId: ERROR_ID, status })
+        })
+        loadErrorDetails()
+      } catch (err) {
+        alert('Failed to update status')
+      }
+    }
+
+    loadErrorDetails()
+  </script>
+</body>
+</html>
