@@ -48,9 +48,23 @@ export async function createRouter(): Promise<Router> {
     const errorId = decodeURIComponent(req.params.errorId)
     return views.handleErrorDetailPage(req, errorId)
   })
+
+  // SPA tabs - serve the main dashboard (client-side routing handles the tab)
+  const spaTabs = ['live', 'sessions', 'funnels', 'flow', 'vitals', 'errors', 'insights', 'settings']
+  for (const tab of spaTabs) {
+    await router.get(`/dashboard/${tab}`, views.handleDashboard)
+  }
+
+  // Detail pages - server-rendered pages for data exploration
+  const detailPages = ['pages', 'referrers', 'devices', 'browsers', 'countries', 'campaigns', 'events', 'goals']
   await router.get('/dashboard/{section}', (req) => {
     const section = req.params.section
-    return views.handleDetailPage(req, section)
+    // Only handle detail pages, SPA tabs are handled above
+    if (detailPages.includes(section)) {
+      return views.handleDetailPage(req, section)
+    }
+    // Unknown section - serve dashboard and let client handle
+    return views.handleDashboard(req)
   })
 
   // Collection endpoints
