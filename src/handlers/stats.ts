@@ -574,13 +574,13 @@ export async function handleGetTimeSeries(request: Request, siteId: string): Pro
       }
     }
 
-    const timeseries = allBuckets.map(bucket => ({
+    const timeSeries = allBuckets.map(bucket => ({
       timestamp: bucket,
       views: bucketMap[bucket]?.views || 0,
       visitors: bucketMap[bucket]?.visitors.size || 0,
     }))
 
-    return jsonResponse({ timeseries })
+    return jsonResponse({ timeSeries })
   } catch (error) {
     console.error('TimeSeries error:', error)
     return errorResponse('Failed to fetch time series')

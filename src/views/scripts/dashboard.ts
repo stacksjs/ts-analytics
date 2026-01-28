@@ -255,9 +255,10 @@
       document.getElementById('site-selector').style.display = 'none'
       document.getElementById('dashboard').style.display = 'block'
       document.getElementById('current-site-name').textContent = siteName
-      const url = new URL(window.location.href)
+      // Always navigate to /dashboard with siteId
+      const url = new URL(window.location.origin + '/dashboard')
       url.searchParams.set('siteId', id)
-      window.history.pushState({}, '', url)
+      window.history.pushState({ tab: 'dashboard', siteId: id }, '', url)
 
       // Load and display cached stats immediately
       const cached = loadCachedStats()
@@ -2339,4 +2340,49 @@
     })
 
     window.addEventListener('resize', () => { if (timeSeriesData.length) renderChart() })
+
+    // Expose functions to global scope for onclick handlers
+    Object.assign(window, {
+      selectSite,
+      fetchSites,
+      createSite,
+      goBack,
+      toggleTheme,
+      setDateRange,
+      applyFilters,
+      clearFilters,
+      switchTab,
+      navigateTo,
+      showCreateGoalModal,
+      closeModal,
+      closeGoalModal,
+      saveGoal,
+      updateGoalForm,
+      createGoal,
+      editGoal,
+      deleteGoal,
+      viewSession,
+      analyzeFunnel,
+      fetchFunnels,
+      showCreateFunnelModal,
+      createAlert,
+      deleteAlert,
+      addEmailReport,
+      deleteEmailReport,
+      createApiKey,
+      deleteApiKey,
+      createPerfBudget,
+      deletePerfBudget,
+      createUptimeMonitor,
+      deleteUptimeMonitor,
+      addWebhook,
+      deleteWebhook,
+      inviteTeamMember,
+      gdprExport,
+      gdprDelete,
+      updateErrorStatus,
+      bulkResolveErrors,
+      bulkIgnoreErrors,
+      showPathHeatmap,
+    })
 

@@ -33,7 +33,7 @@ const isEditing = goal && goal.id
 const modalTitle = isEditing ? 'Edit Goal' : 'Create Goal'
 </script>
 
-<div id="goal-modal" class="goal-modal" style="{{ isOpen ? '' : 'display:none' }}">
+<div id="goal-modal" class="goal-modal" style="display:none">
   <div class="modal-content">
     <h3 id="goal-modal-title">{{ modalTitle }}</h3>
     <form id="goal-form" onsubmit="saveGoal(event)">

@@ -59,7 +59,7 @@ async function renderStx(templatePath: string, props: Record<string, unknown> = 
   // Process STX directives with the context that now has the extracted variables
   const config = {
     ...defaultConfig,
-    componentsDir: path.join(VIEWS_DIR, 'components'),
+    componentsDir: path.join(VIEWS_DIR, 'components/dashboard'),
     layoutsDir: path.join(VIEWS_DIR, 'layouts'),
     partialsDir: path.join(VIEWS_DIR, 'partials'),
   }
