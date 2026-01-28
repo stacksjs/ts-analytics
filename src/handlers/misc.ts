@@ -1,8 +1,8 @@
 /**
- * Miscellaneous handlers (health, sites list, revenue)
+ * Miscellaneous handlers (health, sites list, revenue, site management)
  */
 
-import { dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
+import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
@@ -12,6 +12,105 @@ import { getQueryParams } from '../../deploy/lambda-adapter'
  */
 export async function handleHealth(_request: Request): Promise<Response> {
   return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() })
+}
+
+/**
+ * POST /api/sites - Create a new site
+ */
+export async function handleCreateSite(request: Request): Promise<Response> {
+  try {
+    const body = await request.json() as { name?: string; domain?: string; domains?: string[] }
+
+    if (!body.name) {
+      return jsonResponse({ error: 'Site name is required' }, 400)
+    }
+
+    const siteId = body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    const domains = body.domains || (body.domain ? [body.domain] : [])
+    const now = new Date().toISOString()
+
+    // Check if site already exists
+    const existing = await dynamodb.getItem({
+      TableName: TABLE_NAME,
+      Key: {
+        pk: { S: 'SITES' },
+        sk: { S: `SITE#${siteId}` },
+      },
+    })
+
+    if (existing.Item) {
+      return jsonResponse({ error: 'Site already exists', siteId }, 409)
+    }
+
+    // Create the site
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: 'SITES',
+        sk: `SITE#${siteId}`,
+        id: siteId,
+        siteId,
+        name: body.name,
+        domains,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    })
+
+    return jsonResponse({
+      success: true,
+      site: {
+        id: siteId,
+        name: body.name,
+        domains,
+        createdAt: now,
+      },
+    }, 201)
+  } catch (error) {
+    console.error('Create site error:', error)
+    return errorResponse('Failed to create site')
+  }
+}
+
+/**
+ * Ensure a site exists (auto-create if not) - used by collect handler
+ */
+export async function ensureSiteExists(siteId: string, hostname?: string): Promise<void> {
+  try {
+    // Check if site exists
+    const existing = await dynamodb.getItem({
+      TableName: TABLE_NAME,
+      Key: {
+        pk: { S: 'SITES' },
+        sk: { S: `SITE#${siteId}` },
+      },
+    })
+
+    if (!existing.Item) {
+      const now = new Date().toISOString()
+      const domains = hostname ? [hostname] : []
+
+      // Auto-create the site
+      await dynamodb.putItem({
+        TableName: TABLE_NAME,
+        Item: marshall({
+          pk: 'SITES',
+          sk: `SITE#${siteId}`,
+          id: siteId,
+          siteId,
+          name: siteId, // Use siteId as name, can be updated later
+          domains,
+          createdAt: now,
+          updatedAt: now,
+          autoCreated: true,
+        }),
+      })
+      console.log(`[ensureSiteExists] Auto-created site: ${siteId}`)
+    }
+  } catch (error) {
+    // Log but don't fail - site creation is best-effort
+    console.error('[ensureSiteExists] Error:', error)
+  }
 }
 
 /**

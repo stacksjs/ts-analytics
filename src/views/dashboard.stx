@@ -169,7 +169,7 @@
       const container = document.getElementById('site-list')
       container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading sites...</p></div>'
       try {
-        const res = await fetch(\`\${API_ENDPOINT}/api/sites\`)
+        const res = await fetch(`${API_ENDPOINT}/api/sites`)
         if (!res.ok) throw new Error('Failed to fetch')
         const data = await res.json()
         availableSites = data.sites || []
@@ -181,22 +181,78 @@
 
     function renderSiteSelector() {
       const container = document.getElementById('site-list')
+
+      // Always show create site form at top
+      const createForm = `<div class="create-site-form" style="margin-bottom:1.5rem;width:100%;max-width:500px">
+        <h3 style="font-size:0.875rem;margin-bottom:0.75rem;color:var(--text2)">Create New Site</h3>
+        <form onsubmit="createSite(event)" style="display:flex;gap:0.5rem">
+          <input type="text" id="new-site-name" placeholder="Site name (e.g. My Website)" required style="flex:1;padding:0.5rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:0.875rem">
+          <input type="text" id="new-site-domain" placeholder="Domain (optional)" style="flex:1;padding:0.5rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:0.875rem">
+          <button type="submit" style="padding:0.5rem 1rem;border-radius:6px;background:var(--accent);color:white;border:none;cursor:pointer;font-weight:500">Create</button>
+        </form>
+        <p id="create-site-error" style="color:var(--error);font-size:0.75rem;margin-top:0.5rem;display:none"></p>
+      </div>`
+
       if (availableSites.length === 0) {
-        container.innerHTML = \`<div class="empty">
-          <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <p>No sites found</p>
-          <p style="font-size:0.75rem;margin-top:0.5rem">Create a site using the CLI to start tracking</p>
-          <code style="font-size:0.75rem;background:#2d3344;padding:0.5rem 1rem;border-radius:4px;margin-top:1rem">cloud analytics:sites:create "My Site" --domain example.com</code>
-        </div>
+        container.innerHTML = createForm + `<div class="empty" style="margin-top:1rem">
+          <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <p>No sites yet</p>
+          <p style="font-size:0.75rem;margin-top:0.5rem;color:var(--muted)">Create your first site above to start tracking analytics</p>
+        </div>`
         return
       }
-      container.innerHTML = availableSites.map(s => 
-        <button class="site-card" onclick="selectSite('\${s.id}', '\${(s.name || '').replace(/'/g, "\\\\'")}')">
+
+      container.innerHTML = createForm + `<h3 style="font-size:0.875rem;margin-bottom:0.75rem;color:var(--text2);width:100%;max-width:500px">Your Sites</h3>` + availableSites.map(s =>
+        `<button class="site-card" onclick="selectSite('${s.id}', '${(s.name || '').replace(/'/g, "\\\\'")}')">
           <div class="site-icon"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg></div>
-          <div class="site-info"><span class="site-name">\${s.name || 'Unnamed'}</span><span class="site-domain">\${s.domains?.[0] || s.id}</span></div>
+          <div class="site-info"><span class="site-name">${s.name || 'Unnamed'}</span><span class="site-domain">${s.domains?.[0] || s.id}</span></div>
           <svg class="arrow" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-        </button>
-      \`).join('')
+        </button>`
+      ).join('')
+    }
+
+    async function createSite(e) {
+      e.preventDefault()
+      const nameInput = document.getElementById('new-site-name')
+      const domainInput = document.getElementById('new-site-domain')
+      const errorEl = document.getElementById('create-site-error')
+
+      const name = nameInput.value.trim()
+      const domain = domainInput.value.trim()
+
+      if (!name) {
+        errorEl.textContent = 'Site name is required'
+        errorEl.style.display = 'block'
+        return
+      }
+
+      try {
+        const res = await fetch(`${API_ENDPOINT}/api/sites`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, domain: domain || undefined })
+        })
+        const data = await res.json()
+
+        if (!res.ok) {
+          errorEl.textContent = data.error || 'Failed to create site'
+          errorEl.style.display = 'block'
+          return
+        }
+
+        errorEl.style.display = 'none'
+        nameInput.value = ''
+        domainInput.value = ''
+
+        // Refresh sites list and select the new site
+        await fetchSites()
+        if (data.site) {
+          selectSite(data.site.id, data.site.name)
+        }
+      } catch (err) {
+        errorEl.textContent = 'Failed to create site'
+        errorEl.style.display = 'block'
+      }
     }
 
     function selectSite(id, name) {
@@ -243,7 +299,7 @@
     function setDateRange(range) {
       dateRange = range
       document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'))
-      document.querySelector(\`[data-range="\${range}"]\`).classList.add('active')
+      document.querySelector(`[data-range="${range}"]`).classList.add('active')
       fetchDashboardData()
     }
 
@@ -271,7 +327,7 @@
       const date = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString()
 
       try {
-        await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/annotations\`, {
+        await fetch(`${API_ENDPOINT}/api/sites/${siteId}/annotations`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type, title, description, date })
@@ -297,8 +353,8 @@
         case '90d': start = new Date(now - 90*24*60*60*1000); break
         default: start = new Date(now - 30*24*60*60*1000)
       }
-      let params = \`?startDate=\${start.toISOString()}&endDate=\${end}
-      if (forTimeseries) params += \`&period=\${period}
+      let params = `?startDate=${start.toISOString()}&endDate=${end}`
+      if (forTimeseries) params += `&period=${period}`
       return params
     }
 
@@ -313,32 +369,32 @@
       const spinStartTime = Date.now()
       document.getElementById('refresh-btn').classList.add('spinning')
 
-      const baseUrl = \`\${API_ENDPOINT}/api/sites/\${siteId}
+      const baseUrl = `${API_ENDPOINT}/api/sites/${siteId}`
       const params = getDateRangeParams(false)
       const tsParams = getDateRangeParams(true)
 
       try {
         const fetchPromises = [
-          fetch(\`\${baseUrl}/stats\${params}\`).then(r => r.json()).catch(() => ({})),
-          fetch(\`\${baseUrl}/realtime\`).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
-          fetch(\`\${baseUrl}/pages\${params}\`).then(r => r.json()).catch(() => ({ pages: [] })),
-          fetch(\`\${baseUrl}/referrers\${params}\`).then(r => r.json()).catch(() => ({ referrers: [] })),
-          fetch(\`\${baseUrl}/devices\${params}\`).then(r => r.json()).catch(() => ({ deviceTypes: [] })),
-          fetch(\`\${baseUrl}/browsers\${params}\`).then(r => r.json()).catch(() => ({ browsers: [] })),
-          fetch(\`\${baseUrl}/countries\${params}\`).then(r => r.json()).catch(() => ({ countries: [] })),
-          fetch(\`\${baseUrl}/timeseries\${tsParams}\`).then(r => r.json()).catch(() => ({ timeSeries: [] })),
-          fetch(\`\${baseUrl}/events\${params}\`).then(r => r.json()).catch(() => ({ events: [] })),
-          fetch(\`\${baseUrl}/campaigns\${params}\`).then(r => r.json()).catch(() => ({ campaigns: [] })),
-          fetch(\`\${baseUrl}/goals\${params}\`).then(r => r.json()).catch(() => ({ goals: [] })),
-          fetch(\`\${baseUrl}/vitals\${params}\`).then(r => r.json()).catch(() => ({ vitals: [] })),
-          fetch(\`\${baseUrl}/errors\${params}\`).then(r => r.json()).catch(() => ({ errors: [] })),
-          fetch(\`\${baseUrl}/insights\`).then(r => r.json()).catch(() => ({ insights: [] })),
-          fetch(\`\${baseUrl}/annotations\${params}\`).then(r => r.json()).catch(() => ({ annotations: [] })),
+          fetch(`${baseUrl}/stats${params}`).then(r => r.json()).catch(() => ({})),
+          fetch(`${baseUrl}/realtime`).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
+          fetch(`${baseUrl}/pages${params}`).then(r => r.json()).catch(() => ({ pages: [] })),
+          fetch(`${baseUrl}/referrers${params}`).then(r => r.json()).catch(() => ({ referrers: [] })),
+          fetch(`${baseUrl}/devices${params}`).then(r => r.json()).catch(() => ({ deviceTypes: [] })),
+          fetch(`${baseUrl}/browsers${params}`).then(r => r.json()).catch(() => ({ browsers: [] })),
+          fetch(`${baseUrl}/countries${params}`).then(r => r.json()).catch(() => ({ countries: [] })),
+          fetch(`${baseUrl}/timeseries${tsParams}`).then(r => r.json()).catch(() => ({ timeSeries: [] })),
+          fetch(`${baseUrl}/events${params}`).then(r => r.json()).catch(() => ({ events: [] })),
+          fetch(`${baseUrl}/campaigns${params}`).then(r => r.json()).catch(() => ({ campaigns: [] })),
+          fetch(`${baseUrl}/goals${params}`).then(r => r.json()).catch(() => ({ goals: [] })),
+          fetch(`${baseUrl}/vitals${params}`).then(r => r.json()).catch(() => ({ vitals: [] })),
+          fetch(`${baseUrl}/errors${params}`).then(r => r.json()).catch(() => ({ errors: [] })),
+          fetch(`${baseUrl}/insights`).then(r => r.json()).catch(() => ({ insights: [] })),
+          fetch(`${baseUrl}/annotations${params}`).then(r => r.json()).catch(() => ({ annotations: [] })),
         ]
 
         // Add comparison data fetch if enabled
         if (showComparison) {
-          fetchPromises.push(fetch(\`\${baseUrl}/comparison\${params}\`).then(r => r.json()).catch(() => null))
+          fetchPromises.push(fetch(`${baseUrl}/comparison${params}`).then(r => r.json()).catch(() => null))
         }
 
         const results = await Promise.all(fetchPromises)
@@ -466,7 +522,7 @@
     async function fetchUserFlow() {
       const params = getDateRangeParams(false)
       try {
-        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/flow\${params}\`)
+        const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/flow${params}`)
         flowData = await res.json()
         renderUserFlow()
       } catch (e) {
@@ -485,52 +541,52 @@
       const entryNodes = nodes.filter(n => n.id === '/' || links.every(l => l.target !== n.id || l.source === n.id))
       const otherNodes = nodes.filter(n => !entryNodes.includes(n))
 
-      tabContent.innerHTML = 
+      tabContent.innerHTML = `
         <div style="grid-column:1/-1">
           <h3 style="margin-bottom:0.5rem;font-size:1rem">User Flow</h3>
-          <p style="font-size:0.75rem;color:var(--muted);margin-bottom:1.5rem">Showing top paths from \${analyzedSessions} of \${totalSessions} multi-page sessions</p>
+          <p style="font-size:0.75rem;color:var(--muted);margin-bottom:1.5rem">Showing top paths from ${analyzedSessions} of ${totalSessions} multi-page sessions</p>
 
           <div style="display:flex;gap:2rem;overflow-x:auto;padding-bottom:1rem">
             <!-- Entry pages -->
             <div style="min-width:200px">
               <h4 style="font-size:0.6875rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem">Entry Pages</h4>
-              \${entryNodes.slice(0, 8).map(n => 
+              ${entryNodes.slice(0, 8).map(n => `
                 <div style="background:var(--bg);border:1px solid var(--border);padding:0.5rem 0.75rem;border-radius:6px;margin-bottom:0.5rem">
-                  <div style="font-size:0.8125rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${n.id}</div>
-                  <div style="font-size:0.6875rem;color:var(--muted)">\${n.count} visits</div>
+                  <div style="font-size:0.8125rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.id}</div>
+                  <div style="font-size:0.6875rem;color:var(--muted)">${n.count} visits</div>
                 </div>
-              \`).join('')}
+              `).join('')}
             </div>
 
             <!-- Flow connections -->
             <div style="min-width:300px;flex:1">
               <h4 style="font-size:0.6875rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem">Top Flows</h4>
-              \${links.slice(0, 15).map(l => 
+              ${links.slice(0, 15).map(l => `
                 <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;font-size:0.75rem">
-                  <span style="background:var(--bg);padding:0.25rem 0.5rem;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">\${l.source}</span>
+                  <span style="background:var(--bg);padding:0.25rem 0.5rem;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">${l.source}</span>
                   <span style="color:var(--accent)">→</span>
-                  <span style="background:var(--bg);padding:0.25rem 0.5rem;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">\${l.target}</span>
-                  <span style="color:var(--muted);margin-left:auto">\${l.value}x</span>
+                  <span style="background:var(--bg);padding:0.25rem 0.5rem;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">${l.target}</span>
+                  <span style="color:var(--muted);margin-left:auto">${l.value}x</span>
                 </div>
-              \`).join('')}
+              `).join('')}
             </div>
 
             <!-- Top pages by traffic -->
             <div style="min-width:200px">
               <h4 style="font-size:0.6875rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem">Most Visited</h4>
-              \${nodes.slice(0, 10).map((n, i) => 
+              ${nodes.slice(0, 10).map((n, i) => `
                 <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
-                  <span style="width:18px;height:18px;background:var(--accent);color:white;border-radius:50%;font-size:0.6875rem;display:flex;align-items:center;justify-content:center">\${i + 1}</span>
-                  <span style="font-size:0.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">\${n.id}</span>
-                  <span style="font-size:0.6875rem;color:var(--muted)">\${n.count}</span>
+                  <span style="width:18px;height:18px;background:var(--accent);color:white;border-radius:50%;font-size:0.6875rem;display:flex;align-items:center;justify-content:center">${i + 1}</span>
+                  <span style="font-size:0.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${n.id}</span>
+                  <span style="font-size:0.6875rem;color:var(--muted)">${n.count}</span>
                 </div>
-              \`).join('')}
+              `).join('')}
             </div>
           </div>
 
-          \${links.length === 0 ? '<div class="empty-cell">No flow data available. Users need to visit multiple pages in a session.</div>' : ''}
+          ${links.length === 0 ? '<div class="empty-cell">No flow data available. Users need to visit multiple pages in a session.</div>' : ''}
         </div>
-      
+      `
     }
 
     // Fetch sessions list
@@ -539,7 +595,7 @@
       const filter = Object.values(filters).filter(f => f).join(' ')
       const filterParam = filter ? '&filter=' + encodeURIComponent(filter) : ''
       try {
-        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/sessions\${params}\${filterParam}\`)
+        const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/sessions${params}${filterParam}`)
         const data = await res.json()
         sessions = data.sessions || []
         renderSessions()
@@ -552,28 +608,28 @@
     function renderSessions() {
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
-      tabContent.innerHTML = 
+      tabContent.innerHTML = `
         <div style="grid-column: 1/-1">
-          <h3 style="margin-bottom:1rem;font-size:1rem">Sessions (\${sessions.length})</h3>
+          <h3 style="margin-bottom:1rem;font-size:1rem">Sessions (${sessions.length})</h3>
           <div class="session-list">
-            \${sessions.length === 0 ? '<div class="empty-cell">No sessions found</div>' : sessions.map(s => 
-              <div class="session-card" onclick="viewSession('\${s.id}')">
+            ${sessions.length === 0 ? '<div class="empty-cell">No sessions found</div>' : sessions.map(s => `
+              <div class="session-card" onclick="viewSession('${s.id}')">
                 <div class="session-header">
-                  <span style="font-weight:500">\${s.entryPath || '/'}</span>
-                  <span style="font-size:0.75rem;color:var(--muted)">\${new Date(s.startedAt).toLocaleString()}</span>
+                  <span style="font-weight:500">${s.entryPath || '/'}</span>
+                  <span style="font-size:0.75rem;color:var(--muted)">${new Date(s.startedAt).toLocaleString()}</span>
                 </div>
                 <div class="session-meta">
-                  <span>\${s.pageViewCount || 0} pages</span>
-                  <span>\${formatDuration(s.duration)}</span>
-                  <span>\${s.browser || 'Unknown'}</span>
-                  <span>\${s.country || 'Unknown'}</span>
-                  \${s.isBounce ? '<span style="color:var(--error)">Bounced</span>' : ''}
+                  <span>${s.pageViewCount || 0} pages</span>
+                  <span>${formatDuration(s.duration)}</span>
+                  <span>${s.browser || 'Unknown'}</span>
+                  <span>${s.country || 'Unknown'}</span>
+                  ${s.isBounce ? '<span style="color:var(--error)">Bounced</span>' : ''}
                 </div>
               </div>
-            \`).join('')}
+            `).join('')}
           </div>
         </div>
-      
+      `
     }
 
     // Format duration
@@ -588,7 +644,7 @@
     // View session detail
     async function viewSession(sessionId) {
       try {
-        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/sessions/\${sessionId}\`)
+        const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/sessions/${sessionId}`)
         sessionDetail = await res.json()
         renderSessionModal()
       } catch (e) {
@@ -623,65 +679,65 @@
       // Get unique paths visited
       const paths = [...new Set(pageviews.map(p => p.path))]
 
-      modal.innerHTML = 
+      modal.innerHTML = `
         <div class="session-modal-content" style="max-width:1000px">
           <div class="modal-header">
-            <h3>Session: \${s.id?.slice(0,8) || 'Unknown'}</h3>
+            <h3>Session: ${s.id?.slice(0,8) || 'Unknown'}</h3>
             <button class="modal-close" onclick="closeModal()">
               <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
           <div class="modal-body">
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
-              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">\${s.pageViewCount || 0}</div><div class="stat-lbl">Pages</div></div>
-              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">\${formatDuration(s.duration)}</div><div class="stat-lbl">Duration</div></div>
-              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">\${s.browser || '?'}</div><div class="stat-lbl">Browser</div></div>
-              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">\${s.country || '?'}</div><div class="stat-lbl">Country</div></div>
+              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">${s.pageViewCount || 0}</div><div class="stat-lbl">Pages</div></div>
+              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">${formatDuration(s.duration)}</div><div class="stat-lbl">Duration</div></div>
+              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">${s.browser || '?'}</div><div class="stat-lbl">Browser</div></div>
+              <div class="stat" style="padding:1rem"><div class="stat-val" style="font-size:1.25rem">${s.country || '?'}</div><div class="stat-lbl">Country</div></div>
             </div>
 
-            \${clicks.length > 0 ? 
-            <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Click Heatmap (\${clicks.length} clicks)</h4>
+            ${clicks.length > 0 ? `
+            <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Click Heatmap (${clicks.length} clicks)</h4>
             <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
-              \${paths.map((p, i) => \`<button class="date-btn \${i===0?'active':''}" onclick="showPathHeatmap('\${p}')">\${p}</button>\`).join('')}
+              ${paths.map((p, i) => `<button class="date-btn ${i===0?'active':''}" onclick="showPathHeatmap('${p}')">${p}</button>`).join('')}
             </div>
             <div id="heatmap-container" style="position:relative;width:100%;height:400px;background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:1.5rem">
               <div id="heatmap-clicks" style="position:absolute;inset:0"></div>
               <div style="position:absolute;bottom:10px;right:10px;font-size:0.6875rem;color:var(--muted);background:var(--bg2);padding:0.25rem 0.5rem;border-radius:4px">
-                Viewport: \${clicks[0]?.viewportWidth || '?'}x\${clicks[0]?.viewportHeight || '?'}
+                Viewport: ${clicks[0]?.viewportWidth || '?'}x${clicks[0]?.viewportHeight || '?'}
               </div>
             </div>
-            \` : ''}
+            ` : ''}
 
             <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Session Journey</h4>
             <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
-              \${pageviews.map((p, i) => 
+              ${pageviews.map((p, i) => `
                 <div style="background:var(--bg);border:1px solid var(--border);padding:0.5rem 0.75rem;border-radius:6px;font-size:0.75rem">
-                  <div style="color:var(--text)">\${p.path}</div>
-                  <div style="color:var(--muted);font-size:0.6875rem">\${new Date(p.timestamp).toLocaleTimeString()}</div>
+                  <div style="color:var(--text)">${p.path}</div>
+                  <div style="color:var(--muted);font-size:0.6875rem">${new Date(p.timestamp).toLocaleTimeString()}</div>
                 </div>
-                \${i < pageviews.length - 1 ? '<span style="color:var(--muted)">→</span>' : ''}
-              \`).join('')}
+                ${i < pageviews.length - 1 ? '<span style="color:var(--muted)">→</span>' : ''}
+              `).join('')}
             </div>
 
-            <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Timeline (\${timeline.length} events)</h4>
+            <h4 style="margin-bottom:0.75rem;font-size:0.875rem;color:var(--muted)">Timeline (${timeline.length} events)</h4>
             <div class="timeline" style="max-height:300px;overflow-y:auto">
-              \${timeline.map(t => 
+              ${timeline.map(t => `
                 <div class="timeline-item">
-                  <div class="timeline-type \${t.type === 'error' ? 'error' : ''}">\${t.type}</div>
+                  <div class="timeline-type ${t.type === 'error' ? 'error' : ''}">${t.type}</div>
                   <div class="timeline-content">
-                    \${t.type === 'pageview' ? '<span style="color:var(--accent)">' + t.data.path + '</span>' : ''}
-                    \${t.type === 'event' ? '<span style="color:var(--success)">' + t.data.name + '</span>' : ''}
-                    \${t.type === 'click' ? 'Click at (' + t.data.viewportX + ', ' + t.data.viewportY + ') on <code>' + (t.data.elementTag || 'element') + '</code>' : ''}
-                    \${t.type === 'vital' ? '<span style="color:var(--warning)">' + t.data.metric + '</span>: ' + t.data.value + 'ms (' + t.data.rating + ')' : ''}
-                    \${t.type === 'error' ? '<span style="color:var(--error)">' + (t.data.message || '').slice(0,100) + '</span>' : ''}
+                    ${t.type === 'pageview' ? '<span style="color:var(--accent)">' + t.data.path + '</span>' : ''}
+                    ${t.type === 'event' ? '<span style="color:var(--success)">' + t.data.name + '</span>' : ''}
+                    ${t.type === 'click' ? 'Click at (' + t.data.viewportX + ', ' + t.data.viewportY + ') on <code>' + (t.data.elementTag || 'element') + '</code>' : ''}
+                    ${t.type === 'vital' ? '<span style="color:var(--warning)">' + t.data.metric + '</span>: ' + t.data.value + 'ms (' + t.data.rating + ')' : ''}
+                    ${t.type === 'error' ? '<span style="color:var(--error)">' + (t.data.message || '').slice(0,100) + '</span>' : ''}
                   </div>
-                  <div class="timeline-time">\${new Date(t.timestamp).toLocaleTimeString()}</div>
+                  <div class="timeline-time">${new Date(t.timestamp).toLocaleTimeString()}</div>
                 </div>
-              \`).join('')}
+              `).join('')}
             </div>
           </div>
         </div>
-      
+      `
       modal.classList.add('active')
 
       // Render initial heatmap if we have clicks
@@ -711,7 +767,7 @@
       container.innerHTML = pathClicks.map(c => {
         const x = (c.viewportX || 0) * scale
         const y = (c.viewportY || 0) * scale
-        return \`<div style="position:absolute;left:\${x}px;top:\${y}px;width:20px;height:20px;background:rgba(239,68,68,0.5);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 0 10px rgba(239,68,68,0.5)"></div>
+        return `<div style="position:absolute;left:${x}px;top:${y}px;width:20px;height:20px;background:rgba(239,68,68,0.5);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 0 10px rgba(239,68,68,0.5)"></div>`
       }).join('')
     }
 
@@ -748,7 +804,7 @@
 
       // Fetch performance budget violations
       try {
-        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/performance-budgets/check\`)
+        const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets/check`)
         const data = await res.json()
         perfBudgetViolations = data.violations || []
       } catch (e) {
@@ -765,40 +821,40 @@
         if (metric === 'CLS') return (value / 1000).toFixed(3)
         return value + 'ms'
       }
-      tabContent.innerHTML = 
+      tabContent.innerHTML = `
         <div style="grid-column:1/-1">
-          \${perfBudgetViolations.length > 0 ? 
+          ${perfBudgetViolations.length > 0 ? `
             <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:1rem;margin-bottom:1.5rem">
               <h4 style="font-size:0.875rem;color:#ef4444;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem">
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                 Performance Budget Violations
               </h4>
               <div style="display:flex;flex-wrap:wrap;gap:0.75rem">
-                \${perfBudgetViolations.map(v => 
+                ${perfBudgetViolations.map(v => `
                   <div style="background:var(--bg);border-radius:6px;padding:0.5rem 0.75rem;font-size:0.8125rem">
-                    <strong>\${v.metric}</strong>: \${v.currentValue}\${v.metric === 'CLS' ? '' : 'ms'}
-                    <span style="color:#ef4444">(exceeds \${v.threshold}\${v.metric === 'CLS' ? '' : 'ms'} by \${v.exceededBy}\${v.metric === 'CLS' ? '' : 'ms'})</span>
+                    <strong>${v.metric}</strong>: ${v.currentValue}${v.metric === 'CLS' ? '' : 'ms'}
+                    <span style="color:#ef4444">(exceeds ${v.threshold}${v.metric === 'CLS' ? '' : 'ms'} by ${v.exceededBy}${v.metric === 'CLS' ? '' : 'ms'})</span>
                   </div>
-                \`).join('')}
+                `).join('')}
               </div>
             </div>
-          \` : ''}
+          ` : ''}
           <h3 style="margin-bottom:1rem;font-size:1rem">Core Web Vitals</h3>
           <div class="vitals-grid">
-            \${vitals.map(v => 
+            ${vitals.map(v => `
               <div class="vital-card">
-                <div class="vital-name">\${v.metric}</div>
-                <div class="vital-value \${getColor(v)}">\${v.samples > 0 ? formatValue(v.metric, v.p75) : '—'}</div>
-                <div style="font-size:0.6875rem;color:var(--muted)">\${v.samples} samples</div>
-                \${v.samples > 0 ? 
+                <div class="vital-name">${v.metric}</div>
+                <div class="vital-value ${getColor(v)}">${v.samples > 0 ? formatValue(v.metric, v.p75) : '—'}</div>
+                <div style="font-size:0.6875rem;color:var(--muted)">${v.samples} samples</div>
+                ${v.samples > 0 ? `
                   <div class="vital-bar">
-                    <span class="good" style="width:\${v.good}%"></span>
-                    <span class="needs-improvement" style="width:\${v.needsImprovement}%"></span>
-                    <span class="poor" style="width:\${v.poor}%"></span>
+                    <span class="good" style="width:${v.good}%"></span>
+                    <span class="needs-improvement" style="width:${v.needsImprovement}%"></span>
+                    <span class="poor" style="width:${v.poor}%"></span>
                   </div>
-                \` : ''}
+                ` : ''}
               </div>
-            \`).join('')}
+            `).join('')}
           </div>
           <p style="margin-top:1rem;font-size:0.75rem;color:var(--muted)">
             <strong>LCP</strong> (Largest Contentful Paint): Loading performance. <strong>FID</strong> (First Input Delay): Interactivity.
@@ -806,7 +862,7 @@
             <strong>INP</strong> (Interaction to Next Paint): Responsiveness.
           </p>
         </div>
-      
+      `
     }
 
     // Error state
@@ -816,7 +872,7 @@
     // Fetch error statuses
     async function fetchErrorStatuses() {
       try {
-        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/errors/statuses\`)
+        const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/errors/statuses`)
         const data = await res.json()
         errorStatuses = data.statuses || {}
       } catch (e) {
@@ -830,7 +886,7 @@
       e.stopPropagation()
       const errorId = decodeURIComponent(encodedErrorId)
       try {
-        await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/errors/status\`, {
+        await fetch(`${API_ENDPOINT}/api/sites/${siteId}/errors/status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ errorId, status })
@@ -852,7 +908,7 @@
       for (const e of newErrors) {
         const errorId = btoa(e.message || '').slice(0, 20)
         try {
-          await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/errors/status\`, {
+          await fetch(`${API_ENDPOINT}/api/sites/${siteId}/errors/status`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ errorId, status: 'resolved' })
@@ -874,7 +930,7 @@
       for (const e of newErrors) {
         const errorId = btoa(e.message || '').slice(0, 20)
         try {
-          await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/errors/status\`, {
+          await fetch(`${API_ENDPOINT}/api/sites/${siteId}/errors/status`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ errorId, status: 'ignored' })
@@ -927,99 +983,99 @@
         else statusCounts.new++
       })
 
-      tabContent.innerHTML = 
+      tabContent.innerHTML = `
         <div style="grid-column:1/-1">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
             <h3 style="font-size:1.125rem;font-weight:600">JavaScript Errors</h3>
             <div style="display:flex;align-items:center;gap:0.75rem">
               <select class="filter-select" style="width:auto;font-size:0.75rem" onchange="errorStatusFilter=this.value;renderErrors()">
-                <option value="all" \${errorStatusFilter === 'all' ? 'selected' : ''}>All (\${errors.length})</option>
-                <option value="new" \${errorStatusFilter === 'new' ? 'selected' : ''}>New (\${statusCounts.new})</option>
-                <option value="resolved" \${errorStatusFilter === 'resolved' ? 'selected' : ''}>Resolved (\${statusCounts.resolved})</option>
-                <option value="ignored" \${errorStatusFilter === 'ignored' ? 'selected' : ''}>Ignored (\${statusCounts.ignored})</option>
+                <option value="all" ${errorStatusFilter === 'all' ? 'selected' : ''}>All (${errors.length})</option>
+                <option value="new" ${errorStatusFilter === 'new' ? 'selected' : ''}>New (${statusCounts.new})</option>
+                <option value="resolved" ${errorStatusFilter === 'resolved' ? 'selected' : ''}>Resolved (${statusCounts.resolved})</option>
+                <option value="ignored" ${errorStatusFilter === 'ignored' ? 'selected' : ''}>Ignored (${statusCounts.ignored})</option>
               </select>
-              \${statusCounts.new > 0 ? 
+              ${statusCounts.new > 0 ? `
                 <button onclick="bulkResolveErrors()" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem;background:#22c55e22;border-color:#22c55e;color:#22c55e">✓ Resolve All New</button>
                 <button onclick="bulkIgnoreErrors()" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Ignore All New</button>
-              \` : ''}
-              <span style="font-size:0.875rem;color:var(--muted)">\${filteredErrors.length} error\${filteredErrors.length !== 1 ? 's' : ''}</span>
+              ` : ''}
+              <span style="font-size:0.875rem;color:var(--muted)">${filteredErrors.length} error${filteredErrors.length !== 1 ? 's' : ''}</span>
             </div>
           </div>
 
           <!-- Severity summary cards -->
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
             <div style="background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.3);border-radius:8px;padding:1rem;text-align:center">
-              <div style="font-size:2rem;font-weight:700;color:#dc2626">\${filteredErrors.filter(e => e.severity === 'critical').length}</div>
+              <div style="font-size:2rem;font-weight:700;color:#dc2626">${filteredErrors.filter(e => e.severity === 'critical').length}</div>
               <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Critical</div>
             </div>
             <div style="background:rgba(234,88,12,0.1);border:1px solid rgba(234,88,12,0.3);border-radius:8px;padding:1rem;text-align:center">
-              <div style="font-size:2rem;font-weight:700;color:#ea580c">\${filteredErrors.filter(e => e.severity === 'high').length}</div>
+              <div style="font-size:2rem;font-weight:700;color:#ea580c">${filteredErrors.filter(e => e.severity === 'high').length}</div>
               <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">High</div>
             </div>
             <div style="background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.3);border-radius:8px;padding:1rem;text-align:center">
-              <div style="font-size:2rem;font-weight:700;color:#d97706">\${filteredErrors.filter(e => e.severity === 'medium').length}</div>
+              <div style="font-size:2rem;font-weight:700;color:#d97706">${filteredErrors.filter(e => e.severity === 'medium').length}</div>
               <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Medium</div>
             </div>
             <div style="background:rgba(101,163,13,0.1);border:1px solid rgba(101,163,13,0.3);border-radius:8px;padding:1rem;text-align:center">
-              <div style="font-size:2rem;font-weight:700;color:#65a30d">\${filteredErrors.filter(e => e.severity === 'low').length}</div>
+              <div style="font-size:2rem;font-weight:700;color:#65a30d">${filteredErrors.filter(e => e.severity === 'low').length}</div>
               <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Low</div>
             </div>
           </div>
 
           <!-- Error list -->
-          \${filteredErrors.length === 0 ? 
+          ${filteredErrors.length === 0 ? `
             <div style="text-align:center;padding:3rem;color:var(--muted)">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 1rem;opacity:0.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <div style="font-size:1rem;margin-bottom:0.5rem">\${errorStatusFilter === 'all' ? 'No errors recorded' : 'No ' + errorStatusFilter + ' errors'}</div>
-              <div style="font-size:0.875rem">\${errorStatusFilter === 'all' ? 'Your application is running smoothly!' : 'Try a different filter.'}</div>
+              <div style="font-size:1rem;margin-bottom:0.5rem">${errorStatusFilter === 'all' ? 'No errors recorded' : 'No ' + errorStatusFilter + ' errors'}</div>
+              <div style="font-size:0.875rem">${errorStatusFilter === 'all' ? 'Your application is running smoothly!' : 'Try a different filter.'}</div>
             </div>
-          \` : filteredErrors.map(e => {
+          ` : filteredErrors.map(e => {
             const errorId = getErrorId(e.message)
             const status = getErrorStatus(e.message)
-            return 
+            return `
             <div style="position:relative;margin-bottom:1rem">
-              <a href="/errors/\${encodeURIComponent(errorId)}?siteId=\${siteId}" style="text-decoration:none;color:inherit;display:block">
-                <div class="error-card" style="border-left:4px solid \${severityColors[e.severity] || '#6b7280'};cursor:pointer;transition:all 0.15s;\${status === 'resolved' ? 'opacity:0.6;' : ''}\${status === 'ignored' ? 'opacity:0.4;' : ''}" onmouseover="this.style.transform='translateX(4px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none';this.style.boxShadow='none'">
+              <a href="/errors/${encodeURIComponent(errorId)}?siteId=${siteId}" style="text-decoration:none;color:inherit;display:block">
+                <div class="error-card" style="border-left:4px solid ${severityColors[e.severity] || '#6b7280'};cursor:pointer;transition:all 0.15s;${status === 'resolved' ? 'opacity:0.6;' : ''}${status === 'ignored' ? 'opacity:0.4;' : ''}" onmouseover="this.style.transform='translateX(4px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none';this.style.boxShadow='none'">
                   <!-- Error header with gradient -->
-                  <div style="background:\${severityGradients[e.severity] || severityGradients.medium};margin:-1rem -1rem 1rem -1rem;padding:1rem;border-radius:8px 8px 0 0">
+                  <div style="background:${severityGradients[e.severity] || severityGradients.medium};margin:-1rem -1rem 1rem -1rem;padding:1rem;border-radius:8px 8px 0 0">
                     <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
-                      <span style="background:rgba(255,255,255,0.2);color:white;font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em">\${severityLabels[e.severity] || 'Unknown'}</span>
-                      <span style="background:rgba(0,0,0,0.2);color:rgba(255,255,255,0.9);font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px">\${e.category || 'Error'}</span>
-                      <span style="background:\${statusColors[status]};color:white;font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px;text-transform:uppercase">\${statusLabels[status] || 'New'}</span>
-                      <span style="margin-left:auto;color:rgba(255,255,255,0.75);font-size:0.75rem">\${e.count} event\${e.count !== 1 ? 's' : ''}</span>
+                      <span style="background:rgba(255,255,255,0.2);color:white;font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em">${severityLabels[e.severity] || 'Unknown'}</span>
+                      <span style="background:rgba(0,0,0,0.2);color:rgba(255,255,255,0.9);font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px">${e.category || 'Error'}</span>
+                      <span style="background:${statusColors[status]};color:white;font-size:0.6875rem;padding:0.1875rem 0.5rem;border-radius:9999px;text-transform:uppercase">${statusLabels[status] || 'New'}</span>
+                      <span style="margin-left:auto;color:rgba(255,255,255,0.75);font-size:0.75rem">${e.count} event${e.count !== 1 ? 's' : ''}</span>
                     </div>
-                    <div style="color:white;font-size:0.8125rem;opacity:0.8">\${e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source'}</div>
+                    <div style="color:white;font-size:0.8125rem;opacity:0.8">${e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source'}</div>
                   </div>
 
                   <!-- Error message -->
-                  <div style="font-size:0.9375rem;font-weight:500;color:var(--text);margin-bottom:0.75rem;line-height:1.5">\${e.message || 'Unknown error'}</div>
+                  <div style="font-size:0.9375rem;font-weight:500;color:var(--text);margin-bottom:0.75rem;line-height:1.5">${e.message || 'Unknown error'}</div>
 
                   <!-- Error metadata -->
                   <div style="display:flex;flex-wrap:wrap;gap:1rem;font-size:0.8125rem;color:var(--muted)">
                     <div style="display:flex;align-items:center;gap:0.375rem">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                      First: \${e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A'}
+                      First: ${e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A'}
                     </div>
                     <div style="display:flex;align-items:center;gap:0.375rem">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                      Last: \${new Date(e.lastSeen).toLocaleString()}
+                      Last: ${new Date(e.lastSeen).toLocaleString()}
                     </div>
                     <div style="display:flex;align-items:center;gap:0.375rem">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-                      \${(e.browsers || []).join(', ') || 'Unknown'}
+                      ${(e.browsers || []).join(', ') || 'Unknown'}
                     </div>
                     <div style="display:flex;align-items:center;gap:0.375rem">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
-                      \${(e.paths || []).length} page\${(e.paths || []).length !== 1 ? 's' : ''}
+                      ${(e.paths || []).length} page${(e.paths || []).length !== 1 ? 's' : ''}
                     </div>
                   </div>
 
                   <!-- Actions and link -->
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
                     <div style="display:flex;gap:0.5rem" onclick="event.stopPropagation()">
-                      \${status !== 'resolved' ? \`<button onclick="updateErrorStatus('\${encodeURIComponent(errorId)}', 'resolved', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem;background:#22c55e22;border-color:#22c55e;color:#22c55e">✓ Resolve</button>\` : ''}
-                      \${status !== 'ignored' ? \`<button onclick="updateErrorStatus('\${encodeURIComponent(errorId)}', 'ignored', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Ignore</button>\` : ''}
-                      \${status !== 'new' ? \`<button onclick="updateErrorStatus('\${encodeURIComponent(errorId)}', 'new', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Reopen</button>\` : ''}
+                      ${status !== 'resolved' ? `<button onclick="updateErrorStatus('${encodeURIComponent(errorId)}', 'resolved', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem;background:#22c55e22;border-color:#22c55e;color:#22c55e">✓ Resolve</button>` : ''}
+                      ${status !== 'ignored' ? `<button onclick="updateErrorStatus('${encodeURIComponent(errorId)}', 'ignored', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Ignore</button>` : ''}
+                      ${status !== 'new' ? `<button onclick="updateErrorStatus('${encodeURIComponent(errorId)}', 'new', event)" class="export-btn" style="padding:0.25rem 0.5rem;font-size:0.6875rem">Reopen</button>` : ''}
                     </div>
                     <div style="color:var(--accent);font-size:0.8125rem;display:flex;align-items:center">
                       View details
@@ -1029,9 +1085,9 @@
                 </div>
               </a>
             </div>
-          \`}).join('')}
+          `}).join('')}
         </div>
-      
+      `
     }
 
     // Render insights
@@ -1045,41 +1101,41 @@
         device: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>',
         engagement: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>'
       }
-      tabContent.innerHTML = 
+      tabContent.innerHTML = `
         <div style="grid-column:1/-1">
           <h3 style="margin-bottom:1rem;font-size:1rem">Insights</h3>
-          \${comparisonStats ? 
+          ${comparisonStats ? `
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
               <div class="stat" style="padding:1rem">
-                <div class="stat-val" style="font-size:1.25rem">\${fmt(comparisonStats.thisWeekViews)}</div>
+                <div class="stat-val" style="font-size:1.25rem">${fmt(comparisonStats.thisWeekViews)}</div>
                 <div class="stat-lbl">Views This Week</div>
-                \${comparisonStats.change !== 0 ? '<div class="stat-change ' + (comparisonStats.change > 0 ? 'positive' : 'negative') + '">' + (comparisonStats.change > 0 ? '+' : '') + comparisonStats.change + '%</div>' : ''}
+                ${comparisonStats.change !== 0 ? '<div class="stat-change ' + (comparisonStats.change > 0 ? 'positive' : 'negative') + '">' + (comparisonStats.change > 0 ? '+' : '') + comparisonStats.change + '%</div>' : ''}
               </div>
               <div class="stat" style="padding:1rem">
-                <div class="stat-val" style="font-size:1.25rem">\${fmt(comparisonStats.lastWeekViews)}</div>
+                <div class="stat-val" style="font-size:1.25rem">${fmt(comparisonStats.lastWeekViews)}</div>
                 <div class="stat-lbl">Views Last Week</div>
               </div>
               <div class="stat" style="padding:1rem">
-                <div class="stat-val" style="font-size:1.25rem">\${comparisonStats.sessions || 0}</div>
+                <div class="stat-val" style="font-size:1.25rem">${comparisonStats.sessions || 0}</div>
                 <div class="stat-lbl">Sessions</div>
               </div>
               <div class="stat" style="padding:1rem">
-                <div class="stat-val" style="font-size:1.25rem">\${comparisonStats.bounceRate || 0}%</div>
+                <div class="stat-val" style="font-size:1.25rem">${comparisonStats.bounceRate || 0}%</div>
                 <div class="stat-lbl">Bounce Rate</div>
               </div>
             </div>
-          \` : ''}
-          \${insights.length === 0 ? '<div class="empty-cell">No insights available yet. Check back when you have more data.</div>' : insights.map(i => 
+          ` : ''}
+          ${insights.length === 0 ? '<div class="empty-cell">No insights available yet. Check back when you have more data.</div>' : insights.map(i => `
             <div class="insight-card">
-              <div class="insight-icon \${i.severity}">\${icons[i.type] || icons.traffic}</div>
+              <div class="insight-icon ${i.severity}">${icons[i.type] || icons.traffic}</div>
               <div class="insight-content">
-                <div class="insight-title">\${i.title}</div>
-                <div class="insight-desc">\${i.description}</div>
+                <div class="insight-title">${i.title}</div>
+                <div class="insight-desc">${i.description}</div>
               </div>
             </div>
-          \`).join('')}
+          `).join('')}
         </div>
-      
+      `
     }
 
     // Live view state
@@ -1088,7 +1144,7 @@
     // Fetch live view
     async function fetchLiveView() {
       try {
-        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/live\`)
+        const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/live`)
         const data = await res.json()
         liveActivities = data.activities || []
         renderLiveView()
@@ -1097,7 +1153,7 @@
         if (liveRefreshInterval) clearInterval(liveRefreshInterval)
         liveRefreshInterval = setInterval(async () => {
           if (activeTab === 'live') {
-            const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/live\`)
+            const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/live`)
             const data = await res.json()
             liveActivities = data.activities || []
             renderLiveView()
@@ -1115,7 +1171,7 @@
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
 
-      tabContent.innerHTML = 
+      tabContent.innerHTML = `
         <div style="grid-column:1/-1">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
             <h3 style="font-size:1rem;display:flex;align-items:center;gap:0.5rem">
@@ -1124,24 +1180,24 @@
             </h3>
             <span style="font-size:0.75rem;color:var(--muted)">Auto-refreshing every 5s</span>
           </div>
-          \${liveActivities.length === 0 ? 
+          ${liveActivities.length === 0 ? `
             <div class="empty-cell">No recent activity. Visitors will appear here in real-time.</div>
-          \` : 
+          ` : `
             <div style="display:flex;flex-direction:column;gap:0.5rem">
-              \${liveActivities.map(a => 
+              ${liveActivities.map(a => `
                 <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;display:flex;align-items:center;gap:1rem">
                   <div style="width:8px;height:8px;background:var(--success);border-radius:50%"></div>
                   <div style="flex:1;min-width:0">
-                    <div style="font-size:0.875rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${a.path || '/'}</div>
-                    <div style="font-size:0.6875rem;color:var(--muted)">\${a.country || 'Unknown'} • \${a.device || 'Unknown'} • \${a.browser || 'Unknown'}</div>
+                    <div style="font-size:0.875rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.path || '/'}</div>
+                    <div style="font-size:0.6875rem;color:var(--muted)">${a.country || 'Unknown'} • ${a.device || 'Unknown'} • ${a.browser || 'Unknown'}</div>
                   </div>
-                  <div style="font-size:0.6875rem;color:var(--muted);white-space:nowrap">\${timeAgo(a.timestamp)}</div>
+                  <div style="font-size:0.6875rem;color:var(--muted);white-space:nowrap">${timeAgo(a.timestamp)}</div>
                 </div>
-              \`).join('')}
+              `).join('')}
             </div>
-          \`}
+          `}
         </div>
-      
+      `
     }
 
     function timeAgo(timestamp) {
@@ -1162,7 +1218,7 @@
     // Fetch funnels
     async function fetchFunnels() {
       try {
-        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/funnels\`)
+        const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/funnels`)
         const data = await res.json()
         funnels = data.funnels || []
         renderFunnels()
@@ -1176,7 +1232,7 @@
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
 
-      tabContent.innerHTML = 
+      tabContent.innerHTML = `
         <div style="grid-column:1/-1">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
             <h3 style="font-size:1rem">Conversion Funnels</h3>
@@ -1185,35 +1241,35 @@
               New Funnel
             </button>
           </div>
-          \${funnels.length === 0 ? 
+          ${funnels.length === 0 ? `
             <div class="empty-cell">
               <p>No funnels configured yet.</p>
               <p style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">Create a funnel to track conversion rates through your key user flows.</p>
             </div>
-          \` : funnels.map(f => 
+          ` : funnels.map(f => `
             <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:0.75rem">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-                <h4 style="font-size:0.875rem">\${f.name}</h4>
-                <button class="icon-btn" onclick="analyzeFunnel('\${f.id}')" title="View analysis">
+                <h4 style="font-size:0.875rem">${f.name}</h4>
+                <button class="icon-btn" onclick="analyzeFunnel('${f.id}')" title="View analysis">
                   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                 </button>
               </div>
               <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-                \${(f.steps || []).map((s, i) => 
-                  <span style="font-size:0.6875rem;padding:0.25rem 0.5rem;background:var(--bg);border-radius:4px">\${i + 1}. \${s.name}</span>
-                \`).join('<span style="color:var(--accent)">→</span>')}
+                ${(f.steps || []).map((s, i) => `
+                  <span style="font-size:0.6875rem;padding:0.25rem 0.5rem;background:var(--bg);border-radius:4px">${i + 1}. ${s.name}</span>
+                `).join('<span style="color:var(--accent)">→</span>')}
               </div>
             </div>
-          \`).join('')}
+          `).join('')}
         </div>
-      
+      `
     }
 
     // Analyze funnel
     async function analyzeFunnel(funnelId) {
       const params = getDateRangeParams(false)
       try {
-        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/funnels/\${funnelId}\${params}\`)
+        const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/funnels/${funnelId}${params}`)
         const data = await res.json()
         showFunnelAnalysis(data)
       } catch (e) {
@@ -1227,27 +1283,27 @@
 
       const { funnel, steps, totalSessions, overallConversion } = data
 
-      tabContent.innerHTML = 
+      tabContent.innerHTML = `
         <div style="grid-column:1/-1">
           <button onclick="fetchFunnels()" style="background:none;border:none;color:var(--muted);cursor:pointer;margin-bottom:1rem;font-size:0.8125rem">← Back to Funnels</button>
-          <h3 style="font-size:1rem;margin-bottom:0.5rem">\${funnel.name}</h3>
-          <p style="font-size:0.75rem;color:var(--muted);margin-bottom:1.5rem">\${totalSessions} sessions analyzed • \${overallConversion}% overall conversion</p>
+          <h3 style="font-size:1rem;margin-bottom:0.5rem">${funnel.name}</h3>
+          <p style="font-size:0.75rem;color:var(--muted);margin-bottom:1.5rem">${totalSessions} sessions analyzed • ${overallConversion}% overall conversion</p>
 
           <div style="display:flex;gap:0.5rem;align-items:stretch">
-            \${steps.map((s, i) => 
+            ${steps.map((s, i) => `
               <div style="flex:1;text-align:center">
                 <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:0.5rem">
-                  <div style="font-size:1.5rem;font-weight:600;color:var(--text)">\${s.visitors}</div>
-                  <div style="font-size:0.6875rem;color:var(--muted);margin-top:0.25rem">\${s.conversionRate}% of total</div>
+                  <div style="font-size:1.5rem;font-weight:600;color:var(--text)">${s.visitors}</div>
+                  <div style="font-size:0.6875rem;color:var(--muted);margin-top:0.25rem">${s.conversionRate}% of total</div>
                 </div>
-                <div style="font-size:0.75rem;font-weight:500">\${s.name}</div>
-                \${i > 0 ? '<div style="font-size:0.6875rem;color:var(--error);margin-top:0.25rem">↓ ' + s.dropoffRate + '% drop</div>' : ''}
+                <div style="font-size:0.75rem;font-weight:500">${s.name}</div>
+                ${i > 0 ? '<div style="font-size:0.6875rem;color:var(--error);margin-top:0.25rem">↓ ' + s.dropoffRate + '% drop</div>' : ''}
               </div>
-              \${i < steps.length - 1 ? '<div style="display:flex;align-items:center;color:var(--muted);font-size:1.5rem">→</div>' : ''}
-            \`).join('')}
+              ${i < steps.length - 1 ? '<div style="display:flex;align-items:center;color:var(--muted);font-size:1.5rem">→</div>' : ''}
+            `).join('')}
           </div>
         </div>
-      
+      `
     }
 
     function showCreateFunnelModal() {
@@ -1274,7 +1330,7 @@
 
     async function createFunnel(name, steps) {
       try {
-        await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/funnels\`, {
+        await fetch(`${API_ENDPOINT}/api/sites/${siteId}/funnels`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, steps })
@@ -1296,14 +1352,14 @@
       // Fetch various settings
       try {
         const [retentionRes, teamRes, webhooksRes, emailReportsRes, apiKeysRes, alertsRes, uptimeRes, perfBudgetsRes] = await Promise.all([
-          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/retention\`).then(r => r.json()).catch(() => ({ retentionDays: 365 })),
-          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/team\`).then(r => r.json()).catch(() => ({ members: [] })),
-          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/webhooks\`).then(r => r.json()).catch(() => ({ webhooks: [] })),
-          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/email-reports\`).then(r => r.json()).catch(() => ({ reports: [] })),
-          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/api-keys\`).then(r => r.json()).catch(() => ({ apiKeys: [] })),
-          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/alerts\`).then(r => r.json()).catch(() => ({ alerts: [] })),
-          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/uptime\`).then(r => r.json()).catch(() => ({ monitors: [] })),
-          fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/performance-budgets\`).then(r => r.json()).catch(() => ({ budgets: [] }))
+          fetch(`${API_ENDPOINT}/api/sites/${siteId}/retention`).then(r => r.json()).catch(() => ({ retentionDays: 365 })),
+          fetch(`${API_ENDPOINT}/api/sites/${siteId}/team`).then(r => r.json()).catch(() => ({ members: [] })),
+          fetch(`${API_ENDPOINT}/api/sites/${siteId}/webhooks`).then(r => r.json()).catch(() => ({ webhooks: [] })),
+          fetch(`${API_ENDPOINT}/api/sites/${siteId}/email-reports`).then(r => r.json()).catch(() => ({ reports: [] })),
+          fetch(`${API_ENDPOINT}/api/sites/${siteId}/api-keys`).then(r => r.json()).catch(() => ({ apiKeys: [] })),
+          fetch(`${API_ENDPOINT}/api/sites/${siteId}/alerts`).then(r => r.json()).catch(() => ({ alerts: [] })),
+          fetch(`${API_ENDPOINT}/api/sites/${siteId}/uptime`).then(r => r.json()).catch(() => ({ monitors: [] })),
+          fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets`).then(r => r.json()).catch(() => ({ budgets: [] }))
         ])
 
         settingsData = { retention: retentionRes, team: teamRes, webhooks: webhooksRes, emailReports: emailReportsRes, apiKeys: apiKeysRes, alerts: alertsRes, uptime: uptimeRes, perfBudgets: perfBudgetsRes }
@@ -1313,7 +1369,7 @@
 
       const { retention, team, webhooks, emailReports, apiKeys, alerts, uptime, perfBudgets } = settingsData
 
-      tabContent.innerHTML = 
+      tabContent.innerHTML = `
         <div style="grid-column:1/-1">
           <h3 style="font-size:1rem;margin-bottom:1.5rem">Settings</h3>
 
@@ -1327,21 +1383,21 @@
                   <button class="export-btn" onclick="createApiKey()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ New Key</button>
                 </div>
                 <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Generate API keys for programmatic access to your analytics data.</p>
-                \${(apiKeys.apiKeys || []).length === 0 ? 
+                ${(apiKeys.apiKeys || []).length === 0 ? `
                   <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No API keys yet.</p>
-                \` : 
+                ` : `
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(apiKeys.apiKeys || []).map(k => 
+                    ${(apiKeys.apiKeys || []).map(k => `
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
                         <div>
-                          <div style="font-size:0.8125rem;font-weight:500">\${k.name || 'API Key'}</div>
-                          <code style="font-size:0.6875rem;color:var(--muted)">\${k.key}</code>
+                          <div style="font-size:0.8125rem;font-weight:500">${k.name || 'API Key'}</div>
+                          <code style="font-size:0.6875rem;color:var(--muted)">${k.key}</code>
                         </div>
-                        <button class="icon-btn danger" onclick="deleteApiKey('\${k.key}')">×</button>
+                        <button class="icon-btn danger" onclick="deleteApiKey('${k.key}')">×</button>
                       </div>
-                    \`).join('')}
+                    `).join('')}
                   </div>
-                \`}
+                `}
               </div>
 
               <!-- Alerts -->
@@ -1351,21 +1407,21 @@
                   <button class="export-btn" onclick="createAlert()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ New Alert</button>
                 </div>
                 <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Get notified on traffic spikes, drops, or error rate changes.</p>
-                \${(alerts.alerts || []).length === 0 ? 
+                ${(alerts.alerts || []).length === 0 ? `
                   <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No alerts configured.</p>
-                \` : 
+                ` : `
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(alerts.alerts || []).map(a => 
+                    ${(alerts.alerts || []).map(a => `
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
                         <div>
-                          <div style="font-size:0.8125rem;font-weight:500">\${a.name}</div>
-                          <div style="font-size:0.6875rem;color:var(--muted)">\${a.type} • >\${a.threshold}%</div>
+                          <div style="font-size:0.8125rem;font-weight:500">${a.name}</div>
+                          <div style="font-size:0.6875rem;color:var(--muted)">${a.type} • >${a.threshold}%</div>
                         </div>
-                        <button class="icon-btn danger" onclick="deleteAlert('\${a.id}')">×</button>
+                        <button class="icon-btn danger" onclick="deleteAlert('${a.id}')">×</button>
                       </div>
-                    \`).join('')}
+                    `).join('')}
                   </div>
-                \`}
+                `}
               </div>
 
               <!-- Uptime Monitoring -->
@@ -1375,21 +1431,21 @@
                   <button class="export-btn" onclick="createUptimeMonitor()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ Add Monitor</button>
                 </div>
                 <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Monitor endpoint availability and response times.</p>
-                \${(uptime.monitors || []).length === 0 ? 
+                ${(uptime.monitors || []).length === 0 ? `
                   <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No monitors configured.</p>
-                \` : 
+                ` : `
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(uptime.monitors || []).map(m => 
+                    ${(uptime.monitors || []).map(m => `
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
                         <div>
-                          <div style="font-size:0.8125rem;font-weight:500">\${m.url}</div>
-                          <div style="font-size:0.6875rem;color:var(--muted)">Every \${m.interval} min</div>
+                          <div style="font-size:0.8125rem;font-weight:500">${m.url}</div>
+                          <div style="font-size:0.6875rem;color:var(--muted)">Every ${m.interval} min</div>
                         </div>
-                        <button class="icon-btn danger" onclick="deleteUptimeMonitor('\${m.id}')">×</button>
+                        <button class="icon-btn danger" onclick="deleteUptimeMonitor('${m.id}')">×</button>
                       </div>
-                    \`).join('')}
+                    `).join('')}
                   </div>
-                \`}
+                `}
               </div>
 
               <!-- Performance Budgets -->
@@ -1399,21 +1455,21 @@
                   <button class="export-btn" onclick="createPerfBudget()" style="padding:0.375rem 0.75rem;font-size:0.75rem">+ Add Budget</button>
                 </div>
                 <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Set thresholds for Core Web Vitals and get alerts when exceeded.</p>
-                \${(perfBudgets.budgets || []).length === 0 ? 
+                ${(perfBudgets.budgets || []).length === 0 ? `
                   <p style="font-size:0.75rem;color:var(--muted);font-style:italic">No budgets configured.</p>
-                \` : 
+                ` : `
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(perfBudgets.budgets || []).map(b => 
+                    ${(perfBudgets.budgets || []).map(b => `
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
                         <div>
-                          <div style="font-size:0.8125rem;font-weight:500">\${b.metric}</div>
-                          <div style="font-size:0.6875rem;color:var(--muted)">Max: \${b.threshold}\${b.metric === 'CLS' ? '' : 'ms'}</div>
+                          <div style="font-size:0.8125rem;font-weight:500">${b.metric}</div>
+                          <div style="font-size:0.6875rem;color:var(--muted)">Max: ${b.threshold}${b.metric === 'CLS' ? '' : 'ms'}</div>
                         </div>
-                        <button class="icon-btn danger" onclick="deletePerfBudget('\${b.id}')">×</button>
+                        <button class="icon-btn danger" onclick="deletePerfBudget('${b.id}')">×</button>
                       </div>
-                    \`).join('')}
+                    `).join('')}
                   </div>
-                \`}
+                `}
               </div>
             </div>
 
@@ -1424,11 +1480,11 @@
                 <h4 style="font-size:0.875rem;margin-bottom:0.75rem">Data Retention</h4>
                 <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">Configure how long to keep analytics data.</p>
                 <select id="retention-select" class="filter-select" style="width:auto" onchange="updateRetention(this.value)">
-                  <option value="30" \${retention.retentionDays === 30 ? 'selected' : ''}>30 days</option>
-                  <option value="90" \${retention.retentionDays === 90 ? 'selected' : ''}>90 days</option>
-                  <option value="180" \${retention.retentionDays === 180 ? 'selected' : ''}>180 days</option>
-                  <option value="365" \${retention.retentionDays === 365 ? 'selected' : ''}>1 year</option>
-                  <option value="730" \${retention.retentionDays === 730 ? 'selected' : ''}>2 years</option>
+                  <option value="30" ${retention.retentionDays === 30 ? 'selected' : ''}>30 days</option>
+                  <option value="90" ${retention.retentionDays === 90 ? 'selected' : ''}>90 days</option>
+                  <option value="180" ${retention.retentionDays === 180 ? 'selected' : ''}>180 days</option>
+                  <option value="365" ${retention.retentionDays === 365 ? 'selected' : ''}>1 year</option>
+                  <option value="730" ${retention.retentionDays === 730 ? 'selected' : ''}>2 years</option>
                 </select>
               </div>
 
@@ -1438,18 +1494,18 @@
                   <h4 style="font-size:0.875rem">Team Members</h4>
                   <button class="export-btn" onclick="inviteTeamMember()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Invite</button>
                 </div>
-                \${(team.members || []).length === 0 ? 
+                ${(team.members || []).length === 0 ? `
                   <p style="font-size:0.75rem;color:var(--muted)">No team members yet.</p>
-                \` : 
+                ` : `
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(team.members || []).map(m => 
+                    ${(team.members || []).map(m => `
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                        <span style="font-size:0.8125rem">\${m.email}</span>
-                        <span style="font-size:0.6875rem;color:var(--muted)">\${m.role} • \${m.status}</span>
+                        <span style="font-size:0.8125rem">${m.email}</span>
+                        <span style="font-size:0.6875rem;color:var(--muted)">${m.role} • ${m.status}</span>
                       </div>
-                    \`).join('')}
+                    `).join('')}
                   </div>
-                \`}
+                `}
               </div>
 
               <!-- Webhooks -->
@@ -1458,18 +1514,18 @@
                   <h4 style="font-size:0.875rem">Webhooks (Slack/Discord)</h4>
                   <button class="export-btn" onclick="addWebhook()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Add</button>
                 </div>
-                \${(webhooks.webhooks || []).length === 0 ? 
+                ${(webhooks.webhooks || []).length === 0 ? `
                   <p style="font-size:0.75rem;color:var(--muted)">No webhooks configured. Add a Slack or Discord webhook to receive alerts.</p>
-                \` : 
+                ` : `
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(webhooks.webhooks || []).map(w => 
+                    ${(webhooks.webhooks || []).map(w => `
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                        <span style="font-size:0.8125rem">\${w.type} • \${w.url.slice(0,30)}...</span>
-                        <button class="icon-btn danger" onclick="deleteWebhook('\${w.id}')">×</button>
+                        <span style="font-size:0.8125rem">${w.type} • ${w.url.slice(0,30)}...</span>
+                        <button class="icon-btn danger" onclick="deleteWebhook('${w.id}')">×</button>
                       </div>
-                    \`).join('')}
+                    `).join('')}
                   </div>
-                \`}
+                `}
               </div>
 
               <!-- Email Reports -->
@@ -1478,18 +1534,18 @@
                   <h4 style="font-size:0.875rem">Email Reports</h4>
                   <button class="export-btn" onclick="addEmailReport()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Add</button>
                 </div>
-                \${(emailReports.reports || []).length === 0 ? 
+                ${(emailReports.reports || []).length === 0 ? `
                   <p style="font-size:0.75rem;color:var(--muted)">No email reports scheduled.</p>
-                \` : 
+                ` : `
                   <div style="display:flex;flex-direction:column;gap:0.5rem">
-                    \${(emailReports.reports || []).map(r => 
+                    ${(emailReports.reports || []).map(r => `
                       <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--bg);border-radius:4px">
-                        <span style="font-size:0.8125rem">\${r.email} • \${r.frequency}</span>
-                        <button class="icon-btn danger" onclick="deleteEmailReport('\${r.id}')">×</button>
+                        <span style="font-size:0.8125rem">${r.email} • ${r.frequency}</span>
+                        <button class="icon-btn danger" onclick="deleteEmailReport('${r.id}')">×</button>
                       </div>
-                    \`).join('')}
+                    `).join('')}
                   </div>
-                \`}
+                `}
               </div>
 
               <!-- GDPR -->
@@ -1504,14 +1560,14 @@
             </div>
           </div>
         </div>
-      
+      `
     }
 
     // Settings action functions
     function createApiKey() {
       const name = prompt('Enter a name for this API key:')
       if (!name) return
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/api-keys\`, {
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/api-keys`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name })
@@ -1525,7 +1581,7 @@
 
     function deleteApiKey(keyId) {
       if (!confirm('Delete this API key? This cannot be undone.')) return
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/api-keys/\${keyId}\`, { method: 'DELETE' })
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/api-keys/${keyId}`, { method: 'DELETE' })
         .then(() => renderSettings()).catch(e => console.error(e))
     }
 
@@ -1536,7 +1592,7 @@
       const threshold = prompt('Threshold percentage (e.g., 50):') || '50'
       const email = prompt('Email for notifications (optional):')
 
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/alerts\`, {
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/alerts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, type, threshold: parseInt(threshold), email })
@@ -1545,7 +1601,7 @@
 
     function deleteAlert(alertId) {
       if (!confirm('Delete this alert?')) return
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/alerts/\${alertId}\`, { method: 'DELETE' })
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/alerts/${alertId}`, { method: 'DELETE' })
         .then(() => renderSettings()).catch(e => console.error(e))
     }
 
@@ -1554,7 +1610,7 @@
       if (!url) return
       const interval = prompt('Check interval in minutes (default: 5):') || '5'
 
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/uptime\`, {
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/uptime`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, interval: parseInt(interval) })
@@ -1563,18 +1619,18 @@
 
     function deleteUptimeMonitor(monitorId) {
       if (!confirm('Delete this monitor?')) return
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/uptime/\${monitorId}\`, { method: 'DELETE' })
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/uptime/${monitorId}`, { method: 'DELETE' })
         .then(() => renderSettings()).catch(e => console.error(e))
     }
 
     function createPerfBudget() {
       const metric = prompt('Metric (LCP, FID, CLS, TTFB, INP, FCP):')
       if (!metric) return
-      const threshold = prompt(\`Threshold value (\${metric === 'CLS' ? 'e.g., 0.1' : 'e.g., 2500ms'}):\`)
+      const threshold = prompt(`Threshold value (${metric === 'CLS' ? 'e.g., 0.1' : 'e.g., 2500ms'}):`)
       if (!threshold) return
       const email = prompt('Email for alerts (optional):')
 
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/performance-budgets\`, {
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ metric: metric.toUpperCase(), threshold: parseFloat(threshold), alertEmail: email })
@@ -1583,13 +1639,13 @@
 
     function deletePerfBudget(budgetId) {
       if (!confirm('Delete this performance budget?')) return
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/performance-budgets/\${budgetId}\`, { method: 'DELETE' })
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets/${budgetId}`, { method: 'DELETE' })
         .then(() => renderSettings()).catch(e => console.error(e))
     }
 
     async function updateRetention(days) {
       try {
-        await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/retention\`, {
+        await fetch(`${API_ENDPOINT}/api/sites/${siteId}/retention`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ retentionDays: parseInt(days) })
@@ -1604,7 +1660,7 @@
       if (!email) return
       const role = prompt('Enter role (admin, editor, viewer):') || 'viewer'
 
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/team\`, {
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/team`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, role })
@@ -1617,7 +1673,7 @@
       const url = prompt('Enter webhook URL:')
       if (!url) return
 
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/webhooks\`, {
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/webhooks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, url, events: ['alert', 'goal'] })
@@ -1626,7 +1682,7 @@
 
     function deleteWebhook(webhookId) {
       if (!confirm('Delete this webhook?')) return
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/webhooks/\${webhookId}\`, { method: 'DELETE' })
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/webhooks/${webhookId}`, { method: 'DELETE' })
         .then(() => renderSettings()).catch(e => console.error(e))
     }
 
@@ -1635,7 +1691,7 @@
       if (!email) return
       const frequency = prompt('Enter frequency (daily, weekly, monthly):') || 'weekly'
 
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/email-reports\`, {
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/email-reports`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, frequency })
@@ -1644,14 +1700,14 @@
 
     function deleteEmailReport(reportId) {
       if (!confirm('Delete this email report?')) return
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/email-reports/\${reportId}\`, { method: 'DELETE' })
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/email-reports/${reportId}`, { method: 'DELETE' })
         .then(() => renderSettings()).catch(e => console.error(e))
     }
 
     function gdprExport() {
       const visitorId = prompt('Enter visitor ID to export:')
       if (!visitorId) return
-      window.open(\`\${API_ENDPOINT}/api/sites/\${siteId}/gdpr/export?visitorId=\${visitorId}\`, '_blank')
+      window.open(`${API_ENDPOINT}/api/sites/${siteId}/gdpr/export?visitorId=${visitorId}`, '_blank')
     }
 
     function gdprDelete() {
@@ -1659,7 +1715,7 @@
       if (!visitorId) return
       if (!confirm('This will permanently delete all data for this visitor. Continue?')) return
 
-      fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/gdpr/delete\`, {
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/gdpr/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ visitorId, confirmDelete: true })
@@ -1696,7 +1752,7 @@
     async function exportData(format) {
       const params = getDateRangeParams(false)
       const type = activeTab === 'sessions' ? 'sessions' : activeTab === 'events' ? 'events' : 'pageviews'
-      const url = \`\${API_ENDPOINT}/api/sites/\${siteId}/export\${params}&format=\${format}&type=\${type}
+      const url = `${API_ENDPOINT}/api/sites/${siteId}/export${params}&format=${format}&type=${type}`
       if (format === 'csv') {
         window.open(url, '_blank')
       } else {
@@ -1775,11 +1831,11 @@
       // Render tables
       document.getElementById('pages-body').innerHTML = pages.length
         ? pages.slice(0,10).map(p => {
-            const pageUrl = siteHostname ? \`https://\${siteHostname}\${p.path}\` : p.path
+            const pageUrl = siteHostname ? `https://${siteHostname}${p.path}` : p.path
             const linkHtml = siteHostname
-              ? \`<a href="\${pageUrl}" target="_blank" rel="noopener" class="page-link" title="Visit \${pageUrl}">\${p.path}<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px;opacity:0.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a>
+              ? `<a href="${pageUrl}" target="_blank" rel="noopener" class="page-link" title="Visit ${pageUrl}">${p.path}<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px;opacity:0.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a>`
               : p.path
-            return \`<tr><td class="name" title="\${p.path}">\${linkHtml}</td><td class="value">\${fmt(p.entries||0)}</td><td class="value">\${fmt(p.visitors||0)}</td><td class="value">\${fmt(p.views||0)}</td></tr>
+            return `<tr><td class="name" title="${p.path}">${linkHtml}</td><td class="value">${fmt(p.entries||0)}</td><td class="value">${fmt(p.visitors||0)}</td><td class="value">${fmt(p.views||0)}</td></tr>`
           }).join('')
         : '<tr><td colspan="4" class="empty-cell">No page data</td></tr>'
 
@@ -1788,51 +1844,51 @@
             const source = r.source || 'Direct'
             const sourceLower = source.toLowerCase()
             const isLink = sourceLower !== 'direct' && !source.includes('(') && source.includes('.')
-            const domain = source.replace(/^https?:\\/\\//, '').split('/')[0]
-            const favicon = isLink ? \`<img src="https://www.google.com/s2/favicons?domain=\${domain}&sz=16" width="14" height="14" style="vertical-align:middle;margin-right:6px;border-radius:2px" onerror="this.style.display='none'">\` : ''
+            const domain = source.replace(/^https?:\/\//, '').split('/')[0]
+            const favicon = isLink ? `<img src="https://www.google.com/s2/favicons?domain=${domain}&sz=16" width="14" height="14" style="vertical-align:middle;margin-right:6px;border-radius:2px" onerror="this.style.display='none'">` : ''
             const linkHtml = isLink
-              ? \`<a href="\${source.startsWith('http') ? source : 'https://' + source}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px">\${favicon}\${source}<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a>
+              ? `<a href="${source.startsWith('http') ? source : 'https://' + source}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px">${favicon}${source}<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a>`
               : source
-            return \`<tr><td class="name">\${linkHtml}</td><td class="value">\${fmt(r.visitors||0)}</td><td class="value">\${fmt(r.views||0)}</td></tr>
+            return `<tr><td class="name">${linkHtml}</td><td class="value">${fmt(r.visitors||0)}</td><td class="value">${fmt(r.views||0)}</td></tr>`
           }).join('')
         : '<tr><td colspan="3" class="empty-cell">No referrer data</td></tr>'
 
       document.getElementById('devices-body').innerHTML = deviceTypes.length
-        ? deviceTypes.map(d => \`<tr><td class="name">\${getDeviceIcon(d.type)}\${d.type}</td><td class="value">\${fmt(d.visitors||0)}</td><td class="value">\${d.percentage || 0}%</td></tr>\`).join('')
+        ? deviceTypes.map(d => `<tr><td class="name">${getDeviceIcon(d.type)}${d.type}</td><td class="value">${fmt(d.visitors||0)}</td><td class="value">${d.percentage || 0}%</td></tr>`).join('')
         : '<tr><td colspan="3" class="empty-cell">No device data</td></tr>'
 
       document.getElementById('browsers-body').innerHTML = browsers.length
-        ? browsers.slice(0,8).map(b => \`<tr><td class="name">\${getBrowserIcon(b.name)}\${b.name}</td><td class="value">\${fmt(b.visitors||0)}</td><td class="value">\${b.percentage || 0}%</td></tr>\`).join('')
+        ? browsers.slice(0,8).map(b => `<tr><td class="name">${getBrowserIcon(b.name)}${b.name}</td><td class="value">${fmt(b.visitors||0)}</td><td class="value">${b.percentage || 0}%</td></tr>`).join('')
         : '<tr><td colspan="3" class="empty-cell">No browser data</td></tr>'
 
       document.getElementById('countries-body').innerHTML = countries.length
-        ? countries.slice(0,8).map(c => \`<tr><td class="name"><span style="margin-right:6px">\${getCountryFlag(c.name)}</span>\${c.name || c.code || 'Unknown'}</td><td class="value">\${fmt(c.visitors||0)}</td></tr>\`).join('')
+        ? countries.slice(0,8).map(c => `<tr><td class="name"><span style="margin-right:6px">${getCountryFlag(c.name)}</span>${c.name || c.code || 'Unknown'}</td><td class="value">${fmt(c.visitors||0)}</td></tr>`).join('')
         : '<tr><td colspan="2" class="empty-cell">No location data</td></tr>'
 
       document.getElementById('campaigns-body').innerHTML = campaigns.length
-        ? campaigns.slice(0,8).map(c => \`<tr><td class="name">\${c.name || c.source || 'Unknown'}</td><td class="value">\${fmt(c.visitors||0)}</td><td class="value">\${fmt(c.views||0)}</td></tr>\`).join('')
+        ? campaigns.slice(0,8).map(c => `<tr><td class="name">${c.name || c.source || 'Unknown'}</td><td class="value">${fmt(c.visitors||0)}</td><td class="value">${fmt(c.views||0)}</td></tr>`).join('')
         : '<tr><td colspan="3" class="empty-cell">No campaign data</td></tr>'
 
       // Enhanced events display with mini chart
       const totalEventCount = events.reduce((sum, e) => sum + (e.count || 0), 0)
       const maxEventCount = Math.max(...events.map(e => e.count || 0), 1)
       document.getElementById('events-container').innerHTML = events.length
-        ? \`<div style="display:flex;flex-direction:column;gap:0.5rem">\${events.slice(0,8).map(e => {
+        ? `<div style="display:flex;flex-direction:column;gap:0.5rem">${events.slice(0,8).map(e => {
             const pct = Math.round(((e.count || 0) / totalEventCount) * 100)
             const barWidth = Math.round(((e.count || 0) / maxEventCount) * 100)
-            return \`<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8125rem">
+            return `<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8125rem">
               <div style="flex:1;min-width:0">
                 <div style="display:flex;justify-content:space-between;margin-bottom:2px">
-                  <span style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${e.name}</span>
-                  <span style="color:var(--muted);margin-left:0.5rem">\${pct}%</span>
+                  <span style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.name}</span>
+                  <span style="color:var(--muted);margin-left:0.5rem">${pct}%</span>
                 </div>
                 <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
-                  <div style="height:100%;width:\${barWidth}%;background:var(--accent2);border-radius:2px;transition:width 0.3s"></div>
+                  <div style="height:100%;width:${barWidth}%;background:var(--accent2);border-radius:2px;transition:width 0.3s"></div>
                 </div>
               </div>
-              <span style="min-width:50px;text-align:right;font-weight:600">\${fmt(e.count||0)}</span>
-            </div>
-          }).join('')}</div>
+              <span style="min-width:50px;text-align:right;font-weight:600">${fmt(e.count||0)}</span>
+            </div>`
+          }).join('')}</div>`
         : '<div class="empty-cell" style="padding:1rem">No custom events tracked</div>'
 
       renderChart()
@@ -1848,7 +1904,7 @@
         return
       }
 
-      container.innerHTML = 
+      container.innerHTML = `
         <table class="data-table">
           <thead><tr>
             <th>Goal</th>
@@ -1858,25 +1914,25 @@
             <th style="text-align:right">Actions</th>
           </tr></thead>
           <tbody>
-            \${goals.map(g => 
+            ${goals.map(g => `
               <tr>
-                <td class="name">\${g.name}</td>
-                <td><span class="goal-type-badge \${g.type}">\${g.type}</span></td>
-                <td class="value">\${fmt(g.conversions || 0)}</td>
-                <td class="value">\${g.totalValue ? '$' + g.totalValue.toFixed(2) : '-'}</td>
+                <td class="name">${g.name}</td>
+                <td><span class="goal-type-badge ${g.type}">${g.type}</span></td>
+                <td class="value">${fmt(g.conversions || 0)}</td>
+                <td class="value">${g.totalValue ? '$' + g.totalValue.toFixed(2) : '-'}</td>
                 <td class="value">
-                  <button onclick="editGoal('\${g.id}')" class="icon-btn" title="Edit">
+                  <button onclick="editGoal('${g.id}')" class="icon-btn" title="Edit">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
-                  <button onclick="deleteGoal('\${g.id}')" class="icon-btn danger" title="Delete">
+                  <button onclick="deleteGoal('${g.id}')" class="icon-btn danger" title="Delete">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                   </button>
                 </td>
               </tr>
-            \`).join('')}
+            `).join('')}
           </tbody>
         </table>
-      
+      `
     }
 
     function showCreateGoalModal() {
@@ -1929,8 +1985,8 @@
       }
 
       const url = editingGoal
-        ? \`\${API_ENDPOINT}/api/sites/\${siteId}/goals/\${editingGoal.id}
-        : \`\${API_ENDPOINT}/api/sites/\${siteId}/goals
+        ? `${API_ENDPOINT}/api/sites/${siteId}/goals/${editingGoal.id}`
+        : `${API_ENDPOINT}/api/sites/${siteId}/goals`
       const method = editingGoal ? 'PUT' : 'POST'
 
       try {
@@ -1956,7 +2012,7 @@
       if (!confirm('Delete this goal? Conversion data will be preserved.')) return
 
       try {
-        const res = await fetch(\`\${API_ENDPOINT}/api/sites/\${siteId}/goals/\${goalId}\`, { method: 'DELETE' })
+        const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/goals/${goalId}`, { method: 'DELETE' })
         if (res.ok) {
           fetchDashboardData()
         }

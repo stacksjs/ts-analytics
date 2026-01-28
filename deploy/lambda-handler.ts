@@ -44,6 +44,7 @@ export default {
     if (process.env.DEBUG_REQUESTS === 'true') {
       const url = new URL(request.url)
       console.log('Incoming request:', {
+        url: request.url,
         path: url.pathname,
         method: request.method,
         search: url.search,

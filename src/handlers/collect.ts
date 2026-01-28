@@ -25,6 +25,7 @@ import { parseUserAgent } from '../utils/user-agent'
 import { getCountryFromHeaders, getCountryFromIP, parseReferrerSource } from '../utils/geolocation'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getLambdaEvent, getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
+import { ensureSiteExists } from './misc'
 
 /**
  * POST /collect or /t
@@ -36,6 +37,17 @@ export async function handleCollect(request: Request): Promise<Response> {
     if (!payload?.s || !payload?.e || !payload?.u) {
       return jsonResponse({ error: 'Missing required fields: s, e, u' }, 400)
     }
+
+    // Parse URL early to get hostname for site creation
+    let parsedUrlForSite: URL
+    try {
+      parsedUrlForSite = new URL(payload.u)
+    } catch {
+      return jsonResponse({ error: 'Invalid URL' }, 400)
+    }
+
+    // Ensure site exists (auto-create if first event)
+    await ensureSiteExists(payload.s, parsedUrlForSite.hostname)
 
     const event = getLambdaEvent(request)
     const ip = getClientIP(request)
