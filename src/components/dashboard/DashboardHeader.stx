@@ -1,20 +1,9 @@
 <script server>
-/**
- * DashboardHeader Component
- *
- * Header with site name, navigation tabs, and theme toggle.
- */
 import { defineProps, withDefaults } from 'stx'
 
 interface Tab {
   id: string
   label: string
-}
-
-interface DashboardHeaderProps {
-  siteName?: string
-  activeTab?: string
-  tabs?: Tab[]
 }
 
 const defaultTabs: Tab[] = [
@@ -29,12 +18,11 @@ const defaultTabs: Tab[] = [
   { id: 'settings', label: 'Settings' },
 ]
 
-const { siteName, activeTab, tabs } = withDefaults(
-  defineProps<DashboardHeaderProps>(),
+const { tabs, activeTab } = withDefaults(
+  defineProps<{ tabs?: Tab[], activeTab?: string }>(),
   {
-    siteName: 'Analytics Dashboard',
-    activeTab: 'dashboard',
     tabs: () => defaultTabs,
+    activeTab: 'dashboard',
   }
 )
 </script>
@@ -46,18 +34,12 @@ const { siteName, activeTab, tabs } = withDefaults(
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
     </button>
-    <span id="current-site-name" class="site-name-header">{{ siteName }}</span>
+    <span id="current-site-name" class="site-name-header">Analytics Dashboard</span>
   </div>
 
   <nav class="header-nav">
-    @foreach (tabs as tab)
-      <button
-        class="nav-btn {{ tab.id === activeTab ? 'active' : '' }}"
-        data-tab="{{ tab.id }}"
-        onclick="switchTab('{{ tab.id }}')"
-      >
-        {{ tab.label }}
-      </button>
+    @foreach(tabs as tab)
+    <button class="nav-btn{{ tab.id === activeTab ? ' active' : '' }}" data-tab="{{ tab.id }}" onclick="switchTab('{{ tab.id }}')">{{ tab.label }}</button>
     @endforeach
   </nav>
 

@@ -5,17 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Analytics Dashboard</title>
   <script src="./scripts/dashboard.ts"></script>
-  <dashboard-styles />
+  @include('../components/dashboard/DashboardStyles.stx')
 </head>
-<body class="bg-[var(--bg)] text-[var(--text)] min-h-screen">
+<body>
   <stx-loading-indicator color="var(--accent)" height="3px" />
-  <site-selector />
+  @include('../components/dashboard/SiteSelector.stx')
 
   <div id="dashboard" class="min-h-screen flex flex-col" style="display:none">
-    <dashboard-header />
-    <controls-bar />
-    <filters-bar />
-    <stats-row />
+    @include('../components/dashboard/DashboardHeader.stx')
+    @include('../components/dashboard/ControlsBar.stx')
+    @include('../components/dashboard/FiltersBar.stx')
+    @include('../components/dashboard/StatsRow.stx')
 
     <script>
       // Immediately populate from cache before any other JS runs
@@ -40,10 +40,10 @@
       })();
     </script>
 
-    <no-data-message />
+    @include('../components/dashboard/NoDataMessage.stx')
 
     <div id="main-content" class="flex-1 p-6 max-w-[1400px] mx-auto w-full">
-      <chart-section />
+      @include('../components/dashboard/ChartSection.stx')
 
       <div id="dashboard-panels">
         <!-- Row 1: Pages & Referrers -->

@@ -1,23 +1,9 @@
 <script server>
-/**
- * FiltersBar Component
- *
- * Filter dropdowns for country, device, and browser.
- */
 import { defineProps, withDefaults } from 'stx'
 
 interface FilterOption {
   value: string
   label: string
-}
-
-interface FiltersBarProps {
-  countries?: FilterOption[]
-  devices?: FilterOption[]
-  browsers?: FilterOption[]
-  selectedCountry?: string
-  selectedDevice?: string
-  selectedBrowser?: string
 }
 
 const defaultDevices: FilterOption[] = [
@@ -27,15 +13,10 @@ const defaultDevices: FilterOption[] = [
   { value: 'tablet', label: 'Tablet' },
 ]
 
-const { countries, devices, browsers, selectedCountry, selectedDevice, selectedBrowser } = withDefaults(
-  defineProps<FiltersBarProps>(),
+const { devices } = withDefaults(
+  defineProps<{ devices?: FilterOption[] }>(),
   {
-    countries: () => [],
     devices: () => defaultDevices,
-    browsers: () => [],
-    selectedCountry: '',
-    selectedDevice: '',
-    selectedBrowser: '',
   }
 )
 </script>
@@ -47,11 +28,7 @@ const { countries, devices, browsers, selectedCountry, selectedDevice, selectedB
     onchange="applyFilter('country', this.value)"
   >
     <option value="">All Countries</option>
-    @foreach (countries as country)
-      <option value="{{ country.value }}" {{ country.value === selectedCountry ? 'selected' : '' }}>
-        {{ country.label }}
-      </option>
-    @endforeach
+    <!-- Countries populated dynamically via JS -->
   </select>
 
   <select
@@ -59,10 +36,8 @@ const { countries, devices, browsers, selectedCountry, selectedDevice, selectedB
     class="filter-select"
     onchange="applyFilter('device', this.value)"
   >
-    @foreach (devices as device)
-      <option value="{{ device.value }}" {{ device.value === selectedDevice ? 'selected' : '' }}>
-        {{ device.label }}
-      </option>
+    @foreach(devices as device)
+    <option value="{{ device.value }}">{{ device.label }}</option>
     @endforeach
   </select>
 
@@ -72,11 +47,7 @@ const { countries, devices, browsers, selectedCountry, selectedDevice, selectedB
     onchange="applyFilter('browser', this.value)"
   >
     <option value="">All Browsers</option>
-    @foreach (browsers as browser)
-      <option value="{{ browser.value }}" {{ browser.value === selectedBrowser ? 'selected' : '' }}>
-        {{ browser.label }}
-      </option>
-    @endforeach
+    <!-- Browsers populated dynamically via JS -->
   </select>
 </div>
 

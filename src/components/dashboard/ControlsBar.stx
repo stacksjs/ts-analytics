@@ -1,61 +1,39 @@
 <script server>
-/**
- * ControlsBar Component
- *
- * Date range selector, realtime badge, and action buttons.
- */
 import { defineProps, withDefaults } from 'stx'
 
-interface DateRangeOption {
-  value: string
+interface DateRange {
+  id: string
   label: string
 }
 
-interface ControlsBarProps {
-  activeRange?: string
-  realtimeCount?: number
-  lastUpdated?: string
-  showCompare?: boolean
-  ranges?: DateRangeOption[]
-}
-
-const defaultRanges: DateRangeOption[] = [
-  { value: '1h', label: '1h' },
-  { value: '6h', label: '6h' },
-  { value: '12h', label: '12h' },
-  { value: '24h', label: '24h' },
-  { value: '7d', label: '7d' },
-  { value: '30d', label: '30d' },
-  { value: '90d', label: '90d' },
+const defaultRanges: DateRange[] = [
+  { id: '1h', label: '1h' },
+  { id: '6h', label: '6h' },
+  { id: '12h', label: '12h' },
+  { id: '24h', label: '24h' },
+  { id: '7d', label: '7d' },
+  { id: '30d', label: '30d' },
+  { id: '90d', label: '90d' },
 ]
 
-const { activeRange, realtimeCount, lastUpdated, showCompare, ranges } = withDefaults(
-  defineProps<ControlsBarProps>(),
+const { ranges, activeRange } = withDefaults(
+  defineProps<{ ranges?: DateRange[], activeRange?: string }>(),
   {
-    activeRange: '6h',
-    realtimeCount: 0,
-    lastUpdated: '',
-    showCompare: false,
     ranges: () => defaultRanges,
+    activeRange: '6h',
   }
 )
 </script>
 
 <div id="controls-bar" class="controls">
   <div class="date-range">
-    @foreach (ranges as range)
-      <button
-        class="date-btn {{ range.value === activeRange ? 'active' : '' }}"
-        data-range="{{ range.value }}"
-        onclick="setDateRange('{{ range.value }}')"
-      >
-        {{ range.label }}
-      </button>
+    @foreach(ranges as range)
+    <button class="date-btn{{ range.id === activeRange ? ' active' : '' }}" data-range="{{ range.id }}" onclick="setDateRange('{{ range.id }}')">{{ range.label }}</button>
     @endforeach
     <span style="border-left:1px solid var(--border);height:24px;margin:0 0.5rem"></span>
     <button
       id="compare-btn"
-      class="date-btn {{ showCompare ? 'active' : '' }}"
+      class="date-btn"
       onclick="toggleComparison()"
       title="Compare with previous period"
       style="font-size:0.6875rem;padding:0.25rem 0.5rem"
@@ -69,9 +47,9 @@ const { activeRange, realtimeCount, lastUpdated, showCompare, ranges } = withDef
   <div class="controls-right">
     <div class="realtime-badge">
       <span class="pulse"></span>
-      <span id="realtime-count">{{ realtimeCount }} visitors online</span>
+      <span id="realtime-count">0 visitors online</span>
     </div>
-    <span id="last-updated" class="last-updated">{{ lastUpdated }}</span>
+    <span id="last-updated" class="last-updated"></span>
     <button id="refresh-btn" class="refresh-btn" onclick="fetchDashboardData()" title="Refresh data">
       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>

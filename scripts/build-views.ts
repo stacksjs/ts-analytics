@@ -11,6 +11,7 @@ import path from 'node:path'
 
 const VIEWS_DIR = path.resolve(import.meta.dir, '../src/views')
 const OUTPUT_DIR = path.resolve(import.meta.dir, '../dist/views')
+const COMPONENTS_DIR = path.resolve(import.meta.dir, '../src/components')
 
 // Placeholder tokens for runtime replacement
 const PLACEHOLDERS = {
@@ -25,7 +26,7 @@ const PLACEHOLDERS = {
 const result = await buildViews({
   viewsDir: VIEWS_DIR,
   outputDir: OUTPUT_DIR,
-  componentsDir: path.join(VIEWS_DIR, 'components/dashboard'),
+  componentsDir: COMPONENTS_DIR,
   layoutsDir: path.join(VIEWS_DIR, 'layouts'),
   partialsDir: path.join(VIEWS_DIR, 'partials'),
   placeholders: PLACEHOLDERS,
