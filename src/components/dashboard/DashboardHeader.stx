@@ -1,12 +1,11 @@
-<script server>
-import { defineProps, withDefaults } from 'stx'
+<script>
+/**
+ * DashboardHeader Component - Navigation header
+ * Uses STX signals for reactive tab and theme state
+ */
 
-interface Tab {
-  id: string
-  label: string
-}
-
-const defaultTabs: Tab[] = [
+// Tab definitions
+const tabs = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'live', label: 'Live' },
   { id: 'sessions', label: 'Sessions' },
@@ -18,37 +17,99 @@ const defaultTabs: Tab[] = [
   { id: 'settings', label: 'Settings' },
 ]
 
-const { tabs, activeTab } = withDefaults(
-  defineProps<{ tabs?: Tab[], activeTab?: string }>(),
-  {
-    tabs: () => defaultTabs,
-    activeTab: 'dashboard',
+// State
+const activeTab = state('dashboard')
+const siteName = state('Analytics Dashboard')
+const isDarkTheme = state(true)
+
+// Initialize theme from localStorage/system preference
+function initTheme() {
+  const stored = localStorage.getItem('ts-analytics-theme')
+  if (stored) {
+    isDarkTheme.set(stored === 'dark')
+  } else {
+    isDarkTheme.set(!window.matchMedia('(prefers-color-scheme: light)').matches)
   }
-)
+  applyTheme()
+}
+
+// Apply theme to document
+function applyTheme() {
+  const theme = isDarkTheme() ? 'dark' : 'light'
+  document.documentElement.setAttribute('data-theme', theme)
+}
+
+// Toggle theme
+function toggleTheme() {
+  isDarkTheme.set(!isDarkTheme())
+  const theme = isDarkTheme() ? 'dark' : 'light'
+  localStorage.setItem('ts-analytics-theme', theme)
+  applyTheme()
+
+  // Notify dashboard.ts for chart re-render
+  if (window.toggleTheme) {
+    window.toggleTheme()
+  }
+}
+
+// Switch tab
+function switchTab(tabId) {
+  activeTab.set(tabId)
+
+  // Notify dashboard.ts
+  if (window.switchTab) {
+    window.switchTab(tabId)
+  }
+}
+
+// Go back to site selector
+function goBack() {
+  if (window.goBack) {
+    window.goBack()
+  }
+}
+
+// Update site name
+function setSiteName(name) {
+  siteName.set(name || 'Analytics Dashboard')
+}
+
+// Expose functions
+onMount(() => {
+  initTheme()
+  window.headerSetActiveTab = (tab) => activeTab.set(tab)
+  window.headerSetSiteName = setSiteName
+})
 </script>
 
 <header class="header">
   <div class="header-left">
-    <button class="back-btn" onclick="goBack()" title="Back to sites">
+    <button class="back-btn" @click="goBack" title="Back to sites">
       <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
     </button>
-    <span id="current-site-name" class="site-name-header">Analytics Dashboard</span>
+    <span id="current-site-name" class="site-name-header">{{ siteName() }}</span>
   </div>
 
   <nav class="header-nav">
-    @foreach(tabs as tab)
-    <button class="nav-btn{{ tab.id === activeTab ? ' active' : '' }}" data-tab="{{ tab.id }}" onclick="switchTab('{{ tab.id }}')">{{ tab.label }}</button>
-    @endforeach
+    <button
+      @for="tab in tabs"
+      class="nav-btn"
+      :class="{ active: activeTab() === tab.id }"
+      :data-tab="tab.id"
+      @click="switchTab(tab.id)"
+    >
+      {{ tab.label }}
+    </button>
   </nav>
 
   <div class="header-right">
-    <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
-      <svg id="theme-icon-dark" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <button id="theme-toggle" class="theme-toggle" @click="toggleTheme" title="Toggle dark/light mode">
+      <svg @if="isDarkTheme()" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
       </svg>
-      <svg id="theme-icon-light" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none">
+      <svg @if="!isDarkTheme()" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="5" stroke-width="2"/>
         <path stroke-linecap="round" stroke-width="2" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
       </svg>

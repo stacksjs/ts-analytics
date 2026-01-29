@@ -6,12 +6,6 @@
 const referrers = state([])
 const loading = state(true)
 
-function fmt(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 function getDomain(source) {
   return source.replace(/^https?:\/\//, '').split('/')[0]
 }
@@ -23,6 +17,10 @@ function isExternalLink(source) {
 
 function getHref(source) {
   return source.startsWith('http') ? source : 'https://' + source
+}
+
+function getFaviconUrl(source) {
+  return 'https://www.google.com/s2/favicons?domain=' + getDomain(source) + '&sz=16'
 }
 
 async function fetchReferrers() {
@@ -57,7 +55,7 @@ window.refreshReferrersPanel = fetchReferrers
       </svg>
       Top Referrers
     </div>
-    <a href="#" onclick="navigateTo('referrers')" class="view-all">View all &rarr;</a>
+    <a href="#" @click.prevent="window.navigateTo('referrers')" class="view-all">View all &rarr;</a>
   </div>
   <table class="data-table">
     <thead>
@@ -68,13 +66,7 @@ window.refreshReferrersPanel = fetchReferrers
       </tr>
     </thead>
     <tbody>
-      <tr @if="loading()">
-        <td colspan="3" class="loading-cell">Loading...</td>
-      </tr>
-      <tr @if="!loading() && referrers().length === 0">
-        <td colspan="3" class="empty-cell">No referrer data</td>
-      </tr>
-      <tr @for="ref in referrers()" @if="!loading()">
+      <tr @for="ref in referrers()" @loading="loading()" @if="!loading()">
         <td class="name">
           <a @if="isExternalLink(ref.source || 'Direct')"
              :href="getHref(ref.source)"
@@ -82,7 +74,7 @@ window.refreshReferrersPanel = fetchReferrers
              rel="noopener"
              class="referrer-link">
             <img
-              :src="'https://www.google.com/s2/favicons?domain=' + getDomain(ref.source) + '&sz=16'"
+              :src="getFaviconUrl(ref.source)"
               width="14"
               height="14"
               class="favicon"
@@ -95,8 +87,14 @@ window.refreshReferrersPanel = fetchReferrers
           </a>
           <span @if="!isExternalLink(ref.source || 'Direct')">{{ ref.source || 'Direct' }}</span>
         </td>
-        <td class="value">{{ fmt(ref.visitors || 0) }}</td>
-        <td class="value">{{ fmt(ref.views || 0) }}</td>
+        <td class="value">{{ ref.visitors | fmt }}</td>
+        <td class="value">{{ ref.views | fmt }}</td>
+      </tr>
+      <tr @for-loading>
+        <td colspan="3" class="loading-cell">Loading...</td>
+      </tr>
+      <tr @for-empty>
+        <td colspan="3" class="empty-cell">No referrer data</td>
       </tr>
     </tbody>
   </table>

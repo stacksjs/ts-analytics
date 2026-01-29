@@ -23,16 +23,6 @@ async function fetchLive() {
   }
 }
 
-// Time ago helper
-function timeAgo(timestamp) {
-  if (!timestamp) return 'Just now'
-  const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000)
-  if (seconds < 60) return 'Just now'
-  if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago'
-  if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago'
-  return Math.floor(seconds / 86400) + 'd ago'
-}
-
 // Auto-refresh every 5 seconds
 onMount(() => {
   fetchLive()
@@ -50,29 +40,27 @@ onMount(() => {
     <span class="live-refresh-note">Auto-refreshing every 5s</span>
   </div>
 
-  <div class="live-activities">
-    <div @if="loading()" class="loading-state">
-      <div class="spinner"></div>
-      <span>Loading...</span>
-    </div>
+  <div @if="error()" class="error-state">
+    {{ error() }}
+  </div>
 
-    <div @if="error()" class="error-state">
-      {{ error() }}
-    </div>
-
-    <div @if="!loading() && !error() && activities().length === 0" class="empty-state">
-      No recent activity. Visitors will appear here in real-time.
-    </div>
-
-    <div @for="activity in activities()" class="live-activity-card">
+  <div class="live-activities" @if="!error()">
+    <div @for="activity in activities()" @loading="loading()" @if="!loading()" class="live-activity-card">
       <div class="live-dot"></div>
       <div class="live-activity-content">
         <div class="live-activity-path">{{ activity.path || '/' }}</div>
         <div class="live-activity-meta">
-          {{ activity.country || 'Unknown' }} • {{ activity.device || 'Unknown' }} • {{ activity.browser || 'Unknown' }}
+          {{ activity.country || 'Unknown' }} &bull; {{ activity.device || 'Unknown' }} &bull; {{ activity.browser || 'Unknown' }}
         </div>
       </div>
-      <div class="live-activity-time">{{ timeAgo(activity.timestamp) }}</div>
+      <div class="live-activity-time">{{ activity.timestamp | timeAgo }}</div>
+    </div>
+    <div @for-loading class="loading-state">
+      <div class="spinner"></div>
+      <span>Loading...</span>
+    </div>
+    <div @for-empty class="empty-state">
+      No recent activity. Visitors will appear here in real-time.
     </div>
   </div>
 </div>

@@ -24,11 +24,11 @@
       <p class="text-gray-400 mb-4">Click the buttons below to trigger different types of JavaScript errors. These will be captured and sent to the analytics API.</p>
 
       <div class="flex flex-wrap gap-2">
-        <button onclick="testSyntaxError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Syntax Error</button>
-        <button onclick="testTypeError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Type Error</button>
-        <button onclick="testReferenceError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Reference Error</button>
-        <button onclick="testCustomError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Custom Error</button>
-        <button onclick="testAsyncError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Async Error</button>
+        <button @click="testSyntaxError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Syntax Error</button>
+        <button @click="testTypeError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Type Error</button>
+        <button @click="testReferenceError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Reference Error</button>
+        <button @click="testCustomError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Custom Error</button>
+        <button @click="testAsyncError()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Async Error</button>
       </div>
     </div>
 

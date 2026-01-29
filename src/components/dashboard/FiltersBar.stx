@@ -1,53 +1,111 @@
-<script server>
-import { defineProps, withDefaults } from 'stx'
+<script>
+/**
+ * FiltersBar Component - Data filtering controls
+ * Uses STX signals for reactive filter state
+ */
 
-interface FilterOption {
-  value: string
-  label: string
-}
+// Filter state
+const countryFilter = state('')
+const deviceFilter = state('')
+const browserFilter = state('')
 
-const defaultDevices: FilterOption[] = [
+// Available options (populated dynamically)
+const countries = state([])
+const devices = state([
   { value: '', label: 'All Devices' },
   { value: 'desktop', label: 'Desktop' },
   { value: 'mobile', label: 'Mobile' },
   { value: 'tablet', label: 'Tablet' },
-]
+])
+const browsers = state([])
 
-const { devices } = withDefaults(
-  defineProps<{ devices?: FilterOption[] }>(),
-  {
-    devices: () => defaultDevices,
+// Apply filter and notify dashboard
+function applyFilter(filterType, value) {
+  switch (filterType) {
+    case 'country':
+      countryFilter.set(value)
+      break
+    case 'device':
+      deviceFilter.set(value)
+      break
+    case 'browser':
+      browserFilter.set(value)
+      break
   }
-)
+
+  // Notify dashboard.ts
+  if (window.applyFilter) {
+    window.applyFilter(filterType, value)
+  }
+
+  // Refresh panels with filter
+  if (window.refreshAllPanels) {
+    window.refreshAllPanels()
+  }
+}
+
+// Get current filters as query params
+function getFilterParams() {
+  const params = []
+  if (countryFilter()) params.push(`country=${encodeURIComponent(countryFilter())}`)
+  if (deviceFilter()) params.push(`device=${encodeURIComponent(deviceFilter())}`)
+  if (browserFilter()) params.push(`browser=${encodeURIComponent(browserFilter())}`)
+  return params.length > 0 ? '&' + params.join('&') : ''
+}
+
+// Populate filter options from data
+function setCountries(list) {
+  countries.set([{ value: '', label: 'All Countries' }, ...list.map(c => ({ value: c, label: c }))])
+}
+
+function setBrowsers(list) {
+  browsers.set([{ value: '', label: 'All Browsers' }, ...list.map(b => ({ value: b, label: b }))])
+}
+
+// Reset all filters
+function resetFilters() {
+  countryFilter.set('')
+  deviceFilter.set('')
+  browserFilter.set('')
+}
+
+// Expose functions
+onMount(() => {
+  window.setFilterCountries = setCountries
+  window.setFilterBrowsers = setBrowsers
+  window.getFilterParams = getFilterParams
+  window.resetFilters = resetFilters
+})
 </script>
 
 <div id="filters-bar" class="filters-row">
   <select
     id="filter-country"
     class="filter-select"
-    onchange="applyFilter('country', this.value)"
+    @model="countryFilter"
+    @change="applyFilter('country', countryFilter())"
   >
-    <option value="">All Countries</option>
-    <!-- Countries populated dynamically via JS -->
+    <option @for="country in countries()" :value="country.value">{{ country.label }}</option>
+    <option @if="countries().length === 0" value="">All Countries</option>
   </select>
 
   <select
     id="filter-device"
     class="filter-select"
-    onchange="applyFilter('device', this.value)"
+    @model="deviceFilter"
+    @change="applyFilter('device', deviceFilter())"
   >
-    @foreach(devices as device)
-    <option value="{{ device.value }}">{{ device.label }}</option>
-    @endforeach
+    <option @for="device in devices()" :value="device.value">{{ device.label }}</option>
   </select>
 
   <select
     id="filter-browser"
     class="filter-select"
-    onchange="applyFilter('browser', this.value)"
+    @model="browserFilter"
+    @change="applyFilter('browser', browserFilter())"
   >
-    <option value="">All Browsers</option>
-    <!-- Browsers populated dynamically via JS -->
+    <option @for="browser in browsers()" :value="browser.value">{{ browser.label }}</option>
+    <option @if="browsers().length === 0" value="">All Browsers</option>
   </select>
 </div>
 

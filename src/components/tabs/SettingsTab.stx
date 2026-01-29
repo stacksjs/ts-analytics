@@ -36,6 +36,20 @@ const newTeamEmail = state('')
 const newTeamRole = state('viewer')
 const newWebhookUrl = state('')
 const newWebhookEvents = state(['pageview'])
+
+function toggleWebhookEvent(event) {
+  const current = newWebhookEvents()
+  if (current.includes(event)) {
+    newWebhookEvents.set(current.filter(e => e !== event))
+  } else {
+    newWebhookEvents.set([...current, event])
+  }
+}
+
+function hasWebhookEvent(event) {
+  return newWebhookEvents().includes(event)
+}
+
 const newPerfBudgetMetric = state('LCP')
 const newPerfBudgetThreshold = state(2500)
 
@@ -55,7 +69,7 @@ async function fetchSettings() {
 
     const [keysData, alertsData, reportsData, uptimeData, teamData, webhooksData, budgetsData, retentionData] = await Promise.all([
       keysRes.json(), alertsRes.json(), reportsRes.json(), uptimeRes.json(),
-      teamData.json(), webhooksRes.json(), budgetsRes.json(), retentionRes.json()
+      teamRes.json(), webhooksRes.json(), budgetsRes.json(), retentionRes.json()
     ])
 
     apiKeys.set(keysData.keys || [])
@@ -593,16 +607,16 @@ onMount(() => {
         <label class="form-label">Events</label>
         <div class="checkbox-group">
           <label class="checkbox-label">
-            <input type="checkbox" value="pageview" checked /> Page View
+            <input type="checkbox" :checked="hasWebhookEvent('pageview')" @change="toggleWebhookEvent('pageview')" /> Page View
           </label>
           <label class="checkbox-label">
-            <input type="checkbox" value="session" /> Session
+            <input type="checkbox" :checked="hasWebhookEvent('session')" @change="toggleWebhookEvent('session')" /> Session
           </label>
           <label class="checkbox-label">
-            <input type="checkbox" value="error" /> Error
+            <input type="checkbox" :checked="hasWebhookEvent('error')" @change="toggleWebhookEvent('error')" /> Error
           </label>
           <label class="checkbox-label">
-            <input type="checkbox" value="goal" /> Goal Conversion
+            <input type="checkbox" :checked="hasWebhookEvent('goal')" @change="toggleWebhookEvent('goal')" /> Goal Conversion
           </label>
         </div>
       </div>
@@ -748,13 +762,10 @@ onMount(() => {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-}
-.modal-overlay.active {
-  display: flex;
 }
 .modal {
   background: var(--bg2);

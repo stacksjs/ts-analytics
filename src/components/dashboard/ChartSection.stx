@@ -14,7 +14,7 @@ const showAnnotationBtn = props && props.showAnnotation !== undefined ? props.sh
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
     <div class="chart-title" style="margin-bottom:0">{{ chartTitle }}</div>
     @if (showAnnotationBtn)
-      <button onclick="addAnnotation()" class="annotation-btn" title="Mark an event on the chart">
+      <button @click="window.addAnnotation()" class="annotation-btn" title="Mark an event on the chart">
         <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px;vertical-align:middle">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>

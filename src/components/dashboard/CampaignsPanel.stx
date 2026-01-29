@@ -45,7 +45,7 @@ window.refreshCampaignsPanel = fetchCampaigns
       </svg>
       Campaigns
     </div>
-    <a href="#" onclick="navigateTo('campaigns')" class="view-all">View all &rarr;</a>
+    <a href="#" @click.prevent="window.navigateTo('campaigns')" class="view-all">View all &rarr;</a>
   </div>
   <table class="data-table">
     <thead>

@@ -6,12 +6,6 @@
 const pages = state([])
 const loading = state(true)
 
-function fmt(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 async function fetchPages() {
   const siteId = window.siteId
   if (!siteId) {
@@ -45,7 +39,7 @@ window.refreshPagesPanel = fetchPages
       </svg>
       Top Pages
     </div>
-    <a href="#" onclick="navigateTo('pages')" class="view-all">View all &rarr;</a>
+    <a href="#" @click.prevent="window.navigateTo('pages')" class="view-all">View all &rarr;</a>
   </div>
   <table class="data-table">
     <thead>
@@ -57,14 +51,8 @@ window.refreshPagesPanel = fetchPages
       </tr>
     </thead>
     <tbody>
-      <tr @if="loading()">
-        <td colspan="4" class="loading-cell">Loading...</td>
-      </tr>
-      <tr @if="!loading() && pages().length === 0">
-        <td colspan="4" class="empty-cell">No page data</td>
-      </tr>
-      <tr @for="page in pages()" @if="!loading()">
-        <td class="name" title="{{ page.path }}">
+      <tr @for="page in pages()" @loading="loading()" @if="!loading()">
+        <td class="name" :title="page.path">
           <a :href="page.path" target="_blank" rel="noopener" class="page-link">
             {{ page.path }}
             <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,9 +60,15 @@ window.refreshPagesPanel = fetchPages
             </svg>
           </a>
         </td>
-        <td class="value">{{ fmt(page.entries || 0) }}</td>
-        <td class="value">{{ fmt(page.visitors || 0) }}</td>
-        <td class="value">{{ fmt(page.views || 0) }}</td>
+        <td class="value">{{ page.entries | fmt }}</td>
+        <td class="value">{{ page.visitors | fmt }}</td>
+        <td class="value">{{ page.views | fmt }}</td>
+      </tr>
+      <tr @for-loading>
+        <td colspan="4" class="loading-cell">Loading...</td>
+      </tr>
+      <tr @for-empty>
+        <td colspan="4" class="empty-cell">No page data</td>
       </tr>
     </tbody>
   </table>

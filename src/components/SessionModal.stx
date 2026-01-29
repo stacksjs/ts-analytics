@@ -10,7 +10,7 @@
   <div class="session-modal-content">
     <div class="session-modal-header">
       <h3 class="session-modal-title">Session: <span id="session-id"></span></h3>
-      <button class="modal-close" onclick="closeModal()">
+      <button class="modal-close" @click="window.closeModal()">
         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>

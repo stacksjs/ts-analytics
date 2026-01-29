@@ -70,7 +70,7 @@ window.refreshGoalsPanel = fetchGoals
       </svg>
       Goals
     </div>
-    <button class="add-btn" onclick="showCreateGoalModal()">+ Add Goal</button>
+    <button class="add-btn" @click="window.showCreateGoalModal()">+ Add Goal</button>
   </div>
 
   <div @if="loading()" class="loading-state">Loading...</div>

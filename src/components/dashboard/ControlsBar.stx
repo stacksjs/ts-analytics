@@ -1,12 +1,11 @@
-<script server>
-import { defineProps, withDefaults } from 'stx'
+<script>
+/**
+ * ControlsBar Component - Date range and controls
+ * Uses STX signals for reactive state
+ */
 
-interface DateRange {
-  id: string
-  label: string
-}
-
-const defaultRanges: DateRange[] = [
+// Date range options
+const ranges = [
   { id: '1h', label: '1h' },
   { id: '6h', label: '6h' },
   { id: '12h', label: '12h' },
@@ -16,29 +15,99 @@ const defaultRanges: DateRange[] = [
   { id: '90d', label: '90d' },
 ]
 
-const { ranges, activeRange } = withDefaults(
-  defineProps<{ ranges?: DateRange[], activeRange?: string }>(),
-  {
-    ranges: () => defaultRanges,
-    activeRange: '6h',
+// State
+const activeRange = state('6h')
+const showComparison = state(false)
+const realtimeCount = state(0)
+const lastUpdated = state('')
+const isRefreshing = state(false)
+
+// Set date range
+function setRange(range) {
+  activeRange.set(range)
+  // Notify dashboard.ts
+  if (window.setDateRange) {
+    window.setDateRange(range)
   }
-)
+}
+
+// Toggle comparison mode
+function toggleComparison() {
+  showComparison.set(!showComparison())
+  if (window.toggleComparison) {
+    window.toggleComparison()
+  }
+}
+
+// Refresh data
+async function refresh() {
+  if (isRefreshing()) return
+  isRefreshing.set(true)
+
+  if (window.fetchDashboardData) {
+    await window.fetchDashboardData()
+  }
+
+  // Ensure spinner completes at least one rotation
+  setTimeout(() => {
+    isRefreshing.set(false)
+  }, 500)
+}
+
+// Export data
+function exportData(format) {
+  if (window.exportData) {
+    window.exportData(format)
+  } else {
+    // Fallback: trigger CSV download
+    const siteId = window.siteId
+    if (siteId) {
+      window.location.href = window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/export?format=${format}`)
+    }
+  }
+}
+
+// Update realtime count from external source
+function updateRealtimeCount(count) {
+  realtimeCount.set(count)
+}
+
+function updateLastUpdated(time) {
+  lastUpdated.set(time)
+}
+
+// Expose update functions
+onMount(() => {
+  window.updateRealtimeCount = updateRealtimeCount
+  window.updateLastUpdated = updateLastUpdated
+  window.controlsSetDateRange = (range) => activeRange.set(range)
+
+  // Sync with any existing dashboard state
+  if (window.dateRange) {
+    activeRange.set(window.dateRange)
+  }
+})
 </script>
 
 <div id="controls-bar" class="controls">
   <div class="date-range">
-    @foreach(ranges as range)
-    <button class="date-btn{{ range.id === activeRange ? ' active' : '' }}" data-range="{{ range.id }}" onclick="setDateRange('{{ range.id }}')">{{ range.label }}</button>
-    @endforeach
-    <span style="border-left:1px solid var(--border);height:24px;margin:0 0.5rem"></span>
     <button
-      id="compare-btn"
+      @for="range in ranges"
       class="date-btn"
-      onclick="toggleComparison()"
-      title="Compare with previous period"
-      style="font-size:0.6875rem;padding:0.25rem 0.5rem"
+      :class="{ active: activeRange() === range.id }"
+      :data-range="range.id"
+      @click="setRange(range.id)"
     >
-      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px;vertical-align:middle">
+      {{ range.label }}
+    </button>
+    <span class="divider"></span>
+    <button
+      class="date-btn compare-btn"
+      :class="{ active: showComparison() }"
+      @click="toggleComparison"
+      title="Compare with previous period"
+    >
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
       </svg>
       Compare
@@ -47,15 +116,21 @@ const { ranges, activeRange } = withDefaults(
   <div class="controls-right">
     <div class="realtime-badge">
       <span class="pulse"></span>
-      <span id="realtime-count">0 visitors online</span>
+      <span id="realtime-count">{{ realtimeCount() }} visitors online</span>
     </div>
-    <span id="last-updated" class="last-updated"></span>
-    <button id="refresh-btn" class="refresh-btn" onclick="fetchDashboardData()" title="Refresh data">
+    <span @if="lastUpdated()" id="last-updated" class="last-updated">{{ lastUpdated() }}</span>
+    <button
+      id="refresh-btn"
+      class="icon-btn"
+      :class="{ spinning: isRefreshing() }"
+      @click="refresh"
+      title="Refresh data"
+    >
       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
       </svg>
     </button>
-    <button class="export-btn" onclick="exportData('csv')" title="Export CSV">
+    <button class="icon-btn" @click="exportData('csv')" title="Export CSV">
       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
       </svg>
@@ -99,6 +174,21 @@ const { ranges, activeRange } = withDefaults(
   border-color: var(--accent);
   color: white;
 }
+.compare-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  padding: 0.25rem 0.5rem;
+}
+.compare-btn svg {
+  vertical-align: middle;
+}
+.divider {
+  border-left: 1px solid var(--border);
+  height: 24px;
+  margin: 0 0.5rem;
+}
 .controls-right {
   display: flex;
   align-items: center;
@@ -131,8 +221,7 @@ const { ranges, activeRange } = withDefaults(
   font-size: 0.75rem;
   color: var(--muted);
 }
-.refresh-btn,
-.export-btn {
+.icon-btn {
   background: var(--bg2);
   border: 1px solid var(--border);
   color: var(--text2);
@@ -144,12 +233,11 @@ const { ranges, activeRange } = withDefaults(
   justify-content: center;
   transition: all 0.15s;
 }
-.refresh-btn:hover,
-.export-btn:hover {
+.icon-btn:hover {
   background: var(--bg3);
   color: var(--text);
 }
-.refresh-btn.spinning svg {
+.icon-btn.spinning svg {
   animation: spin 0.5s linear infinite;
 }
 @keyframes spin {

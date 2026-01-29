@@ -1025,23 +1025,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (siteId) {
     currentSite = { id: siteId }
     document.getElementById('site-selector')!.style.display = 'none'
+
+    const initialTab = getTabFromUrl()
+
+    // Switch to the correct tab BEFORE showing the dashboard to avoid flash
+    switchTab(initialTab, false)
+
     document.getElementById('dashboard')!.style.display = 'block'
 
     const cached = loadCachedStats()
     if (cached) {
       stats = cached
       previousStats = null
-      renderDashboard(false)
+      if (initialTab === 'dashboard') {
+        renderDashboard(false)
+      }
     }
-
-    const initialTab = getTabFromUrl()
 
     await fetchDashboardData()
     refreshInterval = setInterval(fetchDashboardData, 30000)
 
-    if (initialTab !== 'dashboard') {
-      switchTab(initialTab, false)
-    }
     updateUrlForTab(initialTab, true)
   } else {
     document.getElementById('site-selector')!.style.display = 'flex'

@@ -6,12 +6,6 @@
 const devices = state([])
 const loading = state(true)
 
-function fmt(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 const deviceIcons = {
   desktop: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
   mobile: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
@@ -54,7 +48,7 @@ window.refreshDevicesPanel = fetchDevices
       </svg>
       Devices
     </div>
-    <a href="#" onclick="navigateTo('devices')" class="view-all">View all &rarr;</a>
+    <a href="#" @click.prevent="window.navigateTo('devices')" class="view-all">View all &rarr;</a>
   </div>
   <table class="data-table">
     <thead>
@@ -65,21 +59,21 @@ window.refreshDevicesPanel = fetchDevices
       </tr>
     </thead>
     <tbody>
-      <tr @if="loading()">
-        <td colspan="3" class="loading-cell">Loading...</td>
-      </tr>
-      <tr @if="!loading() && devices().length === 0">
-        <td colspan="3" class="empty-cell">No device data</td>
-      </tr>
-      <tr @for="device in devices()" @if="!loading()">
+      <tr @for="device in devices()" @loading="loading()" @if="!loading()">
         <td class="name">
           <svg class="device-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(device.type)"/>
           </svg>
-          {{ device.type || 'Unknown' }}
+          {{ device.type || 'Unknown' | capitalize }}
         </td>
-        <td class="value">{{ fmt(device.visitors || 0) }}</td>
+        <td class="value">{{ device.visitors | fmt }}</td>
         <td class="value">{{ device.percentage || 0 }}%</td>
+      </tr>
+      <tr @for-loading>
+        <td colspan="3" class="loading-cell">Loading...</td>
+      </tr>
+      <tr @for-empty>
+        <td colspan="3" class="empty-cell">No device data</td>
       </tr>
     </tbody>
   </table>

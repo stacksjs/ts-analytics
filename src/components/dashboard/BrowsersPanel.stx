@@ -6,12 +6,6 @@
 const browsers = state([])
 const loading = state(true)
 
-function fmt(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 async function fetchBrowsers() {
   const siteId = window.siteId
   if (!siteId) {
@@ -44,7 +38,7 @@ window.refreshBrowsersPanel = fetchBrowsers
       </svg>
       Browsers
     </div>
-    <a href="#" onclick="navigateTo('browsers')" class="view-all">View all &rarr;</a>
+    <a href="#" @click.prevent="window.navigateTo('browsers')" class="view-all">View all &rarr;</a>
   </div>
   <table class="data-table">
     <thead>
@@ -55,16 +49,16 @@ window.refreshBrowsersPanel = fetchBrowsers
       </tr>
     </thead>
     <tbody>
-      <tr @if="loading()">
+      <tr @for="browser in browsers()" @loading="loading()" @if="!loading()">
+        <td class="name">{{ browser.name || 'Unknown' }}</td>
+        <td class="value">{{ browser.visitors | fmt }}</td>
+        <td class="value">{{ browser.percentage || 0 }}%</td>
+      </tr>
+      <tr @for-loading>
         <td colspan="3" class="loading-cell">Loading...</td>
       </tr>
-      <tr @if="!loading() && browsers().length === 0">
+      <tr @for-empty>
         <td colspan="3" class="empty-cell">No browser data</td>
-      </tr>
-      <tr @for="browser in browsers()" @if="!loading()">
-        <td class="name">{{ browser.name || 'Unknown' }}</td>
-        <td class="value">{{ fmt(browser.visitors || 0) }}</td>
-        <td class="value">{{ browser.percentage || 0 }}%</td>
       </tr>
     </tbody>
   </table>

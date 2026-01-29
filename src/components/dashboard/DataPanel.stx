@@ -39,7 +39,7 @@ const { id, title, icon, viewAllLink, columns, bodyId } = withDefaults(
       {{ title }}
     </div>
     @if (viewAllLink)
-      <a href="#" onclick="navigateTo('{{ viewAllLink }}')" class="view-all">View all &rarr;</a>
+      <a href="#" @click.prevent="window.navigateTo('{{ viewAllLink }}')" class="view-all">View all &rarr;</a>
     @endif
   </div>
   <table class="data-table">

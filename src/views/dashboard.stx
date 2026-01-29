@@ -9,12 +9,12 @@
 </head>
 <body>
   <stx-loading-indicator color="var(--accent)" height="3px" />
-  @include('../components/dashboard/SiteSelector.stx')
+  <site-selector />
 
   <div id="dashboard" class="min-h-screen flex flex-col" style="display:none">
-    @include('../components/dashboard/DashboardHeader.stx')
-    @include('../components/dashboard/ControlsBar.stx')
-    @include('../components/dashboard/FiltersBar.stx')
+    <dashboard-header />
+    <controls-bar />
+    <filters-bar />
     @include('../components/dashboard/StatsRow.stx')
 
     <script>
@@ -84,7 +84,7 @@
       <div id="tab-settings" class="tab-view hidden"><settings-tab /></div>
     </div>
 
-    @include('../components/dashboard/GoalModal.stx')
+    <goal-modal />
     @include('../components/Modal.stx')
     @include('../components/SessionModal.stx')
   </div>
