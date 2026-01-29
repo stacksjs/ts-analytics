@@ -10,10 +10,12 @@ const error = state(null)
 
 // Fetch vitals data
 async function fetchVitals() {
+  const siteId = window.siteId
+  if (!siteId) { loading.set(false); return }
   try {
     const [vitalsRes, budgetsRes] = await Promise.all([
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/vitals${getDateRangeParams()}`),
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets/check`)
+      fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/vitals${window.getDateRangeParams()}`),
+      fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/performance-budgets/check`)
     ])
     const vitalsData = await vitalsRes.json()
     const budgetsData = await budgetsRes.json()

@@ -40,16 +40,17 @@ const newPerfBudgetMetric = state('LCP')
 const newPerfBudgetThreshold = state(2500)
 
 async function fetchSettings() {
+  if (!window.siteId) { loading.set(false); return }
   try {
     const [keysRes, alertsRes, reportsRes, uptimeRes, teamRes, webhooksRes, budgetsRes, retentionRes] = await Promise.all([
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/api-keys`),
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/alerts`),
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/email-reports`),
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/uptime`),
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/team`),
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/webhooks`),
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets`),
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/retention`)
+      fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/api-keys`),
+      fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/alerts`),
+      fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/email-reports`),
+      fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/uptime`),
+      fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/team`),
+      fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/webhooks`),
+      fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/performance-budgets`),
+      fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/retention`)
     ])
 
     const [keysData, alertsData, reportsData, uptimeData, teamData, webhooksData, budgetsData, retentionData] = await Promise.all([
@@ -78,7 +79,7 @@ async function createApiKey() {
   const name = newApiKeyName()
   if (!name) return
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/api-keys`, {
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/api-keys`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name })
@@ -94,7 +95,7 @@ async function createApiKey() {
 async function deleteApiKey(keyId) {
   if (!confirm('Delete this API key?')) return
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/api-keys/${keyId}`, { method: 'DELETE' })
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/api-keys/${keyId}`, { method: 'DELETE' })
     fetchSettings()
   } catch (e) {
     error.set(e.message)
@@ -104,7 +105,7 @@ async function deleteApiKey(keyId) {
 // Alerts
 async function createAlert() {
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/alerts`, {
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/alerts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -123,7 +124,7 @@ async function createAlert() {
 async function deleteAlert(alertId) {
   if (!confirm('Delete this alert?')) return
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/alerts/${alertId}`, { method: 'DELETE' })
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/alerts/${alertId}`, { method: 'DELETE' })
     fetchSettings()
   } catch (e) {
     error.set(e.message)
@@ -133,7 +134,7 @@ async function deleteAlert(alertId) {
 // Email Reports
 async function addEmailReport() {
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/email-reports`, {
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/email-reports`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -151,7 +152,7 @@ async function addEmailReport() {
 async function deleteEmailReport(reportId) {
   if (!confirm('Delete this email report?')) return
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/email-reports/${reportId}`, { method: 'DELETE' })
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/email-reports/${reportId}`, { method: 'DELETE' })
     fetchSettings()
   } catch (e) {
     error.set(e.message)
@@ -161,7 +162,7 @@ async function deleteEmailReport(reportId) {
 // Uptime Monitors
 async function createUptimeMonitor() {
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/uptime`, {
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/uptime`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -179,7 +180,7 @@ async function createUptimeMonitor() {
 async function deleteUptimeMonitor(monitorId) {
   if (!confirm('Delete this uptime monitor?')) return
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/uptime/${monitorId}`, { method: 'DELETE' })
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/uptime/${monitorId}`, { method: 'DELETE' })
     fetchSettings()
   } catch (e) {
     error.set(e.message)
@@ -189,7 +190,7 @@ async function deleteUptimeMonitor(monitorId) {
 // Team Members
 async function inviteTeamMember() {
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/team`, {
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/team`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -207,7 +208,7 @@ async function inviteTeamMember() {
 async function removeTeamMember(memberId) {
   if (!confirm('Remove this team member?')) return
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/team/${memberId}`, { method: 'DELETE' })
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/team/${memberId}`, { method: 'DELETE' })
     fetchSettings()
   } catch (e) {
     error.set(e.message)
@@ -217,7 +218,7 @@ async function removeTeamMember(memberId) {
 // Webhooks
 async function addWebhook() {
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/webhooks`, {
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/webhooks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -235,7 +236,7 @@ async function addWebhook() {
 async function deleteWebhook(webhookId) {
   if (!confirm('Delete this webhook?')) return
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/webhooks/${webhookId}`, { method: 'DELETE' })
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/webhooks/${webhookId}`, { method: 'DELETE' })
     fetchSettings()
   } catch (e) {
     error.set(e.message)
@@ -245,7 +246,7 @@ async function deleteWebhook(webhookId) {
 // Performance Budgets
 async function createPerfBudget() {
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets`, {
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/performance-budgets`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -263,7 +264,7 @@ async function createPerfBudget() {
 async function deletePerfBudget(budgetId) {
   if (!confirm('Delete this performance budget?')) return
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets/${budgetId}`, { method: 'DELETE' })
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/performance-budgets/${budgetId}`, { method: 'DELETE' })
     fetchSettings()
   } catch (e) {
     error.set(e.message)
@@ -272,13 +273,13 @@ async function deletePerfBudget(budgetId) {
 
 // Data & Privacy
 async function gdprExport() {
-  window.location.href = `${API_ENDPOINT}/api/sites/${siteId}/gdpr/export`
+  window.location.href = `${window.API_ENDPOINT}/api/sites/${window.siteId}/gdpr/export`
 }
 
 async function gdprDelete() {
   if (!confirm('This will permanently delete ALL analytics data for this site. This action cannot be undone. Are you sure?')) return
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/gdpr/delete`, { method: 'DELETE' })
+    await fetch(`${window.API_ENDPOINT}/api/sites/${window.siteId}/gdpr/delete`, { method: 'DELETE' })
     alert('All data has been deleted.')
   } catch (e) {
     error.set(e.message)

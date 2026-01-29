@@ -25,10 +25,12 @@ function fmt(n) {
 }
 
 async function fetchInsights() {
+  const siteId = window.siteId
+  if (!siteId) { loading.set(false); return }
   try {
     const [insightsRes, comparisonRes] = await Promise.all([
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/insights${getDateRangeParams()}`),
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/comparison${getDateRangeParams()}`)
+      fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/insights${window.getDateRangeParams()}`),
+      fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/comparison${window.getDateRangeParams()}`)
     ])
     const insightsData = await insightsRes.json()
     const comparisonData = await comparisonRes.json()

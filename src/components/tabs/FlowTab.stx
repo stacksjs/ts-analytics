@@ -24,8 +24,10 @@ const summary = derived(() => {
 })
 
 async function fetchFlow() {
+  const siteId = window.siteId
+  if (!siteId) { loading.set(false); return }
   try {
-    const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/flow${getDateRangeParams()}`)
+    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/flow${window.getDateRangeParams()}`)
     const data = await res.json()
     flowData.set(data)
     error.set(null)

@@ -9,8 +9,10 @@ const error = state(null)
 
 // Fetch live data
 async function fetchLive() {
+  const siteId = window.siteId
+  if (!siteId) { loading.set(false); return }
   try {
-    const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/live`)
+    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/live`)
     const data = await res.json()
     activities.set(data.activities || [])
     error.set(null)

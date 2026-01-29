@@ -50,10 +50,12 @@ function getErrorStatus(msg) {
 }
 
 async function fetchErrors() {
+  const siteId = window.siteId
+  if (!siteId) { loading.set(false); return }
   try {
     const [errorsRes, statusesRes] = await Promise.all([
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/errors${getDateRangeParams()}`),
-      fetch(`${API_ENDPOINT}/api/sites/${siteId}/errors/statuses`)
+      fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/errors${window.getDateRangeParams()}`),
+      fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/errors/statuses`)
     ])
     const errorsData = await errorsRes.json()
     const statusesData = await statusesRes.json()
@@ -69,8 +71,9 @@ async function fetchErrors() {
 }
 
 async function updateStatus(errorId, newStatus) {
+  const siteId = window.siteId
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/errors/status`, {
+    await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/errors/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ errorId: decodeURIComponent(errorId), status: newStatus })
@@ -145,7 +148,7 @@ onMount(() => {
       </div>
 
       <div @for="e in filteredErrors()" class="error-card-wrapper">
-        <a :href="`/errors/${encodeURIComponent(getErrorId(e.message))}?siteId=${siteId}`"
+        <a :href="`/errors/${encodeURIComponent(getErrorId(e.message))}?siteId=${window.siteId}`"
            @class="['error-card', getErrorStatus(e.message) === 'resolved' ? 'resolved' : '', getErrorStatus(e.message) === 'ignored' ? 'ignored' : '']">
           <div @class="['error-card-gradient', e.severity || 'medium']"></div>
           <div class="error-card-header">
