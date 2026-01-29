@@ -18,7 +18,8 @@ const API_ENDPOINT = window.ANALYTICS_API_ENDPOINT || urlParams.get('api') || wi
 const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
 
 // Stealth mode: use innocuous API paths to bypass content blockers
-const USE_STEALTH = window.ANALYTICS_STEALTH_MODE ?? urlParams.get('stealth') === 'true' ?? true
+// Default to ON unless explicitly disabled via ?stealth=false
+const USE_STEALTH = window.ANALYTICS_STEALTH_MODE ?? (urlParams.get('stealth') !== 'false')
 
 /**
  * Stealth API path mapping - maps standard paths to innocuous alternatives
