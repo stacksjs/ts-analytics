@@ -13,6 +13,21 @@ const API = window.ANALYTICS_API || urlParams.get('api') || window.location.orig
 const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
 const pathMatch = window.location.pathname.match(/\/errors\/(.+)/)
 const ERROR_ID = pathMatch ? decodeURIComponent(pathMatch[1]) : ''
+const USE_STEALTH = urlParams.get('stealth') !== 'false'
+
+// Stealth API path mapper
+const STEALTH_MAP = {
+  sites: 'projects', errors: 'issues', 'errors/statuses': 'issues/states',
+  'errors/status': 'issues/state'
+}
+function apiPath(path) {
+  if (!USE_STEALTH) return path
+  let result = path.replace('/api/sites/', '/api/p/').replace('/api/sites', '/api/projects')
+  Object.keys(STEALTH_MAP).sort((a, b) => b.length - a.length).forEach(k => {
+    result = result.replace(new RegExp(`/${k}(?=/|\\?|$)`, 'g'), `/${STEALTH_MAP[k]}`)
+  })
+  return result
+}
 
 // Status class mapping
 function getStatusClass(status) {
@@ -32,7 +47,7 @@ async function loadErrorDetails() {
   loading.set(true)
   try {
     // Try the new detail endpoint first
-    const detailRes = await fetch(`${API}/api/sites/${SITE_ID}/errors/${encodeURIComponent(ERROR_ID)}`)
+    const detailRes = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/errors/${encodeURIComponent(ERROR_ID)}`))
     if (detailRes.ok) {
       const data = await detailRes.json()
       if (data.error) {
@@ -44,7 +59,7 @@ async function loadErrorDetails() {
     }
 
     // Fallback to legacy query
-    const res = await fetch(`${API}/api/sites/${SITE_ID}/errors?errorId=${encodeURIComponent(ERROR_ID)}`)
+    const res = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/errors?errorId=${encodeURIComponent(ERROR_ID)}`))
     if (!res.ok) throw new Error('Failed to load')
     const data = await res.json()
     const err = data.errors?.[0]
@@ -60,7 +75,7 @@ async function loadErrorDetails() {
 
 async function updateStatus(newStatus) {
   try {
-    await fetch(`${API}/api/sites/${SITE_ID}/errors/status`, {
+    await fetch(apiPath(`${API}/api/sites/${SITE_ID}/errors/status`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ errorId: ERROR_ID, status: newStatus })

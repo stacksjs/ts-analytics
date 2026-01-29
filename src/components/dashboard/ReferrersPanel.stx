@@ -32,7 +32,7 @@ async function fetchReferrers() {
     return
   }
   try {
-    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/referrers${window.getDateRangeParams()}`)
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/referrers${window.getDateRangeParams()}`))
     const data = await res.json()
     referrers.set((data.referrers || []).slice(0, 10))
   } catch (e) {

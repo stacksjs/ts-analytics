@@ -30,7 +30,7 @@ async function fetchSessions() {
   const siteId = window.siteId
   if (!siteId) { loading.set(false); return }
   try {
-    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/sessions${window.getDateRangeParams()}`)
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/sessions${window.getDateRangeParams()}`))
     const data = await res.json()
     sessions.set(data.sessions || [])
     error.set(null)

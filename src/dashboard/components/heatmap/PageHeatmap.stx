@@ -12,6 +12,19 @@ export const screenshotUrl = $props.screenshotUrl
 export const initialStartDate = $props.initialStartDate
 export const initialEndDate = $props.initialEndDate
 
+// Use window.apiPath if available, otherwise define a local one
+const apiPath = window.apiPath || ((path) => {
+  const urlParams = new URLSearchParams(window.location.search)
+  const USE_STEALTH = urlParams.get('stealth') !== 'false'
+  if (!USE_STEALTH) return path
+  const STEALTH_MAP = { sites: 'projects', heatmap: 'touch' }
+  let result = path.replace('/api/sites/', '/api/p/')
+  Object.keys(STEALTH_MAP).forEach(k => {
+    result = result.replace(new RegExp(`/${k}(?=/|\\?|$)`, 'g'), `/${STEALTH_MAP[k]}`)
+  })
+  return result
+})
+
 // State
 let viewMode = 'click'
 let deviceFilter = 'all'
@@ -32,7 +45,7 @@ let totalScrollSessions = 0
 let containerWidth = 800
 let containerHeight = 600
 
-const apiBaseUrl = `${apiEndpoint}/api/sites/${siteId}/heatmap`
+const apiBaseUrl = apiPath(`${apiEndpoint}/api/sites/${siteId}/heatmap`)
 
 // Fetch click heatmap data
 export async function fetchClickData() {

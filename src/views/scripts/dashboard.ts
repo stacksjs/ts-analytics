@@ -9,12 +9,104 @@ declare global {
     }
     ANALYTICS_API_ENDPOINT?: string
     ANALYTICS_SITE_ID?: string
+    ANALYTICS_STEALTH_MODE?: boolean
   }
 }
 
 const urlParams = new URLSearchParams(window.location.search)
 const API_ENDPOINT = window.ANALYTICS_API_ENDPOINT || urlParams.get('api') || window.location.origin
 const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
+
+// Stealth mode: use innocuous API paths to bypass content blockers
+const USE_STEALTH = window.ANALYTICS_STEALTH_MODE ?? urlParams.get('stealth') === 'true' ?? true
+
+/**
+ * Stealth API path mapping - maps standard paths to innocuous alternatives
+ * that won't be detected by content blockers
+ */
+const STEALTH_MAP: Record<string, string> = {
+  // Base path change: /api/sites/ -> /api/p/
+  'sites': 'projects',
+  // Stats & Analytics
+  'stats': 'summary',
+  'realtime': 'pulse',
+  'pages': 'content',
+  'referrers': 'sources',
+  'devices': 'clients',
+  'browsers': 'agents',
+  'countries': 'geo',
+  'regions': 'area',
+  'cities': 'locale',
+  'timeseries': 'series',
+  'events': 'actions',
+  'campaigns': 'promo',
+  'comparison': 'diff',
+  // User behavior
+  'sessions': 'visits',
+  'flow': 'journey',
+  'entry-exit': 'endpoints',
+  'live': 'now',
+  // Heatmaps
+  'heatmap': 'touch',
+  // Errors
+  'errors': 'issues',
+  'errors/statuses': 'issues/states',
+  'errors/status': 'issues/state',
+  // Performance
+  'vitals': 'metrics',
+  'vitals-trends': 'metrics-trends',
+  'performance-budgets': 'budgets',
+  // Goals
+  'goals': 'targets',
+  'goals/stats': 'targets/data',
+  // Funnels
+  'funnels': 'pipelines',
+  // Other
+  'annotations': 'notes',
+  'experiments': 'tests',
+  'experiments/event': 'tests/record',
+  'alerts': 'notifications',
+  'email-reports': 'scheduled',
+  'api-keys': 'tokens',
+  'uptime': 'monitors',
+  'webhooks': 'hooks',
+  'team': 'members',
+  'export': 'download',
+  'retention': 'storage',
+  'gdpr/export': 'privacy/download',
+  'gdpr/delete': 'privacy/remove',
+  'insights': 'intel',
+  'revenue': 'income',
+  'share': 'link',
+}
+
+/**
+ * Convert a standard API path to stealth path if stealth mode is enabled
+ * @example apiPath('/api/sites/123/stats') -> '/api/p/123/summary' (when stealth enabled)
+ */
+function apiPath(path: string): string {
+  if (!USE_STEALTH) return path
+
+  let result = path
+
+  // Replace /api/sites/ with /api/p/
+  result = result.replace('/api/sites/', '/api/p/')
+  result = result.replace('/api/sites', '/api/projects')
+
+  // Replace known endpoint names (longest first to avoid partial matches)
+  const sortedKeys = Object.keys(STEALTH_MAP).sort((a, b) => b.length - a.length)
+  for (const key of sortedKeys) {
+    // Only replace if it's a path segment (bounded by / or end of string)
+    const regex = new RegExp(`/${key}(?=/|\\?|$)`, 'g')
+    result = result.replace(regex, `/${STEALTH_MAP[key]}`)
+  }
+
+  return result
+}
+
+// Expose to window for STX components
+;(window as any).apiPath = apiPath
+;(window as any).USE_STEALTH = USE_STEALTH
 
 let siteName = 'Analytics Dashboard'
 let siteId = SITE_ID
@@ -132,7 +224,7 @@ async function fetchSites() {
   container.innerHTML = '<div class="loading">Loading sites...</div>'
 
   try {
-    const res = await fetch(`${API_ENDPOINT}/api/sites`)
+    const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites`))
     if (!res.ok) throw new Error('Failed to fetch')
     const data = await res.json()
     availableSites = data.sites || []
@@ -205,7 +297,7 @@ async function createSite(e: Event) {
   }
 
   try {
-    const res = await fetch(`${API_ENDPOINT}/api/sites`, {
+    const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, domain: domain || undefined })
@@ -342,7 +434,7 @@ async function addAnnotation() {
   const date = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString()
 
   try {
-    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/annotations`, {
+    await fetch(apiPath(`${API_ENDPOINT}/api/sites/${siteId}/annotations`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, title, description, date })
@@ -369,15 +461,15 @@ async function fetchDashboardData() {
 
   try {
     const fetchPromises: Promise<any>[] = [
-      fetch(`${baseUrl}/stats${params}`).then(r => r.json()).catch(() => ({})),
-      fetch(`${baseUrl}/realtime`).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
-      fetch(`${baseUrl}/timeseries${tsParams}`).then(r => r.json()).catch(() => ({ timeSeries: [] })),
-      fetch(`${baseUrl}/goals${params}`).then(r => r.json()).catch(() => ({ goals: [] })),
-      fetch(`${baseUrl}/annotations${params}`).then(r => r.json()).catch(() => ({ annotations: [] })),
+      fetch(apiPath(`${baseUrl}/stats${params}`)).then(r => r.json()).catch(() => ({})),
+      fetch(apiPath(`${baseUrl}/realtime`)).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
+      fetch(apiPath(`${baseUrl}/timeseries${tsParams}`)).then(r => r.json()).catch(() => ({ timeSeries: [] })),
+      fetch(apiPath(`${baseUrl}/goals${params}`)).then(r => r.json()).catch(() => ({ goals: [] })),
+      fetch(apiPath(`${baseUrl}/annotations${params}`)).then(r => r.json()).catch(() => ({ annotations: [] })),
     ]
 
     if (showComparison) {
-      fetchPromises.push(fetch(`${baseUrl}/comparison${params}`).then(r => r.json()).catch(() => null))
+      fetchPromises.push(fetch(apiPath(`${baseUrl}/comparison${params}`)).then(r => r.json()).catch(() => null))
     }
 
     const results = await Promise.all(fetchPromises)
@@ -624,8 +716,8 @@ async function saveGoal(e: Event) {
   }
 
   const url = editingGoal
-    ? `${API_ENDPOINT}/api/sites/${siteId}/goals/${editingGoal.id}`
-    : `${API_ENDPOINT}/api/sites/${siteId}/goals`
+    ? apiPath(`${API_ENDPOINT}/api/sites/${siteId}/goals/${editingGoal.id}`)
+    : apiPath(`${API_ENDPOINT}/api/sites/${siteId}/goals`)
   const method = editingGoal ? 'PUT' : 'POST'
 
   try {
@@ -652,7 +744,7 @@ async function deleteGoal(goalId: string) {
   if (!confirm('Delete this goal? Conversion data will be preserved.')) return
 
   try {
-    const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/goals/${goalId}`, { method: 'DELETE' })
+    const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites/${siteId}/goals/${goalId}`), { method: 'DELETE' })
     if (res.ok) {
       fetchDashboardData()
       refreshAllPanels()

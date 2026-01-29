@@ -9,6 +9,25 @@
     const urlParams = new URLSearchParams(window.location.search)
     const API_ENDPOINT = window.ANALYTICS_API_ENDPOINT || urlParams.get('api') || window.location.origin
     const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
+    const USE_STEALTH = urlParams.get('stealth') !== 'false'
+
+    // Stealth API path mapper - bypass content blockers
+    const STEALTH_MAP = {
+      sites: 'projects', stats: 'summary', realtime: 'pulse', pages: 'content',
+      referrers: 'sources', devices: 'clients', browsers: 'agents', countries: 'geo',
+      timeseries: 'series', events: 'actions', campaigns: 'promo', comparison: 'diff',
+      sessions: 'visits', flow: 'journey', live: 'now', heatmap: 'touch', errors: 'issues',
+      vitals: 'metrics', goals: 'targets', funnels: 'pipelines', annotations: 'notes'
+    }
+    function apiPath(path) {
+      if (!USE_STEALTH) return path
+      let result = path.replace('/api/sites/', '/api/p/').replace('/api/sites', '/api/projects')
+      Object.keys(STEALTH_MAP).sort((a, b) => b.length - a.length).forEach(k => {
+        result = result.replace(new RegExp(`/${k}(?=/|\\?|$)`, 'g'), `/${STEALTH_MAP[k]}`)
+      })
+      return result
+    }
+    window.apiPath = apiPath
 
     // Sites list
     let availableSites = []
@@ -59,7 +78,7 @@
       sitesLoading = true
       sitesError = null
       try {
-        const res = await fetch(`${API_ENDPOINT}/api/sites`)
+        const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites`))
         if (!res.ok) throw new Error('Failed to fetch sites')
         const data = await res.json()
         availableSites = data.sites || []
@@ -163,18 +182,18 @@
       const params = `?startDate=${thirtyDaysAgo.toISOString()}&endDate=${now.toISOString()}`
 
       try {
-        // Fetch all data in parallel
+        // Fetch all data in parallel - using stealth API paths
         const [statsRes, realtimeRes, pagesRes, referrersRes, devicesRes, browsersRes, countriesRes, timeseriesRes, eventsRes, campaignsRes] = await Promise.all([
-          fetch(`${baseUrl}/stats${params}`).then(r => r.json()).catch(() => ({})),
-          fetch(`${baseUrl}/realtime`).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
-          fetch(`${baseUrl}/pages${params}`).then(r => r.json()).catch(() => ({ pages: [] })),
-          fetch(`${baseUrl}/referrers${params}`).then(r => r.json()).catch(() => ({ referrers: [] })),
-          fetch(`${baseUrl}/devices${params}`).then(r => r.json()).catch(() => ({ deviceTypes: [], operatingSystems: [] })),
-          fetch(`${baseUrl}/browsers${params}`).then(r => r.json()).catch(() => ({ browsers: [] })),
-          fetch(`${baseUrl}/countries${params}`).then(r => r.json()).catch(() => ({ countries: [] })),
-          fetch(`${baseUrl}/timeseries${params}`).then(r => r.json()).catch(() => ({ timeSeries: [] })),
-          fetch(`${baseUrl}/events${params}`).then(r => r.json()).catch(() => ({ events: [] })),
-          fetch(`${baseUrl}/campaigns${params}`).then(r => r.json()).catch(() => ({ campaigns: [] })),
+          fetch(apiPath(`${baseUrl}/stats${params}`)).then(r => r.json()).catch(() => ({})),
+          fetch(apiPath(`${baseUrl}/realtime`)).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
+          fetch(apiPath(`${baseUrl}/pages${params}`)).then(r => r.json()).catch(() => ({ pages: [] })),
+          fetch(apiPath(`${baseUrl}/referrers${params}`)).then(r => r.json()).catch(() => ({ referrers: [] })),
+          fetch(apiPath(`${baseUrl}/devices${params}`)).then(r => r.json()).catch(() => ({ deviceTypes: [], operatingSystems: [] })),
+          fetch(apiPath(`${baseUrl}/browsers${params}`)).then(r => r.json()).catch(() => ({ browsers: [] })),
+          fetch(apiPath(`${baseUrl}/countries${params}`)).then(r => r.json()).catch(() => ({ countries: [] })),
+          fetch(apiPath(`${baseUrl}/timeseries${params}`)).then(r => r.json()).catch(() => ({ timeSeries: [] })),
+          fetch(apiPath(`${baseUrl}/events${params}`)).then(r => r.json()).catch(() => ({ events: [] })),
+          fetch(apiPath(`${baseUrl}/campaigns${params}`)).then(r => r.json()).catch(() => ({ campaigns: [] })),
         ])
 
         // Update stats
@@ -215,7 +234,7 @@
     async function fetchHeatmapPages() {
       if (!siteId) return
       try {
-        const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/heatmap/pages`)
+        const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites/${siteId}/heatmap/pages`))
         const data = await res.json()
         heatmapPages = data.pages || []
         renderHeatmapPageSelector()
@@ -236,13 +255,13 @@
 
       try {
         if (heatmapViewMode === 'click') {
-          const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/heatmap/clicks?${params}`)
+          const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites/${siteId}/heatmap/clicks?${params}`))
           const data = await res.json()
           heatmapClicks = data.clicks || []
           heatmapTopElements = data.topElements || []
           heatmapTotalClicks = data.totalClicks || 0
         } else {
-          const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/heatmap/scroll?${params}`)
+          const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites/${siteId}/heatmap/scroll?${params}`))
           const data = await res.json()
           heatmapScrollData = data.scrollDepths || []
           heatmapAvgScrollDepth = data.avgMaxDepth || 0

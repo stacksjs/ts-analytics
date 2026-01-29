@@ -19,7 +19,7 @@ async function fetchBrowsers() {
     return
   }
   try {
-    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/browsers${window.getDateRangeParams()}`)
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/browsers${window.getDateRangeParams()}`))
     const data = await res.json()
     browsers.set(data.browsers || [])
   } catch (e) {

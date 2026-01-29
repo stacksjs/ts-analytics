@@ -36,7 +36,7 @@ async function fetchCountries() {
     return
   }
   try {
-    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/countries${window.getDateRangeParams()}`)
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/countries${window.getDateRangeParams()}`))
     const data = await res.json()
     countries.set((data.countries || []).slice(0, 10))
   } catch (e) {

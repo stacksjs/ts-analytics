@@ -29,7 +29,7 @@ async function fetchDevices() {
     return
   }
   try {
-    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/devices${window.getDateRangeParams()}`)
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/devices${window.getDateRangeParams()}`))
     const data = await res.json()
     devices.set(data.devices || [])
   } catch (e) {

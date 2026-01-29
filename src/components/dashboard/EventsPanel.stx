@@ -32,7 +32,7 @@ async function fetchEvents() {
     return
   }
   try {
-    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/events${window.getDateRangeParams()}`)
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/events${window.getDateRangeParams()}`))
     const data = await res.json()
     events.set((data.events || []).slice(0, 10))
   } catch (e) {

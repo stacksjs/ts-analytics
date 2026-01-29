@@ -19,7 +19,7 @@ async function fetchPages() {
     return
   }
   try {
-    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/pages${window.getDateRangeParams()}`)
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/pages${window.getDateRangeParams()}`))
     const data = await res.json()
     pages.set((data.pages || []).slice(0, 10))
   } catch (e) {

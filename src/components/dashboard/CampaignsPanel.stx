@@ -19,7 +19,7 @@ async function fetchCampaigns() {
     return
   }
   try {
-    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/campaigns${window.getDateRangeParams()}`)
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/campaigns${window.getDateRangeParams()}`))
     const data = await res.json()
     campaigns.set((data.campaigns || []).slice(0, 10))
   } catch (e) {

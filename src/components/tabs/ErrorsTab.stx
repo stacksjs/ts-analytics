@@ -54,8 +54,8 @@ async function fetchErrors() {
   if (!siteId) { loading.set(false); return }
   try {
     const [errorsRes, statusesRes] = await Promise.all([
-      fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/errors${window.getDateRangeParams()}`),
-      fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/errors/statuses`)
+      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/errors${window.getDateRangeParams()}`)),
+      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/errors/statuses`))
     ])
     const errorsData = await errorsRes.json()
     const statusesData = await statusesRes.json()
@@ -73,7 +73,7 @@ async function fetchErrors() {
 async function updateStatus(errorId, newStatus) {
   const siteId = window.siteId
   try {
-    await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/errors/status`, {
+    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/errors/status`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ errorId: decodeURIComponent(errorId), status: newStatus })

@@ -33,7 +33,7 @@ async function fetchGoals() {
     return
   }
   try {
-    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/goals`)
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/goals`))
     const data = await res.json()
     goals.set(data.goals || [])
   } catch (e) {

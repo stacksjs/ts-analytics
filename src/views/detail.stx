@@ -15,6 +15,25 @@ const pageSize = 50
 const urlParams = new URLSearchParams(window.location.search)
 const API = window.ANALYTICS_API || urlParams.get('api') || window.location.origin
 const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
+const USE_STEALTH = urlParams.get('stealth') !== 'false'
+
+// Stealth API path mapper
+const STEALTH_MAP = {
+  sites: 'projects', stats: 'summary', realtime: 'pulse', pages: 'content',
+  referrers: 'sources', devices: 'clients', browsers: 'agents', countries: 'geo',
+  regions: 'area', cities: 'locale', timeseries: 'series', events: 'actions',
+  campaigns: 'promo', comparison: 'diff', sessions: 'visits', flow: 'journey',
+  live: 'now', heatmap: 'touch', errors: 'issues', vitals: 'metrics',
+  goals: 'targets', funnels: 'pipelines', annotations: 'notes'
+}
+function apiPath(path) {
+  if (!USE_STEALTH) return path
+  let result = path.replace('/api/sites/', '/api/p/').replace('/api/sites', '/api/projects')
+  Object.keys(STEALTH_MAP).sort((a, b) => b.length - a.length).forEach(k => {
+    result = result.replace(new RegExp(`/${k}(?=/|\\?|$)`, 'g'), `/${STEALTH_MAP[k]}`)
+  })
+  return result
+}
 const pathMatch = window.location.pathname.match(/\/dashboard\/(.+)/)
 const SECTION = pathMatch ? pathMatch[1] : 'pages'
 
@@ -74,7 +93,7 @@ const columnKeys = derived(() => {
 async function loadData() {
   loading.set(true)
   try {
-    const res = await fetch(`${API}/api/sites/${SITE_ID}/${SECTION}`)
+    const res = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/${SECTION}`))
     if (!res.ok) throw new Error('Failed to load')
     const data = await res.json()
     const items = data[SECTION] || data.pages || data.referrers || data.browsers || data.countries || data.campaigns || data.events || data.goals || []

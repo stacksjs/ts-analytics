@@ -19,7 +19,7 @@ async function fetchFunnels() {
   loading.set(true)
   currentAnalysis.set(null)
   try {
-    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels`)
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels`))
     const data = await res.json()
     funnels.set(data.funnels || [])
     error.set(null)
@@ -34,7 +34,7 @@ async function analyzeFunnel(funnelId) {
   const siteId = window.siteId
   loading.set(true)
   try {
-    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels/${funnelId}/analysis${window.getDateRangeParams()}`)
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels/${funnelId}/analysis${window.getDateRangeParams()}`))
     const data = await res.json()
     currentAnalysis.set(data)
     error.set(null)
@@ -74,7 +74,7 @@ async function createFunnel() {
   const siteId = window.siteId
 
   try {
-    await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels`, {
+    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, steps })
@@ -90,7 +90,7 @@ async function deleteFunnel(funnelId) {
   if (!confirm('Delete this funnel?')) return
   const siteId = window.siteId
   try {
-    await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels/${funnelId}`, { method: 'DELETE' })
+    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels/${funnelId}`), { method: 'DELETE' })
     fetchFunnels()
   } catch (e) {
     error.set(e.message)
