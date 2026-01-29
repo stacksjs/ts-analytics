@@ -1,0 +1,67 @@
+<script>
+/**
+ * InsightCard Component
+ * Displays an individual insight with icon and description
+ */
+const type = $props.type || 'info'
+const title = $props.title || ''
+const description = $props.description || ''
+const severity = $props.severity || 'info'
+
+const iconMap = {
+  growth: '📈',
+  decline: '📉',
+  warning: '⚠️',
+  success: '✅',
+  info: 'ℹ️'
+}
+
+const icon = derived(() => iconMap[type] || iconMap.info)
+</script>
+
+<div class="insight-card">
+  <div @class="['insight-icon', severity]">{{ icon() }}</div>
+  <div class="insight-content">
+    <div class="insight-title">{{ title }}</div>
+    <div class="insight-desc">{{ description }}</div>
+  </div>
+</div>
+
+<style>
+.insight-card {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.insight-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+.insight-icon.info { background: rgba(59, 130, 246, 0.1); }
+.insight-icon.warning { background: rgba(245, 158, 11, 0.1); }
+.insight-icon.success { background: rgba(16, 185, 129, 0.1); }
+.insight-icon.error { background: rgba(239, 68, 68, 0.1); }
+.insight-content {
+  flex: 1;
+  min-width: 0;
+}
+.insight-title {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+.insight-desc {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+</style>

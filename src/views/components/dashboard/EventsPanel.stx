@@ -1,0 +1,168 @@
+<script>
+/**
+ * EventsPanel Component
+ * Displays custom events with bar chart visualization
+ */
+const events = state([])
+const loading = state(true)
+
+function fmt(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
+  return String(n)
+}
+
+const totalCount = derived(() => events().reduce((sum, e) => sum + (e.count || 0), 0))
+const maxCount = derived(() => Math.max(...events().map(e => e.count || 0), 1))
+
+function getPercentage(count) {
+  const total = totalCount()
+  return total > 0 ? Math.round((count / total) * 100) : 0
+}
+
+function getBarWidth(count) {
+  const max = maxCount()
+  return max > 0 ? Math.round((count / max) * 100) : 0
+}
+
+async function fetchEvents() {
+  const siteId = window.siteId
+  if (!siteId) {
+    loading.set(false)
+    return
+  }
+  try {
+    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/events${window.getDateRangeParams()}`)
+    const data = await res.json()
+    events.set((data.events || []).slice(0, 10))
+  } catch (e) {
+    console.error('Failed to fetch events:', e)
+  } finally {
+    loading.set(false)
+  }
+}
+
+onMount(() => {
+  if (window.siteId) fetchEvents()
+})
+
+window.refreshEventsPanel = fetchEvents
+</script>
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <svg class="panel-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+      Custom Events
+    </div>
+    <a href="#" onclick="navigateTo('events')" class="view-all">View all &rarr;</a>
+  </div>
+
+  <div @if="loading()" class="loading-state">Loading...</div>
+
+  <div @if="!loading() && events().length === 0" class="empty-state">
+    No custom events tracked
+  </div>
+
+  <div @if="!loading() && events().length > 0" class="events-list">
+    <div @for="event in events()" class="event-bar-item">
+      <div class="event-bar-header">
+        <span class="event-bar-name">{{ event.name }}</span>
+        <span class="event-bar-pct">{{ getPercentage(event.count || 0) }}%</span>
+      </div>
+      <div class="event-bar">
+        <div class="event-bar-fill" @style="{ width: getBarWidth(event.count || 0) + '%' }"></div>
+      </div>
+      <div class="event-bar-count">{{ fmt(event.count || 0) }}</div>
+    </div>
+  </div>
+</div>
+
+<style>
+.panel {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+}
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+.panel-icon {
+  color: var(--muted);
+}
+.view-all {
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+.view-all:hover {
+  text-decoration: underline;
+}
+.loading-state,
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 1.5rem;
+  font-size: 0.8125rem;
+}
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.event-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.event-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.event-bar-name {
+  font-size: 0.8125rem;
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.event-bar-pct {
+  font-size: 0.75rem;
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+.event-bar {
+  height: 6px;
+  background: var(--bg3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.event-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.event-bar-count {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  text-align: right;
+}
+</style>

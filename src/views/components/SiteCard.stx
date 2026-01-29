@@ -1,0 +1,92 @@
+<script>
+/**
+ * SiteCard Component
+ * Displays a site in the site selector
+ */
+const site = $props.site || {}
+const onClick = $props.onClick
+
+const name = derived(() => site.name || 'Unnamed')
+const domain = derived(() => site.domains?.[0] || site.id || '')
+
+function handleClick() {
+  if (onClick) onClick(site.id, site.name || '')
+}
+</script>
+
+<button class="site-card" @click="handleClick">
+  <div class="site-icon">
+    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+    </svg>
+  </div>
+  <div class="site-info">
+    <span class="site-name">{{ name() }}</span>
+    <span class="site-domain">{{ domain() }}</span>
+  </div>
+  <svg class="arrow" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  </svg>
+</button>
+
+<style>
+.site-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 500px;
+  padding: 0.75rem 1rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 0.5rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+.site-card:hover {
+  border-color: var(--accent);
+  background: var(--bg3);
+}
+.site-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg3);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.site-icon svg {
+  color: var(--accent);
+}
+.site-info {
+  flex: 1;
+  min-width: 0;
+}
+.site-name {
+  display: block;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+.site-domain {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arrow {
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.site-card:hover .arrow {
+  transform: translateX(2px);
+  color: var(--accent);
+}
+</style>

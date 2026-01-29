@@ -1,0 +1,141 @@
+<script>
+/**
+ * ErrorCard Component
+ * Displays an error with severity, status, and actions
+ */
+const error = $props.error || {}
+const errorId = $props.errorId || ''
+const status = $props.status || 'new'
+const siteId = $props.siteId || ''
+const onStatusChange = $props.onStatusChange
+
+const severityLabels = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
+const statusLabels = { new: 'New', resolved: 'Resolved', ignored: 'Ignored', regression: 'Regression' }
+
+const severity = derived(() => error.severity || 'medium')
+const classNames = derived(() => {
+  const classes = ['error-card']
+  if (status === 'resolved') classes.push('resolved')
+  if (status === 'ignored') classes.push('ignored')
+  return classes.join(' ')
+})
+
+const errorUrl = derived(() => `/errors/${encodeURIComponent(errorId)}?siteId=${siteId}`)
+const source = derived(() => error.source ? error.source.split('/').pop() + ':' + error.line : 'Unknown source')
+const browsersText = derived(() => (error.browsers || []).join(', ') || 'Unknown')
+const pathsCount = derived(() => (error.paths || []).length)
+
+function handleAction(action, e) {
+  e.preventDefault()
+  e.stopPropagation()
+  if (onStatusChange) onStatusChange(errorId, action)
+}
+</script>
+
+<div class="error-card-wrapper">
+  <a :href="errorUrl()" :class="classNames()">
+    <div @class="['error-card-gradient', severity()]"></div>
+    <div class="error-card-header">
+      <span class="error-severity">{{ severityLabels[severity()] || 'Unknown' }}</span>
+      <span class="error-category">{{ error.category || 'Error' }}</span>
+      <span @class="['error-status', status]">{{ statusLabels[status] || 'New' }}</span>
+      <span class="error-count">{{ error.count }} event{{ error.count !== 1 ? 's' : '' }}</span>
+    </div>
+    <div class="error-source">{{ source() }}</div>
+    <div class="error-message">{{ error.message || 'Unknown error' }}</div>
+    <div class="error-meta">
+      <span class="error-first-seen">First: {{ error.firstSeen ? new Date(error.firstSeen).toLocaleDateString() : 'N/A' }}</span>
+      <span class="error-last-seen">Last: {{ new Date(error.lastSeen).toLocaleString() }}</span>
+      <span class="error-browsers">{{ browsersText() }}</span>
+      <span class="error-paths">{{ pathsCount() }} page{{ pathsCount() !== 1 ? 's' : '' }}</span>
+    </div>
+    <div class="error-actions-inline" @click.stop>
+      <button @if="status !== 'resolved'" class="btn btn-resolve" @click="(e) => handleAction('resolved', e)">✓ Resolve</button>
+      <button @if="status !== 'ignored'" class="btn btn-secondary" @click="(e) => handleAction('ignored', e)">Ignore</button>
+      <button @if="status !== 'new'" class="btn btn-secondary" @click="(e) => handleAction('new', e)">Reopen</button>
+    </div>
+  </a>
+</div>
+
+<style>
+.error-card-wrapper {
+  margin-bottom: 0.75rem;
+}
+.error-card {
+  display: block;
+  position: relative;
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 1rem;
+  padding-left: 1.25rem;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.error-card:hover {
+  border-color: var(--accent);
+}
+.error-card.resolved { opacity: 0.6; }
+.error-card.ignored { opacity: 0.5; }
+.error-card-gradient {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+}
+.error-card-gradient.critical { background: #ef4444; }
+.error-card-gradient.high { background: #f97316; }
+.error-card-gradient.medium { background: #eab308; }
+.error-card-gradient.low { background: #6b7280; }
+.error-card-header {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.error-severity {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.error-category,
+.error-status,
+.error-count {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.error-status.new { color: #ef4444; }
+.error-status.resolved { color: #22c55e; }
+.error-status.ignored { color: #6b7280; }
+.error-source {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: monospace;
+  margin-bottom: 0.25rem;
+}
+.error-message {
+  font-size: 0.875rem;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  word-break: break-word;
+}
+.error-meta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.6875rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.error-actions-inline {
+  display: flex;
+  gap: 0.5rem;
+}
+.error-actions-inline .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.6875rem;
+}
+</style>

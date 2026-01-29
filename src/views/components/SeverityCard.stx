@@ -1,0 +1,49 @@
+<script>
+/**
+ * SeverityCard Component
+ * Displays a severity count badge
+ */
+const severity = $props.severity || 'medium'
+const count = $props.count || 0
+const label = $props.label || ''
+</script>
+
+<div @class="['severity-card', severity]">
+  <div class="severity-card-count">{{ count }}</div>
+  <div class="severity-card-label">{{ label }}</div>
+</div>
+
+<style>
+.severity-card {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  text-align: center;
+  min-width: 80px;
+}
+.severity-card.critical {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+.severity-card.high {
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+}
+.severity-card.medium {
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+}
+.severity-card.low {
+  background: rgba(107, 114, 128, 0.1);
+  border: 1px solid rgba(107, 114, 128, 0.2);
+}
+.severity-card-count {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.severity-card-label {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+</style>

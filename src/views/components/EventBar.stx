@@ -1,0 +1,64 @@
+<script>
+/**
+ * EventBar Component
+ * Displays an event with a percentage bar
+ */
+const name = $props.name || ''
+const count = $props.count || 0
+const percentage = $props.percentage || 0
+const barWidth = $props.barWidth || 0
+
+function fmt(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
+  return String(n)
+}
+</script>
+
+<div class="event-bar-item">
+  <div class="event-bar-header">
+    <span class="event-bar-name">{{ name }}</span>
+    <span class="event-bar-pct">{{ percentage }}%</span>
+  </div>
+  <div class="event-bar">
+    <div class="event-bar-fill" @style="{ width: barWidth + '%' }"></div>
+  </div>
+  <div class="event-bar-count">{{ fmt(count) }}</div>
+</div>
+
+<style>
+.event-bar-item {
+  margin-bottom: 0.75rem;
+}
+.event-bar-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+.event-bar-name {
+  font-size: 0.8125rem;
+  color: var(--text);
+  font-weight: 500;
+}
+.event-bar-pct {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.event-bar {
+  height: 6px;
+  background: var(--bg3);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.25rem;
+}
+.event-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.event-bar-count {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+</style>

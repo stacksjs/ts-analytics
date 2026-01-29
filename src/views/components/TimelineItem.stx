@@ -1,0 +1,83 @@
+<script>
+/**
+ * TimelineItem Component
+ * Displays a single event in a session timeline
+ */
+const item = $props.item || {}
+const type = derived(() => item.type || 'event')
+const data = derived(() => item.data || {})
+const timestamp = derived(() => item.timestamp)
+const timeStr = derived(() => timestamp() ? new Date(timestamp()).toLocaleTimeString() : '')
+
+// Build content based on type
+const content = derived(() => {
+  const t = type()
+  const d = data()
+  switch (t) {
+    case 'pageview': return d.path || '/'
+    case 'event': return d.name || 'Event'
+    case 'click': return `Click at (${d.viewportX}, ${d.viewportY}) on ${d.elementTag || 'element'}`
+    case 'vital': return `${d.metric}: ${d.value}ms (${d.rating})`
+    case 'error': return (d.message || 'Error').slice(0, 100)
+    default: return ''
+  }
+})
+</script>
+
+<div class="timeline-item">
+  <span @class="['timeline-type', type()]">{{ type() }}</span>
+  <div class="timeline-content">{{ content() }}</div>
+  <span class="timeline-time">{{ timeStr() }}</span>
+</div>
+
+<style>
+.timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.timeline-item:last-child {
+  border-bottom: none;
+}
+.timeline-type {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.timeline-type.pageview {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+.timeline-type.event {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+.timeline-type.click {
+  background: rgba(168, 85, 247, 0.1);
+  color: #a855f7;
+}
+.timeline-type.vital {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+.timeline-type.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+.timeline-content {
+  flex: 1;
+  font-size: 0.8125rem;
+  color: var(--text);
+  word-break: break-word;
+}
+.timeline-time {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+</style>

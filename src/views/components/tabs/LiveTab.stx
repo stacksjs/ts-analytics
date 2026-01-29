@@ -1,36 +1,79 @@
-<script server>
+<script>
 /**
- * LiveTab Component
- *
- * Displays real-time visitor activity.
+ * LiveTab Component - Real-time visitor activity
+ * Uses STX signals for reactive state management
  */
+const activities = state([])
+const loading = state(true)
+const error = state(null)
+
+// Fetch live data
+async function fetchLive() {
+  try {
+    const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/live`)
+    const data = await res.json()
+    activities.set(data.activities || [])
+    error.set(null)
+  } catch (e) {
+    error.set(e.message)
+  } finally {
+    loading.set(false)
+  }
+}
+
+// Time ago helper
+function timeAgo(timestamp) {
+  if (!timestamp) return 'Just now'
+  const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000)
+  if (seconds < 60) return 'Just now'
+  if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago'
+  if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago'
+  return Math.floor(seconds / 86400) + 'd ago'
+}
+
+// Auto-refresh every 5 seconds
+onMount(() => {
+  fetchLive()
+  const interval = setInterval(fetchLive, 5000)
+  return () => clearInterval(interval)
+})
 </script>
 
-<template id="live-tab-template">
-  <div class="tab-panel">
-    <div class="tab-header">
-      <h3 class="tab-title">
-        <span class="live-pulse"></span>
-        Live Activity
-      </h3>
-      <span class="live-refresh-note">Auto-refreshing every 5s</span>
-    </div>
-    <div id="live-activities" class="live-activities">
-      <div class="empty-state">No recent activity. Visitors will appear here in real-time.</div>
-    </div>
+<div class="tab-panel">
+  <div class="tab-header">
+    <h3 class="tab-title">
+      <span class="live-pulse"></span>
+      Live Activity
+    </h3>
+    <span class="live-refresh-note">Auto-refreshing every 5s</span>
   </div>
-</template>
 
-<template id="live-activity-template">
-  <div class="live-activity-card">
-    <div class="live-dot"></div>
-    <div class="live-activity-content">
-      <div class="live-activity-path">{path}</div>
-      <div class="live-activity-meta">{country} • {device} • {browser}</div>
+  <div class="live-activities">
+    <div @if="loading()" class="loading-state">
+      <div class="spinner"></div>
+      <span>Loading...</span>
     </div>
-    <div class="live-activity-time">{timeAgo}</div>
+
+    <div @if="error()" class="error-state">
+      {{ error() }}
+    </div>
+
+    <div @if="!loading() && !error() && activities().length === 0" class="empty-state">
+      No recent activity. Visitors will appear here in real-time.
+    </div>
+
+    <div @for="activity in activities()" class="live-activity-card">
+      <div class="live-dot"></div>
+      <div class="live-activity-content">
+        <div class="live-activity-path">{{ activity.path || '/' }}</div>
+        <div class="live-activity-meta">
+          {{ activity.country || 'Unknown' }} • {{ activity.device || 'Unknown' }} • {{ activity.browser || 'Unknown' }}
+        </div>
+      </div>
+      <div class="live-activity-time">{{ timeAgo(activity.timestamp) }}</div>
+    </div>
   </div>
-</template>
+</div>
 
 <style>
 .tab-panel {
@@ -57,6 +100,10 @@
   background: var(--success);
   border-radius: 50%;
   animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 .live-refresh-note {
   font-size: 0.75rem;
@@ -103,12 +150,32 @@
   color: var(--muted);
   white-space: nowrap;
 }
-.empty-state {
+.empty-state, .loading-state, .error-state {
   text-align: center;
   color: var(--muted);
   padding: 2rem;
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.error-state {
+  color: var(--error);
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

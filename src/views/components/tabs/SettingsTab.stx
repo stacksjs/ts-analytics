@@ -1,183 +1,643 @@
-<script server>
+<script>
 /**
- * SettingsTab Component
- *
- * Displays site settings including API keys, team, webhooks, etc.
+ * SettingsTab Component - Site settings management
+ * Uses STX signals for reactive state management
  */
+const apiKeys = state([])
+const alerts = state([])
+const emailReports = state([])
+const uptimeMonitors = state([])
+const teamMembers = state([])
+const webhooks = state([])
+const perfBudgets = state([])
+const retentionDays = state(365)
+const loading = state(true)
+const error = state(null)
+
+// Modal states
+const showApiKeyModal = state(false)
+const showAlertModal = state(false)
+const showEmailReportModal = state(false)
+const showUptimeModal = state(false)
+const showTeamModal = state(false)
+const showWebhookModal = state(false)
+const showPerfBudgetModal = state(false)
+
+// Form states
+const newApiKeyName = state('')
+const newAlertMetric = state('pageviews')
+const newAlertThreshold = state(1000)
+const newAlertEmail = state('')
+const newEmailReportEmail = state('')
+const newEmailReportFrequency = state('weekly')
+const newUptimeUrl = state('')
+const newUptimeInterval = state(5)
+const newTeamEmail = state('')
+const newTeamRole = state('viewer')
+const newWebhookUrl = state('')
+const newWebhookEvents = state(['pageview'])
+const newPerfBudgetMetric = state('LCP')
+const newPerfBudgetThreshold = state(2500)
+
+async function fetchSettings() {
+  try {
+    const [keysRes, alertsRes, reportsRes, uptimeRes, teamRes, webhooksRes, budgetsRes, retentionRes] = await Promise.all([
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/api-keys`),
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/alerts`),
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/email-reports`),
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/uptime`),
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/team`),
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/webhooks`),
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets`),
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/retention`)
+    ])
+
+    const [keysData, alertsData, reportsData, uptimeData, teamData, webhooksData, budgetsData, retentionData] = await Promise.all([
+      keysRes.json(), alertsRes.json(), reportsRes.json(), uptimeRes.json(),
+      teamData.json(), webhooksRes.json(), budgetsRes.json(), retentionRes.json()
+    ])
+
+    apiKeys.set(keysData.keys || [])
+    alerts.set(alertsData.alerts || [])
+    emailReports.set(reportsData.reports || [])
+    uptimeMonitors.set(uptimeData.monitors || [])
+    teamMembers.set(teamData.members || [])
+    webhooks.set(webhooksData.webhooks || [])
+    perfBudgets.set(budgetsData.budgets || [])
+    retentionDays.set(retentionData.days || 365)
+    error.set(null)
+  } catch (e) {
+    error.set(e.message)
+  } finally {
+    loading.set(false)
+  }
+}
+
+// API Keys
+async function createApiKey() {
+  const name = newApiKeyName()
+  if (!name) return
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/api-keys`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    })
+    showApiKeyModal.set(false)
+    newApiKeyName.set('')
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+async function deleteApiKey(keyId) {
+  if (!confirm('Delete this API key?')) return
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/api-keys/${keyId}`, { method: 'DELETE' })
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+// Alerts
+async function createAlert() {
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/alerts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        metric: newAlertMetric(),
+        threshold: newAlertThreshold(),
+        email: newAlertEmail()
+      })
+    })
+    showAlertModal.set(false)
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+async function deleteAlert(alertId) {
+  if (!confirm('Delete this alert?')) return
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/alerts/${alertId}`, { method: 'DELETE' })
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+// Email Reports
+async function addEmailReport() {
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/email-reports`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: newEmailReportEmail(),
+        frequency: newEmailReportFrequency()
+      })
+    })
+    showEmailReportModal.set(false)
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+async function deleteEmailReport(reportId) {
+  if (!confirm('Delete this email report?')) return
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/email-reports/${reportId}`, { method: 'DELETE' })
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+// Uptime Monitors
+async function createUptimeMonitor() {
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/uptime`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: newUptimeUrl(),
+        interval: newUptimeInterval()
+      })
+    })
+    showUptimeModal.set(false)
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+async function deleteUptimeMonitor(monitorId) {
+  if (!confirm('Delete this uptime monitor?')) return
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/uptime/${monitorId}`, { method: 'DELETE' })
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+// Team Members
+async function inviteTeamMember() {
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/team`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: newTeamEmail(),
+        role: newTeamRole()
+      })
+    })
+    showTeamModal.set(false)
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+async function removeTeamMember(memberId) {
+  if (!confirm('Remove this team member?')) return
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/team/${memberId}`, { method: 'DELETE' })
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+// Webhooks
+async function addWebhook() {
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/webhooks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: newWebhookUrl(),
+        events: newWebhookEvents()
+      })
+    })
+    showWebhookModal.set(false)
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+async function deleteWebhook(webhookId) {
+  if (!confirm('Delete this webhook?')) return
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/webhooks/${webhookId}`, { method: 'DELETE' })
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+// Performance Budgets
+async function createPerfBudget() {
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        metric: newPerfBudgetMetric(),
+        threshold: newPerfBudgetThreshold()
+      })
+    })
+    showPerfBudgetModal.set(false)
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+async function deletePerfBudget(budgetId) {
+  if (!confirm('Delete this performance budget?')) return
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets/${budgetId}`, { method: 'DELETE' })
+    fetchSettings()
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+// Data & Privacy
+async function gdprExport() {
+  window.location.href = `${API_ENDPOINT}/api/sites/${siteId}/gdpr/export`
+}
+
+async function gdprDelete() {
+  if (!confirm('This will permanently delete ALL analytics data for this site. This action cannot be undone. Are you sure?')) return
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/gdpr/delete`, { method: 'DELETE' })
+    alert('All data has been deleted.')
+  } catch (e) {
+    error.set(e.message)
+  }
+}
+
+onMount(() => {
+  fetchSettings()
+})
 </script>
 
-<template id="settings-tab-template">
-  <div class="tab-panel">
-    <h3 class="tab-title">Settings</h3>
-    <div class="settings-grid">
-      <div class="settings-column">
-        <!-- API Keys -->
-        <div class="settings-panel" id="api-keys-panel">
-          <div class="panel-header">
-            <h4 class="panel-title">API Keys</h4>
-            <button class="btn btn-sm" onclick="createApiKey()">+ New Key</button>
-          </div>
-          <p class="panel-desc">Generate API keys for programmatic access to your analytics data.</p>
-          <div id="api-keys-list" class="panel-list"></div>
-        </div>
+<div class="tab-panel">
+  <h3 class="tab-title">Settings</h3>
 
-        <!-- Alerts -->
-        <div class="settings-panel" id="alerts-panel">
-          <div class="panel-header">
-            <h4 class="panel-title">Alerts</h4>
-            <button class="btn btn-sm" onclick="createAlert()">+ New Alert</button>
-          </div>
-          <p class="panel-desc">Get notified when metrics exceed thresholds.</p>
-          <div id="alerts-list" class="panel-list"></div>
-        </div>
+  <div @if="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <span>Loading...</span>
+  </div>
 
-        <!-- Email Reports -->
-        <div class="settings-panel" id="email-reports-panel">
-          <div class="panel-header">
-            <h4 class="panel-title">Email Reports</h4>
-            <button class="btn btn-sm" onclick="addEmailReport()">+ Add Report</button>
-          </div>
-          <p class="panel-desc">Schedule automated email reports.</p>
-          <div id="email-reports-list" class="panel-list"></div>
-        </div>
+  <div @if="error()" class="error-state">
+    {{ error() }}
+  </div>
 
-        <!-- Uptime Monitoring -->
-        <div class="settings-panel" id="uptime-panel">
-          <div class="panel-header">
-            <h4 class="panel-title">Uptime Monitoring</h4>
-            <button class="btn btn-sm" onclick="createUptimeMonitor()">+ Add Monitor</button>
+  <div @if="!loading() && !error()" class="settings-grid">
+    <div class="settings-column">
+      <!-- API Keys -->
+      <div class="settings-panel">
+        <div class="panel-header">
+          <h4 class="panel-title">API Keys</h4>
+          <button class="btn btn-sm" @click="showApiKeyModal.set(true)">+ New Key</button>
+        </div>
+        <p class="panel-desc">Generate API keys for programmatic access to your analytics data.</p>
+        <div class="panel-list">
+          <p @if="apiKeys().length === 0" class="panel-empty">No API keys created yet.</p>
+          <div @for="key in apiKeys()" class="list-item">
+            <div class="list-item-content">
+              <div class="list-item-name">{{ key.name }}</div>
+              <code class="list-item-code">{{ key.key }}</code>
+            </div>
+            <button class="btn-icon danger" @click="deleteApiKey(key.id)" title="Delete">×</button>
           </div>
-          <p class="panel-desc">Monitor your site availability.</p>
-          <div id="uptime-list" class="panel-list"></div>
         </div>
       </div>
 
-      <div class="settings-column">
-        <!-- Team Members -->
-        <div class="settings-panel" id="team-panel">
-          <div class="panel-header">
-            <h4 class="panel-title">Team Members</h4>
-            <button class="btn btn-sm" onclick="inviteTeamMember()">+ Invite</button>
-          </div>
-          <p class="panel-desc">Manage team access to this site.</p>
-          <div id="team-list" class="panel-list"></div>
+      <!-- Alerts -->
+      <div class="settings-panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Alerts</h4>
+          <button class="btn btn-sm" @click="showAlertModal.set(true)">+ New Alert</button>
         </div>
-
-        <!-- Webhooks -->
-        <div class="settings-panel" id="webhooks-panel">
-          <div class="panel-header">
-            <h4 class="panel-title">Webhooks</h4>
-            <button class="btn btn-sm" onclick="addWebhook()">+ Add Webhook</button>
-          </div>
-          <p class="panel-desc">Send real-time data to external services.</p>
-          <div id="webhooks-list" class="panel-list"></div>
-        </div>
-
-        <!-- Performance Budgets -->
-        <div class="settings-panel" id="perf-budgets-panel">
-          <div class="panel-header">
-            <h4 class="panel-title">Performance Budgets</h4>
-            <button class="btn btn-sm" onclick="createPerfBudget()">+ Add Budget</button>
-          </div>
-          <p class="panel-desc">Set performance thresholds for alerts.</p>
-          <div id="perf-budgets-list" class="panel-list"></div>
-        </div>
-
-        <!-- Data & Privacy -->
-        <div class="settings-panel" id="data-panel">
-          <div class="panel-header">
-            <h4 class="panel-title">Data & Privacy</h4>
-          </div>
-          <div class="data-actions">
-            <div class="data-row">
-              <div>
-                <div class="data-label">Data Retention</div>
-                <div class="data-value" id="retention-days">365 days</div>
-              </div>
+        <p class="panel-desc">Get notified when metrics exceed thresholds.</p>
+        <div class="panel-list">
+          <p @if="alerts().length === 0" class="panel-empty">No alerts configured.</p>
+          <div @for="alert in alerts()" class="list-item">
+            <div class="list-item-content">
+              <div class="list-item-name">{{ alert.metric }}</div>
+              <div class="list-item-meta">Threshold: {{ alert.threshold }} → {{ alert.email }}</div>
             </div>
-            <div class="data-row">
-              <button class="btn btn-secondary" onclick="gdprExport()">Export Data (GDPR)</button>
-              <button class="btn btn-danger" onclick="gdprDelete()">Delete All Data</button>
+            <button class="btn-icon danger" @click="deleteAlert(alert.id)" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Email Reports -->
+      <div class="settings-panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Email Reports</h4>
+          <button class="btn btn-sm" @click="showEmailReportModal.set(true)">+ Add Report</button>
+        </div>
+        <p class="panel-desc">Schedule automated email reports.</p>
+        <div class="panel-list">
+          <p @if="emailReports().length === 0" class="panel-empty">No email reports scheduled.</p>
+          <div @for="report in emailReports()" class="list-item">
+            <div class="list-item-content">
+              <div class="list-item-name">{{ report.email }}</div>
+              <div class="list-item-meta">{{ report.frequency }}</div>
             </div>
+            <button class="btn-icon danger" @click="deleteEmailReport(report.id)" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Uptime Monitoring -->
+      <div class="settings-panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Uptime Monitoring</h4>
+          <button class="btn btn-sm" @click="showUptimeModal.set(true)">+ Add Monitor</button>
+        </div>
+        <p class="panel-desc">Monitor your site availability.</p>
+        <div class="panel-list">
+          <p @if="uptimeMonitors().length === 0" class="panel-empty">No uptime monitors configured.</p>
+          <div @for="monitor in uptimeMonitors()" class="list-item">
+            <div class="list-item-content">
+              <code class="list-item-code">{{ monitor.url }}</code>
+              <div class="list-item-meta">Every {{ monitor.interval }}min • {{ monitor.status || 'Pending' }}</div>
+            </div>
+            <button class="btn-icon danger" @click="deleteUptimeMonitor(monitor.id)" title="Delete">×</button>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</template>
 
-<template id="api-key-item-template">
-  <div class="list-item">
-    <div class="list-item-content">
-      <div class="list-item-name"></div>
-      <code class="list-item-code"></code>
+    <div class="settings-column">
+      <!-- Team Members -->
+      <div class="settings-panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Team Members</h4>
+          <button class="btn btn-sm" @click="showTeamModal.set(true)">+ Invite</button>
+        </div>
+        <p class="panel-desc">Manage team access to this site.</p>
+        <div class="panel-list">
+          <p @if="teamMembers().length === 0" class="panel-empty">No team members added.</p>
+          <div @for="member in teamMembers()" class="list-item">
+            <div class="list-item-content">
+              <div class="list-item-name">{{ member.email }}</div>
+              <div class="list-item-role">{{ member.role }}</div>
+            </div>
+            <button class="btn-icon danger" @click="removeTeamMember(member.id)" title="Remove">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Webhooks -->
+      <div class="settings-panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Webhooks</h4>
+          <button class="btn btn-sm" @click="showWebhookModal.set(true)">+ Add Webhook</button>
+        </div>
+        <p class="panel-desc">Send real-time data to external services.</p>
+        <div class="panel-list">
+          <p @if="webhooks().length === 0" class="panel-empty">No webhooks configured.</p>
+          <div @for="webhook in webhooks()" class="list-item">
+            <div class="list-item-content">
+              <code class="list-item-code">{{ webhook.url }}</code>
+              <div class="list-item-events">{{ webhook.events.join(', ') }}</div>
+            </div>
+            <button class="btn-icon danger" @click="deleteWebhook(webhook.id)" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Budgets -->
+      <div class="settings-panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Performance Budgets</h4>
+          <button class="btn btn-sm" @click="showPerfBudgetModal.set(true)">+ Add Budget</button>
+        </div>
+        <p class="panel-desc">Set performance thresholds for alerts.</p>
+        <div class="panel-list">
+          <p @if="perfBudgets().length === 0" class="panel-empty">No performance budgets set.</p>
+          <div @for="budget in perfBudgets()" class="list-item">
+            <div class="list-item-content">
+              <div class="list-item-name">{{ budget.metric }}</div>
+              <div class="list-item-meta">Threshold: {{ budget.threshold }}{{ budget.metric === 'CLS' ? '' : 'ms' }}</div>
+            </div>
+            <button class="btn-icon danger" @click="deletePerfBudget(budget.id)" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data & Privacy -->
+      <div class="settings-panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Data & Privacy</h4>
+        </div>
+        <div class="data-actions">
+          <div class="data-row">
+            <div>
+              <div class="data-label">Data Retention</div>
+              <div class="data-value">{{ retentionDays() }} days</div>
+            </div>
+          </div>
+          <div class="data-row">
+            <button class="btn btn-secondary" @click="gdprExport">Export Data (GDPR)</button>
+            <button class="btn btn-danger" @click="gdprDelete">Delete All Data</button>
+          </div>
+        </div>
+      </div>
     </div>
-    <button class="btn-icon danger" title="Delete">×</button>
   </div>
-</template>
 
-<template id="alert-item-template">
-  <div class="list-item">
-    <div class="list-item-content">
-      <div class="list-item-name"></div>
-      <div class="list-item-meta"></div>
-    </div>
-    <button class="btn-icon danger" title="Delete">×</button>
-  </div>
-</template>
-
-<template id="team-member-template">
-  <div class="list-item">
-    <div class="list-item-content">
-      <div class="list-item-name"></div>
-      <div class="list-item-role"></div>
+  <!-- API Key Modal -->
+  <div @if="showApiKeyModal()" class="modal-overlay" @click.self="showApiKeyModal.set(false)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Create API Key</h3>
+        <button class="btn-icon" @click="showApiKeyModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Key Name</label>
+        <input type="text" class="form-input" placeholder="e.g., Production API" @model="newApiKeyName" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="showApiKeyModal.set(false)">Cancel</button>
+        <button class="btn btn-primary" @click="createApiKey">Create Key</button>
+      </div>
     </div>
   </div>
-</template>
 
-<template id="webhook-item-template">
-  <div class="list-item">
-    <div class="list-item-content">
-      <code class="list-item-code"></code>
-      <div class="list-item-events"></div>
+  <!-- Alert Modal -->
+  <div @if="showAlertModal()" class="modal-overlay" @click.self="showAlertModal.set(false)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Create Alert</h3>
+        <button class="btn-icon" @click="showAlertModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Metric</label>
+        <select class="form-input" @model="newAlertMetric">
+          <option value="pageviews">Page Views</option>
+          <option value="visitors">Visitors</option>
+          <option value="bounce_rate">Bounce Rate</option>
+          <option value="error_rate">Error Rate</option>
+        </select>
+        <label class="form-label">Threshold</label>
+        <input type="number" class="form-input" @model="newAlertThreshold" />
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" placeholder="alert@example.com" @model="newAlertEmail" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="showAlertModal.set(false)">Cancel</button>
+        <button class="btn btn-primary" @click="createAlert">Create Alert</button>
+      </div>
     </div>
-    <button class="btn-icon danger" title="Delete">×</button>
   </div>
-</template>
 
-<template id="uptime-item-template">
-  <div class="list-item">
-    <div class="list-item-content">
-      <code class="list-item-code"></code>
-      <div class="list-item-meta"></div>
+  <!-- Email Report Modal -->
+  <div @if="showEmailReportModal()" class="modal-overlay" @click.self="showEmailReportModal.set(false)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Email Report</h3>
+        <button class="btn-icon" @click="showEmailReportModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" placeholder="report@example.com" @model="newEmailReportEmail" />
+        <label class="form-label">Frequency</label>
+        <select class="form-input" @model="newEmailReportFrequency">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="showEmailReportModal.set(false)">Cancel</button>
+        <button class="btn btn-primary" @click="addEmailReport">Add Report</button>
+      </div>
     </div>
-    <button class="btn-icon danger" title="Delete">×</button>
   </div>
-</template>
 
-<template id="perf-budget-template">
-  <div class="list-item">
-    <div class="list-item-content">
-      <div class="list-item-name"></div>
-      <div class="list-item-meta"></div>
+  <!-- Uptime Monitor Modal -->
+  <div @if="showUptimeModal()" class="modal-overlay" @click.self="showUptimeModal.set(false)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Uptime Monitor</h3>
+        <button class="btn-icon" @click="showUptimeModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">URL</label>
+        <input type="url" class="form-input" placeholder="https://example.com" @model="newUptimeUrl" />
+        <label class="form-label">Check Interval (minutes)</label>
+        <select class="form-input" @model="newUptimeInterval">
+          <option value="1">1 minute</option>
+          <option value="5">5 minutes</option>
+          <option value="15">15 minutes</option>
+          <option value="30">30 minutes</option>
+          <option value="60">60 minutes</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="showUptimeModal.set(false)">Cancel</button>
+        <button class="btn btn-primary" @click="createUptimeMonitor">Add Monitor</button>
+      </div>
     </div>
-    <button class="btn-icon danger" title="Delete">×</button>
   </div>
-</template>
 
-<template id="email-report-template">
-  <div class="list-item">
-    <div class="list-item-content">
-      <div class="list-item-name"></div>
-      <div class="list-item-meta"></div>
+  <!-- Team Member Modal -->
+  <div @if="showTeamModal()" class="modal-overlay" @click.self="showTeamModal.set(false)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Invite Team Member</h3>
+        <button class="btn-icon" @click="showTeamModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" placeholder="team@example.com" @model="newTeamEmail" />
+        <label class="form-label">Role</label>
+        <select class="form-input" @model="newTeamRole">
+          <option value="viewer">Viewer</option>
+          <option value="editor">Editor</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="showTeamModal.set(false)">Cancel</button>
+        <button class="btn btn-primary" @click="inviteTeamMember">Invite</button>
+      </div>
     </div>
-    <button class="btn-icon danger" title="Delete">×</button>
   </div>
-</template>
 
-<template id="settings-empty-template">
-  <p class="panel-empty"></p>
-</template>
+  <!-- Webhook Modal -->
+  <div @if="showWebhookModal()" class="modal-overlay" @click.self="showWebhookModal.set(false)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Webhook</h3>
+        <button class="btn-icon" @click="showWebhookModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Webhook URL</label>
+        <input type="url" class="form-input" placeholder="https://example.com/webhook" @model="newWebhookUrl" />
+        <label class="form-label">Events</label>
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" value="pageview" checked /> Page View
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" value="session" /> Session
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" value="error" /> Error
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" value="goal" /> Goal Conversion
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="showWebhookModal.set(false)">Cancel</button>
+        <button class="btn btn-primary" @click="addWebhook">Add Webhook</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Performance Budget Modal -->
+  <div @if="showPerfBudgetModal()" class="modal-overlay" @click.self="showPerfBudgetModal.set(false)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Performance Budget</h3>
+        <button class="btn-icon" @click="showPerfBudgetModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Metric</label>
+        <select class="form-input" @model="newPerfBudgetMetric">
+          <option value="LCP">LCP (Largest Contentful Paint)</option>
+          <option value="FID">FID (First Input Delay)</option>
+          <option value="CLS">CLS (Cumulative Layout Shift)</option>
+          <option value="TTFB">TTFB (Time to First Byte)</option>
+          <option value="FCP">FCP (First Contentful Paint)</option>
+        </select>
+        <label class="form-label">Threshold ({{ newPerfBudgetMetric() === 'CLS' ? 'score' : 'ms' }})</label>
+        <input type="number" class="form-input" @model="newPerfBudgetThreshold" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="showPerfBudgetModal.set(false)">Cancel</button>
+        <button class="btn btn-primary" @click="createPerfBudget">Add Budget</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <style>
 .tab-panel {
@@ -236,6 +696,7 @@
   font-size: 0.75rem;
   color: var(--muted);
   font-style: italic;
+  margin: 0;
 }
 .list-item {
   display: flex;
@@ -263,6 +724,96 @@
   font-size: 0.6875rem;
   color: var(--muted);
 }
+.data-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.data-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.data-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.data-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+.modal-body {
+  padding: 1rem;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+}
+.form-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+  margin-top: 0.75rem;
+}
+.form-label:first-child {
+  margin-top: 0;
+}
+.form-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.875rem;
+}
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--text);
+}
 .btn {
   display: inline-flex;
   align-items: center;
@@ -283,6 +834,14 @@
 .btn-sm {
   padding: 0.25rem 0.5rem;
   font-size: 0.6875rem;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.btn-primary:hover {
+  background: var(--accent2);
 }
 .btn-secondary {
   background: var(--bg3);
@@ -314,23 +873,32 @@
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
 }
-.data-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.data-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-.data-label {
-  font-size: 0.75rem;
+.empty-state, .loading-state, .error-state {
+  text-align: center;
   color: var(--muted);
+  padding: 2rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
-.data-value {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text);
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.error-state {
+  color: var(--error);
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

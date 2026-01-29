@@ -1,53 +1,113 @@
-<script server>
-/**
- * EmptyStates Component
- *
- * Provides reusable empty state templates for various dashboard sections.
- */
-</script>
+{{-- EmptyStates Component --}}
+{{-- Provides reusable empty state components for various dashboard sections --}}
+{{-- Props: type (string), loading (boolean), error (string), onRetry (function) --}}
 
-<template id="sessions-empty-template">
-  <div class="empty-state">No sessions found</div>
+{{-- Generic Empty State --}}
+<template id="empty-state-component">
+  @if(loading)
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>{{ message || 'Loading...' }}</p>
+    </div>
+  @elseif(error)
+    <div class="error">
+      <p>{{ error }}</p>
+      @if(showRetry)
+        <button type="button" class="retry-btn">Retry</button>
+      @endif
+    </div>
+  @else
+    <div class="empty-state {{ type }}">
+      @if(icon)
+        <div class="empty-icon">
+          {!! icon !!}
+        </div>
+      @endif
+      <p class="empty-message">{{ message }}</p>
+      @if(hint)
+        <p class="empty-hint">{{ hint }}</p>
+      @endif
+      @if(action)
+        <button type="button" class="empty-action">{{ action }}</button>
+      @endif
+    </div>
+  @endif
 </template>
 
-<template id="heatmap-empty-template">
-  <div class="heatmap-empty">No clicks on this page</div>
-</template>
-
-<template id="insights-list-empty-template">
-  <div class="empty-state">No insights available yet. Check back when you have more data.</div>
-</template>
-
-<template id="live-activity-empty-template">
-  <div class="empty-state">No recent activity. Visitors will appear here in real-time.</div>
-</template>
-
-<template id="funnels-empty-template">
+{{-- Sessions Empty State --}}
+<template id="sessions-empty">
   <div class="empty-state">
-    <p>No funnels configured yet.</p>
-    <p class="empty-state-hint">Create a funnel to track conversion rates through your key user flows.</p>
+    <svg class="empty-icon" width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+    </svg>
+    <p>No sessions found</p>
+    <p class="empty-hint">Sessions will appear as visitors browse your site.</p>
   </div>
 </template>
 
-<template id="events-empty-template">
-  <div class="empty-cell">No custom events tracked</div>
-</template>
-
-<template id="goals-empty-template">
-  <div class="goals-empty">No goals configured. Click "+ Add Goal" to create one.</div>
-</template>
-
-<template id="site-selector-loading-template">
-  <div class="loading">
-    <div class="spinner"></div>
-    <p>Loading sites...</p>
+{{-- Heatmap Empty State --}}
+<template id="heatmap-empty">
+  <div class="heatmap-empty">
+    <svg class="empty-icon" width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+    </svg>
+    <p>No click data on this page</p>
+    <p class="empty-hint">Clicks will be recorded as visitors interact with this page.</p>
   </div>
 </template>
 
-<template id="site-selector-error-template">
-  <div class="error">
-    <p>Failed to load sites</p>
-    <button onclick="fetchSites()">Retry</button>
+{{-- Insights Empty State --}}
+<template id="insights-empty">
+  <div class="empty-state insights">
+    <svg class="empty-icon" width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+    </svg>
+    <p>No insights available yet</p>
+    <p class="empty-hint">Check back when you have more data to analyze.</p>
+  </div>
+</template>
+
+{{-- Live Activity Empty State --}}
+<template id="live-empty">
+  <div class="empty-state live">
+    <svg class="empty-icon" width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+    </svg>
+    <p>No recent activity</p>
+    <p class="empty-hint">Visitors will appear here in real-time as they browse your site.</p>
+  </div>
+</template>
+
+{{-- Funnels Empty State --}}
+<template id="funnels-empty">
+  <div class="empty-state funnels">
+    <svg class="empty-icon" width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+    </svg>
+    <p>No funnels configured yet</p>
+    <p class="empty-hint">Create a funnel to track conversion rates through your key user flows.</p>
+  </div>
+</template>
+
+{{-- Events Empty State --}}
+<template id="events-empty">
+  <div class="empty-cell">
+    <svg class="empty-icon-sm" width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+    </svg>
+    <p>No custom events tracked</p>
+  </div>
+</template>
+
+{{-- Goals Empty State --}}
+<template id="goals-empty">
+  <div class="goals-empty">
+    <svg class="empty-icon-sm" width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <p>No goals configured</p>
+    <p class="empty-hint">Click "+ Add Goal" to create your first conversion goal.</p>
   </div>
 </template>
 
@@ -60,27 +120,57 @@
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-.empty-state-hint {
+.empty-icon {
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+.empty-icon-sm {
+  margin-bottom: 0.5rem;
+  opacity: 0.5;
+}
+.empty-message {
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+.empty-hint {
   font-size: 0.75rem;
+  opacity: 0.8;
   margin-top: 0.5rem;
+}
+.empty-action {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.empty-action:hover {
+  background: var(--accent2);
 }
 .empty-cell {
   text-align: center;
   color: var(--muted);
-  padding: 1rem;
+  padding: 1.5rem;
+  font-size: 0.8125rem;
 }
 .goals-empty {
-  padding: 1rem;
+  padding: 1.5rem;
   text-align: center;
   color: var(--muted);
   font-size: 0.8125rem;
 }
 .heatmap-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
   color: var(--muted);
+  padding: 2rem;
 }
 .loading {
   text-align: center;
@@ -104,7 +194,7 @@
   padding: 2rem;
   color: var(--error);
 }
-.error button {
+.retry-btn {
   margin-top: 0.5rem;
   padding: 0.375rem 0.75rem;
   background: var(--bg3);
@@ -112,8 +202,9 @@
   border-radius: 6px;
   color: var(--text);
   cursor: pointer;
+  font-size: 0.8125rem;
 }
-.error button:hover {
+.retry-btn:hover {
   background: var(--bg2);
 }
 @keyframes spin {

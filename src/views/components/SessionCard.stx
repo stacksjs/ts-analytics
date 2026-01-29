@@ -1,0 +1,83 @@
+<script>
+/**
+ * SessionCard Component
+ * Displays a session summary with metadata
+ */
+const session = $props.session || {}
+const onClick = $props.onClick
+
+function formatDuration(ms) {
+  if (!ms) return '0s'
+  const s = Math.floor(ms / 1000)
+  if (s < 60) return s + 's'
+  const m = Math.floor(s / 60)
+  return m + 'm ' + (s % 60) + 's'
+}
+
+const entryPath = derived(() => session.entryPath || '/')
+const startTime = derived(() => new Date(session.startedAt).toLocaleString())
+const pageCount = derived(() => session.pageViewCount || 0)
+const duration = derived(() => formatDuration(session.duration))
+const browser = derived(() => session.browser || 'Unknown')
+const country = derived(() => session.country || 'Unknown')
+const isBounce = derived(() => session.isBounce)
+
+function handleClick() {
+  if (onClick) onClick(session.id)
+}
+</script>
+
+<div class="session-card" @click="handleClick">
+  <div class="session-card-header">
+    <span class="session-path">{{ entryPath() }}</span>
+    <span class="session-time">{{ startTime() }}</span>
+  </div>
+  <div class="session-card-meta">
+    <span class="session-pages">{{ pageCount() }} pages</span>
+    <span class="session-duration">{{ duration() }}</span>
+    <span class="session-browser">{{ browser() }}</span>
+    <span class="session-country">{{ country() }}</span>
+    <span @if="isBounce()" class="bounced">Bounced</span>
+  </div>
+</div>
+
+<style>
+.session-card {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: border-color 0.15s;
+}
+.session-card:hover {
+  border-color: var(--accent);
+}
+.session-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.session-path {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+.session-time {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.session-card-meta {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.bounced {
+  color: #f59e0b;
+  font-weight: 500;
+}
+</style>

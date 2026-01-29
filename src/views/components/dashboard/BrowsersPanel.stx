@@ -1,0 +1,139 @@
+<script>
+/**
+ * BrowsersPanel Component
+ * Displays browser breakdown with reactive data fetching
+ */
+const browsers = state([])
+const loading = state(true)
+
+function fmt(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
+  return String(n)
+}
+
+async function fetchBrowsers() {
+  const siteId = window.siteId
+  if (!siteId) {
+    loading.set(false)
+    return
+  }
+  try {
+    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/browsers${window.getDateRangeParams()}`)
+    const data = await res.json()
+    browsers.set(data.browsers || [])
+  } catch (e) {
+    console.error('Failed to fetch browsers:', e)
+  } finally {
+    loading.set(false)
+  }
+}
+
+onMount(() => {
+  if (window.siteId) fetchBrowsers()
+})
+
+window.refreshBrowsersPanel = fetchBrowsers
+</script>
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <svg class="panel-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+      </svg>
+      Browsers
+    </div>
+    <a href="#" onclick="navigateTo('browsers')" class="view-all">View all &rarr;</a>
+  </div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th class="text-left">Browser</th>
+        <th class="text-right">Visitors</th>
+        <th class="text-right">%</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr @if="loading()">
+        <td colspan="3" class="loading-cell">Loading...</td>
+      </tr>
+      <tr @if="!loading() && browsers().length === 0">
+        <td colspan="3" class="empty-cell">No browser data</td>
+      </tr>
+      <tr @for="browser in browsers()" @if="!loading()">
+        <td class="name">{{ browser.name || 'Unknown' }}</td>
+        <td class="value">{{ fmt(browser.visitors || 0) }}</td>
+        <td class="value">{{ browser.percentage || 0 }}%</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<style>
+.panel {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+}
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+.panel-icon {
+  color: var(--muted);
+}
+.view-all {
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+.view-all:hover {
+  text-decoration: underline;
+}
+.data-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  border-collapse: collapse;
+}
+.data-table th {
+  padding: 0.5rem 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.data-table td {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+.name {
+  font-weight: 500;
+  color: var(--text);
+}
+.value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.loading-cell,
+.empty-cell {
+  text-align: center;
+  color: var(--muted);
+  padding: 1rem 0;
+}
+</style>

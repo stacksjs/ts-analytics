@@ -1,0 +1,193 @@
+<script>
+/**
+ * ReferrersPanel Component
+ * Displays top referrers with reactive data fetching
+ */
+const referrers = state([])
+const loading = state(true)
+
+function fmt(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
+  return String(n)
+}
+
+function getDomain(source) {
+  return source.replace(/^https?:\/\//, '').split('/')[0]
+}
+
+function isExternalLink(source) {
+  const lower = (source || '').toLowerCase()
+  return lower !== 'direct' && !source.includes('(') && source.includes('.')
+}
+
+function getHref(source) {
+  return source.startsWith('http') ? source : 'https://' + source
+}
+
+async function fetchReferrers() {
+  const siteId = window.siteId
+  if (!siteId) {
+    loading.set(false)
+    return
+  }
+  try {
+    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/referrers${window.getDateRangeParams()}`)
+    const data = await res.json()
+    referrers.set((data.referrers || []).slice(0, 10))
+  } catch (e) {
+    console.error('Failed to fetch referrers:', e)
+  } finally {
+    loading.set(false)
+  }
+}
+
+onMount(() => {
+  if (window.siteId) fetchReferrers()
+})
+
+window.refreshReferrersPanel = fetchReferrers
+</script>
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <svg class="panel-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+      </svg>
+      Top Referrers
+    </div>
+    <a href="#" onclick="navigateTo('referrers')" class="view-all">View all &rarr;</a>
+  </div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th class="text-left">Source</th>
+        <th class="text-right">Visitors</th>
+        <th class="text-right">Views</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr @if="loading()">
+        <td colspan="3" class="loading-cell">Loading...</td>
+      </tr>
+      <tr @if="!loading() && referrers().length === 0">
+        <td colspan="3" class="empty-cell">No referrer data</td>
+      </tr>
+      <tr @for="ref in referrers()" @if="!loading()">
+        <td class="name">
+          <a @if="isExternalLink(ref.source || 'Direct')"
+             :href="getHref(ref.source)"
+             target="_blank"
+             rel="noopener"
+             class="referrer-link">
+            <img
+              :src="'https://www.google.com/s2/favicons?domain=' + getDomain(ref.source) + '&sz=16'"
+              width="14"
+              height="14"
+              class="favicon"
+              @error="e => e.target.style.display = 'none'"
+            />
+            {{ ref.source || 'Direct' }}
+            <svg class="external-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+            </svg>
+          </a>
+          <span @if="!isExternalLink(ref.source || 'Direct')">{{ ref.source || 'Direct' }}</span>
+        </td>
+        <td class="value">{{ fmt(ref.visitors || 0) }}</td>
+        <td class="value">{{ fmt(ref.views || 0) }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<style>
+.panel {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+}
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+.panel-icon {
+  color: var(--muted);
+}
+.view-all {
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+.view-all:hover {
+  text-decoration: underline;
+}
+.data-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  border-collapse: collapse;
+}
+.data-table th {
+  padding: 0.5rem 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.data-table td {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+.name {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.loading-cell,
+.empty-cell {
+  text-align: center;
+  color: var(--muted);
+  padding: 1rem 0;
+}
+.referrer-link {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.referrer-link:hover {
+  color: var(--accent);
+}
+.favicon {
+  vertical-align: middle;
+  border-radius: 2px;
+}
+.external-icon {
+  opacity: 0.5;
+}
+.referrer-link:hover .external-icon {
+  opacity: 1;
+}
+</style>

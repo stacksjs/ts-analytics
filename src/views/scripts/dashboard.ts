@@ -26,6 +26,11 @@
     let refreshInterval = null
     let previousStats = null
 
+    // Expose globals for STX panel components
+    ;(window as any).API_ENDPOINT = API_ENDPOINT
+    ;(window as any).siteId = siteId
+    // Note: getDateRangeParams is exposed after its definition
+
     // Load cached stats from localStorage
     function loadCachedStats() {
       try {
@@ -94,6 +99,387 @@
     let filters = { country: '', device: '', browser: '', referrer: '' }
     let comparisonStats = null
     let liveRefreshInterval = null
+
+    // ==========================================================================
+    // DOM Builder Utilities - No innerHTML needed
+    // ==========================================================================
+
+    /**
+     * Create an element with attributes and children
+     * @example el('div', { class: 'card' }, [el('p', {}, 'Hello')])
+     */
+    function el(tag: string, attrs: Record<string, any> = {}, children: (Node | string)[] | string = []): HTMLElement {
+      const element = document.createElement(tag)
+      for (const [key, value] of Object.entries(attrs)) {
+        if (key === 'class') {
+          element.className = value
+        } else if (key === 'style' && typeof value === 'object') {
+          Object.assign(element.style, value)
+        } else if (key.startsWith('on') && typeof value === 'function') {
+          element.addEventListener(key.slice(2).toLowerCase(), value)
+        } else if (key === 'dataset') {
+          Object.assign(element.dataset, value)
+        } else if (value !== false && value !== null && value !== undefined) {
+          element.setAttribute(key, String(value))
+        }
+      }
+      if (typeof children === 'string') {
+        element.textContent = children
+      } else {
+        for (const child of children) {
+          if (typeof child === 'string') {
+            element.appendChild(document.createTextNode(child))
+          } else if (child) {
+            element.appendChild(child)
+          }
+        }
+      }
+      return element
+    }
+
+    /** Create a text node */
+    function text(content: string): Text {
+      return document.createTextNode(content)
+    }
+
+    /** Clear all children from an element */
+    function clear(element: Element): void {
+      while (element.firstChild) {
+        element.removeChild(element.firstChild)
+      }
+    }
+
+    /** Replace element's children with new content */
+    function setChildren(element: Element, children: (Node | string)[]): void {
+      clear(element)
+      for (const child of children) {
+        if (typeof child === 'string') {
+          element.appendChild(document.createTextNode(child))
+        } else if (child) {
+          element.appendChild(child)
+        }
+      }
+    }
+
+    /** Create a table row */
+    function tr(cells: { content: string | Node, class?: string, colspan?: number, align?: string }[]): HTMLTableRowElement {
+      const row = document.createElement('tr')
+      for (const cell of cells) {
+        const td = document.createElement('td')
+        if (cell.class) td.className = cell.class
+        if (cell.colspan) td.colSpan = cell.colspan
+        if (cell.align) td.style.textAlign = cell.align
+        if (typeof cell.content === 'string') {
+          td.textContent = cell.content
+        } else {
+          td.appendChild(cell.content)
+        }
+        row.appendChild(td)
+      }
+      return row
+    }
+
+    /** Create an SVG element (needs namespace) */
+    function svg(html: string): SVGElement {
+      const template = document.createElement('template')
+      template.innerHTML = html.trim()
+      return template.content.firstChild as SVGElement
+    }
+
+    /** Create a table cell - simple helper without el() */
+    function td(content: string, className?: string): HTMLTableCellElement {
+      const cell = document.createElement('td')
+      if (className) cell.className = className
+      cell.textContent = content
+      return cell
+    }
+
+    /** Create a spinner element */
+    function spinner(): HTMLDivElement {
+      const div = document.createElement('div')
+      div.className = 'spinner'
+      return div
+    }
+
+    /** Create a loading state */
+    function loadingState(message = 'Loading...'): HTMLDivElement {
+      return el('div', { class: 'loading' }, [
+        spinner(),
+        el('p', {}, message)
+      ]) as HTMLDivElement
+    }
+
+    /** Create an empty state */
+    function emptyState(message: string): HTMLDivElement {
+      return el('div', { class: 'empty-state' }, message) as HTMLDivElement
+    }
+
+    /** Create an error state */
+    function errorState(message: string, retryFn?: () => void): HTMLDivElement {
+      const children: (Node | string)[] = [el('p', {}, message)]
+      if (retryFn) {
+        children.push(el('button', { onclick: retryFn }, 'Retry'))
+      }
+      return el('div', { class: 'error' }, children) as HTMLDivElement
+    }
+
+    /** Create a tab panel wrapper */
+    function tabPanel(title: string, content: (Node | string)[]): HTMLDivElement {
+      return el('div', { class: 'tab-panel' }, [
+        el('h3', { class: 'tab-title' }, title),
+        ...content
+      ]) as HTMLDivElement
+    }
+
+    /** Build table rows from data */
+    function buildTableRows(tbody: HTMLTableSectionElement, data: any[], rowBuilder: (item: any, index: number) => HTMLTableRowElement, emptyMessage: string, colspan: number): void {
+      clear(tbody)
+      if (!data || data.length === 0) {
+        const emptyRow = document.createElement('tr')
+        const emptyCell = document.createElement('td')
+        emptyCell.colSpan = colspan
+        emptyCell.className = 'empty-cell'
+        emptyCell.textContent = emptyMessage
+        emptyRow.appendChild(emptyCell)
+        tbody.appendChild(emptyRow)
+      } else {
+        data.forEach((item, index) => {
+          tbody.appendChild(rowBuilder(item, index))
+        })
+      }
+    }
+
+    /** Create a link with external icon */
+    function externalLink(href: string, content: string | Node, showIcon = true): HTMLAnchorElement {
+      const link = document.createElement('a')
+      link.href = href
+      link.target = '_blank'
+      link.rel = 'noopener'
+      link.style.cssText = 'color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px'
+      if (typeof content === 'string') {
+        link.appendChild(document.createTextNode(content))
+      } else {
+        link.appendChild(content)
+      }
+      if (showIcon) {
+        link.appendChild(svg('<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>'))
+      }
+      return link
+    }
+
+    /** Set stat value with optional comparison badge */
+    function setStatValue(elementId: string, value: string, change?: number): void {
+      const element = document.getElementById(elementId)
+      if (!element) return
+      clear(element)
+      element.appendChild(document.createTextNode(value))
+      if (change !== undefined && comparisonData) {
+        element.appendChild(compBadgeNode(change))
+      }
+    }
+
+    /** Create comparison badge as a DOM node */
+    function compBadgeNode(change: number): HTMLSpanElement {
+      const span = document.createElement('span')
+      if (change === 0 || change === null || change === undefined) {
+        span.className = 'comp-badge neutral'
+        span.textContent = '0%'
+      } else if (change > 0) {
+        span.className = 'comp-badge up'
+        span.textContent = `+${change}%`
+      } else {
+        span.className = 'comp-badge down'
+        span.textContent = `${change}%`
+      }
+      return span
+    }
+
+    /** Common SVG icons for reuse */
+    const icons = {
+      close: () => svg('<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>'),
+      traffic: () => svg('<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>'),
+      referrer: () => svg('<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/></svg>'),
+      page: () => svg('<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'),
+      device: () => svg('<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>'),
+      engagement: () => svg('<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>')
+    }
+
+    /** Create a modal dialog */
+    function createModal(id: string, title: string | Node, content: Node[], size = ''): HTMLDivElement {
+      const modalContent = el('div', { class: `modal-content ${size}`.trim() }, [
+        el('div', { class: 'modal-header' }, [
+          el('h3', { class: 'modal-title' }, typeof title === 'string' ? [text(title)] : [title]),
+          el('button', { class: 'modal-close', onclick: closeModal }, [icons.close()])
+        ]),
+        el('div', { class: 'modal-body' }, content)
+      ])
+      const modal = el('div', { id, class: 'modal' }, [modalContent]) as HTMLDivElement
+      return modal
+    }
+
+    /** Create a vital card */
+    function vitalCard(metric: string, value: string, samples: number, rating: string, goodPct: number, needsImprovementPct: number, poorPct: number): HTMLDivElement {
+      const children: (Node | string)[] = [
+        el('div', { class: 'vital-name' }, metric),
+        el('div', { class: `vital-value ${rating}` }, value),
+        el('div', { class: 'vital-samples' }, `${samples} samples`)
+      ]
+      if (samples > 0) {
+        children.push(el('div', { class: 'vital-bar' }, [
+          el('div', { class: 'good', style: { width: `${goodPct}%` } }),
+          el('div', { class: 'needs-improvement', style: { width: `${needsImprovementPct}%` } }),
+          el('div', { class: 'poor', style: { width: `${poorPct}%` } })
+        ]))
+      }
+      return el('div', { class: 'vital-card' }, children) as HTMLDivElement
+    }
+
+    /** Create an error card */
+    function errorCard(err: any, errorId: string, status: string, severity: string, count: number): HTMLDivElement {
+      const statusClass = status === 'ignored' ? 'status-ignored' : status === 'resolved' ? 'status-resolved' : 'status-new'
+      const actionButtons: Node[] = []
+      if (status !== 'resolved') {
+        actionButtons.push(el('button', {
+          class: 'btn-tiny',
+          dataset: { errorId: encodeURIComponent(errorId), action: 'resolved' }
+        }, '✓'))
+      }
+      if (status !== 'ignored') {
+        actionButtons.push(el('button', {
+          class: 'btn-tiny btn-secondary',
+          dataset: { errorId: encodeURIComponent(errorId), action: 'ignored' }
+        }, '✕'))
+      }
+
+      return el('div', { class: 'error-card-wrapper' }, [
+        el('a', {
+          href: `/errors/${siteId}/${encodeURIComponent(errorId)}`,
+          class: `error-card ${statusClass}`,
+          target: '_blank'
+        }, [
+          el('div', { class: `error-severity ${severity}` }, severity),
+          el('div', { class: 'error-content' }, [
+            el('div', { class: 'error-message' }, err.message || 'Unknown error'),
+            el('div', { class: 'error-meta' }, `${count} occurrence${count !== 1 ? 's' : ''} • ${err.browser || 'Unknown browser'}`)
+          ]),
+          el('div', { class: 'error-actions-inline' }, actionButtons)
+        ])
+      ]) as HTMLDivElement
+    }
+
+    /** Create an insight card */
+    function insightCard(type: string, title: string, description: string, severity: string): HTMLDivElement {
+      const iconFn = icons[type] || icons.traffic
+      return el('div', { class: 'insight-card' }, [
+        el('div', { class: `insight-icon ${severity || 'info'}` }, [iconFn()]),
+        el('div', { class: 'insight-content' }, [
+          el('div', { class: 'insight-title' }, title),
+          el('div', { class: 'insight-desc' }, description)
+        ])
+      ]) as HTMLDivElement
+    }
+
+    /** Create a live activity item */
+    function activityItem(path: string, country: string, device: string, browser: string, timestamp: string): HTMLDivElement {
+      return el('div', { class: 'live-activity' }, [
+        el('div', { class: 'live-activity-path' }, path || '/'),
+        el('div', { class: 'live-activity-meta' }, `${country || 'Unknown'} • ${device || 'Unknown'} • ${browser || 'Unknown'}`),
+        el('div', { class: 'live-activity-time' }, timeAgo(timestamp))
+      ]) as HTMLDivElement
+    }
+
+    /** Create a funnel card */
+    function funnelCard(funnel: any, onAnalyze: () => void): HTMLDivElement {
+      const steps = funnel.steps || []
+      const stepsContent: (Node | string)[] = []
+      steps.forEach((s, i) => {
+        stepsContent.push(el('span', { class: 'funnel-step' }, `${i + 1}. ${s.name}`))
+        if (i < steps.length - 1) {
+          stepsContent.push(el('span', { class: 'funnel-step-arrow' }, '→'))
+        }
+      })
+
+      return el('div', { class: 'funnel-card' }, [
+        el('div', { class: 'funnel-card-header' }, [
+          el('span', { class: 'funnel-name' }, funnel.name),
+          el('button', { class: 'btn-icon', onclick: onAnalyze }, 'Analyze')
+        ]),
+        el('div', { class: 'funnel-steps' }, stepsContent)
+      ]) as HTMLDivElement
+    }
+
+    /** Create a settings list item */
+    function listItem(name: string, meta: string | null, onDelete: () => void, code?: string): HTMLDivElement {
+      const children: (Node | string)[] = [
+        el('span', { class: 'list-item-name' }, name)
+      ]
+      if (code) {
+        const codeEl = document.createElement('code')
+        codeEl.className = 'list-item-code'
+        codeEl.textContent = code
+        children.push(codeEl)
+      }
+      if (meta) {
+        children.push(el('span', { class: 'list-item-meta' }, meta))
+      }
+      children.push(el('button', { class: 'btn-icon', onclick: onDelete }, 'Delete'))
+      return el('div', { class: 'list-item' }, children) as HTMLDivElement
+    }
+
+    /** Create a settings panel */
+    function settingsPanel(id: string, title: string, description: string | null, content: Node[], onAdd?: () => void): HTMLDivElement {
+      const headerChildren: (Node | string)[] = [el('h4', {}, title)]
+      if (onAdd) {
+        headerChildren.push(el('button', { class: 'btn btn-secondary', onclick: onAdd }, '+ Add'))
+      }
+      const panelChildren: (Node | string)[] = [
+        el('div', { class: 'panel-header' }, headerChildren)
+      ]
+      if (description) {
+        panelChildren.push(el('p', { class: 'panel-desc' }, description))
+      }
+      panelChildren.push(el('div', { id, class: 'panel-content' }, content))
+      return el('div', { class: 'settings-panel' }, panelChildren) as HTMLDivElement
+    }
+
+    /** Create an insights stat */
+    function insightsStat(value: string, label: string, change?: number): HTMLDivElement {
+      const children: (Node | string)[] = [
+        el('div', { class: 'insights-stat-value' }, value),
+        el('div', { class: 'insights-stat-label' }, label)
+      ]
+      if (change !== undefined && change !== 0) {
+        children.push(el('div', {
+          class: `insights-stat-change ${change > 0 ? 'positive' : 'negative'}`
+        }, `${change > 0 ? '+' : ''}${change}%`))
+      }
+      return el('div', { class: 'insights-stat' }, children) as HTMLDivElement
+    }
+
+    /** Create a timeline item */
+    function timelineItem(type: string, content: string, timestamp: string): HTMLDivElement {
+      return el('div', { class: 'timeline-item' }, [
+        el('span', { class: `timeline-type ${type}` }, type),
+        el('div', { class: 'timeline-content' }, content),
+        el('span', { class: 'timeline-time' }, new Date(timestamp).toLocaleTimeString())
+      ]) as HTMLDivElement
+    }
+
+    /** Create a session stat */
+    function sessionStat(label: string, value: string): HTMLDivElement {
+      return el('div', { class: 'session-stat' }, [
+        el('span', { class: 'session-stat-label' }, label),
+        el('span', { class: 'session-stat-value' }, value)
+      ]) as HTMLDivElement
+    }
+
+    /** Create a journey step */
+    function journeyStep(path: string, duration: string): HTMLDivElement {
+      return el('div', { class: 'journey-step' }, [
+        el('span', { class: 'journey-path' }, path),
+        el('span', { class: 'journey-duration' }, duration)
+      ]) as HTMLDivElement
+    }
 
     // Theme management
     function getPreferredTheme() {
@@ -174,11 +560,9 @@
 
     async function fetchSites() {
       const container = document.getElementById('site-list')
-      const loadingTemplate = document.getElementById('site-selector-loading-template') as HTMLTemplateElement
-      if (loadingTemplate) {
-        container.innerHTML = ''
-        container.appendChild(loadingTemplate.content.cloneNode(true))
-      }
+      clear(container)
+      container.appendChild(loadingState('Loading sites...'))
+
       try {
         const res = await fetch(`${API_ENDPOINT}/api/sites`)
         if (!res.ok) throw new Error('Failed to fetch')
@@ -186,44 +570,57 @@
         availableSites = data.sites || []
         renderSiteSelector()
       } catch (err) {
-        const errorTemplate = document.getElementById('site-selector-error-template') as HTMLTemplateElement
-        if (errorTemplate) {
-          container.innerHTML = ''
-          container.appendChild(errorTemplate.content.cloneNode(true))
-        }
+        clear(container)
+        container.appendChild(errorState('Failed to load sites', fetchSites))
       }
     }
 
     function renderSiteSelector() {
       const container = document.getElementById('site-list')
+      if (!container) return
 
-      // Always show create site form at top
-      const createForm = `<div class="create-site-form" style="margin-bottom:1.5rem;width:100%;max-width:500px">
-        <h3 style="font-size:0.875rem;margin-bottom:0.75rem;color:var(--text2)">Create New Site</h3>
-        <form onsubmit="createSite(event)" style="display:flex;gap:0.5rem">
-          <input type="text" id="new-site-name" placeholder="Site name (e.g. My Website)" required style="flex:1;padding:0.5rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:0.875rem">
-          <input type="text" id="new-site-domain" placeholder="Domain (optional)" style="flex:1;padding:0.5rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:0.875rem">
-          <button type="submit" style="padding:0.5rem 1rem;border-radius:6px;background:var(--accent);color:white;border:none;cursor:pointer;font-weight:500">Create</button>
-        </form>
-        <p id="create-site-error" style="color:var(--error);font-size:0.75rem;margin-top:0.5rem;display:none"></p>
-      </div>`
-
-      if (availableSites.length === 0) {
-        container.innerHTML = createForm + `<div class="empty" style="margin-top:1rem">
+      const sitesHtml = availableSites.length === 0 ? `
+        <div class="empty" style="margin-top:1rem">
           <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
           <p>No sites yet</p>
           <p style="font-size:0.75rem;margin-top:0.5rem;color:var(--muted)">Create your first site above to start tracking analytics</p>
-        </div>`
-        return
-      }
+        </div>
+      ` : `
+        <h3 style="font-size:0.875rem;margin-bottom:0.75rem;color:var(--text2);width:100%;max-width:500px">Your Sites</h3>
+        ${availableSites.map(s => `
+          <button class="site-card" data-site-id="${s.id}" data-site-name="${s.name || ''}">
+            <div class="site-icon">
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+            </div>
+            <div class="site-info">
+              <span class="site-name">${s.name || 'Unnamed'}</span>
+              <span class="site-domain">${s.domains?.[0] || s.id}</span>
+            </div>
+            <svg class="arrow" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        `).join('')}
+      `
 
-      container.innerHTML = createForm + `<h3 style="font-size:0.875rem;margin-bottom:0.75rem;color:var(--text2);width:100%;max-width:500px">Your Sites</h3>` + availableSites.map(s =>
-        `<button class="site-card" onclick="selectSite('${s.id}', '${(s.name || '').replace(/'/g, "\\\\'")}')">
-          <div class="site-icon"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg></div>
-          <div class="site-info"><span class="site-name">${s.name || 'Unnamed'}</span><span class="site-domain">${s.domains?.[0] || s.id}</span></div>
-          <svg class="arrow" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-        </button>`
-      ).join('')
+      container.innerHTML = `
+        <div class="create-site-form" style="margin-bottom:1.5rem;width:100%;max-width:500px">
+          <h3 style="font-size:0.875rem;margin-bottom:0.75rem;color:var(--text2)">Create New Site</h3>
+          <form id="create-site-form" style="display:flex;gap:0.5rem">
+            <input type="text" id="new-site-name" placeholder="Site name (e.g. My Website)" required style="flex:1;padding:0.5rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:0.875rem">
+            <input type="text" id="new-site-domain" placeholder="Domain (optional)" style="flex:1;padding:0.5rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:0.875rem">
+            <button type="submit" style="padding:0.5rem 1rem;border-radius:6px;background:var(--accent);color:white;border:none;cursor:pointer;font-weight:500">Create</button>
+          </form>
+          <p id="create-site-error" style="color:var(--error);font-size:0.75rem;margin-top:0.5rem;display:none"></p>
+        </div>
+        ${sitesHtml}
+      `
+
+      // Add event listeners
+      document.getElementById('create-site-form')?.addEventListener('submit', createSite)
+      container.querySelectorAll('.site-card').forEach(card => {
+        card.addEventListener('click', () => {
+          selectSite((card as HTMLElement).dataset.siteId, (card as HTMLElement).dataset.siteName || '')
+        })
+      })
     }
 
     async function createSite(e) {
@@ -272,6 +669,7 @@
 
     function selectSite(id, name) {
       siteId = id
+      ;(window as any).siteId = id // Update for STX panel components
       siteName = name || 'Analytics Dashboard'
       currentSite = availableSites.find(s => s.id === id)
       document.getElementById('site-selector').style.display = 'none'
@@ -292,6 +690,8 @@
       }
 
       fetchDashboardData()
+      // Refresh all STX panel components when site is selected
+      refreshAllPanels()
       if (refreshInterval) clearInterval(refreshInterval)
       refreshInterval = setInterval(fetchDashboardData, 30000)
     }
@@ -299,6 +699,7 @@
     function goBack() {
       if (refreshInterval) clearInterval(refreshInterval)
       siteId = ''
+      ;(window as any).siteId = '' // Update for STX panel components
       currentSite = null
       document.getElementById('site-selector').style.display = 'flex'
       document.getElementById('dashboard').style.display = 'none'
@@ -317,7 +718,22 @@
       document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'))
       document.querySelector(`[data-range="${range}"]`).classList.add('active')
       fetchDashboardData()
+      // Refresh all STX panel components
+      refreshAllPanels()
     }
+
+    function refreshAllPanels() {
+      // Refresh all panel components when date range or site changes
+      if (window.refreshPagesPanel) window.refreshPagesPanel()
+      if (window.refreshReferrersPanel) window.refreshReferrersPanel()
+      if (window.refreshDevicesPanel) window.refreshDevicesPanel()
+      if (window.refreshBrowsersPanel) window.refreshBrowsersPanel()
+      if (window.refreshCountriesPanel) window.refreshCountriesPanel()
+      if (window.refreshCampaignsPanel) window.refreshCampaignsPanel()
+      if (window.refreshEventsPanel) window.refreshEventsPanel()
+      if (window.refreshGoalsPanel) window.refreshGoalsPanel()
+    }
+    ;(window as any).refreshAllPanels = refreshAllPanels
 
     function toggleComparison() {
       showComparison = !showComparison
@@ -373,6 +789,8 @@
       if (forTimeseries) params += `&period=${period}`
       return params
     }
+    // Expose for STX panel components
+    ;(window as any).getDateRangeParams = getDateRangeParams
 
     // Annotations and comparison state
     let annotations = []
@@ -485,43 +903,6 @@
       return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'k' : String(n)
     }
 
-    // Helper function to render table rows from templates
-    function renderTableRows<T>(
-      tbodyId: string,
-      data: T[],
-      templateId: string,
-      emptyColspan: number,
-      emptyText: string,
-      populateRow: (row: DocumentFragment, item: T) => void
-    ) {
-      const tbody = document.getElementById(tbodyId)
-      if (!tbody) return
-
-      if (!data.length) {
-        const emptyTemplate = document.getElementById(`empty-row-${emptyColspan}-template`) as HTMLTemplateElement
-        if (emptyTemplate) {
-          const emptyRow = emptyTemplate.content.cloneNode(true) as DocumentFragment
-          const td = emptyRow.querySelector('.empty-cell')
-          if (td) td.textContent = emptyText
-          tbody.innerHTML = ''
-          tbody.appendChild(emptyRow)
-        } else {
-          tbody.innerHTML = `<tr><td colspan="${emptyColspan}" class="empty-cell">${emptyText}</td></tr>`
-        }
-        return
-      }
-
-      const template = document.getElementById(templateId) as HTMLTemplateElement
-      if (!template) return
-
-      tbody.innerHTML = ''
-      data.forEach(item => {
-        const row = template.content.cloneNode(true) as DocumentFragment
-        populateRow(row, item)
-        tbody.appendChild(row)
-      })
-    }
-
     // Tab switching with URL routing
     let flowData = null
     let revenueData = null
@@ -626,86 +1007,118 @@
 
     // Fetch user flow data
     async function fetchUserFlow() {
+      const tabContent = document.getElementById('tab-content')
+
+      // Always show loading state first
+      if (tabContent) {
+        clear(tabContent)
+        tabContent.appendChild(tabPanel('User Flow', [
+          el('div', { class: 'empty-state' }, [
+            spinner(),
+            text('Loading user flow data...')
+          ])
+        ]))
+      }
+
       const params = getDateRangeParams(false)
       try {
         const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/flow${params}`)
-        flowData = await res.json()
-        renderUserFlow()
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        }
+        const data = await res.json()
+        // Validate the response has expected structure
+        if (data && (data.nodes || data.links)) {
+          flowData = data
+          renderUserFlow()
+        } else {
+          flowData = null
+          if (tabContent) {
+            clear(tabContent)
+            tabContent.appendChild(tabPanel('User Flow', [
+              emptyState('No flow data available. Users need to visit multiple pages in a session to generate flow data.')
+            ]))
+          }
+        }
       } catch (e) {
         console.error('Failed to fetch user flow:', e)
+        flowData = null
+        if (tabContent) {
+          clear(tabContent)
+          tabContent.appendChild(tabPanel('User Flow', [
+            emptyState('Failed to load user flow data. Please try again.')
+          ]))
+        }
       }
     }
 
     // Render user flow visualization
     function renderUserFlow() {
       const tabContent = document.getElementById('tab-content')
-      if (!tabContent || !flowData) return
+      if (!tabContent) return
+
+      if (!flowData || !flowData.nodes || !flowData.links) {
+        tabContent.innerHTML = `
+          <div class="tab-panel">
+            <h3 class="tab-title">User Flow</h3>
+            <div class="empty-state">No flow data available. Users need to visit multiple pages in a session.</div>
+          </div>
+        `
+        return
+      }
 
       const { nodes, links, totalSessions, analyzedSessions } = flowData
       const entryNodes = nodes.filter(n => n.id === '/' || links.every(l => l.target !== n.id || l.source === n.id))
 
-      const template = document.getElementById('flow-tab-template') as HTMLTemplateElement
-      if (!template) return
-      const clone = template.content.cloneNode(true) as DocumentFragment
+      const entryNodesHtml = entryNodes.slice(0, 8).map(n => `
+        <div class="flow-node">
+          <div class="flow-node-path">${n.id}</div>
+          <div class="flow-node-count">${n.count} visits</div>
+        </div>
+      `).join('')
 
-      // Set summary
-      const summaryEl = clone.querySelector('#flow-summary')
-      if (summaryEl) summaryEl.textContent = `Showing top paths from ${analyzedSessions} of ${totalSessions} multi-page sessions`
+      const linksHtml = links.slice(0, 15).map(l => `
+        <div class="flow-link">
+          <span class="flow-link-source">${l.source}</span>
+          <span class="flow-link-arrow">→</span>
+          <span class="flow-link-target">${l.target}</span>
+          <span class="flow-link-count">${l.value}x</span>
+        </div>
+      `).join('')
 
-      // Build entry nodes
-      const entryContainer = clone.querySelector('#flow-entry .flow-nodes') as HTMLElement
-      const nodeTemplate = document.getElementById('flow-node-template') as HTMLTemplateElement
-      if (entryContainer && nodeTemplate) {
-        entryNodes.slice(0, 8).forEach(n => {
-          const node = nodeTemplate.content.cloneNode(true) as DocumentFragment
-          const pathEl = node.querySelector('.flow-node-path')
-          const countEl = node.querySelector('.flow-node-count')
-          if (pathEl) pathEl.textContent = n.id
-          if (countEl) countEl.textContent = `${n.count} visits`
-          entryContainer.appendChild(node)
-        })
-      }
+      const ranksHtml = nodes.slice(0, 10).map((n, i) => `
+        <div class="flow-rank">
+          <span class="flow-rank-number">${i + 1}</span>
+          <span class="flow-rank-path">${n.id}</span>
+          <span class="flow-rank-count">${n.count}</span>
+        </div>
+      `).join('')
 
-      // Build flow links
-      const linksContainer = clone.querySelector('#flow-links .flow-connections') as HTMLElement
-      const linkTemplate = document.getElementById('flow-link-template') as HTMLTemplateElement
-      if (linksContainer && linkTemplate) {
-        links.slice(0, 15).forEach(l => {
-          const link = linkTemplate.content.cloneNode(true) as DocumentFragment
-          const sourceEl = link.querySelector('.flow-link-source')
-          const targetEl = link.querySelector('.flow-link-target')
-          const countEl = link.querySelector('.flow-link-count')
-          if (sourceEl) sourceEl.textContent = l.source
-          if (targetEl) targetEl.textContent = l.target
-          if (countEl) countEl.textContent = `${l.value}x`
-          linksContainer.appendChild(link)
-        })
-      }
+      const emptyMessage = links.length === 0
+        ? '<div class="empty-state">No flow data available. Users need to visit multiple pages in a session.</div>'
+        : ''
 
-      // Build top visited
-      const visitedContainer = clone.querySelector('#flow-visited .flow-ranks') as HTMLElement
-      const rankTemplate = document.getElementById('flow-rank-template') as HTMLTemplateElement
-      if (visitedContainer && rankTemplate) {
-        nodes.slice(0, 10).forEach((n, i) => {
-          const rank = rankTemplate.content.cloneNode(true) as DocumentFragment
-          const numEl = rank.querySelector('.flow-rank-number')
-          const pathEl = rank.querySelector('.flow-rank-path')
-          const countEl = rank.querySelector('.flow-rank-count')
-          if (numEl) numEl.textContent = String(i + 1)
-          if (pathEl) pathEl.textContent = n.id
-          if (countEl) countEl.textContent = String(n.count)
-          visitedContainer.appendChild(rank)
-        })
-      }
-
-      // Show empty state if no links
-      const emptyEl = clone.querySelector('#flow-empty') as HTMLElement
-      if (emptyEl && links.length === 0) {
-        emptyEl.style.display = 'block'
-      }
-
-      tabContent.innerHTML = ''
-      tabContent.appendChild(clone)
+      tabContent.innerHTML = `
+        <div class="tab-panel">
+          <h3 class="tab-title">User Flow</h3>
+          <p id="flow-summary" class="flow-summary">Showing top paths from ${analyzedSessions} of ${totalSessions} multi-page sessions</p>
+          <div class="flow-container">
+            <div class="flow-column" id="flow-entry">
+              <h4 class="flow-column-title">Entry Pages</h4>
+              <div class="flow-nodes">${entryNodesHtml}</div>
+            </div>
+            <div class="flow-column flow-links" id="flow-links">
+              <h4 class="flow-column-title">Top Flows</h4>
+              <div class="flow-connections">${linksHtml}</div>
+            </div>
+            <div class="flow-column" id="flow-visited">
+              <h4 class="flow-column-title">Most Visited</h4>
+              <div class="flow-ranks">${ranksHtml}</div>
+            </div>
+          </div>
+          ${emptyMessage}
+        </div>
+      `
     }
 
     // Fetch sessions list
@@ -723,63 +1136,40 @@
       }
     }
 
-    // Render sessions list using template
+    // Render sessions list
     function renderSessions() {
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
 
-      const template = document.getElementById('sessions-tab-template') as HTMLTemplateElement
-      if (!template) return
+      const sessionsHtml = sessions.length === 0
+        ? '<div class="empty-state">No sessions found</div>'
+        : sessions.map(s => `
+            <div class="session-card" data-session-id="${s.id}">
+              <div class="session-card-header">
+                <span class="session-path">${s.entryPath || '/'}</span>
+                <span class="session-time">${new Date(s.startedAt).toLocaleString()}</span>
+              </div>
+              <div class="session-card-meta">
+                <span class="session-pages">${s.pageViewCount || 0} pages</span>
+                <span class="session-duration">${formatDuration(s.duration)}</span>
+                <span class="session-browser">${s.browser || 'Unknown'}</span>
+                <span class="session-country">${s.country || 'Unknown'}</span>
+                ${s.isBounce ? '<span class="bounced">Bounced</span>' : ''}
+              </div>
+            </div>
+          `).join('')
 
-      const clone = template.content.cloneNode(true) as DocumentFragment
-      const countEl = clone.querySelector('#sessions-count')
-      const listEl = clone.querySelector('#sessions-list')
+      tabContent.innerHTML = `
+        <div class="tab-panel">
+          <h3 class="tab-title">Sessions (<span id="sessions-count">${sessions.length}</span>)</h3>
+          <div id="sessions-list" class="sessions-list">${sessionsHtml}</div>
+        </div>
+      `
 
-      if (countEl) countEl.textContent = String(sessions.length)
-      if (!listEl) return
-
-      if (sessions.length === 0) {
-        const emptyTemplate = document.getElementById('sessions-empty-template') as HTMLTemplateElement
-        if (emptyTemplate) {
-          listEl.innerHTML = ''
-          listEl.appendChild(emptyTemplate.content.cloneNode(true))
-        }
-      } else {
-        const cardTemplate = document.getElementById('session-card-template') as HTMLTemplateElement
-        if (!cardTemplate) return
-
-        listEl.innerHTML = ''
-        sessions.forEach(s => {
-          const card = cardTemplate.content.cloneNode(true) as DocumentFragment
-          const cardEl = card.querySelector('.session-card') as HTMLElement
-          const pathEl = card.querySelector('.session-path')
-          const timeEl = card.querySelector('.session-time')
-          const pagesEl = card.querySelector('.session-pages')
-          const durationEl = card.querySelector('.session-duration')
-          const browserEl = card.querySelector('.session-browser')
-          const countryEl = card.querySelector('.session-country')
-          const metaEl = card.querySelector('.session-card-meta')
-
-          if (cardEl) cardEl.setAttribute('onclick', `viewSession('${s.id}')`)
-          if (pathEl) pathEl.textContent = s.entryPath || '/'
-          if (timeEl) timeEl.textContent = new Date(s.startedAt).toLocaleString()
-          if (pagesEl) pagesEl.textContent = `${s.pageViewCount || 0} pages`
-          if (durationEl) durationEl.textContent = formatDuration(s.duration)
-          if (browserEl) browserEl.textContent = s.browser || 'Unknown'
-          if (countryEl) countryEl.textContent = s.country || 'Unknown'
-          if (s.isBounce && metaEl) {
-            const bounced = document.createElement('span')
-            bounced.className = 'bounced'
-            bounced.textContent = 'Bounced'
-            metaEl.appendChild(bounced)
-          }
-
-          listEl.appendChild(card)
-        })
-      }
-
-      tabContent.innerHTML = ''
-      tabContent.appendChild(clone)
+      // Add click handlers
+      tabContent.querySelectorAll('.session-card').forEach(card => {
+        card.addEventListener('click', () => viewSession((card as HTMLElement).dataset.sessionId))
+      })
     }
 
     // Format duration
@@ -805,7 +1195,7 @@
     // Render session modal with replay
     function renderSessionModal() {
       if (!sessionDetail) return
-      let modal = document.getElementById('session-modal')
+      let modal = document.getElementById('session-modal') as HTMLDivElement
       if (!modal) {
         modal = document.createElement('div')
         modal.id = 'session-modal'
@@ -828,133 +1218,90 @@
       }
       const paths = [...new Set(pageviews.map(p => p.path))] as string[]
 
-      const template = document.getElementById('session-modal-template') as HTMLTemplateElement
-      if (!template) return
-      const clone = template.content.cloneNode(true) as DocumentFragment
+      const statsHtml = [
+        { value: String(s.pageViewCount || 0), label: 'Pages' },
+        { value: formatDuration(s.duration), label: 'Duration' },
+        { value: s.browser || '?', label: 'Browser' },
+        { value: s.country || '?', label: 'Country' }
+      ].map(item => `
+        <div class="session-stat">
+          <div class="session-stat-value">${item.value}</div>
+          <div class="session-stat-label">${item.label}</div>
+        </div>
+      `).join('')
 
-      // Session ID
-      const idEl = clone.querySelector('#session-id')
-      if (idEl) idEl.textContent = s.id?.slice(0, 8) || 'Unknown'
+      const heatmapHtml = clicks.length > 0 ? `
+        <div id="session-heatmap-section" class="session-section">
+          <h4 class="session-section-title">Click Heatmap (<span id="clicks-count">${clicks.length}</span> clicks)</h4>
+          <div id="heatmap-path-buttons" class="date-range-buttons">
+            ${paths.map((p, i) => `<button class="date-btn ${i === 0 ? 'active' : ''}" data-path="${p}">${p}</button>`).join('')}
+          </div>
+          <p id="heatmap-viewport" class="heatmap-viewport">Viewport: ${clicks[0]?.viewportWidth || '?'}x${clicks[0]?.viewportHeight || '?'}</p>
+          <div id="heatmap-clicks" class="heatmap-clicks"></div>
+        </div>
+      ` : ''
 
-      // Stats
-      const statsEl = clone.querySelector('#session-stats') as HTMLElement
-      const statTemplate = document.getElementById('session-stat-template') as HTMLTemplateElement
-      if (statsEl && statTemplate) {
-        const statItems = [
-          { value: String(s.pageViewCount || 0), label: 'Pages' },
-          { value: formatDuration(s.duration), label: 'Duration' },
-          { value: s.browser || '?', label: 'Browser' },
-          { value: s.country || '?', label: 'Country' }
-        ]
-        statItems.forEach(item => {
-          const stat = statTemplate.content.cloneNode(true) as DocumentFragment
-          const valueEl = stat.querySelector('.session-stat-value')
-          const labelEl = stat.querySelector('.session-stat-label')
-          if (valueEl) valueEl.textContent = item.value
-          if (labelEl) labelEl.textContent = item.label
-          statsEl.appendChild(stat)
-        })
-      }
+      const journeyHtml = pageviews.map((p, i) => `
+        <div class="journey-step">
+          <span class="journey-step-path">${p.path}</span>
+          <span class="journey-step-time">${new Date(p.timestamp).toLocaleTimeString()}</span>
+        </div>
+        ${i < pageviews.length - 1 ? '<span class="journey-arrow">→</span>' : ''}
+      `).join('')
 
-      // Heatmap section
-      if (clicks.length > 0) {
-        const heatmapSection = clone.querySelector('#session-heatmap-section') as HTMLElement
-        if (heatmapSection) {
-          heatmapSection.style.display = 'block'
-          const clicksCount = clone.querySelector('#clicks-count')
-          if (clicksCount) clicksCount.textContent = String(clicks.length)
-
-          const buttonsEl = clone.querySelector('#heatmap-path-buttons') as HTMLElement
-          if (buttonsEl) {
-            paths.forEach((p, i) => {
-              const btn = document.createElement('button')
-              btn.className = `date-btn ${i === 0 ? 'active' : ''}`
-              btn.textContent = p
-              btn.onclick = () => showPathHeatmap(p)
-              buttonsEl.appendChild(btn)
-            })
-          }
-
-          const viewportEl = clone.querySelector('#heatmap-viewport')
-          if (viewportEl) viewportEl.textContent = `Viewport: ${clicks[0]?.viewportWidth || '?'}x${clicks[0]?.viewportHeight || '?'}`
+      const getTimelineContent = (t): string => {
+        switch (t.type) {
+          case 'pageview':
+            return `<span class="timeline-path">${t.data.path}</span>`
+          case 'event':
+            return `<span class="timeline-event-name">${t.data.name}</span>`
+          case 'click':
+            return `<span class="timeline-click-text">Click at (${t.data.viewportX}, ${t.data.viewportY}) on </span><code class="timeline-click-element">${t.data.elementTag || 'element'}</code>`
+          case 'vital':
+            return `<span class="timeline-vital-metric">${t.data.metric}</span>: <span class="timeline-vital-value">${t.data.value}ms (${t.data.rating})</span>`
+          case 'error':
+            return `<span class="timeline-error-message">${(t.data.message || '').slice(0, 100)}</span>`
+          default:
+            return ''
         }
       }
 
-      // Journey
-      const journeyEl = clone.querySelector('#session-journey') as HTMLElement
-      const journeyTemplate = document.getElementById('journey-step-template') as HTMLTemplateElement
-      if (journeyEl && journeyTemplate) {
-        pageviews.forEach((p, i) => {
-          const step = journeyTemplate.content.cloneNode(true) as DocumentFragment
-          const pathEl = step.querySelector('.journey-step-path')
-          const timeEl = step.querySelector('.journey-step-time')
-          if (pathEl) pathEl.textContent = p.path
-          if (timeEl) timeEl.textContent = new Date(p.timestamp).toLocaleTimeString()
-          journeyEl.appendChild(step)
-          if (i < pageviews.length - 1) {
-            const arrow = document.createElement('span')
-            arrow.className = 'journey-arrow'
-            arrow.textContent = '→'
-            journeyEl.appendChild(arrow)
-          }
-        })
-      }
+      const timelineHtml = timeline.map(t => `
+        <div class="timeline-item">
+          <span class="timeline-type ${t.type}">${t.type}</span>
+          <div class="timeline-content">${getTimelineContent(t)}</div>
+          <span class="timeline-time">${new Date(t.timestamp).toLocaleTimeString()}</span>
+        </div>
+      `).join('')
 
-      // Timeline
-      const timelineCountEl = clone.querySelector('#timeline-count')
-      if (timelineCountEl) timelineCountEl.textContent = String(timeline.length)
+      modal.innerHTML = `
+        <div class="modal-content modal-xl">
+          <div class="modal-header">
+            <h3 class="modal-title">Session <span id="session-id">${s.id?.slice(0, 8) || 'Unknown'}</span></h3>
+            <button class="modal-close" id="close-modal-btn">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div id="session-stats" class="session-stats">${statsHtml}</div>
+            ${heatmapHtml}
+            <div class="session-section">
+              <h4 class="session-section-title">Journey</h4>
+              <div id="session-journey" class="session-journey">${journeyHtml}</div>
+            </div>
+            <div class="session-section">
+              <h4 class="session-section-title">Timeline (<span id="timeline-count">${timeline.length}</span> events)</h4>
+              <div id="session-timeline" class="session-timeline">${timelineHtml}</div>
+            </div>
+          </div>
+        </div>
+      `
 
-      const timelineEl = clone.querySelector('#session-timeline') as HTMLElement
-      const timelineTemplate = document.getElementById('timeline-item-template') as HTMLTemplateElement
-      if (timelineEl && timelineTemplate) {
-        timeline.forEach(t => {
-          const item = timelineTemplate.content.cloneNode(true) as DocumentFragment
-          const typeEl = item.querySelector('.timeline-type') as HTMLElement
-          const contentEl = item.querySelector('.timeline-content') as HTMLElement
-          const timeEl = item.querySelector('.timeline-time')
-
-          if (typeEl) {
-            typeEl.textContent = t.type
-            typeEl.classList.add(t.type)
-          }
-          if (contentEl) {
-            const contentTemplateId = `timeline-${t.type}-content`
-            const contentTemplate = document.getElementById(contentTemplateId) as HTMLTemplateElement
-            if (contentTemplate) {
-              const contentClone = contentTemplate.content.cloneNode(true) as DocumentFragment
-              if (t.type === 'pageview') {
-                const pathEl = contentClone.querySelector('.timeline-path')
-                if (pathEl) pathEl.textContent = t.data.path
-              } else if (t.type === 'event') {
-                const nameEl = contentClone.querySelector('.timeline-event-name')
-                if (nameEl) nameEl.textContent = t.data.name
-              } else if (t.type === 'click') {
-                const textEl = contentClone.querySelector('.timeline-click-text')
-                const elemEl = contentClone.querySelector('.timeline-click-element')
-                if (textEl) textEl.textContent = `Click at (${t.data.viewportX}, ${t.data.viewportY}) on`
-                if (elemEl) elemEl.textContent = t.data.elementTag || 'element'
-              } else if (t.type === 'vital') {
-                const metricEl = contentClone.querySelector('.timeline-vital-metric')
-                const valueEl = contentClone.querySelector('.timeline-vital-value')
-                if (metricEl) metricEl.textContent = t.data.metric
-                if (valueEl) valueEl.textContent = `${t.data.value}ms (${t.data.rating})`
-              } else if (t.type === 'error') {
-                const msgEl = contentClone.querySelector('.timeline-error-message')
-                if (msgEl) msgEl.textContent = (t.data.message || '').slice(0, 100)
-              }
-              contentEl.innerHTML = ''
-              contentEl.appendChild(contentClone)
-            }
-          }
-          if (timeEl) timeEl.textContent = new Date(t.timestamp).toLocaleTimeString()
-
-          timelineEl.appendChild(item)
-        })
-      }
-
-      modal.innerHTML = ''
-      modal.appendChild(clone)
       modal.classList.add('active')
+
+      // Add event listeners
+      document.getElementById('close-modal-btn')?.addEventListener('click', closeModal)
+      document.querySelectorAll('#heatmap-path-buttons button').forEach(btn => {
+        btn.addEventListener('click', () => window.showPathHeatmap((btn as HTMLElement).dataset.path))
+      })
 
       // Render initial heatmap if we have clicks
       if (clicks.length > 0 && paths.length > 0) {
@@ -966,13 +1313,10 @@
     function renderHeatmapClicks(path, clicksByPath) {
       const container = document.getElementById('heatmap-clicks')
       if (!container) return
+
       const pathClicks = clicksByPath[path] || []
       if (pathClicks.length === 0) {
-        const emptyTemplate = document.getElementById('heatmap-empty-template') as HTMLTemplateElement
-        if (emptyTemplate) {
-          container.innerHTML = ''
-          container.appendChild(emptyTemplate.content.cloneNode(true))
-        }
+        container.innerHTML = '<div class="heatmap-empty">No clicks on this page</div>'
         return
       }
 
@@ -1042,79 +1386,51 @@
         return value + 'ms'
       }
 
-      // Clone the vitals tab template
-      const template = document.getElementById('vitals-tab-template') as HTMLTemplateElement
-      if (!template) return
-      const clone = template.content.cloneNode(true) as DocumentFragment
-
-      // Handle violations
-      const violationsEl = clone.querySelector('#vitals-violations') as HTMLElement
-      if (perfBudgetViolations.length > 0 && violationsEl) {
-        violationsEl.style.display = 'block'
-        const violationsTemplate = document.getElementById('violations-content-template') as HTMLTemplateElement
-        const violationItemTemplate = document.getElementById('violation-item-template') as HTMLTemplateElement
-        if (violationsTemplate && violationItemTemplate) {
-          const violationsClone = violationsTemplate.content.cloneNode(true) as DocumentFragment
-          const listEl = violationsClone.querySelector('.violations-list')
-          if (listEl) {
-            perfBudgetViolations.forEach(v => {
+      const violationsHtml = perfBudgetViolations.length > 0 ? `
+        <div id="vitals-violations" class="violations-section">
+          <h4 class="violations-title">Performance Budget Violations</h4>
+          <div class="violations-list">
+            ${perfBudgetViolations.map(v => {
               const unit = v.metric === 'CLS' ? '' : 'ms'
-              const item = violationItemTemplate.content.cloneNode(true) as DocumentFragment
-              const metricEl = item.querySelector('.violation-metric')
-              const valueEl = item.querySelector('.violation-value')
-              const exceededEl = item.querySelector('.violation-exceeded')
-              if (metricEl) metricEl.textContent = v.metric
-              if (valueEl) valueEl.textContent = `${v.currentValue}${unit}`
-              if (exceededEl) exceededEl.textContent = `(exceeds ${v.threshold}${unit} by ${v.exceededBy}${unit})`
-              listEl.appendChild(item)
-            })
-          }
-          violationsEl.innerHTML = ''
-          violationsEl.appendChild(violationsClone)
-        }
-      }
+              return `
+                <div class="violation-item">
+                  <span class="violation-metric">${v.metric}</span>
+                  <span class="violation-value">${v.currentValue}${unit}</span>
+                  <span class="violation-exceeded">(exceeds ${v.threshold}${unit} by ${v.exceededBy}${unit})</span>
+                </div>
+              `
+            }).join('')}
+          </div>
+        </div>
+      ` : ''
 
-      // Build vitals grid
-      const vitalsGrid = clone.querySelector('#vitals-grid') as HTMLElement
-      if (!vitalsGrid) return
-
-      const cardTemplate = document.getElementById('vital-card-template') as HTMLTemplateElement
-      if (!cardTemplate) return
-
-      vitalsGrid.innerHTML = ''
-      vitals.forEach(v => {
-        const card = cardTemplate.content.cloneNode(true) as DocumentFragment
+      const vitalsHtml = vitals.map(v => {
         const rating = getRating(v)
+        const value = v.samples > 0 ? formatValue(v.metric, v.p75) : '—'
+        const barHtml = v.samples > 0 ? `
+          <div class="vital-bar">
+            <div class="good" style="width:${v.good || 0}%"></div>
+            <div class="needs-improvement" style="width:${v.needsImprovement || 0}%"></div>
+            <div class="poor" style="width:${v.poor || 0}%"></div>
+          </div>
+        ` : ''
+        return `
+          <div class="vital-card">
+            <div class="vital-name">${v.metric}</div>
+            <div class="vital-value ${rating}">${value}</div>
+            <div class="vital-samples">${v.samples} samples</div>
+            ${barHtml}
+          </div>
+        `
+      }).join('')
 
-        const nameEl = card.querySelector('.vital-name')
-        const valueEl = card.querySelector('.vital-value')
-        const samplesEl = card.querySelector('.vital-samples')
-        const barEl = card.querySelector('.vital-bar')
-
-        if (nameEl) nameEl.textContent = v.metric
-        if (valueEl) {
-          valueEl.textContent = v.samples > 0 ? formatValue(v.metric, v.p75) : '—'
-          if (rating) valueEl.classList.add(rating)
-        }
-        if (samplesEl) samplesEl.textContent = `${v.samples} samples`
-        if (barEl) {
-          if (v.samples > 0) {
-            const goodBar = barEl.querySelector('.good') as HTMLElement
-            const niBar = barEl.querySelector('.needs-improvement') as HTMLElement
-            const poorBar = barEl.querySelector('.poor') as HTMLElement
-            if (goodBar) goodBar.style.width = `${v.good}%`
-            if (niBar) niBar.style.width = `${v.needsImprovement}%`
-            if (poorBar) poorBar.style.width = `${v.poor}%`
-          } else {
-            (barEl as HTMLElement).style.display = 'none'
-          }
-        }
-
-        vitalsGrid.appendChild(card)
-      })
-
-      tabContent.innerHTML = ''
-      tabContent.appendChild(clone)
+      tabContent.innerHTML = `
+        <div class="tab-panel">
+          <h3 class="tab-title">Core Web Vitals</h3>
+          ${violationsHtml}
+          <div id="vitals-grid" class="vitals-grid">${vitalsHtml}</div>
+        </div>
+      `
     }
 
     // Error state
@@ -1228,180 +1544,100 @@
         if (severityCounts[e.severity] !== undefined) severityCounts[e.severity]++
       })
 
-      const template = document.getElementById('errors-tab-template') as HTMLTemplateElement
-      if (!template) return
-      const clone = template.content.cloneNode(true) as DocumentFragment
+      const severityCardsHtml = ['critical', 'high', 'medium', 'low'].map(sev => `
+        <div class="severity-card ${sev}">
+          <div class="severity-card-count">${severityCounts[sev]}</div>
+          <div class="severity-card-label">${severityLabels[sev]}</div>
+        </div>
+      `).join('')
 
-      // Update filter dropdown
-      const filterSelect = clone.querySelector('#error-status-filter') as HTMLSelectElement
-      if (filterSelect) {
-        filterSelect.value = errorStatusFilter
-        const options = filterSelect.querySelectorAll('option')
-        options[0].textContent = `All (${errors.length})`
-        options[1].textContent = `New (${statusCounts.new})`
-        options[2].textContent = `Resolved (${statusCounts.resolved})`
-        options[3].textContent = `Ignored (${statusCounts.ignored})`
-      }
+      const emptyTitle = errorStatusFilter === 'all' ? 'No errors recorded' : `No ${errorStatusFilter} errors`
+      const emptyHint = errorStatusFilter === 'all' ? 'Your application is running smoothly!' : 'Try a different filter.'
 
-      // Show/hide bulk actions
-      const bulkResolveBtn = clone.querySelector('#bulk-resolve-btn') as HTMLElement
-      const bulkIgnoreBtn = clone.querySelector('#bulk-ignore-btn') as HTMLElement
-      if (statusCounts.new === 0) {
-        bulkResolveBtn?.remove()
-        bulkIgnoreBtn?.remove()
-      }
+      const errorsListHtml = filteredErrors.length === 0 ? `
+        <div class="empty-state">
+          <p class="empty-state-title">${emptyTitle}</p>
+          <p class="empty-state-hint">${emptyHint}</p>
+        </div>
+      ` : filteredErrors.map(e => {
+        const errorId = getErrorId(e.message)
+        const status = getErrorStatus(e.message)
+        const severity = e.severity || 'medium'
+        const classNames = ['error-card', status === 'resolved' ? 'resolved' : '', status === 'ignored' ? 'ignored' : ''].filter(Boolean).join(' ')
 
-      // Update count
-      const countEl = clone.querySelector('#errors-count')
-      if (countEl) countEl.textContent = `${filteredErrors.length} error${filteredErrors.length !== 1 ? 's' : ''}`
+        const actionButtons = [
+          status !== 'resolved' ? `<button class="btn btn-resolve" data-error-id="${encodeURIComponent(errorId)}" data-action="resolved">✓ Resolve</button>` : '',
+          status !== 'ignored' ? `<button class="btn btn-secondary" data-error-id="${encodeURIComponent(errorId)}" data-action="ignored">Ignore</button>` : '',
+          status !== 'new' ? `<button class="btn btn-secondary" data-error-id="${encodeURIComponent(errorId)}" data-action="new">Reopen</button>` : ''
+        ].filter(Boolean).join('')
 
-      // Build severity summary
-      const summaryEl = clone.querySelector('#severity-summary') as HTMLElement
-      const severityCardTemplate = document.getElementById('severity-card-template') as HTMLTemplateElement
-      if (summaryEl && severityCardTemplate) {
-        const severities = ['critical', 'high', 'medium', 'low']
-        severities.forEach(sev => {
-          const card = severityCardTemplate.content.cloneNode(true) as DocumentFragment
-          const wrapper = card.querySelector('.severity-card') as HTMLElement
-          const countEl = card.querySelector('.severity-card-count')
-          const labelEl = card.querySelector('.severity-card-label')
-          if (wrapper) wrapper.classList.add(sev)
-          if (countEl) countEl.textContent = String(severityCounts[sev])
-          if (labelEl) labelEl.textContent = severityLabels[sev]
-          summaryEl.appendChild(card)
+        return `
+          <div class="error-card-wrapper">
+            <a href="/errors/${encodeURIComponent(errorId)}?siteId=${siteId}" class="${classNames}">
+              <div class="error-card-gradient ${severity}"></div>
+              <div class="error-card-header">
+                <span class="error-severity">${severityLabels[severity] || 'Unknown'}</span>
+                <span class="error-category">${e.category || 'Error'}</span>
+                <span class="error-status ${status}">${statusLabels[status] || 'New'}</span>
+                <span class="error-count">${e.count} event${e.count !== 1 ? 's' : ''}</span>
+              </div>
+              <div class="error-source">${e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source'}</div>
+              <div class="error-message">${e.message || 'Unknown error'}</div>
+              <div class="error-meta">
+                <span class="error-first-seen">First: ${e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A'}</span>
+                <span class="error-last-seen">Last: ${new Date(e.lastSeen).toLocaleString()}</span>
+                <span class="error-browsers">${(e.browsers || []).join(', ') || 'Unknown'}</span>
+                <span class="error-paths">${(e.paths || []).length} page${(e.paths || []).length !== 1 ? 's' : ''}</span>
+              </div>
+              <div class="error-actions-inline">${actionButtons}</div>
+            </a>
+          </div>
+        `
+      }).join('')
+
+      const bulkActionsHtml = statusCounts.new > 0 ? `
+        <button id="bulk-resolve-btn" class="btn btn-secondary">Resolve All New</button>
+        <button id="bulk-ignore-btn" class="btn btn-secondary">Ignore All New</button>
+      ` : ''
+
+      const filterOptions = [
+        { value: 'all', label: `All (${errors.length})` },
+        { value: 'new', label: `New (${statusCounts.new})` },
+        { value: 'resolved', label: `Resolved (${statusCounts.resolved})` },
+        { value: 'ignored', label: `Ignored (${statusCounts.ignored})` }
+      ].map(opt => `<option value="${opt.value}" ${errorStatusFilter === opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')
+
+      tabContent.innerHTML = `
+        <div class="tab-panel">
+          <div class="errors-header">
+            <h3 class="tab-title">Errors</h3>
+            <div class="errors-actions">
+              <select id="error-status-filter">${filterOptions}</select>
+              ${bulkActionsHtml}
+            </div>
+          </div>
+          <p id="errors-count" class="errors-count">${filteredErrors.length} error${filteredErrors.length !== 1 ? 's' : ''}</p>
+          <div id="severity-summary" class="severity-summary">${severityCardsHtml}</div>
+          <div id="errors-list" class="errors-list">${errorsListHtml}</div>
+        </div>
+      `
+
+      // Add event listeners
+      document.getElementById('error-status-filter')?.addEventListener('change', (e) => {
+        errorStatusFilter = (e.target as HTMLSelectElement).value
+        renderErrors()
+      })
+      document.getElementById('bulk-resolve-btn')?.addEventListener('click', bulkResolveErrors)
+      document.getElementById('bulk-ignore-btn')?.addEventListener('click', bulkIgnoreErrors)
+      tabContent.querySelectorAll('.error-actions-inline button').forEach(btn => {
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault()
+          ev.stopPropagation()
+          const errorId = (btn as HTMLElement).dataset.errorId
+          const action = (btn as HTMLElement).dataset.action
+          if (errorId && action) updateErrorStatus(errorId, action, ev)
         })
-      }
-
-      // Build errors list
-      const listEl = clone.querySelector('#errors-list') as HTMLElement
-      if (!listEl) return
-
-      if (filteredErrors.length === 0) {
-        const emptyTitle = errorStatusFilter === 'all' ? 'No errors recorded' : `No ${errorStatusFilter} errors`
-        const emptyHint = errorStatusFilter === 'all' ? 'Your application is running smoothly!' : 'Try a different filter.'
-        const emptyTemplate = document.getElementById('errors-empty-template') as HTMLTemplateElement
-        if (emptyTemplate) {
-          const emptyClone = emptyTemplate.content.cloneNode(true) as DocumentFragment
-          const titleEl = emptyClone.querySelector('.empty-state-title')
-          const hintEl = emptyClone.querySelector('.empty-state-hint')
-          if (titleEl) titleEl.textContent = emptyTitle
-          if (hintEl) hintEl.textContent = emptyHint
-          listEl.innerHTML = ''
-          listEl.appendChild(emptyClone)
-        }
-      } else {
-        const cardTemplate = document.getElementById('error-card-template') as HTMLTemplateElement
-        if (!cardTemplate) return
-
-        listEl.innerHTML = ''
-        filteredErrors.forEach(e => {
-          const errorId = getErrorId(e.message)
-          const status = getErrorStatus(e.message)
-          const severity = e.severity || 'medium'
-
-          const card = cardTemplate.content.cloneNode(true) as DocumentFragment
-          const wrapper = card.querySelector('.error-card-wrapper') as HTMLElement
-          const link = card.querySelector('.error-card') as HTMLAnchorElement
-          const gradient = card.querySelector('.error-card-gradient') as HTMLElement
-          const severityEl = card.querySelector('.error-severity')
-          const categoryEl = card.querySelector('.error-category')
-          const statusEl = card.querySelector('.error-status')
-          const countEl = card.querySelector('.error-count')
-          const sourceEl = card.querySelector('.error-source')
-          const messageEl = card.querySelector('.error-message')
-          const firstSeenEl = card.querySelector('.error-first-seen')
-          const lastSeenEl = card.querySelector('.error-last-seen')
-          const browsersEl = card.querySelector('.error-browsers')
-          const pathsEl = card.querySelector('.error-paths')
-          const actionsEl = card.querySelector('.error-actions-inline')
-
-          if (link) {
-            link.href = `/errors/${encodeURIComponent(errorId)}?siteId=${siteId}`
-            if (status === 'resolved') link.classList.add('resolved')
-            if (status === 'ignored') link.classList.add('ignored')
-          }
-          if (gradient) gradient.classList.add(severity)
-          if (severityEl) severityEl.textContent = severityLabels[severity] || 'Unknown'
-          if (categoryEl) categoryEl.textContent = e.category || 'Error'
-          if (statusEl) {
-            statusEl.textContent = statusLabels[status] || 'New'
-            statusEl.classList.add(status)
-          }
-          if (countEl) countEl.textContent = `${e.count} event${e.count !== 1 ? 's' : ''}`
-          if (sourceEl) sourceEl.textContent = e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source'
-          if (messageEl) messageEl.textContent = e.message || 'Unknown error'
-          if (firstSeenEl) {
-            const tmpl = document.getElementById('error-first-seen-template') as HTMLTemplateElement
-            if (tmpl) {
-              const clone = tmpl.content.cloneNode(true) as DocumentFragment
-              const text = clone.querySelector('.error-meta-text')
-              if (text) text.textContent = `First: ${e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A'}`
-              firstSeenEl.innerHTML = ''
-              firstSeenEl.appendChild(clone)
-            }
-          }
-          if (lastSeenEl) {
-            const tmpl = document.getElementById('error-last-seen-template') as HTMLTemplateElement
-            if (tmpl) {
-              const clone = tmpl.content.cloneNode(true) as DocumentFragment
-              const text = clone.querySelector('.error-meta-text')
-              if (text) text.textContent = `Last: ${new Date(e.lastSeen).toLocaleString()}`
-              lastSeenEl.innerHTML = ''
-              lastSeenEl.appendChild(clone)
-            }
-          }
-          if (browsersEl) {
-            const tmpl = document.getElementById('error-browsers-template') as HTMLTemplateElement
-            if (tmpl) {
-              const clone = tmpl.content.cloneNode(true) as DocumentFragment
-              const text = clone.querySelector('.error-meta-text')
-              if (text) text.textContent = (e.browsers || []).join(', ') || 'Unknown'
-              browsersEl.innerHTML = ''
-              browsersEl.appendChild(clone)
-            }
-          }
-          if (pathsEl) {
-            const tmpl = document.getElementById('error-paths-template') as HTMLTemplateElement
-            if (tmpl) {
-              const clone = tmpl.content.cloneNode(true) as DocumentFragment
-              const text = clone.querySelector('.error-meta-text')
-              if (text) text.textContent = `${(e.paths || []).length} page${(e.paths || []).length !== 1 ? 's' : ''}`
-              pathsEl.innerHTML = ''
-              pathsEl.appendChild(clone)
-            }
-          }
-
-          if (actionsEl) {
-            actionsEl.setAttribute('onclick', 'event.preventDefault();event.stopPropagation()')
-            if (status !== 'resolved') {
-              const btn = document.createElement('button')
-              btn.className = 'btn btn-resolve'
-              btn.textContent = '✓ Resolve'
-              btn.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); updateErrorStatus(encodeURIComponent(errorId), 'resolved', ev) }
-              actionsEl.appendChild(btn)
-            }
-            if (status !== 'ignored') {
-              const btn = document.createElement('button')
-              btn.className = 'btn btn-secondary'
-              btn.textContent = 'Ignore'
-              btn.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); updateErrorStatus(encodeURIComponent(errorId), 'ignored', ev) }
-              actionsEl.appendChild(btn)
-            }
-            if (status !== 'new') {
-              const btn = document.createElement('button')
-              btn.className = 'btn btn-secondary'
-              btn.textContent = 'Reopen'
-              btn.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); updateErrorStatus(encodeURIComponent(errorId), 'new', ev) }
-              actionsEl.appendChild(btn)
-            }
-          }
-
-          listEl.appendChild(card)
-        })
-      }
-
-      tabContent.innerHTML = ''
-      tabContent.appendChild(clone)
+      })
     }
 
     // Render insights
@@ -1409,80 +1645,45 @@
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
 
-      const icons: Record<string, string> = {
-        traffic: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>',
-        referrer: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/></svg>',
-        page: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>',
-        device: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>',
-        engagement: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>'
-      }
-
-      const template = document.getElementById('insights-tab-template') as HTMLTemplateElement
-      if (!template) return
-      const clone = template.content.cloneNode(true) as DocumentFragment
-
-      // Build stats section
-      const statsEl = clone.querySelector('#insights-stats') as HTMLElement
-      if (statsEl && comparisonStats) {
-        const statItems = [
-          { value: fmt(comparisonStats.thisWeekViews), label: 'Views This Week', change: comparisonStats.change },
-          { value: fmt(comparisonStats.lastWeekViews), label: 'Views Last Week' },
-          { value: String(comparisonStats.sessions || 0), label: 'Sessions' },
-          { value: `${comparisonStats.bounceRate || 0}%`, label: 'Bounce Rate' }
-        ]
-        const statTemplate = document.getElementById('insights-stat-template') as HTMLTemplateElement
-        statItems.forEach(item => {
-          if (statTemplate) {
-            const stat = statTemplate.content.cloneNode(true) as DocumentFragment
-            const valueEl = stat.querySelector('.insights-stat-value')
-            const labelEl = stat.querySelector('.insights-stat-label')
-            const changeEl = stat.querySelector('.insights-stat-change') as HTMLElement
-            if (valueEl) valueEl.textContent = item.value
-            if (labelEl) labelEl.textContent = item.label
-            if (changeEl && item.change !== undefined && item.change !== 0) {
-              changeEl.style.display = 'block'
-              changeEl.classList.add(item.change > 0 ? 'positive' : 'negative')
-              changeEl.textContent = `${item.change > 0 ? '+' : ''}${item.change}%`
-            }
-            statsEl.appendChild(stat)
-          }
-        })
-      }
-
-      // Build insights list
-      const listEl = clone.querySelector('#insights-list') as HTMLElement
-      if (!listEl) return
-
-      if (insights.length === 0) {
-        const emptyTemplate = document.getElementById('insights-list-empty-template') as HTMLTemplateElement
-        if (emptyTemplate) {
-          listEl.innerHTML = ''
-          listEl.appendChild(emptyTemplate.content.cloneNode(true))
+      const getIcon = (type: string) => {
+        const icons = {
+          growth: '📈', decline: '📉', warning: '⚠️', success: '✅', info: 'ℹ️'
         }
-      } else {
-        const cardTemplate = document.getElementById('insight-card-template') as HTMLTemplateElement
-        if (!cardTemplate) return
-
-        listEl.innerHTML = ''
-        insights.forEach(i => {
-          const card = cardTemplate.content.cloneNode(true) as DocumentFragment
-          const iconEl = card.querySelector('.insight-icon') as HTMLElement
-          const titleEl = card.querySelector('.insight-title')
-          const descEl = card.querySelector('.insight-desc')
-
-          if (iconEl) {
-            iconEl.classList.add(i.severity || 'info')
-            iconEl.innerHTML = icons[i.type] || icons.traffic
-          }
-          if (titleEl) titleEl.textContent = i.title
-          if (descEl) descEl.textContent = i.description
-
-          listEl.appendChild(card)
-        })
+        return icons[type] || icons.info
       }
 
-      tabContent.innerHTML = ''
-      tabContent.appendChild(clone)
+      const statsHtml = comparisonStats ? [
+        { value: fmt(comparisonStats.thisWeekViews), label: 'Views This Week', change: comparisonStats.change },
+        { value: fmt(comparisonStats.lastWeekViews), label: 'Views Last Week' },
+        { value: String(comparisonStats.sessions || 0), label: 'Sessions' },
+        { value: `${comparisonStats.bounceRate || 0}%`, label: 'Bounce Rate' }
+      ].map(item => `
+        <div class="insights-stat">
+          <div class="insights-stat-value">${item.value}</div>
+          <div class="insights-stat-label">${item.label}</div>
+          ${item.change !== undefined ? `<div class="insights-stat-change ${item.change >= 0 ? 'positive' : 'negative'}">${item.change >= 0 ? '+' : ''}${item.change}%</div>` : ''}
+        </div>
+      `).join('') : ''
+
+      const insightsHtml = insights.length === 0
+        ? '<div class="empty-state">No insights available yet. Check back when you have more data.</div>'
+        : insights.map(i => `
+            <div class="insight-card">
+              <div class="insight-icon ${i.severity || 'info'}">${getIcon(i.type)}</div>
+              <div class="insight-content">
+                <div class="insight-title">${i.title}</div>
+                <div class="insight-desc">${i.description}</div>
+              </div>
+            </div>
+          `).join('')
+
+      tabContent.innerHTML = `
+        <div class="tab-panel">
+          <h3 class="tab-title">Insights</h3>
+          <div id="insights-stats" class="insights-stats">${statsHtml}</div>
+          <div id="insights-list" class="insights-list">${insightsHtml}</div>
+        </div>
+      `
     }
 
     // Live view state
@@ -1518,40 +1719,23 @@
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
 
-      const template = document.getElementById('live-tab-template') as HTMLTemplateElement
-      if (!template) return
-      const clone = template.content.cloneNode(true) as DocumentFragment
+      const activitiesHtml = liveActivities.length === 0
+        ? '<div class="empty-state">No recent activity. Visitors will appear here in real-time.</div>'
+        : liveActivities.map(a => `
+          <div class="live-activity">
+            <div class="live-activity-path">${a.path || '/'}</div>
+            <div class="live-activity-meta">${a.country || 'Unknown'} • ${a.device || 'Unknown'} • ${a.browser || 'Unknown'}</div>
+            <div class="live-activity-time">${timeAgo(a.timestamp)}</div>
+          </div>
+        `).join('')
 
-      const activitiesEl = clone.querySelector('#live-activities') as HTMLElement
-      if (!activitiesEl) return
-
-      if (liveActivities.length === 0) {
-        const emptyTemplate = document.getElementById('live-activity-empty-template') as HTMLTemplateElement
-        if (emptyTemplate) {
-          activitiesEl.innerHTML = ''
-          activitiesEl.appendChild(emptyTemplate.content.cloneNode(true))
-        }
-      } else {
-        const activityTemplate = document.getElementById('live-activity-template') as HTMLTemplateElement
-        if (!activityTemplate) return
-
-        activitiesEl.innerHTML = ''
-        liveActivities.forEach(a => {
-          const card = activityTemplate.content.cloneNode(true) as DocumentFragment
-          const pathEl = card.querySelector('.live-activity-path')
-          const metaEl = card.querySelector('.live-activity-meta')
-          const timeEl = card.querySelector('.live-activity-time')
-
-          if (pathEl) pathEl.textContent = a.path || '/'
-          if (metaEl) metaEl.textContent = `${a.country || 'Unknown'} • ${a.device || 'Unknown'} • ${a.browser || 'Unknown'}`
-          if (timeEl) timeEl.textContent = timeAgo(a.timestamp)
-
-          activitiesEl.appendChild(card)
-        })
-      }
-
-      tabContent.innerHTML = ''
-      tabContent.appendChild(clone)
+      tabContent.innerHTML = `
+        <div class="tab-panel">
+          <h3 class="tab-title">Live View</h3>
+          <p class="live-description">Real-time visitor activity (updates every 5 seconds)</p>
+          <div id="live-activities" class="live-activities">${activitiesHtml}</div>
+        </div>
+      `
     }
 
     function timeAgo(timestamp) {
@@ -1586,55 +1770,34 @@
       const tabContent = document.getElementById('tab-content')
       if (!tabContent) return
 
-      const template = document.getElementById('funnels-tab-template') as HTMLTemplateElement
-      if (!template) return
-      const clone = template.content.cloneNode(true) as DocumentFragment
+      const funnelsHtml = funnels.length === 0
+        ? `<div class="empty-state">
+            <p>No funnels configured yet.</p>
+            <p class="empty-state-hint">Create a funnel to track conversion rates through your key user flows.</p>
+          </div>`
+        : funnels.map(f => {
+          const steps = f.steps || []
+          const stepsHtml = steps.map((s, i) =>
+            `<span class="funnel-step">${i + 1}. ${s.name}</span>${i < steps.length - 1 ? '<span class="funnel-step-arrow">→</span>' : ''}`
+          ).join('')
+          return `<div class="funnel-card">
+            <div class="funnel-card-header">
+              <span class="funnel-name">${f.name}</span>
+              <button class="btn-icon" onclick="analyzeFunnel('${f.id}')">Analyze</button>
+            </div>
+            <div class="funnel-steps">${stepsHtml}</div>
+          </div>`
+        }).join('')
 
-      const listEl = clone.querySelector('#funnels-list') as HTMLElement
-      if (!listEl) return
-
-      if (funnels.length === 0) {
-        const emptyTemplate = document.getElementById('funnels-empty-template') as HTMLTemplateElement
-        if (emptyTemplate) {
-          listEl.innerHTML = ''
-          listEl.appendChild(emptyTemplate.content.cloneNode(true))
-        }
-      } else {
-        const cardTemplate = document.getElementById('funnel-card-template') as HTMLTemplateElement
-        if (!cardTemplate) return
-
-        listEl.innerHTML = ''
-        funnels.forEach(f => {
-          const card = cardTemplate.content.cloneNode(true) as DocumentFragment
-          const nameEl = card.querySelector('.funnel-name')
-          const analyzeBtn = card.querySelector('.btn-icon')
-          const stepsEl = card.querySelector('.funnel-steps')
-
-          if (nameEl) nameEl.textContent = f.name
-          if (analyzeBtn) analyzeBtn.setAttribute('onclick', `analyzeFunnel('${f.id}')`)
-          if (stepsEl) {
-            stepsEl.innerHTML = ''
-            const steps = f.steps || []
-            steps.forEach((s, i) => {
-              const stepSpan = document.createElement('span')
-              stepSpan.className = 'funnel-step'
-              stepSpan.textContent = `${i + 1}. ${s.name}`
-              stepsEl.appendChild(stepSpan)
-              if (i < steps.length - 1) {
-                const arrow = document.createElement('span')
-                arrow.className = 'funnel-step-arrow'
-                arrow.textContent = '→'
-                stepsEl.appendChild(arrow)
-              }
-            })
-          }
-
-          listEl.appendChild(card)
-        })
-      }
-
-      tabContent.innerHTML = ''
-      tabContent.appendChild(clone)
+      tabContent.innerHTML = `
+        <div class="tab-panel">
+          <div class="funnels-header">
+            <h3 class="tab-title">Funnels</h3>
+            <button class="btn btn-primary" onclick="showCreateFunnelModal()">+ Create Funnel</button>
+          </div>
+          <div id="funnels-list" class="funnels-list">${funnelsHtml}</div>
+        </div>
+      `
     }
 
     // Analyze funnel
@@ -1655,50 +1818,26 @@
 
       const { funnel, steps, totalSessions, overallConversion } = data
 
-      const template = document.getElementById('funnel-analysis-template') as HTMLTemplateElement
-      if (!template) return
-      const clone = template.content.cloneNode(true) as DocumentFragment
+      const stepsHtml = steps.map((s, i) => `
+        <div class="analysis-step">
+          <div class="analysis-step-visitors">${s.visitors}</div>
+          <div class="analysis-step-rate">${s.conversionRate}% of total</div>
+          <div class="analysis-step-name">${s.name}</div>
+          ${i > 0 ? `<div class="analysis-step-drop">↓ ${s.dropoffRate}% drop</div>` : ''}
+        </div>
+        ${i < steps.length - 1 ? '<div class="analysis-arrow">→</div>' : ''}
+      `).join('')
 
-      const titleEl = clone.querySelector('.funnel-analysis-title')
-      const summaryEl = clone.querySelector('.funnel-analysis-summary')
-      const stepsEl = clone.querySelector('.funnel-steps-analysis') as HTMLElement
+      tabContent.innerHTML = `
+        <div class="tab-panel">
+          <button class="btn btn-secondary" id="back-to-funnels">← Back to Funnels</button>
+          <h3 class="funnel-analysis-title">${funnel.name}</h3>
+          <p class="funnel-analysis-summary">${totalSessions} sessions analyzed • ${overallConversion}% overall conversion</p>
+          <div class="funnel-steps-analysis">${stepsHtml}</div>
+        </div>
+      `
 
-      if (titleEl) titleEl.textContent = funnel.name
-      if (summaryEl) summaryEl.textContent = `${totalSessions} sessions analyzed • ${overallConversion}% overall conversion`
-
-      const stepTemplate = document.getElementById('funnel-analysis-step-template') as HTMLTemplateElement
-      if (stepsEl && stepTemplate) {
-        steps.forEach((s, i) => {
-          const step = stepTemplate.content.cloneNode(true) as DocumentFragment
-          const visitorsEl = step.querySelector('.analysis-step-visitors')
-          const rateEl = step.querySelector('.analysis-step-rate')
-          const nameEl = step.querySelector('.analysis-step-name')
-          const dropEl = step.querySelector('.analysis-step-drop') as HTMLElement
-
-          if (visitorsEl) visitorsEl.textContent = String(s.visitors)
-          if (rateEl) rateEl.textContent = `${s.conversionRate}% of total`
-          if (nameEl) nameEl.textContent = s.name
-          if (dropEl) {
-            if (i > 0) {
-              dropEl.textContent = `↓ ${s.dropoffRate}% drop`
-            } else {
-              dropEl.style.display = 'none'
-            }
-          }
-
-          stepsEl.appendChild(step)
-
-          if (i < steps.length - 1) {
-            const arrow = document.createElement('div')
-            arrow.className = 'analysis-arrow'
-            arrow.textContent = '→'
-            stepsEl.appendChild(arrow)
-          }
-        })
-      }
-
-      tabContent.innerHTML = ''
-      tabContent.appendChild(clone)
+      document.getElementById('back-to-funnels')?.addEventListener('click', () => renderFunnels())
     }
 
     function showCreateFunnelModal() {
@@ -1739,27 +1878,6 @@
     // Settings state
     let settingsData: Record<string, any> = {}
 
-    // Helper to render a list of items
-    function renderSettingsList(container: HTMLElement, items: any[], template: HTMLTemplateElement, renderItem: (item: any, el: DocumentFragment) => void, emptyText: string) {
-      if (!items || items.length === 0) {
-        const emptyTemplate = document.getElementById('settings-empty-template') as HTMLTemplateElement
-        if (emptyTemplate) {
-          const emptyClone = emptyTemplate.content.cloneNode(true) as DocumentFragment
-          const emptyEl = emptyClone.querySelector('.panel-empty')
-          if (emptyEl) emptyEl.textContent = emptyText
-          container.innerHTML = ''
-          container.appendChild(emptyClone)
-        }
-        return
-      }
-      container.innerHTML = ''
-      items.forEach(item => {
-        const el = template.content.cloneNode(true) as DocumentFragment
-        renderItem(item, el)
-        container.appendChild(el)
-      })
-    }
-
     // Render settings
     async function renderSettings() {
       const tabContent = document.getElementById('tab-content')
@@ -1784,112 +1902,114 @@
 
       const { retention, team, webhooks, emailReports, apiKeys, alerts, uptime, perfBudgets } = settingsData
 
-      const template = document.getElementById('settings-tab-template') as HTMLTemplateElement
-      if (!template) return
-      const clone = template.content.cloneNode(true) as DocumentFragment
+      const renderList = (items: any[], emptyText: string, renderItem: (item: any) => string): string =>
+        items && items.length > 0 ? items.map(renderItem).join('') : `<div class="panel-empty">${emptyText}</div>`
 
-      // API Keys
-      const apiKeysList = clone.querySelector('#api-keys-list') as HTMLElement
-      const apiKeyTemplate = document.getElementById('api-key-item-template') as HTMLTemplateElement
-      if (apiKeysList && apiKeyTemplate) {
-        renderSettingsList(apiKeysList, apiKeys.apiKeys || [], apiKeyTemplate, (k, el) => {
-          const nameEl = el.querySelector('.list-item-name')
-          const codeEl = el.querySelector('.list-item-code')
-          const deleteBtn = el.querySelector('.btn-icon')
-          if (nameEl) nameEl.textContent = k.name || 'API Key'
-          if (codeEl) codeEl.textContent = k.key
-          if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteApiKey('${k.key}')`)
-        }, 'No API keys yet.')
-      }
+      const apiKeysHtml = renderList(apiKeys?.apiKeys || [], 'No API keys yet.', k => `
+        <div class="list-item">
+          <span class="list-item-name">${k.name || 'API Key'}</span>
+          <code class="list-item-code">${k.key}</code>
+          <button class="btn-icon" data-action="delete-api-key" data-key="${k.key}">Delete</button>
+        </div>
+      `)
 
-      // Alerts
-      const alertsList = clone.querySelector('#alerts-list') as HTMLElement
-      const alertTemplate = document.getElementById('alert-item-template') as HTMLTemplateElement
-      if (alertsList && alertTemplate) {
-        renderSettingsList(alertsList, alerts.alerts || [], alertTemplate, (a, el) => {
-          const nameEl = el.querySelector('.list-item-name')
-          const metaEl = el.querySelector('.list-item-meta')
-          const deleteBtn = el.querySelector('.btn-icon')
-          if (nameEl) nameEl.textContent = a.name
-          if (metaEl) metaEl.textContent = `${a.type} • >${a.threshold}%`
-          if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteAlert('${a.id}')`)
-        }, 'No alerts configured.')
-      }
+      const alertsHtml = renderList(alerts?.alerts || [], 'No alerts configured.', a => `
+        <div class="list-item">
+          <span class="list-item-name">${a.name}</span>
+          <span class="list-item-meta">${a.type} • >${a.threshold}%</span>
+          <button class="btn-icon" data-action="delete-alert" data-id="${a.id}">Delete</button>
+        </div>
+      `)
 
-      // Email Reports
-      const emailList = clone.querySelector('#email-reports-list') as HTMLElement
-      const emailTemplate = document.getElementById('email-report-template') as HTMLTemplateElement
-      if (emailList && emailTemplate) {
-        renderSettingsList(emailList, emailReports.reports || [], emailTemplate, (r, el) => {
-          const nameEl = el.querySelector('.list-item-name')
-          const metaEl = el.querySelector('.list-item-meta')
-          const deleteBtn = el.querySelector('.btn-icon')
-          if (nameEl) nameEl.textContent = r.email
-          if (metaEl) metaEl.textContent = r.frequency
-          if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteEmailReport('${r.id}')`)
-        }, 'No email reports scheduled.')
-      }
+      const emailReportsHtml = renderList(emailReports?.reports || [], 'No email reports scheduled.', r => `
+        <div class="list-item">
+          <span class="list-item-name">${r.email}</span>
+          <span class="list-item-meta">${r.frequency}</span>
+          <button class="btn-icon" data-action="delete-email-report" data-id="${r.id}">Delete</button>
+        </div>
+      `)
 
-      // Uptime
-      const uptimeList = clone.querySelector('#uptime-list') as HTMLElement
-      const uptimeTemplate = document.getElementById('uptime-item-template') as HTMLTemplateElement
-      if (uptimeList && uptimeTemplate) {
-        renderSettingsList(uptimeList, uptime.monitors || [], uptimeTemplate, (m, el) => {
-          const codeEl = el.querySelector('.list-item-code')
-          const metaEl = el.querySelector('.list-item-meta')
-          const deleteBtn = el.querySelector('.btn-icon')
-          if (codeEl) codeEl.textContent = m.url
-          if (metaEl) metaEl.textContent = `Every ${m.interval} min`
-          if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteUptimeMonitor('${m.id}')`)
-        }, 'No monitors configured.')
-      }
+      const uptimeHtml = renderList(uptime?.monitors || [], 'No monitors configured.', m => `
+        <div class="list-item">
+          <code class="list-item-code">${m.url}</code>
+          <span class="list-item-meta">Every ${m.interval} min</span>
+          <button class="btn-icon" data-action="delete-uptime" data-id="${m.id}">Delete</button>
+        </div>
+      `)
 
-      // Team
-      const teamList = clone.querySelector('#team-list') as HTMLElement
-      const teamTemplate = document.getElementById('team-member-template') as HTMLTemplateElement
-      if (teamList && teamTemplate) {
-        renderSettingsList(teamList, team.members || [], teamTemplate, (m, el) => {
-          const nameEl = el.querySelector('.list-item-name')
-          const roleEl = el.querySelector('.list-item-role')
-          if (nameEl) nameEl.textContent = m.email
-          if (roleEl) roleEl.textContent = `${m.role} • ${m.status}`
-        }, 'No team members yet.')
-      }
+      const teamHtml = renderList(team?.members || [], 'No team members yet.', m => `
+        <div class="list-item">
+          <span class="list-item-name">${m.email}</span>
+          <span class="list-item-role">${m.role} • ${m.status}</span>
+        </div>
+      `)
 
-      // Webhooks
-      const webhooksList = clone.querySelector('#webhooks-list') as HTMLElement
-      const webhookTemplate = document.getElementById('webhook-item-template') as HTMLTemplateElement
-      if (webhooksList && webhookTemplate) {
-        renderSettingsList(webhooksList, webhooks.webhooks || [], webhookTemplate, (w, el) => {
-          const codeEl = el.querySelector('.list-item-code')
-          const eventsEl = el.querySelector('.list-item-events')
-          const deleteBtn = el.querySelector('.btn-icon')
-          if (codeEl) codeEl.textContent = `${w.type} • ${w.url.slice(0, 30)}...`
-          if (eventsEl) eventsEl.remove()
-          if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteWebhook('${w.id}')`)
-        }, 'No webhooks configured.')
-      }
+      const webhooksHtml = renderList(webhooks?.webhooks || [], 'No webhooks configured.', w => `
+        <div class="list-item">
+          <code class="list-item-code">${w.type} • ${(w.url || '').slice(0, 30)}...</code>
+          <button class="btn-icon" data-action="delete-webhook" data-id="${w.id}">Delete</button>
+        </div>
+      `)
 
-      // Performance Budgets
-      const perfList = clone.querySelector('#perf-budgets-list') as HTMLElement
-      const perfTemplate = document.getElementById('perf-budget-template') as HTMLTemplateElement
-      if (perfList && perfTemplate) {
-        renderSettingsList(perfList, perfBudgets.budgets || [], perfTemplate, (b, el) => {
-          const nameEl = el.querySelector('.list-item-name')
-          const metaEl = el.querySelector('.list-item-meta')
-          const deleteBtn = el.querySelector('.btn-icon')
-          if (nameEl) nameEl.textContent = b.metric
-          if (metaEl) metaEl.textContent = `Max: ${b.threshold}${b.metric === 'CLS' ? '' : 'ms'}`
-          if (deleteBtn) deleteBtn.setAttribute('onclick', `deletePerfBudget('${b.id}')`)
-        }, 'No budgets configured.')
-      }
+      const perfBudgetsHtml = renderList(perfBudgets?.budgets || [], 'No budgets configured.', b => `
+        <div class="list-item">
+          <span class="list-item-name">${b.metric}</span>
+          <span class="list-item-meta">Max: ${b.threshold}${b.metric === 'CLS' ? '' : 'ms'}</span>
+          <button class="btn-icon" data-action="delete-perf-budget" data-id="${b.id}">Delete</button>
+        </div>
+      `)
 
-      // Retention
-      const retentionEl = clone.querySelector('#retention-days')
-      if (retentionEl) retentionEl.textContent = `${retention.retentionDays} days`
+      const createSettingsSection = (title: string, id: string, content: string, addLabel: string, addAction: string) => `
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <h4>${title}</h4>
+            <button class="btn btn-sm" data-action="${addAction}">${addLabel}</button>
+          </div>
+          <div id="${id}" class="settings-list">${content}</div>
+        </div>
+      `
 
-      tabContent.innerHTML = ''
-      tabContent.appendChild(clone)
+      tabContent.innerHTML = `
+        <div class="tab-panel settings-panel">
+          <h3 class="tab-title">Settings</h3>
+          <div class="settings-grid">
+            ${createSettingsSection('API Keys', 'api-keys-list', apiKeysHtml, '+ Add', 'add-api-key')}
+            ${createSettingsSection('Alerts', 'alerts-list', alertsHtml, '+ Add', 'add-alert')}
+            ${createSettingsSection('Email Reports', 'email-reports-list', emailReportsHtml, '+ Add', 'add-email-report')}
+            ${createSettingsSection('Uptime Monitoring', 'uptime-list', uptimeHtml, '+ Add', 'add-uptime')}
+            ${createSettingsSection('Team Members', 'team-list', teamHtml, '+ Invite', 'invite-team')}
+            ${createSettingsSection('Webhooks', 'webhooks-list', webhooksHtml, '+ Add', 'add-webhook')}
+            ${createSettingsSection('Performance Budgets', 'perf-budgets-list', perfBudgetsHtml, '+ Add', 'add-perf-budget')}
+            <div class="settings-section">
+              <h4>Data Retention</h4>
+              <p class="settings-info">Data retention period: <strong id="retention-days">${retention?.retentionDays || 365} days</strong></p>
+            </div>
+          </div>
+        </div>
+      `
+
+      // Add event listeners using delegation
+      tabContent.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement
+        const action = target.dataset.action
+        if (!action) return
+
+        switch (action) {
+          case 'add-api-key': createApiKey(); break
+          case 'add-alert': createAlert(); break
+          case 'add-email-report': createEmailReport(); break
+          case 'add-uptime': createUptimeMonitor(); break
+          case 'invite-team': inviteTeamMember(); break
+          case 'add-webhook': createWebhook(); break
+          case 'add-perf-budget': createPerfBudget(); break
+          case 'delete-api-key': deleteApiKey(target.dataset.key); break
+          case 'delete-alert': deleteAlert(target.dataset.id); break
+          case 'delete-email-report': deleteEmailReport(target.dataset.id); break
+          case 'delete-uptime': deleteUptimeMonitor(target.dataset.id); break
+          case 'delete-webhook': deleteWebhook(target.dataset.id); break
+          case 'delete-perf-budget': deletePerfBudget(target.dataset.id); break
+        }
+      })
     }
 
     // Settings action functions
@@ -2065,15 +2185,25 @@
 
     // Update filter dropdowns with data
     function updateFilters() {
-      const countrySelect = document.getElementById('filter-country')
-      const browserSelect = document.getElementById('filter-browser')
+      const countrySelect = document.getElementById('filter-country') as HTMLSelectElement
+      const browserSelect = document.getElementById('filter-browser') as HTMLSelectElement
+
       if (countrySelect && countries.length > 0) {
-        const opts = countries.slice(0, 20).map(c => '<option value="' + (c.country || c.name) + '">' + (c.country || c.name) + '</option>')
-        countrySelect.innerHTML = '<option value="">All Countries</option>' + opts.join('')
+        clear(countrySelect)
+        countrySelect.appendChild(el('option', { value: '' }, 'All Countries'))
+        for (const c of countries.slice(0, 20)) {
+          const value = c.country || c.name
+          countrySelect.appendChild(el('option', { value }, value))
+        }
       }
+
       if (browserSelect && browsers.length > 0) {
-        const opts = browsers.slice(0, 10).map(b => '<option value="' + (b.browser || b.name) + '">' + (b.browser || b.name) + '</option>')
-        browserSelect.innerHTML = '<option value="">All Browsers</option>' + opts.join('')
+        clear(browserSelect)
+        browserSelect.appendChild(el('option', { value: '' }, 'All Browsers'))
+        for (const b of browsers.slice(0, 10)) {
+          const value = b.browser || b.name
+          browserSelect.appendChild(el('option', { value }, value))
+        }
       }
     }
 
@@ -2125,11 +2255,11 @@
         document.getElementById('stat-avgtime').textContent = stats.avgTime
       } else {
         document.getElementById('stat-realtime').textContent = fmt(stats.realtime)
-        document.getElementById('stat-sessions').innerHTML = fmt(stats.sessions) + (comparisonData ? compBadge(comparisonData.changes?.sessions) : '')
-        document.getElementById('stat-people').innerHTML = fmt(stats.people) + (comparisonData ? compBadge(comparisonData.changes?.visitors) : '')
-        document.getElementById('stat-views').innerHTML = fmt(stats.views) + (comparisonData ? compBadge(comparisonData.changes?.pageviews) : '')
-        document.getElementById('stat-bounce').innerHTML = stats.bounceRate + '%' + (comparisonData ? compBadge(comparisonData.changes?.bounceRate) : '')
-        document.getElementById('stat-avgtime').innerHTML = stats.avgTime + (comparisonData ? compBadge(comparisonData.changes?.avgDuration) : '')
+        setStatValue('stat-sessions', fmt(stats.sessions), comparisonData?.changes?.sessions)
+        setStatValue('stat-people', fmt(stats.people), comparisonData?.changes?.visitors)
+        setStatValue('stat-views', fmt(stats.views), comparisonData?.changes?.pageviews)
+        setStatValue('stat-bounce', stats.bounceRate + '%', comparisonData?.changes?.bounceRate)
+        setStatValue('stat-avgtime', stats.avgTime, comparisonData?.changes?.avgDuration)
       }
       document.getElementById('realtime-count').textContent = stats.realtime === 1 ? '1 visitor online' : stats.realtime + ' visitors online'
 
@@ -2157,218 +2287,11 @@
       noDataMsg.style.display = 'none'
       mainContent.style.display = 'block'
 
-      // Render tables using templates
-      renderTableRows('pages-body', pages.slice(0, 10), 'page-row-template', 4, 'No page data', (row, p) => {
-        const pageCell = row.querySelector('.page-cell')
-        if (pageCell) {
-          if (siteHostname) {
-            const pageUrl = `https://${siteHostname}${p.path}`
-            const link = document.createElement('a')
-            link.href = pageUrl
-            link.target = '_blank'
-            link.rel = 'noopener'
-            link.className = 'page-link'
-            link.title = `Visit ${pageUrl}`
-            link.textContent = p.path
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-            svg.setAttribute('width', '10')
-            svg.setAttribute('height', '10')
-            svg.setAttribute('viewBox', '0 0 24 24')
-            svg.setAttribute('fill', 'none')
-            svg.setAttribute('stroke', 'currentColor')
-            svg.setAttribute('stroke-width', '2')
-            svg.style.marginLeft = '4px'
-            svg.style.opacity = '0.5'
-            svg.innerHTML = '<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>'
-            link.appendChild(svg)
-            pageCell.appendChild(link)
-          } else {
-            pageCell.textContent = p.path
-          }
-          pageCell.setAttribute('title', p.path)
-        }
-        const entriesCell = row.querySelector('.entries-cell')
-        if (entriesCell) entriesCell.textContent = fmt(p.entries || 0)
-        const visitorsCell = row.querySelector('.visitors-cell')
-        if (visitorsCell) visitorsCell.textContent = fmt(p.visitors || 0)
-        const viewsCell = row.querySelector('.views-cell')
-        if (viewsCell) viewsCell.textContent = fmt(p.views || 0)
-      })
-
-      renderTableRows('referrers-body', referrers.slice(0, 10), 'referrer-row-template', 3, 'No referrer data', (row, r) => {
-        const referrerCell = row.querySelector('.referrer-cell')
-        if (referrerCell) {
-          const source = r.source || 'Direct'
-          const sourceLower = source.toLowerCase()
-          const isLink = sourceLower !== 'direct' && !source.includes('(') && source.includes('.')
-          if (isLink) {
-            const domain = source.replace(/^https?:\/\//, '').split('/')[0]
-            const link = document.createElement('a')
-            link.href = source.startsWith('http') ? source : 'https://' + source
-            link.target = '_blank'
-            link.rel = 'noopener'
-            link.className = 'referrer-link'
-            const img = document.createElement('img')
-            img.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=16`
-            img.width = 14
-            img.height = 14
-            img.className = 'referrer-favicon'
-            img.onerror = () => { img.style.display = 'none' }
-            link.appendChild(img)
-            link.appendChild(document.createTextNode(source))
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-            svg.setAttribute('width', '12')
-            svg.setAttribute('height', '12')
-            svg.setAttribute('fill', 'none')
-            svg.setAttribute('stroke', 'currentColor')
-            svg.setAttribute('viewBox', '0 0 24 24')
-            svg.style.opacity = '0.5'
-            svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>'
-            link.appendChild(svg)
-            referrerCell.appendChild(link)
-          } else {
-            referrerCell.textContent = source
-          }
-        }
-        const visitorsCell = row.querySelector('.visitors-cell')
-        if (visitorsCell) visitorsCell.textContent = fmt(r.visitors || 0)
-        const viewsCell = row.querySelector('.views-cell')
-        if (viewsCell) viewsCell.textContent = fmt(r.views || 0)
-      })
-
-      renderTableRows('devices-body', deviceTypes, 'device-row-template', 3, 'No device data', (row, d) => {
-        const deviceCell = row.querySelector('.device-cell')
-        if (deviceCell) deviceCell.innerHTML = getDeviceIcon(d.type) + d.type
-        const visitorsCell = row.querySelector('.visitors-cell')
-        if (visitorsCell) visitorsCell.textContent = fmt(d.visitors || 0)
-        const pctCell = row.querySelector('.pct-cell')
-        if (pctCell) pctCell.textContent = `${d.percentage || 0}%`
-      })
-
-      renderTableRows('browsers-body', browsers.slice(0, 8), 'browser-row-template', 3, 'No browser data', (row, b) => {
-        const browserCell = row.querySelector('.browser-cell')
-        if (browserCell) browserCell.innerHTML = getBrowserIcon(b.name) + b.name
-        const visitorsCell = row.querySelector('.visitors-cell')
-        if (visitorsCell) visitorsCell.textContent = fmt(b.visitors || 0)
-        const pctCell = row.querySelector('.pct-cell')
-        if (pctCell) pctCell.textContent = `${b.percentage || 0}%`
-      })
-
-      renderTableRows('countries-body', countries.slice(0, 8), 'country-row-template', 2, 'No location data', (row, c) => {
-        const countryCell = row.querySelector('.country-cell')
-        if (countryCell) {
-          const flag = document.createElement('span')
-          flag.className = 'country-flag'
-          flag.textContent = getCountryFlag(c.name)
-          countryCell.appendChild(flag)
-          countryCell.appendChild(document.createTextNode(c.name || c.code || 'Unknown'))
-        }
-        const visitorsCell = row.querySelector('.visitors-cell')
-        if (visitorsCell) visitorsCell.textContent = fmt(c.visitors || 0)
-      })
-
-      renderTableRows('campaigns-body', campaigns.slice(0, 8), 'campaign-row-template', 3, 'No campaign data', (row, c) => {
-        const campaignCell = row.querySelector('.campaign-cell')
-        if (campaignCell) campaignCell.textContent = c.name || c.source || 'Unknown'
-        const visitorsCell = row.querySelector('.visitors-cell')
-        if (visitorsCell) visitorsCell.textContent = fmt(c.visitors || 0)
-        const viewsCell = row.querySelector('.views-cell')
-        if (viewsCell) viewsCell.textContent = fmt(c.views || 0)
-      })
-
-      // Enhanced events display with mini chart
-      const eventsContainer = document.getElementById('events-container')
-      if (eventsContainer) {
-        if (!events.length) {
-          const emptyTemplate = document.getElementById('events-empty-template') as HTMLTemplateElement
-          if (emptyTemplate) {
-            eventsContainer.innerHTML = ''
-            eventsContainer.appendChild(emptyTemplate.content.cloneNode(true))
-          }
-        } else {
-          const listTemplate = document.getElementById('events-list-template') as HTMLTemplateElement
-          const itemTemplate = document.getElementById('event-item-template') as HTMLTemplateElement
-          if (listTemplate && itemTemplate) {
-            const totalEventCount = events.reduce((sum, e) => sum + (e.count || 0), 0)
-            const maxEventCount = Math.max(...events.map(e => e.count || 0), 1)
-
-            const listClone = listTemplate.content.cloneNode(true) as DocumentFragment
-            const listEl = listClone.querySelector('.events-list')
-
-            events.slice(0, 8).forEach(e => {
-              const pct = Math.round(((e.count || 0) / totalEventCount) * 100)
-              const barWidth = Math.round(((e.count || 0) / maxEventCount) * 100)
-
-              const item = itemTemplate.content.cloneNode(true) as DocumentFragment
-              const nameEl = item.querySelector('.event-bar-name')
-              const pctEl = item.querySelector('.event-bar-pct')
-              const fillEl = item.querySelector('.event-bar-fill') as HTMLElement
-              const countEl = item.querySelector('.event-bar-count')
-
-              if (nameEl) nameEl.textContent = e.name
-              if (pctEl) pctEl.textContent = `${pct}%`
-              if (fillEl) fillEl.style.width = `${barWidth}%`
-              if (countEl) countEl.textContent = fmt(e.count || 0)
-
-              listEl?.appendChild(item)
-            })
-
-            eventsContainer.innerHTML = ''
-            eventsContainer.appendChild(listClone)
-          }
-        }
-      }
+      // Note: Table panels are now self-contained STX components that handle their own rendering.
+      // The panel components (PagesPanel, ReferrersPanel, etc.) fetch and render data independently.
+      // See: src/views/components/dashboard/*Panel.stx
 
       renderChart()
-      renderGoals()
-    }
-
-    function renderGoals() {
-      const container = document.getElementById('goals-container')
-      if (!container) return
-
-      if (!goals.length) {
-        const emptyTemplate = document.getElementById('goals-empty-template') as HTMLTemplateElement
-        if (emptyTemplate) {
-          container.innerHTML = ''
-          container.appendChild(emptyTemplate.content.cloneNode(true))
-        }
-        return
-      }
-
-      const tableTemplate = document.getElementById('goals-table-template') as HTMLTemplateElement
-      const rowTemplate = document.getElementById('goal-row-template') as HTMLTemplateElement
-      if (!tableTemplate || !rowTemplate) return
-
-      const tableClone = tableTemplate.content.cloneNode(true) as DocumentFragment
-      const tbody = tableClone.querySelector('#goals-table-body')
-      if (!tbody) return
-
-      goals.forEach(g => {
-        const row = rowTemplate.content.cloneNode(true) as DocumentFragment
-
-        const nameEl = row.querySelector('.goal-name')
-        const badgeEl = row.querySelector('.goal-type-badge')
-        const conversionsEl = row.querySelector('.goal-conversions')
-        const valueEl = row.querySelector('.goal-value')
-        const editBtn = row.querySelector('.edit-btn')
-        const deleteBtn = row.querySelector('.delete-btn')
-
-        if (nameEl) nameEl.textContent = g.name
-        if (badgeEl) {
-          badgeEl.textContent = g.type
-          badgeEl.classList.add(g.type)
-        }
-        if (conversionsEl) conversionsEl.textContent = fmt(g.conversions || 0)
-        if (valueEl) valueEl.textContent = g.totalValue ? '$' + g.totalValue.toFixed(2) : '-'
-        if (editBtn) editBtn.addEventListener('click', () => editGoal(g.id))
-        if (deleteBtn) deleteBtn.addEventListener('click', () => deleteGoal(g.id))
-
-        tbody.appendChild(row)
-      })
-
-      container.innerHTML = ''
-      container.appendChild(tableClone)
     }
 
     function showCreateGoalModal() {
@@ -2675,6 +2598,21 @@
 
       draw(-1)
 
+      // Get or create tooltip inner elements
+      const tooltipDate = tooltip.querySelector('.tooltip-date') || (() => {
+        const d = document.createElement('div'); d.className = 'tooltip-date'; tooltip.appendChild(d); return d
+      })()
+      const tooltipViews = tooltip.querySelector('.tooltip-views') || (() => {
+        const d = document.createElement('div'); d.className = 'tooltip-row'
+        d.innerHTML = '<span class="tooltip-dot views"></span>Views: <strong class="tooltip-views"></strong>'
+        tooltip.appendChild(d); return d.querySelector('.tooltip-views')
+      })()
+      const tooltipVisitors = tooltip.querySelector('.tooltip-visitors') || (() => {
+        const d = document.createElement('div'); d.className = 'tooltip-row'
+        d.innerHTML = '<span class="tooltip-dot visitors"></span>Visitors: <strong class="tooltip-visitors"></strong>'
+        tooltip.appendChild(d); return d.querySelector('.tooltip-visitors')
+      })()
+
       canvas.onmousemove = function(e) {
         const cr = canvas.getBoundingClientRect()
         const mx = e.clientX - cr.left
@@ -2682,9 +2620,9 @@
         points.forEach((p, i) => { const d = Math.abs(mx - p.x); if (d < minDist) { minDist = d; closest = i } })
         if (closest >= 0) {
           const p = points[closest], d = p.data
-          tooltip.innerHTML = '<div style="color:var(--muted);font-size:11px;margin-bottom:6px;font-weight:500">' + fmtDateFull(d.date) + '</div>' +
-            '<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:8px;height:8px;background:var(--accent2);border-radius:2px"></span>Views: <strong style="margin-left:auto">' + fmt(d.views || d.count || 0) + '</strong></div>' +
-            '<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:8px;height:8px;background:var(--success);border-radius:2px"></span>Visitors: <strong style="margin-left:auto">' + fmt(d.visitors || 0) + '</strong></div>'
+          tooltipDate.textContent = fmtDateFull(d.date)
+          tooltipViews.textContent = fmt(d.views || d.count || 0)
+          tooltipVisitors.textContent = fmt(d.visitors || 0)
           tooltip.style.display = 'block'
           let left = p.x + 10; if (left + 150 > logicalW) left = p.x - 160
           tooltip.style.left = left + 'px'

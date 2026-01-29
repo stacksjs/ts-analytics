@@ -1,0 +1,46 @@
+<script>
+/**
+ * FlowLink Component
+ * Displays a link between two pages in the flow
+ */
+const source = $props.source || ''
+const target = $props.target || ''
+const value = $props.value || 0
+</script>
+
+<div class="flow-link">
+  <span class="flow-link-source">{{ source }}</span>
+  <span class="flow-link-arrow">→</span>
+  <span class="flow-link-target">{{ target }}</span>
+  <span class="flow-link-count">{{ value }}x</span>
+</div>
+
+<style>
+.flow-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  background: var(--bg2);
+  border-radius: 4px;
+  margin-bottom: 0.375rem;
+  font-size: 0.75rem;
+}
+.flow-link-source,
+.flow-link-target {
+  color: var(--text);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.flow-link-arrow {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.flow-link-count {
+  color: var(--accent);
+  font-weight: 500;
+  margin-left: auto;
+}
+</style>

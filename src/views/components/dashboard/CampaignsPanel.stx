@@ -1,0 +1,144 @@
+<script>
+/**
+ * CampaignsPanel Component
+ * Displays campaign breakdown with reactive data fetching
+ */
+const campaigns = state([])
+const loading = state(true)
+
+function fmt(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
+  return String(n)
+}
+
+async function fetchCampaigns() {
+  const siteId = window.siteId
+  if (!siteId) {
+    loading.set(false)
+    return
+  }
+  try {
+    const res = await fetch(`${window.API_ENDPOINT}/api/sites/${siteId}/campaigns${window.getDateRangeParams()}`)
+    const data = await res.json()
+    campaigns.set((data.campaigns || []).slice(0, 10))
+  } catch (e) {
+    console.error('Failed to fetch campaigns:', e)
+  } finally {
+    loading.set(false)
+  }
+}
+
+onMount(() => {
+  if (window.siteId) fetchCampaigns()
+})
+
+window.refreshCampaignsPanel = fetchCampaigns
+</script>
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <svg class="panel-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
+      </svg>
+      Campaigns
+    </div>
+    <a href="#" onclick="navigateTo('campaigns')" class="view-all">View all &rarr;</a>
+  </div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th class="text-left">Campaign</th>
+        <th class="text-right">Visitors</th>
+        <th class="text-right">Views</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr @if="loading()">
+        <td colspan="3" class="loading-cell">Loading...</td>
+      </tr>
+      <tr @if="!loading() && campaigns().length === 0">
+        <td colspan="3" class="empty-cell">No campaign data</td>
+      </tr>
+      <tr @for="campaign in campaigns()" @if="!loading()">
+        <td class="name">{{ campaign.name || campaign.source || 'Unknown' }}</td>
+        <td class="value">{{ fmt(campaign.visitors || 0) }}</td>
+        <td class="value">{{ fmt(campaign.views || 0) }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<style>
+.panel {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+}
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+.panel-icon {
+  color: var(--muted);
+}
+.view-all {
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+.view-all:hover {
+  text-decoration: underline;
+}
+.data-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  border-collapse: collapse;
+}
+.data-table th {
+  padding: 0.5rem 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.data-table td {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+.name {
+  font-weight: 500;
+  color: var(--text);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.loading-cell,
+.empty-cell {
+  text-align: center;
+  color: var(--muted);
+  padding: 1rem 0;
+}
+</style>

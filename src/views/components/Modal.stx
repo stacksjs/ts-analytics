@@ -6,7 +6,7 @@
  */
 </script>
 
-<template id="modal-template">
+<div id="modal-template" class="stx-template" hidden>
   <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal-content">
       <div class="modal-header">
@@ -21,18 +21,21 @@
       <div class="modal-footer"></div>
     </div>
   </div>
-</template>
+</div>
 
 <style>
 .modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 1rem;
+}
+.modal-overlay.active {
+  display: flex;
 }
 .modal-content {
   background: var(--bg);

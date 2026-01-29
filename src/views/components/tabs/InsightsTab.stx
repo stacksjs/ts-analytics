@@ -1,38 +1,110 @@
-<script server>
+<script>
 /**
- * InsightsTab Component
- *
- * Displays AI-generated insights and recommendations.
+ * InsightsTab Component - Analytics insights and trends
+ * Uses STX signals for reactive state management
  */
+const insights = state([])
+const comparisonStats = state(null)
+const loading = state(true)
+const error = state(null)
+
+const iconTypes = {
+  traffic: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
+  referrer: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101',
+  page: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  device: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
+  engagement: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'
+}
+
+function getIconPath(type) {
+  return iconTypes[type] || iconTypes.traffic
+}
+
+function fmt(n) {
+  return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n)
+}
+
+async function fetchInsights() {
+  try {
+    const [insightsRes, comparisonRes] = await Promise.all([
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/insights${getDateRangeParams()}`),
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/comparison${getDateRangeParams()}`)
+    ])
+    const insightsData = await insightsRes.json()
+    const comparisonData = await comparisonRes.json()
+
+    insights.set(insightsData.insights || [])
+    comparisonStats.set(comparisonData)
+    error.set(null)
+  } catch (e) {
+    error.set(e.message)
+  } finally {
+    loading.set(false)
+  }
+}
+
+onMount(() => {
+  fetchInsights()
+})
 </script>
 
-<template id="insights-tab-template">
-  <div class="tab-panel">
-    <h3 class="tab-title">Insights</h3>
-    <div id="insights-stats" class="insights-stats"></div>
-    <div id="insights-list" class="insights-list">
-      <div class="empty-state">Loading insights...</div>
+<div class="tab-panel">
+  <h3 class="tab-title">Insights</h3>
+
+  <div @if="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <span>Loading...</span>
+  </div>
+
+  <div @if="error()" class="error-state">
+    {{ error() }}
+  </div>
+
+  <div @if="!loading() && !error()">
+    <!-- Stats Cards -->
+    <div @if="comparisonStats()" class="insights-stats">
+      <div class="insights-stat">
+        <div class="insights-stat-value">{{ fmt(comparisonStats().thisWeekViews) }}</div>
+        <div class="insights-stat-label">Views This Week</div>
+        <div @if="comparisonStats().change !== 0"
+             @class="['insights-stat-change', comparisonStats().change > 0 ? 'positive' : 'negative']">
+          {{ comparisonStats().change > 0 ? '+' : '' }}{{ comparisonStats().change }}%
+        </div>
+      </div>
+      <div class="insights-stat">
+        <div class="insights-stat-value">{{ fmt(comparisonStats().lastWeekViews) }}</div>
+        <div class="insights-stat-label">Views Last Week</div>
+      </div>
+      <div class="insights-stat">
+        <div class="insights-stat-value">{{ comparisonStats().sessions || 0 }}</div>
+        <div class="insights-stat-label">Sessions</div>
+      </div>
+      <div class="insights-stat">
+        <div class="insights-stat-value">{{ comparisonStats().bounceRate || 0 }}%</div>
+        <div class="insights-stat-label">Bounce Rate</div>
+      </div>
+    </div>
+
+    <!-- Insights List -->
+    <div class="insights-list">
+      <div @if="insights().length === 0" class="empty-state">
+        No insights available yet. Check back when you have more data.
+      </div>
+
+      <div @for="insight in insights()" class="insight-card">
+        <div @class="['insight-icon', insight.severity || 'info']">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(insight.type)" />
+          </svg>
+        </div>
+        <div class="insight-content">
+          <div class="insight-title">{{ insight.title }}</div>
+          <div class="insight-desc">{{ insight.description }}</div>
+        </div>
+      </div>
     </div>
   </div>
-</template>
-
-<template id="insight-card-template">
-  <div class="insight-card">
-    <div class="insight-icon"></div>
-    <div class="insight-content">
-      <div class="insight-title"></div>
-      <div class="insight-desc"></div>
-    </div>
-  </div>
-</template>
-
-<template id="insights-stat-template">
-  <div class="insights-stat">
-    <div class="insights-stat-value"></div>
-    <div class="insights-stat-label"></div>
-    <div class="insights-stat-change" style="display:none"></div>
-  </div>
-</template>
+</div>
 
 <style>
 .tab-panel {
@@ -42,11 +114,11 @@
   font-size: 1rem;
   font-weight: 600;
   color: var(--text);
-  margin-bottom: 1rem;
+  margin: 0 0 1rem 0;
 }
 .insights-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
@@ -58,24 +130,25 @@
   text-align: center;
 }
 .insights-stat-value {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text);
+  margin-bottom: 0.25rem;
 }
 .insights-stat-label {
   font-size: 0.75rem;
   color: var(--muted);
-  margin-top: 0.25rem;
 }
 .insights-stat-change {
   font-size: 0.75rem;
+  font-weight: 600;
   margin-top: 0.25rem;
 }
 .insights-stat-change.positive {
-  color: #22c55e;
+  color: var(--success);
 }
 .insights-stat-change.negative {
-  color: #ef4444;
+  color: var(--error);
 }
 .insights-list {
   display: flex;
@@ -100,21 +173,21 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.insight-icon.warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-}
-.insight-icon.success {
-  background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
-}
 .insight-icon.info {
-  background: rgba(59, 130, 246, 0.15);
+  background: rgba(59, 130, 246, 0.1);
   color: #3b82f6;
 }
+.insight-icon.success {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+}
+.insight-icon.warning {
+  background: rgba(234, 179, 8, 0.1);
+  color: var(--warning);
+}
 .insight-icon.error {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--error);
 }
 .insight-content {
   flex: 1;
@@ -131,12 +204,32 @@
   color: var(--muted);
   line-height: 1.5;
 }
-.empty-state {
+.empty-state, .loading-state, .error-state {
   text-align: center;
   color: var(--muted);
   padding: 2rem;
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.error-state {
+  color: var(--error);
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

@@ -1,96 +1,61 @@
-<script server>
-/**
- * EventsSection Component
- *
- * Displays custom events.
- */
-import { defineProps, withDefaults } from 'stx'
+{{-- EventsSection Component --}}
+{{-- Props: events (array of {name, count}), loading (boolean) --}}
 
-interface Event {
-  name: string
-  count: number
-  value?: number
+@ts
+function fmt(n: number): string {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
+  return String(n)
 }
 
-interface EventsSectionProps {
-  events?: Event[]
-  loading?: boolean
+function getTotalCount(events: Array<{count?: number}>): number {
+  return events.reduce((sum, e) => sum + (e.count || 0), 0)
 }
 
-const { events, loading } = withDefaults(
-  defineProps<EventsSectionProps>(),
-  {
-    events: () => [],
-    loading: false,
-  }
-)
-</script>
+function getMaxCount(events: Array<{count?: number}>): number {
+  return Math.max(...events.map(e => e.count || 0), 1)
+}
 
-<div class="events">
-  <div class="panel-header">
-    <div class="panel-title">
-      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-      </svg>
-      Custom Events
+function getPercentage(count: number, total: number): number {
+  return total > 0 ? Math.round((count / total) * 100) : 0
+}
+
+function getBarWidth(count: number, max: number): number {
+  return max > 0 ? Math.round((count / max) * 100) : 0
+}
+@endts
+
+<div id="events-content">
+  @if(loading)
+    <div class="empty-state">Loading...</div>
+  @elseif(events.length === 0)
+    <div class="empty-state">No custom events tracked</div>
+  @else
+    <div class="events-list">
+      @foreach(events as event)
+        <div class="event-bar-item">
+          <div class="event-bar-info">
+            <div class="event-bar-header">
+              <span class="event-bar-name">{{ event.name }}</span>
+              <span class="event-bar-pct">{{ getPercentage(event.count || 0, getTotalCount(events)) }}%</span>
+            </div>
+            <div class="event-bar-track">
+              <div class="event-bar-fill" style="width: {{ getBarWidth(event.count || 0, getMaxCount(events)) }}%"></div>
+            </div>
+          </div>
+          <span class="event-bar-count">{{ fmt(event.count || 0) }}</span>
+        </div>
+      @endforeach
     </div>
-    <a href="#" onclick="navigateTo('events')" class="view-all">View all &rarr;</a>
-  </div>
-  <div id="events-container">
-    <div class="empty-cell">Loading...</div>
-  </div>
+  @endif
 </div>
 
-<!-- Client-side templates for dynamic updates -->
-<template id="events-list-template">
-  <div class="events-list"></div>
-</template>
-
-<template id="event-item-template">
-  <div class="event-bar-item">
-    <div class="event-bar-info">
-      <div class="event-bar-header">
-        <span class="event-bar-name"></span>
-        <span class="event-bar-pct"></span>
-      </div>
-      <div class="event-bar-track">
-        <div class="event-bar-fill"></div>
-      </div>
-    </div>
-    <span class="event-bar-count"></span>
-  </div>
-</template>
-
 <style>
-.events {
-  background: var(--bg2);
-  border-radius: 8px;
+.empty-state {
+  text-align: center;
+  color: var(--muted);
   padding: 1.5rem;
-  border: 1px solid var(--border);
-}
-.events-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 0.75rem;
-}
-.event-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.625rem 0.75rem;
-  background: var(--bg);
-  border-radius: 6px;
-  border: 1px solid var(--border);
-}
-.event-name {
   font-size: 0.8125rem;
-  color: var(--text);
-  font-weight: 500;
-}
-.event-count {
-  font-size: 0.875rem;
-  color: var(--accent);
-  font-weight: 600;
 }
 .events-list {
   display: flex;
@@ -122,6 +87,7 @@ const { events, loading } = withDefaults(
 .event-bar-pct {
   color: var(--muted);
   margin-left: 0.5rem;
+  font-size: 0.75rem;
 }
 .event-bar-track {
   height: 4px;

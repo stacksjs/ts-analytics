@@ -6,7 +6,7 @@
  */
 </script>
 
-<template id="session-modal-template">
+<div id="session-modal-template" class="stx-template" hidden>
   <div class="session-modal-content">
     <div class="session-modal-header">
       <h3 class="session-modal-title">Session: <span id="session-id"></span></h3>
@@ -30,49 +30,49 @@
       <div id="session-timeline" class="timeline"></div>
     </div>
   </div>
-</template>
+</div>
 
-<template id="session-stat-template">
+<div id="session-stat-template" class="stx-template" hidden>
   <div class="session-stat">
     <div class="session-stat-value"></div>
     <div class="session-stat-label"></div>
   </div>
-</template>
+</div>
 
-<template id="journey-step-template">
+<div id="journey-step-template" class="stx-template" hidden>
   <div class="journey-step">
     <div class="journey-step-path"></div>
     <div class="journey-step-time"></div>
   </div>
-</template>
+</div>
 
-<template id="timeline-item-template">
+<div id="timeline-item-template" class="stx-template" hidden>
   <div class="timeline-item">
     <div class="timeline-type"></div>
     <div class="timeline-content"></div>
     <div class="timeline-time"></div>
   </div>
-</template>
+</div>
 
-<template id="timeline-pageview-content">
+<div id="timeline-pageview-content" class="stx-template" hidden>
   <span class="timeline-path"></span>
-</template>
+</div>
 
-<template id="timeline-event-content">
+<div id="timeline-event-content" class="stx-template" hidden>
   <span class="timeline-event-name"></span>
-</template>
+</div>
 
-<template id="timeline-click-content">
+<div id="timeline-click-content" class="stx-template" hidden>
   <span class="timeline-click-text"></span> <code class="timeline-click-element"></code>
-</template>
+</div>
 
-<template id="timeline-vital-content">
+<div id="timeline-vital-content" class="stx-template" hidden>
   <span class="timeline-vital-metric"></span>: <span class="timeline-vital-value"></span>
-</template>
+</div>
 
-<template id="timeline-error-content">
+<div id="timeline-error-content" class="stx-template" hidden>
   <span class="timeline-error-message"></span>
-</template>
+</div>
 
 <style>
 .session-modal-content {

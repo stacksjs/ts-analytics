@@ -1,56 +1,100 @@
-<script server>
+<script>
 /**
- * VitalsTab Component
- *
- * Displays Core Web Vitals metrics.
+ * VitalsTab Component - Core Web Vitals display
+ * Uses STX signals for reactive state management
  */
+const vitals = state([])
+const violations = state([])
+const loading = state(true)
+const error = state(null)
+
+// Fetch vitals data
+async function fetchVitals() {
+  try {
+    const [vitalsRes, budgetsRes] = await Promise.all([
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/vitals${getDateRangeParams()}`),
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/performance-budgets/check`)
+    ])
+    const vitalsData = await vitalsRes.json()
+    const budgetsData = await budgetsRes.json()
+
+    vitals.set(vitalsData.vitals || [])
+    violations.set(budgetsData.violations || [])
+    error.set(null)
+  } catch (e) {
+    error.set(e.message)
+  } finally {
+    loading.set(false)
+  }
+}
+
+// Get rating class
+function getRating(v) {
+  if (!v || v.samples === 0) return ''
+  if ((v.good || 0) >= 75) return 'good'
+  if ((v.poor || 0) >= 25) return 'poor'
+  return 'needs-improvement'
+}
+
+// Format vital value
+function formatValue(metric, value) {
+  if (metric === 'CLS') return (value / 1000).toFixed(3)
+  return value + 'ms'
+}
+
+onMount(() => {
+  fetchVitals()
+})
 </script>
 
-<template id="vitals-tab-template">
-  <div class="tab-panel">
-    <div id="vitals-violations" class="vitals-violations" style="display:none"></div>
-    <h3 class="tab-title">Core Web Vitals</h3>
-    <div id="vitals-grid" class="vitals-grid">
-      <div class="empty-state">Loading vitals...</div>
+<div class="tab-panel">
+  <h3 class="tab-title">Core Web Vitals</h3>
+
+  <div @if="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <span>Loading...</span>
+  </div>
+
+  <div @if="error()" class="error-state">
+    {{ error() }}
+  </div>
+
+  <div @if="!loading() && !error()">
+    <!-- Violations Section -->
+    <div @if="violations().length > 0" class="violations-section">
+      <h4 class="violations-title">Performance Budget Violations</h4>
+      <div class="violations-list">
+        <div @for="v in violations()" class="violation-item">
+          <span class="violation-metric">{{ v.metric }}</span>
+          <span class="violation-value">{{ v.currentValue }}{{ v.metric === 'CLS' ? '' : 'ms' }}</span>
+          <span class="violation-exceeded">
+            (exceeds {{ v.threshold }}{{ v.metric === 'CLS' ? '' : 'ms' }} by {{ v.exceededBy }}{{ v.metric === 'CLS' ? '' : 'ms' }})
+          </span>
+        </div>
+      </div>
     </div>
-    <p class="vitals-legend">
-      <strong>LCP</strong> (Largest Contentful Paint): Loading performance.
-      <strong>FID</strong> (First Input Delay): Interactivity.
-      <strong>CLS</strong> (Cumulative Layout Shift): Visual stability.
-      <strong>TTFB</strong> (Time to First Byte): Server response.
-      <strong>INP</strong> (Interaction to Next Paint): Responsiveness.
-    </p>
-  </div>
-</template>
 
-<template id="vital-card-template">
-  <div class="vital-card">
-    <div class="vital-name">{metric}</div>
-    <div class="vital-value {rating}">{value}</div>
-    <div class="vital-samples">{samples} samples</div>
-    <div class="vital-bar">
-      <span class="good" style="width:{good}%"></span>
-      <span class="needs-improvement" style="width:{needsImprovement}%"></span>
-      <span class="poor" style="width:{poor}%"></span>
+    <!-- Vitals Grid -->
+    <div class="vitals-grid">
+      <div @for="v in vitals()" class="vital-card">
+        <div class="vital-name">{{ v.metric }}</div>
+        <div @class="['vital-value', getRating(v)]">
+          {{ v.samples > 0 ? formatValue(v.metric, v.p75) : '—' }}
+        </div>
+        <div class="vital-samples">{{ v.samples }} samples</div>
+        <div @if="v.samples > 0" class="vital-bar">
+          <div class="good" @style="{ width: v.good + '%' }"></div>
+          <div class="needs-improvement" @style="{ width: v.needsImprovement + '%' }"></div>
+          <div class="poor" @style="{ width: v.poor + '%' }"></div>
+        </div>
+      </div>
+    </div>
+
+    <div @if="vitals().length === 0" class="empty-state">
+      No Web Vitals data available yet.
     </div>
   </div>
-</template>
-
-<template id="violations-content-template">
-  <h4 class="violations-header">
-    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-    </svg>
-    Performance Budget Violations
-  </h4>
-  <div class="violations-list"></div>
-</template>
-
-<template id="violation-item-template">
-  <div class="violation-item">
-    <strong class="violation-metric"></strong>: <span class="violation-value"></span> <span class="exceeded violation-exceeded"></span>
-  </div>
-</template>
+</div>
 
 <style>
 .tab-panel {
@@ -60,43 +104,45 @@
   font-size: 1rem;
   font-weight: 600;
   color: var(--text);
-  margin-bottom: 1rem;
+  margin: 0 0 1rem 0;
 }
-.vitals-violations {
+.violations-section {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 8px;
   padding: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
-.vitals-violations h4,
-.violations-header {
+.violations-title {
   font-size: 0.875rem;
-  color: #ef4444;
-  margin-bottom: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0 0 0.75rem 0;
+  font-weight: 600;
+  color: var(--error);
+  margin: 0 0 0.5rem 0;
 }
 .violations-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 .violation-item {
-  background: var(--bg);
-  border-radius: 6px;
-  padding: 0.5rem 0.75rem;
   font-size: 0.8125rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.violation-metric {
+  font-weight: 600;
   color: var(--text);
 }
-.violation-item .exceeded {
-  color: #ef4444;
+.violation-value {
+  color: var(--error);
+}
+.violation-exceeded {
+  color: var(--muted);
 }
 .vitals-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
 }
 .vital-card {
@@ -104,7 +150,6 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1rem;
-  text-align: center;
 }
 .vital-name {
   font-size: 0.75rem;
@@ -112,7 +157,7 @@
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 .vital-value {
   font-size: 1.5rem;
@@ -120,42 +165,50 @@
   color: var(--text);
   margin-bottom: 0.25rem;
 }
-.vital-value.good { color: #22c55e; }
-.vital-value.needs-improvement { color: #f59e0b; }
-.vital-value.poor { color: #ef4444; }
+.vital-value.good { color: var(--success); }
+.vital-value.needs-improvement { color: var(--warning); }
+.vital-value.poor { color: var(--error); }
 .vital-samples {
   font-size: 0.6875rem;
   color: var(--muted);
+  margin-bottom: 0.5rem;
 }
 .vital-bar {
+  height: 4px;
+  border-radius: 2px;
   display: flex;
-  height: 6px;
-  background: var(--bg3);
-  border-radius: 3px;
   overflow: hidden;
-  margin-top: 0.5rem;
+  background: var(--bg);
 }
-.vital-bar span {
-  height: 100%;
-}
-.vital-bar .good { background: #22c55e; }
-.vital-bar .needs-improvement { background: #f59e0b; }
-.vital-bar .poor { background: #ef4444; }
-.vitals-legend {
-  margin-top: 1rem;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-.vitals-legend strong {
-  color: var(--text);
-}
-.empty-state {
+.vital-bar .good { background: var(--success); }
+.vital-bar .needs-improvement { background: var(--warning); }
+.vital-bar .poor { background: var(--error); }
+.empty-state, .loading-state, .error-state {
   text-align: center;
   color: var(--muted);
   padding: 2rem;
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 8px;
-  grid-column: 1 / -1;
+}
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.error-state {
+  color: var(--error);
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

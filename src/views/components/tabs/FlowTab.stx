@@ -1,56 +1,104 @@
-<script server>
+<script>
 /**
- * FlowTab Component
- *
- * Displays user flow visualization.
+ * FlowTab Component - User flow visualization
+ * Uses STX signals for reactive state management
  */
+const flowData = state(null)
+const loading = state(true)
+const error = state(null)
+
+// Computed: entry pages
+const entryPages = derived(() => flowData()?.entryPages || [])
+
+// Computed: top flows/links
+const topFlows = derived(() => flowData()?.flows || [])
+
+// Computed: most visited pages
+const mostVisited = derived(() => flowData()?.mostVisited || [])
+
+// Computed: summary text
+const summary = derived(() => {
+  const data = flowData()
+  if (!data) return ''
+  return `${data.totalSessions || 0} sessions analyzed • ${data.uniquePaths || 0} unique pages visited`
+})
+
+async function fetchFlow() {
+  try {
+    const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/flow${getDateRangeParams()}`)
+    const data = await res.json()
+    flowData.set(data)
+    error.set(null)
+  } catch (e) {
+    error.set(e.message)
+  } finally {
+    loading.set(false)
+  }
+}
+
+onMount(() => {
+  fetchFlow()
+})
 </script>
 
-<template id="flow-tab-template">
-  <div class="tab-panel">
-    <h3 class="tab-title">User Flow</h3>
-    <p id="flow-summary" class="flow-summary"></p>
-    <div class="flow-container">
-      <div class="flow-column" id="flow-entry">
+<div class="tab-panel">
+  <h3 class="tab-title">User Flow</h3>
+
+  <div @if="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <span>Loading...</span>
+  </div>
+
+  <div @if="error()" class="error-state">
+    {{ error() }}
+  </div>
+
+  <div @if="!loading() && !error()">
+    <p @if="summary()" class="flow-summary">{{ summary() }}</p>
+
+    <div @if="entryPages().length === 0 && topFlows().length === 0" class="empty-state">
+      No flow data available. Users need to visit multiple pages in a session.
+    </div>
+
+    <div @if="entryPages().length > 0 || topFlows().length > 0" class="flow-container">
+      <!-- Entry Pages Column -->
+      <div class="flow-column">
         <h4 class="flow-column-title">Entry Pages</h4>
-        <div class="flow-nodes"></div>
+        <div class="flow-nodes">
+          <div @for="page in entryPages()" class="flow-node">
+            <div class="flow-node-path">{{ page.path }}</div>
+            <div class="flow-node-count">{{ page.count }} session{{ page.count !== 1 ? 's' : '' }}</div>
+          </div>
+        </div>
       </div>
-      <div class="flow-column flow-links" id="flow-links">
+
+      <!-- Top Flows Column -->
+      <div class="flow-column flow-links">
         <h4 class="flow-column-title">Top Flows</h4>
-        <div class="flow-connections"></div>
+        <div class="flow-connections">
+          <div @for="flow in topFlows()" class="flow-link">
+            <span class="flow-link-source">{{ flow.source }}</span>
+            <span class="flow-link-arrow">→</span>
+            <span class="flow-link-target">{{ flow.target }}</span>
+            <span class="flow-link-count">{{ flow.count }}</span>
+          </div>
+        </div>
       </div>
-      <div class="flow-column" id="flow-visited">
+
+      <!-- Most Visited Column -->
+      <div class="flow-column">
         <h4 class="flow-column-title">Most Visited</h4>
-        <div class="flow-ranks"></div>
+        <div class="flow-ranks">
+          <div @for="(page, index) in mostVisited()" class="flow-rank">
+            <span class="flow-rank-number">{{ index + 1 }}</span>
+            <span class="flow-rank-path">{{ page.path }}</span>
+            <span class="flow-rank-count">{{ page.count }}</span>
+          </div>
+        </div>
       </div>
     </div>
-    <div id="flow-empty" class="empty-state" style="display:none">No flow data available. Users need to visit multiple pages in a session.</div>
   </div>
-</template>
-
-<template id="flow-node-template">
-  <div class="flow-node">
-    <div class="flow-node-path"></div>
-    <div class="flow-node-count"></div>
-  </div>
-</template>
-
-<template id="flow-link-template">
-  <div class="flow-link">
-    <span class="flow-link-source"></span>
-    <span class="flow-link-arrow">→</span>
-    <span class="flow-link-target"></span>
-    <span class="flow-link-count"></span>
-  </div>
-</template>
-
-<template id="flow-rank-template">
-  <div class="flow-rank">
-    <span class="flow-rank-number"></span>
-    <span class="flow-rank-path"></span>
-    <span class="flow-rank-count"></span>
-  </div>
-</template>
+</div>
 
 <style>
 .tab-panel {
@@ -162,12 +210,32 @@
   font-size: 0.6875rem;
   color: var(--muted);
 }
-.empty-state {
+.empty-state, .loading-state, .error-state {
   text-align: center;
   color: var(--muted);
   padding: 2rem;
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.error-state {
+  color: var(--error);
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

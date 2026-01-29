@@ -1,122 +1,192 @@
-<script server>
+<script>
 /**
- * ErrorsTab Component
- *
- * Displays JavaScript errors with Ignition-style cards.
+ * ErrorsTab Component - Error tracking display
+ * Uses STX signals for reactive state management
  */
+const errors = state([])
+const errorStatuses = state({})
+const statusFilter = state('all')
+const loading = state(true)
+const error = state(null)
+
+const severityLabels = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
+const statusLabels = { new: 'New', resolved: 'Resolved', ignored: 'Ignored', regression: 'Regression' }
+
+// Computed: filtered errors based on status
+const filteredErrors = derived(() => {
+  const filter = statusFilter()
+  const all = errors()
+  if (filter === 'all') return all
+  return all.filter(e => getErrorStatus(e.message) === filter)
+})
+
+// Computed: status counts
+const statusCounts = derived(() => {
+  const counts = { new: 0, resolved: 0, ignored: 0 }
+  errors().forEach(e => {
+    const status = getErrorStatus(e.message)
+    if (counts[status] !== undefined) counts[status]++
+    else counts.new++
+  })
+  return counts
+})
+
+// Computed: severity counts
+const severityCounts = derived(() => {
+  const counts = { critical: 0, high: 0, medium: 0, low: 0 }
+  filteredErrors().forEach(e => {
+    if (counts[e.severity] !== undefined) counts[e.severity]++
+  })
+  return counts
+})
+
+function getErrorId(msg) {
+  return btoa(msg || '').slice(0, 20)
+}
+
+function getErrorStatus(msg) {
+  const id = getErrorId(msg)
+  return errorStatuses()[id]?.status || 'new'
+}
+
+async function fetchErrors() {
+  try {
+    const [errorsRes, statusesRes] = await Promise.all([
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/errors${getDateRangeParams()}`),
+      fetch(`${API_ENDPOINT}/api/sites/${siteId}/errors/statuses`)
+    ])
+    const errorsData = await errorsRes.json()
+    const statusesData = await statusesRes.json()
+
+    errors.set(errorsData.errors || [])
+    errorStatuses.set(statusesData.statuses || {})
+    error.set(null)
+  } catch (e) {
+    error.set(e.message)
+  } finally {
+    loading.set(false)
+  }
+}
+
+async function updateStatus(errorId, newStatus) {
+  try {
+    await fetch(`${API_ENDPOINT}/api/sites/${siteId}/errors/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ errorId: decodeURIComponent(errorId), status: newStatus })
+    })
+    errorStatuses.update(s => ({ ...s, [decodeURIComponent(errorId)]: { status: newStatus } }))
+  } catch (e) {
+    console.error('Failed to update status:', e)
+  }
+}
+
+async function bulkResolve() {
+  if (!confirm('Mark all new errors as resolved?')) return
+  const newErrors = errors().filter(e => getErrorStatus(e.message) === 'new')
+  for (const e of newErrors) {
+    await updateStatus(getErrorId(e.message), 'resolved')
+  }
+}
+
+async function bulkIgnore() {
+  if (!confirm('Ignore all new errors?')) return
+  const newErrors = errors().filter(e => getErrorStatus(e.message) === 'new')
+  for (const e of newErrors) {
+    await updateStatus(getErrorId(e.message), 'ignored')
+  }
+}
+
+onMount(() => {
+  fetchErrors()
+})
 </script>
 
-<template id="errors-tab-template">
-  <div class="tab-panel">
-    <div class="tab-header">
-      <h3 class="tab-title">JavaScript Errors</h3>
-      <div class="errors-actions">
-        <select id="error-status-filter" class="filter-select" onchange="errorStatusFilter=this.value;renderErrors()">
-          <option value="all">All Errors</option>
-          <option value="new">New</option>
-          <option value="resolved">Resolved</option>
-          <option value="ignored">Ignored</option>
-        </select>
-        <button id="bulk-resolve-btn" class="btn btn-resolve" onclick="bulkResolveErrors()">✓ Resolve All New</button>
-        <button id="bulk-ignore-btn" class="btn btn-secondary" onclick="bulkIgnoreErrors()">Ignore All New</button>
-        <span id="errors-count" class="errors-count"></span>
-      </div>
-    </div>
-    <div id="severity-summary" class="severity-summary"></div>
-    <div id="errors-list" class="errors-list">
-      <div class="empty-state">Loading errors...</div>
+<div class="tab-panel">
+  <div class="errors-header">
+    <h3 class="tab-title">Errors</h3>
+    <div class="errors-actions">
+      <select @model="statusFilter">
+        <option value="all">All ({{ errors().length }})</option>
+        <option value="new">New ({{ statusCounts().new }})</option>
+        <option value="resolved">Resolved ({{ statusCounts().resolved }})</option>
+        <option value="ignored">Ignored ({{ statusCounts().ignored }})</option>
+      </select>
+      <button @if="statusCounts().new > 0" @click="bulkResolve" class="btn btn-secondary">Resolve All New</button>
+      <button @if="statusCounts().new > 0" @click="bulkIgnore" class="btn btn-secondary">Ignore All New</button>
     </div>
   </div>
-</template>
 
-<template id="error-card-template">
-  <div class="error-card-wrapper">
-    <a class="error-card">
-      <div class="error-card-gradient">
-        <div class="error-badges">
-          <span class="error-severity"></span>
-          <span class="error-category"></span>
-          <span class="error-status"></span>
-          <span class="error-count"></span>
-        </div>
-        <div class="error-source"></div>
-      </div>
-      <div class="error-message"></div>
-      <div class="error-meta">
-        <span class="error-first-seen"></span>
-        <span class="error-last-seen"></span>
-        <span class="error-browsers"></span>
-        <span class="error-paths"></span>
-      </div>
-      <div class="error-card-footer">
-        <div class="error-actions-inline"></div>
-        <div class="error-view-link">View details <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
-      </div>
-    </a>
+  <div @if="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <span>Loading...</span>
   </div>
-</template>
 
-<template id="severity-card-template">
-  <div class="severity-card">
-    <div class="severity-card-count"></div>
-    <div class="severity-card-label"></div>
+  <div @if="error()" class="error-state">
+    {{ error() }}
   </div>
-</template>
 
-<template id="errors-empty-template">
-  <div class="empty-state">
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-    </svg>
-    <div class="empty-state-title"></div>
-    <div class="empty-state-hint"></div>
+  <div @if="!loading() && !error()">
+    <p class="errors-count">{{ filteredErrors().length }} error{{ filteredErrors().length !== 1 ? 's' : '' }}</p>
+
+    <!-- Severity Summary -->
+    <div class="severity-summary">
+      <div @for="sev in ['critical', 'high', 'medium', 'low']" @class="['severity-card', sev]">
+        <div class="severity-card-count">{{ severityCounts()[sev] }}</div>
+        <div class="severity-card-label">{{ severityLabels[sev] }}</div>
+      </div>
+    </div>
+
+    <!-- Errors List -->
+    <div class="errors-list">
+      <div @if="filteredErrors().length === 0" class="empty-state">
+        <p class="empty-state-title">{{ statusFilter() === 'all' ? 'No errors recorded' : 'No ' + statusFilter() + ' errors' }}</p>
+        <p class="empty-state-hint">{{ statusFilter() === 'all' ? 'Your application is running smoothly!' : 'Try a different filter.' }}</p>
+      </div>
+
+      <div @for="e in filteredErrors()" class="error-card-wrapper">
+        <a :href="`/errors/${encodeURIComponent(getErrorId(e.message))}?siteId=${siteId}`"
+           @class="['error-card', getErrorStatus(e.message) === 'resolved' ? 'resolved' : '', getErrorStatus(e.message) === 'ignored' ? 'ignored' : '']">
+          <div @class="['error-card-gradient', e.severity || 'medium']"></div>
+          <div class="error-card-header">
+            <span class="error-severity">{{ severityLabels[e.severity] || 'Unknown' }}</span>
+            <span class="error-category">{{ e.category || 'Error' }}</span>
+            <span @class="['error-status', getErrorStatus(e.message)]">{{ statusLabels[getErrorStatus(e.message)] || 'New' }}</span>
+            <span class="error-count">{{ e.count }} event{{ e.count !== 1 ? 's' : '' }}</span>
+          </div>
+          <div class="error-source">{{ e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source' }}</div>
+          <div class="error-message">{{ e.message || 'Unknown error' }}</div>
+          <div class="error-meta">
+            <span>First: {{ e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A' }}</span>
+            <span>Last: {{ new Date(e.lastSeen).toLocaleString() }}</span>
+            <span>{{ (e.browsers || []).join(', ') || 'Unknown' }}</span>
+            <span>{{ (e.paths || []).length }} page{{ (e.paths || []).length !== 1 ? 's' : '' }}</span>
+          </div>
+          <div class="error-actions-inline" @click.stop>
+            <button @if="getErrorStatus(e.message) !== 'resolved'" @click.stop="updateStatus(encodeURIComponent(getErrorId(e.message)), 'resolved')" class="btn btn-resolve">✓ Resolve</button>
+            <button @if="getErrorStatus(e.message) !== 'ignored'" @click.stop="updateStatus(encodeURIComponent(getErrorId(e.message)), 'ignored')" class="btn btn-secondary">Ignore</button>
+            <button @if="getErrorStatus(e.message) !== 'new'" @click.stop="updateStatus(encodeURIComponent(getErrorId(e.message)), 'new')" class="btn btn-secondary">Reopen</button>
+          </div>
+        </a>
+      </div>
+    </div>
   </div>
-</template>
-
-<template id="error-first-seen-template">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <circle cx="12" cy="12" r="10"/>
-    <polyline points="12 6 12 12 16 14"/>
-  </svg>
-  <span class="error-meta-text"></span>
-</template>
-
-<template id="error-last-seen-template">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-  </svg>
-  <span class="error-meta-text"></span>
-</template>
-
-<template id="error-browsers-template">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <rect x="2" y="3" width="20" height="14" rx="2"/>
-    <path d="M8 21h8M12 17v4"/>
-  </svg>
-  <span class="error-meta-text"></span>
-</template>
-
-<template id="error-paths-template">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/>
-  </svg>
-  <span class="error-meta-text"></span>
-</template>
+</div>
 
 <style>
 .tab-panel {
   grid-column: 1 / -1;
 }
-.tab-header {
+.errors-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 .tab-title {
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text);
   margin: 0;
@@ -126,205 +196,189 @@
   gap: 0.5rem;
   align-items: center;
 }
+.errors-actions select {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.375rem 0.75rem;
+  color: var(--text);
+  font-size: 0.8125rem;
+}
 .errors-count {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--muted);
+  margin: 0 0 1rem 0;
 }
 .severity-summary {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 .severity-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 1rem;
+  padding: 0.75rem;
   text-align: center;
 }
-.severity-card.critical { background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); }
-.severity-card.high { background: rgba(234, 88, 12, 0.1); border: 1px solid rgba(234, 88, 12, 0.3); }
-.severity-card.medium { background: rgba(217, 119, 6, 0.1); border: 1px solid rgba(217, 119, 6, 0.3); }
-.severity-card.low { background: rgba(101, 163, 13, 0.1); border: 1px solid rgba(101, 163, 13, 0.3); }
+.severity-card.critical { border-left: 3px solid var(--error); }
+.severity-card.high { border-left: 3px solid #f97316; }
+.severity-card.medium { border-left: 3px solid var(--warning); }
+.severity-card.low { border-left: 3px solid var(--muted); }
 .severity-card-count {
-  font-size: 2rem;
+  font-size: 1.25rem;
   font-weight: 700;
+  color: var(--text);
 }
-.severity-card.critical .severity-card-count { color: #dc2626; }
-.severity-card.high .severity-card-count { color: #ea580c; }
-.severity-card.medium .severity-card-count { color: #d97706; }
-.severity-card.low .severity-card-count { color: #65a30d; }
 .severity-card-label {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 .errors-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-}
-.error-card-wrapper {
-  position: relative;
+  gap: 0.75rem;
 }
 .error-card {
   display: block;
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 8px;
+  padding: 1rem;
   text-decoration: none;
-  color: inherit;
-  transition: all 0.15s ease;
+  position: relative;
   overflow: hidden;
-  cursor: pointer;
+  transition: border-color 0.2s;
 }
 .error-card:hover {
-  transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: var(--accent);
 }
-.error-card.resolved { opacity: 0.6; }
-.error-card.ignored { opacity: 0.4; }
+.error-card.resolved {
+  opacity: 0.6;
+}
+.error-card.ignored {
+  opacity: 0.4;
+}
 .error-card-gradient {
-  padding: 1rem;
-  border-radius: 8px 8px 0 0;
-  margin: -1px -1px 1rem -1px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
 }
-.error-card-gradient.critical { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
-.error-card-gradient.high { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); }
-.error-card-gradient.medium { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
-.error-card-gradient.low { background: linear-gradient(135deg, #65a30d 0%, #4d7c0f 100%); }
-.error-badges {
+.error-card-gradient.critical { background: var(--error); }
+.error-card-gradient.high { background: #f97316; }
+.error-card-gradient.medium { background: var(--warning); }
+.error-card-gradient.low { background: var(--muted); }
+.error-card-header {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
   margin-bottom: 0.5rem;
+  flex-wrap: wrap;
 }
 .error-severity {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
   font-size: 0.6875rem;
-  padding: 0.1875rem 0.5rem;
-  border-radius: 9999px;
-  text-transform: uppercase;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 .error-category {
-  background: rgba(0, 0, 0, 0.2);
-  color: rgba(255, 255, 255, 0.9);
   font-size: 0.6875rem;
-  padding: 0.1875rem 0.5rem;
-  border-radius: 9999px;
+  color: var(--muted);
+  background: var(--bg);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
 }
 .error-status {
   font-size: 0.6875rem;
-  padding: 0.1875rem 0.5rem;
-  border-radius: 9999px;
-  text-transform: uppercase;
-  color: white;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
 }
-.error-status.new { background: #3b82f6; }
-.error-status.resolved { background: #22c55e; }
-.error-status.ignored { background: #6b7280; }
+.error-status.new { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+.error-status.resolved { background: rgba(34, 197, 94, 0.2); color: var(--success); }
+.error-status.ignored { background: rgba(156, 163, 175, 0.2); color: var(--muted); }
 .error-count {
+  font-size: 0.6875rem;
+  color: var(--muted);
   margin-left: auto;
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 0.75rem;
 }
 .error-source {
-  color: white;
-  font-size: 0.8125rem;
-  opacity: 0.8;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: monospace;
+  margin-bottom: 0.25rem;
 }
 .error-message {
-  font-size: 0.9375rem;
-  font-weight: 500;
+  font-size: 0.875rem;
   color: var(--text);
-  margin: 0 1rem 0.75rem;
-  line-height: 1.5;
+  margin-bottom: 0.5rem;
+  word-break: break-word;
 }
 .error-meta {
   display: flex;
-  flex-wrap: wrap;
   gap: 1rem;
-  font-size: 0.8125rem;
+  font-size: 0.6875rem;
   color: var(--muted);
-  margin: 0 1rem 0.75rem;
-}
-.error-meta span {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-.error-meta svg {
-  width: 14px;
-  height: 14px;
-}
-.error-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0 1rem 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 .error-actions-inline {
   display: flex;
   gap: 0.5rem;
-}
-.error-view-link {
-  color: var(--accent);
-  font-size: 0.8125rem;
-  display: flex;
-  align-items: center;
-}
-.error-view-link svg {
-  margin-left: 0.25rem;
+  margin-top: 0.75rem;
 }
 .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.6875rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  border: none;
   cursor: pointer;
-  transition: all 0.15s ease;
-  border: 1px solid var(--border);
-  background: var(--bg3);
-  color: var(--text);
-}
-.btn:hover {
-  background: var(--bg);
+  transition: background 0.2s;
 }
 .btn-resolve {
-  background: rgba(34, 197, 94, 0.15);
-  border-color: #22c55e;
-  color: #22c55e;
+  background: var(--success);
+  color: white;
 }
 .btn-secondary {
-  background: var(--bg3);
+  background: var(--bg);
   color: var(--text);
-  border-color: var(--border);
+  border: 1px solid var(--border);
 }
-.empty-state {
+.empty-state, .loading-state, .error-state {
   text-align: center;
   color: var(--muted);
-  padding: 3rem;
+  padding: 2rem;
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-.empty-state svg {
-  margin: 0 auto 1rem;
-  opacity: 0.5;
-}
 .empty-state-title {
-  font-size: 1rem;
-  margin-bottom: 0.5rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
 }
 .empty-state-hint {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+}
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.error-state {
+  color: var(--error);
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

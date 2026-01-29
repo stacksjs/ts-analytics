@@ -1,34 +1,86 @@
-<script server>
+<script>
 /**
- * SessionsTab Component
- *
- * Displays user sessions list.
+ * SessionsTab Component - User sessions display
+ * Uses STX signals for reactive state management
  */
+const sessions = state([])
+const loading = state(true)
+const error = state(null)
+
+function formatDuration(ms) {
+  if (!ms) return '0s'
+  const seconds = Math.floor(ms / 1000)
+  if (seconds < 60) return seconds + 's'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return minutes + 'm ' + (seconds % 60) + 's'
+  const hours = Math.floor(minutes / 60)
+  return hours + 'h ' + (minutes % 60) + 'm'
+}
+
+function timeAgo(timestamp) {
+  if (!timestamp) return 'Just now'
+  const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000)
+  if (seconds < 60) return 'Just now'
+  if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago'
+  if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago'
+  return Math.floor(seconds / 86400) + 'd ago'
+}
+
+async function fetchSessions() {
+  try {
+    const res = await fetch(`${API_ENDPOINT}/api/sites/${siteId}/sessions${getDateRangeParams()}`)
+    const data = await res.json()
+    sessions.set(data.sessions || [])
+    error.set(null)
+  } catch (e) {
+    error.set(e.message)
+  } finally {
+    loading.set(false)
+  }
+}
+
+function viewSession(sessionId) {
+  window.location.href = `/sessions/${sessionId}?siteId=${siteId}`
+}
+
+onMount(() => {
+  fetchSessions()
+})
 </script>
 
-<template id="sessions-tab-template">
-  <div class="tab-panel">
-    <h3 class="tab-title">Sessions (<span id="sessions-count">0</span>)</h3>
-    <div id="sessions-list" class="sessions-list">
-      <div class="empty-state">Loading sessions...</div>
-    </div>
-  </div>
-</template>
+<div class="tab-panel">
+  <h3 class="tab-title">Sessions ({{ sessions().length }})</h3>
 
-<template id="session-card-template">
-  <div class="session-card">
-    <div class="session-card-header">
-      <span class="session-path"></span>
-      <span class="session-time"></span>
+  <div @if="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <span>Loading...</span>
+  </div>
+
+  <div @if="error()" class="error-state">
+    {{ error() }}
+  </div>
+
+  <div @if="!loading() && !error()" class="sessions-list">
+    <div @if="sessions().length === 0" class="empty-state">
+      No sessions recorded yet.
     </div>
-    <div class="session-card-meta">
-      <span class="session-pages"></span>
-      <span class="session-duration"></span>
-      <span class="session-browser"></span>
-      <span class="session-country"></span>
+
+    <div @for="session in sessions()" class="session-card" @click="viewSession(session.sessionId)">
+      <div class="session-card-header">
+        <span class="session-path">{{ session.entryPage || '/' }}</span>
+        <span class="session-time">{{ timeAgo(session.startTime) }}</span>
+      </div>
+      <div class="session-card-meta">
+        <span class="session-pages">{{ session.pageViews || 1 }} page{{ (session.pageViews || 1) !== 1 ? 's' : '' }}</span>
+        <span @class="['session-duration', session.bounced ? 'bounced' : '']">
+          {{ session.bounced ? 'Bounced' : formatDuration(session.duration) }}
+        </span>
+        <span class="session-browser">{{ session.browser || 'Unknown' }}</span>
+        <span class="session-country">{{ session.country || 'Unknown' }}</span>
+      </div>
     </div>
   </div>
-</template>
+</div>
 
 <style>
 .tab-panel {
@@ -80,12 +132,32 @@
 .session-card-meta .bounced {
   color: var(--error);
 }
-.empty-state {
+.empty-state, .loading-state, .error-state {
   text-align: center;
   color: var(--muted);
   padding: 2rem;
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.error-state {
+  color: var(--error);
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

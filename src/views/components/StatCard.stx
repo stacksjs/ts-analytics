@@ -1,0 +1,55 @@
+<script>
+/**
+ * StatCard Component
+ * Displays a statistic with optional change indicator
+ */
+const value = $props.value || '0'
+const label = $props.label || ''
+const change = $props.change
+const id = $props.id || ''
+
+const hasChange = derived(() => change !== undefined && change !== null)
+const isPositive = derived(() => change >= 0)
+const changeClass = derived(() => isPositive() ? 'positive' : 'negative')
+const changeText = derived(() => (isPositive() ? '+' : '') + change + '%')
+</script>
+
+<div class="stat-card">
+  <div class="stat-value" :id="id">{{ value }}</div>
+  <div class="stat-label">{{ label }}</div>
+  <div @if="hasChange()" @class="['stat-change', changeClass()]">
+    {{ changeText() }}
+  </div>
+</div>
+
+<style>
+.stat-card {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  border: 1px solid var(--border);
+}
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.stat-change {
+  font-size: 0.6875rem;
+  margin-top: 0.25rem;
+}
+.stat-change.positive {
+  color: #22c55e;
+}
+.stat-change.negative {
+  color: #ef4444;
+}
+</style>

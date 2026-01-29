@@ -1,82 +1,183 @@
-<script server>
-/**
- * TableRows Component
- *
- * Provides templates for dashboard table rows.
- */
-</script>
+{{-- TableRows Component --}}
+{{-- Provides row rendering for all dashboard tables --}}
 
-<!-- Page Row Template -->
-<template id="page-row-template">
-  <tr>
-    <td class="name page-cell"></td>
-    <td class="value entries-cell"></td>
-    <td class="value visitors-cell"></td>
-    <td class="value views-cell"></td>
-  </tr>
+{{-- Props: type ('pages' | 'referrers' | 'devices' | 'browsers' | 'countries' | 'campaigns') --}}
+{{-- Props: data (array of items to display) --}}
+{{-- Props: loading (boolean) --}}
+
+@ts
+function fmt(n: number): string {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
+  return String(n)
+}
+
+function getFlag(name: string): string {
+  const flags: Record<string, string> = {
+    'United States': '🇺🇸', 'United Kingdom': '🇬🇧', 'Germany': '🇩🇪', 'France': '🇫🇷',
+    'Canada': '🇨🇦', 'Australia': '🇦🇺', 'Japan': '🇯🇵', 'China': '🇨🇳',
+    'India': '🇮🇳', 'Brazil': '🇧🇷', 'Netherlands': '🇳🇱', 'Spain': '🇪🇸',
+    'Italy': '🇮🇹', 'Russia': '🇷🇺', 'South Korea': '🇰🇷', 'Mexico': '🇲🇽',
+    'Indonesia': '🇮🇩', 'Poland': '🇵🇱', 'Sweden': '🇸🇪', 'Switzerland': '🇨🇭'
+  }
+  return flags[name] || '🌍'
+}
+
+function getDomain(source: string): string {
+  return source.replace(/^https?:\/\//, '').split('/')[0]
+}
+
+function isExternalLink(source: string): boolean {
+  const lower = source.toLowerCase()
+  return lower !== 'direct' && !source.includes('(') && source.includes('.')
+}
+@endts
+
+{{-- Pages Table Body --}}
+<template id="pages-table-component">
+  @if(loading)
+    <tr><td colspan="4" class="empty-cell">Loading...</td></tr>
+  @elseif(pages.length === 0)
+    <tr><td colspan="4" class="empty-cell">No page data</td></tr>
+  @else
+    @foreach(pages as page)
+      <tr>
+        <td class="name" title="{{ page.path }}">
+          <a href="{{ page.path }}" target="_blank" rel="noopener" class="page-link">
+            {{ page.path }}
+            <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+            </svg>
+          </a>
+        </td>
+        <td class="value">{{ fmt(page.entries || 0) }}</td>
+        <td class="value">{{ fmt(page.visitors || 0) }}</td>
+        <td class="value">{{ fmt(page.views || 0) }}</td>
+      </tr>
+    @endforeach
+  @endif
 </template>
 
-<!-- Referrer Row Template -->
-<template id="referrer-row-template">
-  <tr>
-    <td class="name referrer-cell"></td>
-    <td class="value visitors-cell"></td>
-    <td class="value views-cell"></td>
-  </tr>
+{{-- Referrers Table Body --}}
+<template id="referrers-table-component">
+  @if(loading)
+    <tr><td colspan="3" class="empty-cell">Loading...</td></tr>
+  @elseif(referrers.length === 0)
+    <tr><td colspan="3" class="empty-cell">No referrer data</td></tr>
+  @else
+    @foreach(referrers as ref)
+      <tr>
+        <td class="name">
+          @if(isExternalLink(ref.source || 'Direct'))
+            <a href="{{ ref.source.startsWith('http') ? ref.source : 'https://' + ref.source }}"
+               target="_blank" rel="noopener" class="referrer-link">
+              <img src="https://www.google.com/s2/favicons?domain={{ getDomain(ref.source) }}&sz=16"
+                   width="14" height="14" class="favicon" onerror="this.style.display='none'" />
+              {{ ref.source || 'Direct' }}
+              <svg class="external-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+              </svg>
+            </a>
+          @else
+            {{ ref.source || 'Direct' }}
+          @endif
+        </td>
+        <td class="value">{{ fmt(ref.visitors || 0) }}</td>
+        <td class="value">{{ fmt(ref.views || 0) }}</td>
+      </tr>
+    @endforeach
+  @endif
 </template>
 
-<!-- Device Row Template -->
-<template id="device-row-template">
-  <tr>
-    <td class="name device-cell"></td>
-    <td class="value visitors-cell"></td>
-    <td class="value pct-cell"></td>
-  </tr>
+{{-- Devices Table Body --}}
+<template id="devices-table-component">
+  @if(loading)
+    <tr><td colspan="3" class="empty-cell">Loading...</td></tr>
+  @elseif(devices.length === 0)
+    <tr><td colspan="3" class="empty-cell">No device data</td></tr>
+  @else
+    @foreach(devices as device)
+      <tr>
+        <td class="name">
+          <svg class="device-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            @if(device.type?.toLowerCase() === 'mobile')
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+            @elseif(device.type?.toLowerCase() === 'tablet')
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+            @else
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            @endif
+          </svg>
+          {{ device.type || 'Unknown' }}
+        </td>
+        <td class="value">{{ fmt(device.visitors || 0) }}</td>
+        <td class="value">{{ device.percentage || 0 }}%</td>
+      </tr>
+    @endforeach
+  @endif
 </template>
 
-<!-- Browser Row Template -->
-<template id="browser-row-template">
-  <tr>
-    <td class="name browser-cell"></td>
-    <td class="value visitors-cell"></td>
-    <td class="value pct-cell"></td>
-  </tr>
+{{-- Browsers Table Body --}}
+<template id="browsers-table-component">
+  @if(loading)
+    <tr><td colspan="3" class="empty-cell">Loading...</td></tr>
+  @elseif(browsers.length === 0)
+    <tr><td colspan="3" class="empty-cell">No browser data</td></tr>
+  @else
+    @foreach(browsers as browser)
+      <tr>
+        <td class="name">{{ browser.name || 'Unknown' }}</td>
+        <td class="value">{{ fmt(browser.visitors || 0) }}</td>
+        <td class="value">{{ browser.percentage || 0 }}%</td>
+      </tr>
+    @endforeach
+  @endif
 </template>
 
-<!-- Country Row Template -->
-<template id="country-row-template">
-  <tr>
-    <td class="name country-cell"></td>
-    <td class="value visitors-cell"></td>
-  </tr>
+{{-- Countries Table Body --}}
+<template id="countries-table-component">
+  @if(loading)
+    <tr><td colspan="2" class="empty-cell">Loading...</td></tr>
+  @elseif(countries.length === 0)
+    <tr><td colspan="2" class="empty-cell">No location data</td></tr>
+  @else
+    @foreach(countries as country)
+      <tr>
+        <td class="name">
+          <span class="country-flag">{{ getFlag(country.name || country.code) }}</span>
+          {{ country.name || country.code || 'Unknown' }}
+        </td>
+        <td class="value">{{ fmt(country.visitors || 0) }}</td>
+      </tr>
+    @endforeach
+  @endif
 </template>
 
-<!-- Campaign Row Template -->
-<template id="campaign-row-template">
-  <tr>
-    <td class="name campaign-cell"></td>
-    <td class="value visitors-cell"></td>
-    <td class="value views-cell"></td>
-  </tr>
-</template>
-
-<!-- Empty Row Templates -->
-<template id="empty-row-4-template">
-  <tr><td colspan="4" class="empty-cell">No data available</td></tr>
-</template>
-
-<template id="empty-row-3-template">
-  <tr><td colspan="3" class="empty-cell">No data available</td></tr>
-</template>
-
-<template id="empty-row-2-template">
-  <tr><td colspan="2" class="empty-cell">No data available</td></tr>
+{{-- Campaigns Table Body --}}
+<template id="campaigns-table-component">
+  @if(loading)
+    <tr><td colspan="3" class="empty-cell">Loading...</td></tr>
+  @elseif(campaigns.length === 0)
+    <tr><td colspan="3" class="empty-cell">No campaign data</td></tr>
+  @else
+    @foreach(campaigns as campaign)
+      <tr>
+        <td class="name">{{ campaign.name || campaign.source || 'Unknown' }}</td>
+        <td class="value">{{ fmt(campaign.visitors || 0) }}</td>
+        <td class="value">{{ fmt(campaign.views || 0) }}</td>
+      </tr>
+    @endforeach
+  @endif
 </template>
 
 <style>
 .name {
   font-weight: 500;
   color: var(--text);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .value {
   text-align: right;
@@ -88,19 +189,7 @@
   color: var(--muted);
   padding: 1rem;
 }
-.page-link {
-  color: inherit;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-}
-.page-link:hover {
-  color: var(--accent);
-}
-.page-link svg {
-  margin-left: 4px;
-  opacity: 0.5;
-}
+.page-link,
 .referrer-link {
   color: inherit;
   text-decoration: none;
@@ -108,17 +197,30 @@
   align-items: center;
   gap: 4px;
 }
+.page-link:hover,
 .referrer-link:hover {
   color: var(--accent);
 }
-.referrer-favicon {
+.page-link svg,
+.external-icon {
+  opacity: 0.5;
+}
+.page-link:hover svg,
+.referrer-link:hover .external-icon {
+  opacity: 1;
+}
+.favicon {
   width: 14px;
   height: 14px;
   vertical-align: middle;
-  margin-right: 6px;
   border-radius: 2px;
 }
 .country-flag {
+  margin-right: 6px;
+}
+.device-icon {
+  color: var(--muted);
+  flex-shrink: 0;
   margin-right: 6px;
 }
 </style>
