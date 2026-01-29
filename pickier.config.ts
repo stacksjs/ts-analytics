@@ -20,6 +20,9 @@ const config: Partial<PickierConfig> = {
     // Disable false positives on TypeScript function signatures
     'regexp/no-unused-capturing-group': 'off',
 
+    // Disable false positives where division operators are misread as regex
+    'regexp/no-super-linear-backtracking': 'off',
+
     // Allow top-level await (supported in Bun and modern Node.js ESM)
     'ts/no-top-level-await': 'off',
 

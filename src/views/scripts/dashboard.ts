@@ -16,7 +16,7 @@ const urlParams = new URLSearchParams(window.location.search)
 const API_ENDPOINT = window.ANALYTICS_API_ENDPOINT || urlParams.get('api') || window.location.origin
 const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
 
-let siteName = "Analytics Dashboard"
+let siteName = 'Analytics Dashboard'
 let siteId = SITE_ID
 let availableSites: any[] = []
 let currentSite: any = null
@@ -81,7 +81,7 @@ function animateValue(element: HTMLElement | null, start: number, end: number, d
 }
 
 const cachedStats = loadCachedStats()
-let stats = cachedStats || { realtime: 0, sessions: 0, people: 0, views: 0, avgTime: "00:00", bounceRate: 0, events: 0 }
+let stats = cachedStats || { realtime: 0, sessions: 0, people: 0, views: 0, avgTime: '00:00', bounceRate: 0, events: 0 }
 let timeSeriesData: any[] = []
 let goals: any[] = []
 let siteHostname: string | null = null
