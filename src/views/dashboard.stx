@@ -89,25 +89,7 @@
     @include('../components/SessionModal.stx')
   </div>
 
-  <!-- Panel Components (custom elements defined by these includes) -->
-  @include('../components/dashboard/PagesPanel.stx')
-  @include('../components/dashboard/ReferrersPanel.stx')
-  @include('../components/dashboard/DevicesPanel.stx')
-  @include('../components/dashboard/BrowsersPanel.stx')
-  @include('../components/dashboard/CountriesPanel.stx')
-  @include('../components/dashboard/CampaignsPanel.stx')
-  @include('../components/dashboard/EventsPanel.stx')
-  @include('../components/dashboard/GoalsPanel.stx')
-
-  <!-- Tab Components (custom elements defined by these includes) -->
-  @include('../components/tabs/SessionsTab.stx')
-  @include('../components/tabs/VitalsTab.stx')
-  @include('../components/tabs/LiveTab.stx')
-  @include('../components/tabs/ErrorsTab.stx')
-  @include('../components/tabs/FunnelsTab.stx')
-  @include('../components/tabs/InsightsTab.stx')
-  @include('../components/tabs/FlowTab.stx')
-  @include('../components/tabs/SettingsTab.stx')
+  <!-- Shared components -->
   @include('../components/shared/EmptyStates.stx')
 </body>
 </html>
