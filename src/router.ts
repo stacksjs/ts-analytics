@@ -71,6 +71,18 @@ export async function createRouter(): Promise<Router> {
   await router.post('/collect', collect.handleCollect)
   await router.post('/t', collect.handleCollect)
 
+  // Error collection (SDK endpoint with token auth)
+  await router.post('/errors/collect', async (req) => {
+    const auth = await apiKeys.handleValidateApiKey(req, 'error-tracking')
+    if (!auth.valid || !auth.siteId || !auth.keyId) {
+      return new Response(JSON.stringify({ error: 'Invalid or missing API key' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    return errors.handleCollectError(req, auth.siteId, auth.keyId)
+  })
+
   // Script serving
   await router.get('/sites/{siteId}/script', (req) => views.handleScript(req, req.params.siteId))
 
@@ -120,6 +132,7 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/sites/{siteId}/errors', (req) => errors.handleGetErrors(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/errors/statuses', (req) => errors.handleGetErrorStatuses(req, req.params.siteId))
   await router.post('/api/sites/{siteId}/errors/status', (req) => errors.handleUpdateErrorStatus(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/errors/{errorId}', (req) => errors.handleGetErrorDetail(req, req.params.siteId, req.params.errorId))
 
   // Performance & Vitals
   await router.get('/api/sites/{siteId}/vitals', (req) => performance.handleGetVitals(req, req.params.siteId))

@@ -20,6 +20,99 @@ function generateApiKey(): string {
 }
 
 /**
+ * Token validation result
+ */
+export interface ApiKeyValidationResult {
+  valid: boolean
+  siteId?: string
+  keyId?: string
+}
+
+// In-memory cache for validated tokens (5-minute TTL)
+const tokenCache = new Map<string, { result: ApiKeyValidationResult; expires: number }>()
+
+/**
+ * Validate an API key from request headers.
+ * Checks X-Analytics-Token or Authorization: Bearer header.
+ * Requires the key to be active and have the specified permission.
+ */
+export async function handleValidateApiKey(
+  request: Request,
+  requiredPermission: string = 'error-tracking',
+): Promise<ApiKeyValidationResult> {
+  const token = request.headers.get('X-Analytics-Token')
+    || request.headers.get('Authorization')?.replace('Bearer ', '')
+
+  if (!token || !token.startsWith('ak_')) {
+    return { valid: false }
+  }
+
+  // Check cache
+  const cached = tokenCache.get(`${token}:${requiredPermission}`)
+  if (cached && cached.expires > Date.now()) {
+    return cached.result
+  }
+
+  try {
+    // Query GSI1 to look up key by value
+    const queryResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'gsi1pk = :pk',
+      ExpressionAttributeValues: {
+        ':pk': { S: `API_KEY#${token}` },
+      },
+    }) as { Items?: any[] }
+
+    if (!queryResult.Items || queryResult.Items.length === 0) {
+      const invalid = { valid: false } as const
+      tokenCache.set(`${token}:${requiredPermission}`, { result: invalid, expires: Date.now() + 60_000 })
+      return invalid
+    }
+
+    const keyRecord = unmarshall(queryResult.Items[0])
+
+    if (!keyRecord.isActive) {
+      return { valid: false }
+    }
+
+    const permissions: string[] = keyRecord.permissions || []
+    if (!permissions.includes(requiredPermission)) {
+      return { valid: false }
+    }
+
+    const result: ApiKeyValidationResult = {
+      valid: true,
+      siteId: keyRecord.siteId,
+      keyId: keyRecord.id,
+    }
+
+    // Cache for 5 minutes
+    tokenCache.set(`${token}:${requiredPermission}`, { result, expires: Date.now() + 5 * 60 * 1000 })
+
+    // Fire-and-forget: update lastUsed and usageCount
+    dynamodb.updateItem({
+      TableName: TABLE_NAME,
+      Key: {
+        pk: { S: `SITE#${keyRecord.siteId}` },
+        sk: { S: `API_KEY#${keyRecord.id}` },
+      },
+      UpdateExpression: 'SET lastUsed = :now, usageCount = if_not_exists(usageCount, :zero) + :one',
+      ExpressionAttributeValues: {
+        ':now': { S: new Date().toISOString() },
+        ':zero': { N: '0' },
+        ':one': { N: '1' },
+      },
+    }).catch(e => console.error('Failed to update API key usage:', e))
+
+    return result
+  } catch (error) {
+    console.error('Validate API key error:', error)
+    return { valid: false }
+  }
+}
+
+/**
  * POST /api/sites/{siteId}/api-keys
  */
 export async function handleCreateApiKey(request: Request, siteId: string): Promise<Response> {
@@ -35,6 +128,8 @@ export async function handleCreateApiKey(request: Request, siteId: string): Prom
     const keyRecord = {
       pk: `SITE#${siteId}`,
       sk: `API_KEY#${keyId}`,
+      gsi1pk: `API_KEY#${apiKey}`,
+      gsi1sk: `SITE#${siteId}`,
       id: keyId,
       siteId,
       name: body.name,

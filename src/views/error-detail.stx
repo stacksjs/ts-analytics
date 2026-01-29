@@ -21,9 +21,29 @@ function getStatusClass(status) {
   return 'status-open'
 }
 
+function getSeverityClass(severity) {
+  if (severity === 'critical') return 'severity-critical'
+  if (severity === 'high') return 'severity-high'
+  if (severity === 'medium') return 'severity-medium'
+  return 'severity-low'
+}
+
 async function loadErrorDetails() {
   loading.set(true)
   try {
+    // Try the new detail endpoint first
+    const detailRes = await fetch(`${API}/api/sites/${SITE_ID}/errors/${encodeURIComponent(ERROR_ID)}`)
+    if (detailRes.ok) {
+      const data = await detailRes.json()
+      if (data.error) {
+        errorData.set(data.error)
+        error.set(null)
+        loading.set(false)
+        return
+      }
+    }
+
+    // Fallback to legacy query
     const res = await fetch(`${API}/api/sites/${SITE_ID}/errors?errorId=${encodeURIComponent(ERROR_ID)}`)
     if (!res.ok) throw new Error('Failed to load')
     const data = await res.json()
@@ -54,6 +74,26 @@ async function updateStatus(newStatus) {
 function formatDate(timestamp) {
   if (!timestamp) return 'N/A'
   return new Date(timestamp).toLocaleString()
+}
+
+function formatRelativeTime(timestamp) {
+  if (!timestamp) return ''
+  const diff = Date.now() - new Date(timestamp).getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
+function getBreadcrumbIcon(type) {
+  if (type === 'navigation') return '🔗'
+  if (type === 'ui') return '👆'
+  if (type === 'console') return '📋'
+  if (type === 'http') return '🌐'
+  if (type === 'error') return '⚠'
+  return '•'
 }
 
 onMount(() => {
@@ -94,59 +134,158 @@ onMount(() => {
       {{ error() }}
     </div>
 
-    <div @if="!loading() && !error() && errorData()" class="error-card">
-      <div class="error-card-header">
-        <h3 class="error-message">{{ errorData().message || 'Unknown Error' }}</h3>
-        <span @class="['error-status-badge', getStatusClass(errorData().status)]">
-          {{ errorData().status || 'open' }}
-        </span>
+    <div @if="!loading() && !error() && errorData()" class="error-detail-content">
+      <!-- Header Card -->
+      <div class="error-card">
+        <div class="error-card-header">
+          <h3 class="error-message">{{ errorData().message || 'Unknown Error' }}</h3>
+          <div class="error-badges">
+            <span @if="errorData().severity" @class="['severity-badge', getSeverityClass(errorData().severity)]">
+              {{ errorData().severity }}
+            </span>
+            <span @if="errorData().category" class="category-badge">
+              {{ errorData().category }}
+            </span>
+            <span @class="['error-status-badge', getStatusClass(errorData().status)]">
+              {{ errorData().status || 'open' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="error-actions">
+          <button
+            @if="errorData().status !== 'resolved'"
+            @click="updateStatus('resolved')"
+            class="btn btn-resolve"
+          >Mark Resolved</button>
+          <button
+            @if="errorData().status !== 'ignored'"
+            @click="updateStatus('ignored')"
+            class="btn btn-secondary"
+          >Ignore</button>
+          <button
+            @if="errorData().status !== 'open'"
+            @click="updateStatus('open')"
+            class="btn btn-primary"
+          >Reopen</button>
+        </div>
       </div>
 
+      <!-- Overview Grid -->
       <div class="error-meta-grid">
         <div class="meta-card">
           <div class="meta-label">First Seen</div>
-          <div class="meta-value">{{ formatDate(errorData().firstSeen || errorData().timestamp) }}</div>
+          <div class="meta-value">{{ formatDate(errorData().firstSeen) }}</div>
         </div>
         <div class="meta-card">
           <div class="meta-label">Last Seen</div>
-          <div class="meta-value">{{ formatDate(errorData().lastSeen || errorData().timestamp) }}</div>
+          <div class="meta-value">{{ formatDate(errorData().lastSeen) }}</div>
         </div>
         <div class="meta-card">
           <div class="meta-label">Occurrences</div>
           <div class="meta-value">{{ errorData().count || 1 }}</div>
         </div>
         <div class="meta-card">
-          <div class="meta-label">Browser</div>
-          <div class="meta-value">{{ errorData().browser || 'Unknown' }}</div>
+          <div class="meta-label">Browsers</div>
+          <div class="meta-value">{{ (errorData().browsers || []).join(', ') || 'Unknown' }}</div>
         </div>
         <div class="meta-card">
-          <div class="meta-label">Device</div>
-          <div class="meta-value">{{ errorData().deviceType || 'Unknown' }}</div>
+          <div class="meta-label">Devices</div>
+          <div class="meta-value">{{ (errorData().devices || []).join(', ') || errorData().latestOccurrence?.deviceType || 'Unknown' }}</div>
         </div>
         <div class="meta-card">
-          <div class="meta-label">Page</div>
-          <div class="meta-value truncate">{{ errorData().path || errorData().url || 'Unknown' }}</div>
+          <div class="meta-label">Frameworks</div>
+          <div class="meta-value">{{ (errorData().frameworks || []).join(', ') || errorData().latestOccurrence?.framework || 'Unknown' }}</div>
         </div>
       </div>
 
-      <pre @if="errorData().stack" class="error-stack">{{ errorData().stack }}</pre>
+      <!-- Latest Occurrence Details -->
+      <div @if="errorData().latestOccurrence" class="section">
+        <h4 class="section-title">Latest Occurrence</h4>
+        <div class="error-meta-grid">
+          <div class="meta-card">
+            <div class="meta-label">URL</div>
+            <div class="meta-value truncate">{{ errorData().latestOccurrence.url || 'Unknown' }}</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-label">Browser</div>
+            <div class="meta-value">{{ errorData().latestOccurrence.browser || '' }} {{ errorData().latestOccurrence.browserVersion || '' }}</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-label">OS</div>
+            <div class="meta-value">{{ errorData().latestOccurrence.os || '' }} {{ errorData().latestOccurrence.osVersion || '' }}</div>
+          </div>
+          <div @if="errorData().latestOccurrence.environment" class="meta-card">
+            <div class="meta-label">Environment</div>
+            <div class="meta-value">{{ errorData().latestOccurrence.environment }}</div>
+          </div>
+          <div @if="errorData().latestOccurrence.framework" class="meta-card">
+            <div class="meta-label">Framework</div>
+            <div class="meta-value">{{ errorData().latestOccurrence.framework }}</div>
+          </div>
+          <div @if="errorData().latestOccurrence.componentName" class="meta-card">
+            <div class="meta-label">Component</div>
+            <div class="meta-value">{{ errorData().latestOccurrence.componentName }}</div>
+          </div>
+        </div>
 
-      <div class="error-actions">
-        <button
-          @if="errorData().status !== 'resolved'"
-          @click="updateStatus('resolved')"
-          class="btn btn-resolve"
-        >Mark Resolved</button>
-        <button
-          @if="errorData().status !== 'ignored'"
-          @click="updateStatus('ignored')"
-          class="btn btn-secondary"
-        >Ignore</button>
-        <button
-          @if="errorData().status !== 'open'"
-          @click="updateStatus('open')"
-          class="btn btn-primary"
-        >Reopen</button>
+        <!-- Tags -->
+        <div @if="errorData().latestOccurrence.tags && Object.keys(errorData().latestOccurrence.tags).length > 0" class="tags-section">
+          <h5 class="subsection-title">Tags</h5>
+          <div class="tags-list">
+            <span @for="key in Object.keys(errorData().latestOccurrence.tags)" class="tag">
+              {{ key }}: {{ errorData().latestOccurrence.tags[key] }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stack Trace -->
+      <div @if="errorData().latestOccurrence?.stack || errorData().stack" class="section">
+        <h4 class="section-title">Stack Trace</h4>
+        <pre class="error-stack">{{ errorData().latestOccurrence?.stack || errorData().stack }}</pre>
+      </div>
+
+      <!-- Breadcrumbs -->
+      <div @if="errorData().latestOccurrence?.breadcrumbs && errorData().latestOccurrence.breadcrumbs.length > 0" class="section">
+        <h4 class="section-title">Breadcrumbs</h4>
+        <div class="breadcrumbs-timeline">
+          <div @for="bc in errorData().latestOccurrence.breadcrumbs" class="breadcrumb-item">
+            <span class="breadcrumb-icon">{{ getBreadcrumbIcon(bc.type) }}</span>
+            <div class="breadcrumb-content">
+              <span class="breadcrumb-category">{{ bc.category }}</span>
+              <span class="breadcrumb-message">{{ bc.message }}</span>
+            </div>
+            <span class="breadcrumb-time">{{ formatRelativeTime(bc.timestamp) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Affected URLs -->
+      <div @if="errorData().affectedUrls && errorData().affectedUrls.length > 0" class="section">
+        <h4 class="section-title">Affected URLs</h4>
+        <ul class="url-list">
+          <li @for="url in errorData().affectedUrls" class="url-item">{{ url }}</li>
+        </ul>
+      </div>
+
+      <!-- Recent Occurrences Timeline -->
+      <div @if="errorData().recentOccurrences && errorData().recentOccurrences.length > 0" class="section">
+        <h4 class="section-title">Recent Occurrences</h4>
+        <div class="occurrences-table">
+          <div class="occurrence-header">
+            <span>Time</span>
+            <span>Browser</span>
+            <span>OS</span>
+            <span>URL</span>
+          </div>
+          <div @for="occ in errorData().recentOccurrences" class="occurrence-row">
+            <span>{{ formatRelativeTime(occ.timestamp) }}</span>
+            <span>{{ occ.browser || 'Unknown' }}</span>
+            <span>{{ occ.os || 'Unknown' }}</span>
+            <span class="truncate">{{ occ.url || '' }}</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -164,6 +303,7 @@ onMount(() => {
   --accent: #3b82f6;
   --error: #ef4444;
   --success: #10b981;
+  --warning: #f59e0b;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body.error-detail-page {
@@ -211,6 +351,11 @@ body.error-detail-page {
   word-break: break-all;
   margin-bottom: 1.5rem;
 }
+.error-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
 .error-card {
   background: var(--bg2);
   border-radius: 8px;
@@ -222,12 +367,49 @@ body.error-detail-page {
   align-items: flex-start;
   margin-bottom: 1rem;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 .error-message {
   font-size: 1.125rem;
   font-weight: 500;
   color: var(--error);
   flex: 1;
+  min-width: 200px;
+}
+.error-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.severity-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.severity-critical {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+.severity-high {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fdba74;
+}
+.severity-medium {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+.severity-low {
+  background: rgba(156, 163, 175, 0.2);
+  color: #d1d5db;
+}
+.category-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  background: var(--bg3);
+  color: var(--muted);
 }
 .error-status-badge {
   padding: 0.25rem 0.5rem;
@@ -251,8 +433,7 @@ body.error-detail-page {
 .error-meta-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 0.75rem;
 }
 @media (min-width: 768px) {
   .error-meta-grid {
@@ -260,7 +441,8 @@ body.error-detail-page {
   }
 }
 .meta-card {
-  background: var(--bg);
+  background: var(--bg2);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.75rem;
 }
@@ -279,20 +461,135 @@ body.error-detail-page {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.section {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+.subsection-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+.tags-section {
+  margin-top: 0.5rem;
+}
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.tag {
+  background: var(--bg3);
+  color: var(--muted);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: monospace;
+}
 .error-stack {
   background: var(--bg);
   border-radius: 6px;
   padding: 1rem;
   font-size: 0.8125rem;
   overflow-x: auto;
-  margin-top: 1rem;
   white-space: pre-wrap;
   word-break: break-word;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  line-height: 1.6;
+}
+.breadcrumbs-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+}
+.breadcrumb-icon {
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+.breadcrumb-content {
+  flex: 1;
+  min-width: 0;
+}
+.breadcrumb-category {
+  color: var(--accent);
+  font-weight: 500;
+  margin-right: 0.5rem;
+}
+.breadcrumb-message {
+  color: var(--text);
+  word-break: break-word;
+}
+.breadcrumb-time {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.url-list {
+  list-style: none;
+}
+.url-item {
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  font-family: monospace;
+  word-break: break-all;
+}
+.occurrences-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.occurrence-header {
+  display: grid;
+  grid-template-columns: 100px 120px 100px 1fr;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  background: var(--bg3);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.occurrence-row {
+  display: grid;
+  grid-template-columns: 100px 120px 100px 1fr;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  border-top: 1px solid var(--border);
+}
+.occurrence-row .truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .error-actions {
   display: flex;
   gap: 0.5rem;
-  margin-top: 1rem;
 }
 .btn {
   padding: 0.5rem 1rem;

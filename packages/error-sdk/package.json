@@ -1,0 +1,21 @@
+{
+  "name": "@stacksjs/error-tracker",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./vue": "./src/vue.ts",
+    "./nuxt": "./src/nuxt.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "peerDependencies": {
+    "vue": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vue": {
+      "optional": true
+    }
+  }
+}

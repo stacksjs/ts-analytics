@@ -182,7 +182,7 @@ const router = new Router({ verbose: true })
 await router.use(cors({
   origin: CORS_ORIGINS.includes('*') ? '*' : CORS_ORIGINS,
   methods: ['GET', 'POST', 'OPTIONS'],
-  headers: ['Content-Type', 'Authorization'],
+  headers: ['Content-Type', 'Authorization', 'X-Analytics-Token'],
 }))
 
 // Health check
