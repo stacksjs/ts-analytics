@@ -116,7 +116,7 @@ window.refreshEventsPanel = fetchEvents
 .empty-state {
   text-align: center;
   color: var(--muted);
-  padding: 1.5rem;
+  padding: 1rem 0;
   font-size: 0.8125rem;
 }
 .events-list {

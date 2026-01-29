@@ -108,15 +108,15 @@ onMount(() => {
 <div class="tab-panel">
   <div class="errors-header">
     <h3 class="tab-title">Errors</h3>
-    <div class="errors-actions">
+    <div @if="errors().length > 0" class="errors-actions">
       <select @model="statusFilter">
         <option value="all">All ({{ errors().length }})</option>
         <option value="new">New ({{ statusCounts().new }})</option>
         <option value="resolved">Resolved ({{ statusCounts().resolved }})</option>
         <option value="ignored">Ignored ({{ statusCounts().ignored }})</option>
       </select>
-      <button @if="statusCounts().new > 0" @click="bulkResolve" class="btn btn-secondary">Resolve All New</button>
-      <button @if="statusCounts().new > 0" @click="bulkIgnore" class="btn btn-secondary">Ignore All New</button>
+      <button @if="statusCounts().new > 0" @click="bulkResolve" class="btn btn-secondary">Resolve All</button>
+      <button @if="statusCounts().new > 0" @click="bulkIgnore" class="btn btn-secondary">Ignore All</button>
     </div>
   </div>
 
@@ -129,7 +129,15 @@ onMount(() => {
     {{ error() }}
   </div>
 
-  <div @if="!loading() && !error()">
+  <div @if="!loading() && !error() && errors().length === 0" class="empty-state-centered">
+    <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity: 0.5">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <p class="empty-state-title">No errors recorded</p>
+    <p class="empty-state-hint">Your application is running smoothly!</p>
+  </div>
+
+  <div @if="!loading() && !error() && errors().length > 0">
     <p class="errors-count">{{ filteredErrors().length }} error{{ filteredErrors().length !== 1 ? 's' : '' }}</p>
 
     <!-- Severity Summary -->
@@ -143,8 +151,8 @@ onMount(() => {
     <!-- Errors List -->
     <div class="errors-list">
       <div @if="filteredErrors().length === 0" class="empty-state">
-        <p class="empty-state-title">{{ statusFilter() === 'all' ? 'No errors recorded' : 'No ' + statusFilter() + ' errors' }}</p>
-        <p class="empty-state-hint">{{ statusFilter() === 'all' ? 'Your application is running smoothly!' : 'Try a different filter.' }}</p>
+        <p class="empty-state-title">No {{ statusFilter() }} errors</p>
+        <p class="empty-state-hint">Try a different filter.</p>
       </div>
 
       <div @for="e in filteredErrors()" class="error-card-wrapper">
@@ -349,6 +357,18 @@ onMount(() => {
   color: var(--text);
   border: 1px solid var(--border);
 }
+.empty-state-centered {
+  text-align: center;
+  color: var(--muted);
+  padding: 3rem 2rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
 .empty-state, .loading-state, .error-state {
   text-align: center;
   color: var(--muted);
@@ -382,6 +402,6 @@ onMount(() => {
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to { transform: rotate(-360deg); }
 }
 </style>

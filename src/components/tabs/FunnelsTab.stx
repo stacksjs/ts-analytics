@@ -107,7 +107,7 @@ onMount(() => {
   <div @if="!currentAnalysis()">
     <div class="tab-header">
       <h3 class="tab-title">Conversion Funnels</h3>
-      <button class="btn btn-primary" @click="showCreateFunnelModal">
+      <button @if="funnels().length > 0" class="btn btn-primary" @click="showCreateFunnelModal">
         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>
@@ -126,8 +126,17 @@ onMount(() => {
 
     <div @if="!loading() && !error()" class="funnels-list">
       <div @if="funnels().length === 0" class="empty-state">
-        <p>No funnels configured yet.</p>
+        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-bottom: 1rem; opacity: 0.5">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+        </svg>
+        <p>No funnels configured yet</p>
         <p class="empty-state-hint">Create a funnel to track conversion rates through your key user flows.</p>
+        <button class="btn btn-primary" style="margin-top: 1rem" @click="showCreateFunnelModal">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          Create Your First Funnel
+        </button>
       </div>
 
       <div @for="funnel in funnels()" class="funnel-card">
@@ -481,6 +490,6 @@ onMount(() => {
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to { transform: rotate(-360deg); }
 }
 </style>
