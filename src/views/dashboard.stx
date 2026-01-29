@@ -73,33 +73,41 @@
         <goals-panel />
       </div>
 
-      <div id="tab-content" class="hidden"></div>
+      <!-- Tab Content Area - Each tab component is shown/hidden by switchTab() -->
+      <div id="tab-sessions" class="tab-view hidden"><sessions-tab /></div>
+      <div id="tab-vitals" class="tab-view hidden"><vitals-tab /></div>
+      <div id="tab-errors" class="tab-view hidden"><errors-tab /></div>
+      <div id="tab-insights" class="tab-view hidden"><insights-tab /></div>
+      <div id="tab-live" class="tab-view hidden"><live-tab /></div>
+      <div id="tab-funnels" class="tab-view hidden"><funnels-tab /></div>
+      <div id="tab-flow" class="tab-view hidden"><flow-tab /></div>
+      <div id="tab-settings" class="tab-view hidden"><settings-tab /></div>
     </div>
 
-    @include('components/dashboard/GoalModal.stx')
+    @include('../components/dashboard/GoalModal.stx')
+    @include('../components/Modal.stx')
+    @include('../components/SessionModal.stx')
   </div>
 
-  <!-- Panel Components -->
-  @include('components/dashboard/PagesPanel.stx')
-  @include('components/dashboard/ReferrersPanel.stx')
-  @include('components/dashboard/DevicesPanel.stx')
-  @include('components/dashboard/BrowsersPanel.stx')
-  @include('components/dashboard/CountriesPanel.stx')
-  @include('components/dashboard/CampaignsPanel.stx')
-  @include('components/dashboard/EventsPanel.stx')
-  @include('components/dashboard/GoalsPanel.stx')
+  <!-- Panel Components (custom elements defined by these includes) -->
+  @include('../components/dashboard/PagesPanel.stx')
+  @include('../components/dashboard/ReferrersPanel.stx')
+  @include('../components/dashboard/DevicesPanel.stx')
+  @include('../components/dashboard/BrowsersPanel.stx')
+  @include('../components/dashboard/CountriesPanel.stx')
+  @include('../components/dashboard/CampaignsPanel.stx')
+  @include('../components/dashboard/EventsPanel.stx')
+  @include('../components/dashboard/GoalsPanel.stx')
 
-  <!-- Tab Templates -->
-  @include('components/Modal.stx')
-  @include('components/SessionModal.stx')
-  @include('components/tabs/SessionsTab.stx')
-  @include('components/tabs/VitalsTab.stx')
-  @include('components/tabs/LiveTab.stx')
-  @include('components/tabs/ErrorsTab.stx')
-  @include('components/tabs/FunnelsTab.stx')
-  @include('components/tabs/InsightsTab.stx')
-  @include('components/tabs/FlowTab.stx')
-  @include('components/tabs/SettingsTab.stx')
-  @include('components/shared/EmptyStates.stx')
+  <!-- Tab Components (custom elements defined by these includes) -->
+  @include('../components/tabs/SessionsTab.stx')
+  @include('../components/tabs/VitalsTab.stx')
+  @include('../components/tabs/LiveTab.stx')
+  @include('../components/tabs/ErrorsTab.stx')
+  @include('../components/tabs/FunnelsTab.stx')
+  @include('../components/tabs/InsightsTab.stx')
+  @include('../components/tabs/FlowTab.stx')
+  @include('../components/tabs/SettingsTab.stx')
+  @include('../components/shared/EmptyStates.stx')
 </body>
 </html>
