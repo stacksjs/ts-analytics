@@ -28,8 +28,8 @@
               @endif
               {{ ref.source }}
             </td>
-            <td class="value">{{ formatNumber(ref.visitors) }}</td>
-            <td class="value">{{ formatNumber(ref.views) }}</td>
+            <td class="value">{{ ref.visitors | fmt }}</td>
+            <td class="value">{{ ref.views | fmt }}</td>
           </tr>
         @empty
           <tr>
@@ -53,8 +53,8 @@
         @forelse(sources as src)
           <tr>
             <td class="name">{{ src.name }}</td>
-            <td class="value">{{ formatNumber(src.visitors) }}</td>
-            <td class="value">{{ formatNumber(src.views) }}</td>
+            <td class="value">{{ src.visitors | fmt }}</td>
+            <td class="value">{{ src.views | fmt }}</td>
           </tr>
         @empty
           <tr>
@@ -66,13 +66,6 @@
   </div>
 </div>
 
-@ts
-function formatNumber(num: number): string {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
-  return num.toString()
-}
-@endts
 
 <script>
   document.querySelectorAll('.data-panel').forEach(panel => {

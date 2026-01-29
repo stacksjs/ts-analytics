@@ -2,12 +2,6 @@
 {{-- Props: events (array of {name, count}), loading (boolean) --}}
 
 @ts
-function fmt(n: number): string {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 function getTotalCount(events: Array<{count?: number}>): number {
   return events.reduce((sum, e) => sum + (e.count || 0), 0)
 }
@@ -43,7 +37,7 @@ function getBarWidth(count: number, max: number): number {
               <div class="event-bar-fill" style="width: {{ getBarWidth(event.count || 0, getMaxCount(events)) }}%"></div>
             </div>
           </div>
-          <span class="event-bar-count">{{ fmt(event.count || 0) }}</span>
+          <span class="event-bar-count">{{ event.count || 0 | fmt }}</span>
         </div>
       @endforeach
     </div>

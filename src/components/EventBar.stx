@@ -8,11 +8,6 @@ const count = $props.count || 0
 const percentage = $props.percentage || 0
 const barWidth = $props.barWidth || 0
 
-function fmt(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
 </script>
 
 <div class="event-bar-item">
@@ -23,7 +18,7 @@ function fmt(n) {
   <div class="event-bar">
     <div class="event-bar-fill" @style="{ width: barWidth + '%' }"></div>
   </div>
-  <div class="event-bar-count">{{ fmt(count) }}</div>
+  <div class="event-bar-count">{{ count | fmt }}</div>
 </div>
 
 <style>

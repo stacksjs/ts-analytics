@@ -33,8 +33,8 @@
         @forelse(campaigns as item)
           <tr>
             <td class="name" title="{{ item.name }}">{{ item.name }}</td>
-            <td class="value">{{ formatNumber(item.visitors) }}</td>
-            <td class="value">{{ formatNumber(item.views) }}</td>
+            <td class="value">{{ item.visitors | fmt }}</td>
+            <td class="value">{{ item.views | fmt }}</td>
           </tr>
         @empty
           <tr>
@@ -59,8 +59,8 @@
         @forelse(sources as item)
           <tr>
             <td class="name" title="{{ item.name }}">{{ item.name }}</td>
-            <td class="value">{{ formatNumber(item.visitors) }}</td>
-            <td class="value">{{ formatNumber(item.views) }}</td>
+            <td class="value">{{ item.visitors | fmt }}</td>
+            <td class="value">{{ item.views | fmt }}</td>
           </tr>
         @empty
           <tr>
@@ -85,8 +85,8 @@
         @forelse(mediums as item)
           <tr>
             <td class="name" title="{{ item.name }}">{{ item.name }}</td>
-            <td class="value">{{ formatNumber(item.visitors) }}</td>
-            <td class="value">{{ formatNumber(item.views) }}</td>
+            <td class="value">{{ item.visitors | fmt }}</td>
+            <td class="value">{{ item.views | fmt }}</td>
           </tr>
         @empty
           <tr>
@@ -111,8 +111,8 @@
         @forelse(contents as item)
           <tr>
             <td class="name" title="{{ item.name }}">{{ item.name }}</td>
-            <td class="value">{{ formatNumber(item.visitors) }}</td>
-            <td class="value">{{ formatNumber(item.views) }}</td>
+            <td class="value">{{ item.visitors | fmt }}</td>
+            <td class="value">{{ item.views | fmt }}</td>
           </tr>
         @empty
           <tr>
@@ -137,8 +137,8 @@
         @forelse(terms as item)
           <tr>
             <td class="name" title="{{ item.name }}">{{ item.name }}</td>
-            <td class="value">{{ formatNumber(item.visitors) }}</td>
-            <td class="value">{{ formatNumber(item.views) }}</td>
+            <td class="value">{{ item.visitors | fmt }}</td>
+            <td class="value">{{ item.views | fmt }}</td>
           </tr>
         @empty
           <tr>
@@ -150,13 +150,6 @@
   </div>
 </div>
 
-@ts
-function formatNumber(num: number): string {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
-  return num.toString()
-}
-@endts
 
 <style>
 .data-panel {

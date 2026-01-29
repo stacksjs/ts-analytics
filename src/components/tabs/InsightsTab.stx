@@ -20,10 +20,6 @@ function getIconPath(type) {
   return iconTypes[type] || iconTypes.traffic
 }
 
-function fmt(n) {
-  return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n)
-}
-
 async function fetchInsights() {
   const siteId = window.siteId
   if (!siteId) { loading.set(false); return }
@@ -66,7 +62,7 @@ onMount(() => {
     <!-- Stats Cards -->
     <div @if="comparisonStats()" class="insights-stats">
       <div class="insights-stat">
-        <div class="insights-stat-value">{{ fmt(comparisonStats().thisWeekViews) }}</div>
+        <div class="insights-stat-value">{{ comparisonStats().thisWeekViews | fmt }}</div>
         <div class="insights-stat-label">Views This Week</div>
         <div @if="comparisonStats().change !== 0"
              @class="['insights-stat-change', comparisonStats().change > 0 ? 'positive' : 'negative']">
@@ -74,7 +70,7 @@ onMount(() => {
         </div>
       </div>
       <div class="insights-stat">
-        <div class="insights-stat-value">{{ fmt(comparisonStats().lastWeekViews) }}</div>
+        <div class="insights-stat-value">{{ comparisonStats().lastWeekViews | fmt }}</div>
         <div class="insights-stat-label">Views Last Week</div>
       </div>
       <div class="insights-stat">

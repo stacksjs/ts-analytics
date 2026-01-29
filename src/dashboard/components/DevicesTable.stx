@@ -45,7 +45,7 @@
               @endswitch
               {{ device.type }}
             </td>
-            <td class="value">{{ formatNumber(device.visitors) }}</td>
+            <td class="value">{{ device.visitors | fmt }}</td>
           </tr>
         @empty
           <tr>
@@ -68,7 +68,7 @@
         @forelse(operatingSystems as os)
           <tr>
             <td class="name">{{ os.name }}</td>
-            <td class="value">{{ formatNumber(os.visitors) }}</td>
+            <td class="value">{{ os.visitors | fmt }}</td>
           </tr>
         @empty
           <tr>
@@ -80,13 +80,6 @@
   </div>
 </div>
 
-@ts
-function formatNumber(num: number): string {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
-  return num.toString()
-}
-@endts
 
 <style>
 .data-panel {

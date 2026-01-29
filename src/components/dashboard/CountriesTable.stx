@@ -11,12 +11,6 @@ effect(() => {
   if ($props.loading !== undefined) loading.set($props.loading)
 })
 
-function fmt(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 // Simple country code to flag emoji converter
 function getFlag(name) {
   const countryFlags = {
@@ -50,7 +44,7 @@ function getFlag(name) {
           <span class="flag">{{ getFlag(country.name || country.code) }}</span>
           {{ country.name || country.code || 'Unknown' }}
         </td>
-        <td class="value">{{ fmt(country.visitors || 0) }}</td>
+        <td class="value">{{ country.visitors || 0 | fmt }}</td>
       </tr>
     </tbody>
   </table>

@@ -6,12 +6,6 @@
 {{-- Props: loading (boolean) --}}
 
 @ts
-function fmt(n: number): string {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 function getFlag(name: string): string {
   const flags: Record<string, string> = {
     'United States': '🇺🇸', 'United Kingdom': '🇬🇧', 'Germany': '🇩🇪', 'France': '🇫🇷',
@@ -50,9 +44,9 @@ function isExternalLink(source: string): boolean {
             </svg>
           </a>
         </td>
-        <td class="value">{{ fmt(page.entries || 0) }}</td>
-        <td class="value">{{ fmt(page.visitors || 0) }}</td>
-        <td class="value">{{ fmt(page.views || 0) }}</td>
+        <td class="value">{{ page.entries || 0 | fmt }}</td>
+        <td class="value">{{ page.visitors || 0 | fmt }}</td>
+        <td class="value">{{ page.views || 0 | fmt }}</td>
       </tr>
     @endforeach
   @endif
@@ -82,8 +76,8 @@ function isExternalLink(source: string): boolean {
             {{ ref.source || 'Direct' }}
           @endif
         </td>
-        <td class="value">{{ fmt(ref.visitors || 0) }}</td>
-        <td class="value">{{ fmt(ref.views || 0) }}</td>
+        <td class="value">{{ ref.visitors || 0 | fmt }}</td>
+        <td class="value">{{ ref.views || 0 | fmt }}</td>
       </tr>
     @endforeach
   @endif
@@ -110,7 +104,7 @@ function isExternalLink(source: string): boolean {
           </svg>
           {{ device.type || 'Unknown' }}
         </td>
-        <td class="value">{{ fmt(device.visitors || 0) }}</td>
+        <td class="value">{{ device.visitors || 0 | fmt }}</td>
         <td class="value">{{ device.percentage || 0 }}%</td>
       </tr>
     @endforeach
@@ -127,7 +121,7 @@ function isExternalLink(source: string): boolean {
     @foreach(browsers as browser)
       <tr>
         <td class="name">{{ browser.name || 'Unknown' }}</td>
-        <td class="value">{{ fmt(browser.visitors || 0) }}</td>
+        <td class="value">{{ browser.visitors || 0 | fmt }}</td>
         <td class="value">{{ browser.percentage || 0 }}%</td>
       </tr>
     @endforeach
@@ -147,7 +141,7 @@ function isExternalLink(source: string): boolean {
           <span class="country-flag">{{ getFlag(country.name || country.code) }}</span>
           {{ country.name || country.code || 'Unknown' }}
         </td>
-        <td class="value">{{ fmt(country.visitors || 0) }}</td>
+        <td class="value">{{ country.visitors || 0 | fmt }}</td>
       </tr>
     @endforeach
   @endif
@@ -163,8 +157,8 @@ function isExternalLink(source: string): boolean {
     @foreach(campaigns as campaign)
       <tr>
         <td class="name">{{ campaign.name || campaign.source || 'Unknown' }}</td>
-        <td class="value">{{ fmt(campaign.visitors || 0) }}</td>
-        <td class="value">{{ fmt(campaign.views || 0) }}</td>
+        <td class="value">{{ campaign.visitors || 0 | fmt }}</td>
+        <td class="value">{{ campaign.views || 0 | fmt }}</td>
       </tr>
     @endforeach
   @endif

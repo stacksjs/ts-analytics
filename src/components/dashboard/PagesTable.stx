@@ -14,12 +14,6 @@ effect(() => {
   if ($props.loading !== undefined) loading.set($props.loading)
 })
 
-function fmt(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 function getPageUrl(path) {
   const host = siteHostname()
   return host ? `https://${host}${path}` : null
@@ -57,9 +51,9 @@ function getPageUrl(path) {
           </a>
           <span @if="!getPageUrl(page.path)">{{ page.path }}</span>
         </td>
-        <td class="value">{{ fmt(page.entries || 0) }}</td>
-        <td class="value">{{ fmt(page.visitors || 0) }}</td>
-        <td class="value">{{ fmt(page.views || 0) }}</td>
+        <td class="value">{{ page.entries || 0 | fmt }}</td>
+        <td class="value">{{ page.visitors || 0 | fmt }}</td>
+        <td class="value">{{ page.views || 0 | fmt }}</td>
       </tr>
     </tbody>
   </table>

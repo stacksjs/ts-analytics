@@ -17,9 +17,9 @@
       @forelse(pages as page)
         <tr>
           <td class="name" title="{{ page.path }}">{{ page.path }}</td>
-          <td class="value">{{ formatNumber(page.entries) }}</td>
-          <td class="value">{{ formatNumber(page.visitors) }}</td>
-          <td class="value">{{ formatNumber(page.views) }}</td>
+          <td class="value">{{ page.entries | fmt }}</td>
+          <td class="value">{{ page.visitors | fmt }}</td>
+          <td class="value">{{ page.views | fmt }}</td>
         </tr>
       @empty
         <tr>
@@ -35,13 +35,6 @@
   @endif
 </div>
 
-@ts
-function formatNumber(num: number): string {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
-  return num.toString()
-}
-@endts
 
 <style>
 .data-panel {

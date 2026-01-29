@@ -6,11 +6,11 @@
     <div class="stat-label">Realtime</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value">{{ formatNumber(stats.people) }}</div>
+    <div class="stat-value">{{ stats.people | fmt }}</div>
     <div class="stat-label">People</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value">{{ formatNumber(stats.views) }}</div>
+    <div class="stat-value">{{ stats.views | fmt }}</div>
     <div class="stat-label">Views</div>
   </div>
   <div class="stat-card">
@@ -22,22 +22,11 @@
     <div class="stat-label">Bounce</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value">{{ formatNumber(stats.events) }}</div>
+    <div class="stat-value">{{ stats.events | fmt }}</div>
     <div class="stat-label">Events</div>
   </div>
 </div>
 
-@ts
-function formatNumber(num: number): string {
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M'
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'k'
-  }
-  return num.toString()
-}
-@endts
 
 <style>
 .summary-stats {

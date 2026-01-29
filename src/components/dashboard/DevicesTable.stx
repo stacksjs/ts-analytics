@@ -11,12 +11,6 @@ effect(() => {
   if ($props.loading !== undefined) loading.set($props.loading)
 })
 
-function fmt(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 const deviceIcons = {
   desktop: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
   mobile: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
@@ -51,7 +45,7 @@ function getIconPath(type) {
           </svg>
           {{ device.type }}
         </td>
-        <td class="value">{{ fmt(device.visitors || 0) }}</td>
+        <td class="value">{{ device.visitors || 0 | fmt }}</td>
         <td class="value">{{ device.percentage || 0 }}%</td>
       </tr>
     </tbody>

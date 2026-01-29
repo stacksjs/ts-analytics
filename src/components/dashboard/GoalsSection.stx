@@ -2,12 +2,6 @@
 {{-- Props: goals (array), loading (boolean), onEdit (function), onDelete (function) --}}
 
 @ts
-function fmt(n: number): string {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 function formatCurrency(n: number): string {
   return '$' + n.toFixed(2)
 }
@@ -49,7 +43,7 @@ function getTypeBadgeClass(type: string): string {
             <td>
               <span class="{{ getTypeBadgeClass(goal.type) }}">{{ goal.type }}</span>
             </td>
-            <td class="goal-conversions text-right">{{ fmt(goal.conversions || 0) }}</td>
+            <td class="goal-conversions text-right">{{ goal.conversions || 0 | fmt }}</td>
             <td class="goal-value text-right">
               @if(goal.value)
                 {{ formatCurrency(goal.value) }}

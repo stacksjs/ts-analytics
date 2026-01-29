@@ -11,12 +11,6 @@ effect(() => {
   if ($props.loading !== undefined) loading.set($props.loading)
 })
 
-function fmt(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 function isExternalLink(source) {
   const lower = source.toLowerCase()
   return lower !== 'direct' && !source.includes('(') && source.includes('.')
@@ -68,8 +62,8 @@ function getDomain(source) {
           </a>
           <span @if="!isExternalLink(ref.source || 'Direct')">{{ ref.source || 'Direct' }}</span>
         </td>
-        <td class="value">{{ fmt(ref.visitors || 0) }}</td>
-        <td class="value">{{ fmt(ref.views || 0) }}</td>
+        <td class="value">{{ ref.visitors || 0 | fmt }}</td>
+        <td class="value">{{ ref.views || 0 | fmt }}</td>
       </tr>
     </tbody>
   </table>

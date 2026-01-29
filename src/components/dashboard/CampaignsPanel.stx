@@ -6,12 +6,6 @@
 const campaigns = state([])
 const loading = state(true)
 
-function fmt(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 async function fetchCampaigns() {
   const siteId = window.siteId
   if (!siteId) {
@@ -64,8 +58,8 @@ window.refreshCampaignsPanel = fetchCampaigns
       </tr>
       <tr @for="campaign in campaigns()" @if="!loading()">
         <td class="name">{{ campaign.name || campaign.source || 'Unknown' }}</td>
-        <td class="value">{{ fmt(campaign.visitors || 0) }}</td>
-        <td class="value">{{ fmt(campaign.views || 0) }}</td>
+        <td class="value">{{ campaign.visitors || 0 | fmt }}</td>
+        <td class="value">{{ campaign.views || 0 | fmt }}</td>
       </tr>
     </tbody>
   </table>

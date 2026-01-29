@@ -6,12 +6,6 @@
 const goals = state([])
 const loading = state(true)
 
-function fmt(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 function formatCurrency(n) {
   return '$' + (n || 0).toFixed(2)
 }
@@ -96,7 +90,7 @@ window.refreshGoalsPanel = fetchGoals
         <td>
           <span @class="getTypeBadgeClass(goal.type)">{{ goal.type }}</span>
         </td>
-        <td class="goal-conversions text-right">{{ fmt(goal.conversions || 0) }}</td>
+        <td class="goal-conversions text-right">{{ goal.conversions || 0 | fmt }}</td>
         <td class="goal-value text-right">
           <span @if="goal.value">{{ formatCurrency(goal.value) }}</span>
           <span @if="!goal.value">-</span>

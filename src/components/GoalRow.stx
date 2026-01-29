@@ -7,15 +7,9 @@ const goal = $props.goal || {}
 const onEdit = $props.onEdit
 const onDelete = $props.onDelete
 
-function fmt(n) {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
-  return String(n)
-}
-
 const name = derived(() => goal.name || 'Unnamed')
 const type = derived(() => goal.type || 'pageview')
-const conversions = derived(() => fmt(goal.conversions || 0))
+const conversions = derived(() => goal.conversions || 0)
 const value = derived(() => goal.totalValue ? '$' + goal.totalValue.toFixed(2) : '-')
 
 function handleEdit() {
@@ -32,7 +26,7 @@ function handleDelete() {
   <td>
     <span @class="['goal-type-badge', type()]">{{ type() }}</span>
   </td>
-  <td class="goal-conversions text-right">{{ conversions() }}</td>
+  <td class="goal-conversions text-right">{{ conversions() | fmt }}</td>
   <td class="goal-value text-right">{{ value() }}</td>
   <td class="goal-actions">
     <button class="edit-btn" @click="handleEdit">Edit</button>

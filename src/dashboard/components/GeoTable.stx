@@ -50,7 +50,7 @@
               {{ country.name }}
               <span class="drill-icon">&#8250;</span>
             </td>
-            <td class="value">{{ formatNumber(country.visitors) }}</td>
+            <td class="value">{{ country.visitors | fmt }}</td>
           </tr>
         @empty
           <tr>
@@ -76,7 +76,7 @@
               {{ region.name }}
               <span class="drill-icon">&#8250;</span>
             </td>
-            <td class="value">{{ formatNumber(region.visitors) }}</td>
+            <td class="value">{{ region.visitors | fmt }}</td>
           </tr>
         @empty
           <tr>
@@ -105,7 +105,7 @@
         @forelse(cities as city)
           <tr>
             <td class="name">{{ city.name }}</td>
-            <td class="value">{{ formatNumber(city.visitors) }}</td>
+            <td class="value">{{ city.visitors | fmt }}</td>
           </tr>
         @empty
           <tr>
@@ -142,12 +142,6 @@ const props = defineProps<{
 // State for drill-down
 const selectedCountry = ref<string | null>(null)
 const selectedRegion = ref<string | null>(null)
-
-function formatNumber(num: number): string {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
-  return num.toString()
-}
 
 function handleTabChange(tab: 'countries' | 'regions' | 'cities') {
   props.onTabChange?.(tab)

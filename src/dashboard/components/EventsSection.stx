@@ -30,8 +30,8 @@
               <span class="event-indicator"></span>
               {{ event.name }}
             </td>
-            <td class="value">{{ formatNumber(event.count) }}</td>
-            <td class="value">{{ formatNumber(event.unique) }}</td>
+            <td class="value">{{ event.count | fmt }}</td>
+            <td class="value">{{ event.unique | fmt }}</td>
             <td class="value">
               @if(event.avgValue)
                 {{ formatCurrency(event.avgValue) }}
@@ -60,12 +60,6 @@
 </div>
 
 @ts
-function formatNumber(num: number): string {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
-  return num.toString()
-}
-
 function formatCurrency(num: number): string {
   return '$' + num.toFixed(2)
 }
