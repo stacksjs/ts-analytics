@@ -1,0 +1,15 @@
+{{-- Live View Page - Real-time visitor activity --}}
+@layout('dashboard')
+
+@section('title')
+Live View
+@endsection
+
+@section('controls')
+<controls-bar />
+<filters-bar />
+@endsection
+
+@section('content')
+<live-tab />
+@endsection

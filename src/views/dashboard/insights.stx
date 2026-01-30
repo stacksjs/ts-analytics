@@ -1,0 +1,15 @@
+{{-- Insights Page - Analytics insights and recommendations --}}
+@layout('dashboard')
+
+@section('title')
+Insights
+@endsection
+
+@section('controls')
+<controls-bar />
+<filters-bar />
+@endsection
+
+@section('content')
+<insights-tab />
+@endsection

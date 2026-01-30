@@ -1,0 +1,10 @@
+{{-- Settings Page - Site configuration and management --}}
+@layout('dashboard')
+
+@section('title')
+Settings
+@endsection
+
+@section('content')
+<settings-tab />
+@endsection

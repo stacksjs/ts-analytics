@@ -161,14 +161,24 @@ async function deployLambdaAPI() {
   const lambdaViewsDir = './dist/lambda/views'
   fs.mkdirSync(lambdaViewsDir, { recursive: true })
 
-  // Copy pre-built views to lambda directory (only .html and .json files)
-  const viewFiles = fs.readdirSync(viewsDir).filter(f => f.endsWith('.html') || f.endsWith('.json'))
-  for (const file of viewFiles) {
-    const src = `${viewsDir}/${file}`
-    const dest = `${lambdaViewsDir}/${file}`
-    fs.copyFileSync(src, dest)
+  // Recursively copy pre-built views to lambda directory
+  function copyViewsRecursive(srcDir: string, destDir: string, count = { files: 0 }) {
+    fs.mkdirSync(destDir, { recursive: true })
+    const entries = fs.readdirSync(srcDir, { withFileTypes: true })
+    for (const entry of entries) {
+      const srcPath = `${srcDir}/${entry.name}`
+      const destPath = `${destDir}/${entry.name}`
+      if (entry.isDirectory()) {
+        copyViewsRecursive(srcPath, destPath, count)
+      } else if (entry.name.endsWith('.html') || entry.name.endsWith('.json')) {
+        fs.copyFileSync(srcPath, destPath)
+        count.files++
+      }
+    }
+    return count.files
   }
-  console.log(`   Copied ${viewFiles.length} pre-built views`)
+  const copiedCount = copyViewsRecursive(viewsDir, lambdaViewsDir)
+  console.log(`   Copied ${copiedCount} pre-built views`)
 
   // Create zip with all files
   const path = await import('node:path')

@@ -1,0 +1,15 @@
+{{-- Goals Detail Page --}}
+@layout('dashboard')
+
+@section('title')
+Goals
+@endsection
+
+@section('controls')
+<controls-bar />
+<filters-bar />
+@endsection
+
+@section('content')
+<detail-view section="goals" />
+@endsection

@@ -134,9 +134,39 @@ export async function handleDashboard(request: Request): Promise<Response> {
 
   let html: string
   if (hasPrebuiltViews) {
-    html = await loadPrebuiltView('dashboard', { siteId, apiEndpoint })
+    html = await loadPrebuiltView('dashboard/index', { siteId, apiEndpoint })
   } else {
-    html = await renderStxDirect('dashboard.stx', { siteId, apiEndpoint })
+    html = await renderStxDirect('dashboard/index.stx', { siteId, apiEndpoint })
+  }
+
+  return htmlResponse(html)
+}
+
+/**
+ * GET /dashboard/{tab} - Serve individual tab pages
+ */
+export async function handleDashboardTab(request: Request, tab: string): Promise<Response> {
+  const query = getQueryParams(request)
+  const event = getLambdaEvent(request)
+  const siteId = query.siteId || ''
+  const apiEndpoint = `https://${event?.requestContext?.domainName || 'analytics.stacksjs.com'}`
+
+  // Valid tabs that have their own pages
+  const validTabs = [
+    'errors', 'sessions', 'vitals', 'live', 'funnels', 'flow', 'insights', 'settings',
+    'pages', 'referrers', 'devices', 'browsers', 'countries', 'campaigns', 'events', 'goals'
+  ]
+
+  if (!validTabs.includes(tab)) {
+    // Fallback to main dashboard for unknown tabs
+    return handleDashboard(request)
+  }
+
+  let html: string
+  if (hasPrebuiltViews) {
+    html = await loadPrebuiltView(`dashboard/${tab}`, { siteId, apiEndpoint })
+  } else {
+    html = await renderStxDirect(`dashboard/${tab}.stx`, { siteId, apiEndpoint })
   }
 
   return htmlResponse(html)

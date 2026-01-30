@@ -23,6 +23,12 @@ const PLACEHOLDERS = {
   iconPath: '{{__ICON_PATH__}}',
 }
 
+// Dashboard tab pages (file-based routing)
+const dashboardPages = [
+  'index', 'errors', 'sessions', 'vitals', 'live', 'funnels', 'flow', 'insights', 'settings',
+  'pages', 'referrers', 'devices', 'browsers', 'countries', 'campaigns', 'events', 'goals'
+]
+
 const result = await buildViews({
   viewsDir: VIEWS_DIR,
   outputDir: OUTPUT_DIR,
@@ -32,10 +38,13 @@ const result = await buildViews({
   placeholders: PLACEHOLDERS,
   debug: false,
   views: [
+    // Legacy pages (keep for backwards compatibility)
     { input: 'dashboard.stx' },
     { input: 'test-errors.stx' },
     { input: 'error-detail.stx' },
     { input: 'detail.stx' },
+    // Dashboard pages (file-based routing)
+    ...dashboardPages.map(page => ({ input: `dashboard/${page}.stx`, output: `dashboard/${page}.html` })),
   ],
 })
 

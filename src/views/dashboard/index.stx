@@ -1,0 +1,67 @@
+{{-- Dashboard Overview - Main dashboard with all panels --}}
+@layout('dashboard')
+
+@section('title')
+Dashboard
+@endsection
+
+@section('controls')
+<controls-bar />
+<filters-bar />
+@include('../../components/dashboard/StatsRow.stx')
+
+<script>
+  // Immediately populate from cache before any other JS runs
+  (function() {
+    try {
+      var urlParams = new URLSearchParams(window.location.search);
+      var siteId = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || '';
+      if (!siteId) return;
+      var cached = localStorage.getItem('ts-analytics-stats-' + siteId);
+      if (!cached) return;
+      var data = JSON.parse(cached);
+      if (!data.timestamp || Date.now() - data.timestamp > 24 * 60 * 60 * 1000) return;
+      var s = data.stats;
+      var fmt = function(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : String(n); };
+      if (s.realtime !== undefined) document.getElementById('stat-realtime').textContent = fmt(s.realtime);
+      if (s.sessions !== undefined) document.getElementById('stat-sessions').textContent = fmt(s.sessions);
+      if (s.people !== undefined) document.getElementById('stat-people').textContent = fmt(s.people);
+      if (s.views !== undefined) document.getElementById('stat-views').textContent = fmt(s.views);
+      if (s.avgTime !== undefined) document.getElementById('stat-avgtime').textContent = s.avgTime;
+      if (s.bounceRate !== undefined) document.getElementById('stat-bounce').textContent = s.bounceRate + '%';
+    } catch(e) {}
+  })();
+</script>
+@endsection
+
+@section('content')
+@include('../../components/dashboard/ChartSection.stx')
+
+<div id="dashboard-panels">
+  <!-- Row 1: Pages & Referrers -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <pages-panel />
+    <referrers-panel />
+  </div>
+
+  <!-- Row 2: Devices & Browsers -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <devices-panel />
+    <browsers-panel />
+  </div>
+
+  <!-- Row 3: Countries & Campaigns -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <countries-panel />
+    <campaigns-panel />
+  </div>
+
+  <!-- Events Section -->
+  <div class="mb-6">
+    <events-panel />
+  </div>
+
+  <!-- Goals Section -->
+  <goals-panel />
+</div>
+@endsection

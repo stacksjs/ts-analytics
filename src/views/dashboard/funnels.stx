@@ -1,0 +1,15 @@
+{{-- Funnels Page - Conversion funnel analysis --}}
+@layout('dashboard')
+
+@section('title')
+Funnels
+@endsection
+
+@section('controls')
+<controls-bar />
+<filters-bar />
+@endsection
+
+@section('content')
+<funnels-tab />
+@endsection

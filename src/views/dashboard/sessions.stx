@@ -1,0 +1,15 @@
+{{-- Sessions Page - User session tracking --}}
+@layout('dashboard')
+
+@section('title')
+Sessions
+@endsection
+
+@section('controls')
+<controls-bar />
+<filters-bar />
+@endsection
+
+@section('content')
+<sessions-tab />
+@endsection

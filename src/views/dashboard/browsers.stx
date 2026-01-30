@@ -1,0 +1,15 @@
+{{-- Browsers Detail Page --}}
+@layout('dashboard')
+
+@section('title')
+Browsers
+@endsection
+
+@section('controls')
+<controls-bar />
+<filters-bar />
+@endsection
+
+@section('content')
+<detail-view section="browsers" />
+@endsection

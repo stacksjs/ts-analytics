@@ -1,0 +1,35 @@
+{{-- Dashboard Layout - Shared layout for all dashboard pages --}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>@yield('title', 'Dashboard') - Analytics</title>
+  <script src="/dashboard/scripts/dashboard.ts"></script>
+  @include('../../components/dashboard/DashboardStyles.stx')
+  @yield('head')
+</head>
+<body>
+  <stx-loading-indicator color="var(--accent)" height="3px" />
+  <site-selector />
+
+  <div id="dashboard" class="min-h-screen flex flex-col" style="display:none">
+    <dashboard-header />
+
+    @yield('controls')
+
+    @include('../../components/dashboard/NoDataMessage.stx')
+
+    <div id="main-content" class="flex-1 p-6 max-w-[1400px] mx-auto w-full">
+      @yield('content')
+    </div>
+
+    <goal-modal />
+    @include('../../components/Modal.stx')
+    @include('../../components/SessionModal.stx')
+  </div>
+
+  @include('../../components/shared/EmptyStates.stx')
+  @yield('scripts')
+</body>
+</html>

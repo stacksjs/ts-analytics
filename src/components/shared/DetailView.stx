@@ -1,0 +1,292 @@
+{{-- DetailView Component - Reusable data table view --}}
+{{-- Props: section, title, icon --}}
+<script>
+const allData = state([])
+const filteredData = state([])
+const loading = state(true)
+const error = state(null)
+const searchQuery = state('')
+const currentPage = state(1)
+const pageSize = 50
+
+// Get config from URL and props
+const urlParams = new URLSearchParams(window.location.search)
+const API = window.ANALYTICS_API || urlParams.get('api') || window.location.origin
+const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
+const USE_STEALTH = urlParams.get('stealth') !== 'false'
+
+// Get section from component attribute or URL
+const sectionAttr = document.currentScript?.closest('[data-section]')?.dataset.section
+const pathMatch = window.location.pathname.match(/\/dashboard\/(.+)/)
+const SECTION = sectionAttr || (pathMatch ? pathMatch[1] : 'pages')
+
+// Stealth API path mapper
+const STEALTH_MAP = {
+  sites: 'projects', stats: 'summary', realtime: 'pulse', pages: 'content',
+  referrers: 'sources', devices: 'clients', browsers: 'agents', countries: 'geo',
+  regions: 'area', cities: 'locale', timeseries: 'series', events: 'actions',
+  campaigns: 'promo', comparison: 'diff', sessions: 'visits', flow: 'journey',
+  live: 'now', heatmap: 'touch', errors: 'issues', vitals: 'metrics',
+  goals: 'targets', funnels: 'pipelines', annotations: 'notes'
+}
+
+function apiPath(path) {
+  if (!USE_STEALTH) return path
+  let result = path.replace('/api/sites/', '/api/p/').replace('/api/sites', '/api/projects')
+  Object.keys(STEALTH_MAP).sort((a, b) => b.length - a.length).forEach(k => {
+    result = result.replace(new RegExp(`/${k}(?=/|\\?|$)`, 'g'), `/${STEALTH_MAP[k]}`)
+  })
+  return result
+}
+
+// Section metadata
+const sections = {
+  pages: { title: 'Pages', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  referrers: { title: 'Referrers', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
+  devices: { title: 'Devices', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+  browsers: { title: 'Browsers', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
+  countries: { title: 'Countries', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+  campaigns: { title: 'Campaigns', icon: 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z' },
+  events: { title: 'Events', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122' },
+  goals: { title: 'Goals', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' }
+}
+
+const sectionConfig = sections[SECTION] || sections.pages
+
+// Computed values
+const paginatedData = derived(() => {
+  const start = (currentPage() - 1) * pageSize
+  return filteredData().slice(start, start + pageSize)
+})
+
+const totalPages = derived(() => Math.ceil(filteredData().length / pageSize))
+
+const columnKeys = derived(() => {
+  const data = filteredData()
+  return data.length > 0 ? Object.keys(data[0]) : []
+})
+
+async function loadData() {
+  loading.set(true)
+  try {
+    const res = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/${SECTION}`))
+    if (!res.ok) throw new Error('Failed to load')
+    const data = await res.json()
+    const items = data[SECTION] || data.pages || data.referrers || data.browsers || data.countries || data.campaigns || data.events || data.goals || []
+    allData.set(items)
+    filteredData.set([...items])
+    error.set(null)
+  } catch (err) {
+    error.set('Failed to load data')
+  } finally {
+    loading.set(false)
+  }
+}
+
+function filterData() {
+  const query = searchQuery().toLowerCase()
+  if (!query) {
+    filteredData.set([...allData()])
+  } else {
+    filteredData.set(allData().filter(item =>
+      Object.values(item).some(val => String(val).toLowerCase().includes(query))
+    ))
+  }
+  currentPage.set(1)
+}
+
+function goToPage(page) {
+  currentPage.set(page)
+}
+
+function formatKey(key) {
+  return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
+}
+
+function formatValue(value, key) {
+  if (value == null) return '-'
+  if ((key.includes('time') || key.includes('Time')) && typeof value === 'number') {
+    const mins = Math.floor(value / 60000)
+    const secs = Math.floor((value % 60000) / 1000)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+  if ((key.includes('rate') || key.includes('Rate') || key === 'percentage') && typeof value === 'number') {
+    return value.toFixed(1) + '%'
+  }
+  return typeof value === 'number' ? value.toLocaleString() : String(value)
+}
+
+onMount(() => {
+  document.title = `${sectionConfig.title} - Analytics`
+  loadData()
+})
+
+effect(() => {
+  searchQuery()
+  filterData()
+})
+</script>
+
+<div class="detail-view" data-section="{{ section }}">
+  <a :href="'/dashboard?siteId=' + SITE_ID" class="back-link">
+    <svg class="back-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back to Dashboard
+  </a>
+
+  <header class="page-header">
+    <h1 class="page-title">
+      <svg class="title-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="sectionConfig.icon" />
+      </svg>
+      <span>{{ sectionConfig.title }}</span>
+    </h1>
+  </header>
+
+  <div class="search-bar">
+    <input
+      type="text"
+      placeholder="Search..."
+      class="search-input"
+      @model="searchQuery"
+    />
+  </div>
+
+  <div @if="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <span>Loading...</span>
+  </div>
+
+  <div @if="error()" class="error-state">
+    {{ error() }}
+  </div>
+
+  <div @if="!loading() && !error()">
+    <div @if="filteredData().length === 0" class="empty-state">
+      No data available
+    </div>
+
+    <div @if="filteredData().length > 0" class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th @for="key in columnKeys()">{{ formatKey(key) }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr @for="item in paginatedData()">
+            <td @for="key in columnKeys()">{{ formatValue(item[key], key) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div @if="totalPages() > 1" class="pagination">
+        <button
+          @click="goToPage(currentPage() - 1)"
+          :disabled="currentPage() === 1"
+          class="pagination-btn"
+        >Previous</button>
+        <span class="pagination-info">Page {{ currentPage() }} of {{ totalPages() }}</span>
+        <button
+          @click="goToPage(currentPage() + 1)"
+          :disabled="currentPage() === totalPages()"
+          class="pagination-btn"
+        >Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.detail-view {
+  padding: 2rem;
+  max-width: 72rem;
+  margin: 0 auto;
+}
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--accent);
+  text-decoration: none;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+.back-link:hover { text-decoration: underline; }
+.back-icon { width: 16px; height: 16px; }
+.page-header { margin-bottom: 1.5rem; }
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.title-icon { width: 24px; height: 24px; }
+.search-bar { margin-bottom: 1rem; }
+.search-input {
+  width: 100%;
+  max-width: 20rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.875rem;
+}
+.search-input::placeholder { color: var(--muted); }
+.search-input:focus { outline: none; border-color: var(--accent); }
+.table-container { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  text-align: left;
+  padding: 0.75rem;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+.data-table td {
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--bg3);
+}
+.data-table tr:hover { background: rgba(55, 65, 81, 0.5); }
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.pagination-btn {
+  padding: 0.5rem 1rem;
+  background: var(--bg3);
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.pagination-btn:hover:not(:disabled) { background: var(--bg2); }
+.pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pagination-info { color: var(--muted); font-size: 0.875rem; }
+.loading-state, .error-state, .empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--muted);
+}
+.loading-state { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.error-state { color: var(--error); }
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(-360deg); } }
+</style>

@@ -1,26 +1,45 @@
 <script>
 /**
  * DashboardHeader Component - Navigation header
- * Uses STX signals for reactive tab and theme state
+ * Uses file-based routing with anchor links
  */
 
-// Tab definitions
+// Tab definitions with routes
 const tabs = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'live', label: 'Live' },
-  { id: 'sessions', label: 'Sessions' },
-  { id: 'funnels', label: 'Funnels' },
-  { id: 'flow', label: 'User Flow' },
-  { id: 'vitals', label: 'Web Vitals' },
-  { id: 'errors', label: 'Errors' },
-  { id: 'insights', label: 'Insights' },
-  { id: 'settings', label: 'Settings' },
+  { id: 'dashboard', label: 'Dashboard', path: '/dashboard' },
+  { id: 'live', label: 'Live', path: '/dashboard/live' },
+  { id: 'sessions', label: 'Sessions', path: '/dashboard/sessions' },
+  { id: 'funnels', label: 'Funnels', path: '/dashboard/funnels' },
+  { id: 'flow', label: 'User Flow', path: '/dashboard/flow' },
+  { id: 'vitals', label: 'Web Vitals', path: '/dashboard/vitals' },
+  { id: 'errors', label: 'Errors', path: '/dashboard/errors' },
+  { id: 'insights', label: 'Insights', path: '/dashboard/insights' },
+  { id: 'settings', label: 'Settings', path: '/dashboard/settings' },
 ]
 
 // State
-const activeTab = state('dashboard')
 const siteName = state('Analytics Dashboard')
 const isDarkTheme = state(true)
+
+// Get site ID from URL
+function getSiteId() {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('siteId') || ''
+}
+
+// Get current active tab from URL path
+function getCurrentTab() {
+  const path = window.location.pathname
+  if (path === '/dashboard' || path === '/') return 'dashboard'
+  const match = path.match(/\/dashboard\/([^\/]+)/)
+  return match ? match[1] : 'dashboard'
+}
+
+// Build tab URL with siteId
+function getTabUrl(tabPath) {
+  const siteId = getSiteId()
+  return siteId ? `${tabPath}?siteId=${siteId}` : tabPath
+}
 
 // Initialize theme from localStorage/system preference
 function initTheme() {
@@ -52,20 +71,12 @@ function toggleTheme() {
   }
 }
 
-// Switch tab
-function switchTab(tabId) {
-  activeTab.set(tabId)
-
-  // Notify dashboard.ts
-  if (window.switchTab) {
-    window.switchTab(tabId)
-  }
-}
-
 // Go back to site selector
 function goBack() {
   if (window.goBack) {
     window.goBack()
+  } else {
+    window.location.href = '/'
   }
 }
 
@@ -79,15 +90,15 @@ function renderNav() {
   const nav = document.getElementById('header-nav')
   if (!nav) return
 
-  const currentTab = activeTab()
+  const currentTab = getCurrentTab()
   nav.innerHTML = tabs.map(tab => `
-    <button
+    <a
       class="nav-btn${currentTab === tab.id ? ' active' : ''}"
+      href="${getTabUrl(tab.path)}"
       data-tab="${tab.id}"
-      onclick="window.dashboardHeader.switchTab('${tab.id}')"
     >
       ${tab.label}
-    </button>
+    </a>
   `).join('')
 }
 
@@ -103,7 +114,6 @@ function updateThemeIcons() {
 
 // React to state changes
 effect(() => {
-  renderNav()
   updateThemeIcons()
 })
 
@@ -112,10 +122,9 @@ onMount(() => {
   initTheme()
   renderNav()
   updateThemeIcons()
-  window.headerSetActiveTab = (tab) => activeTab.set(tab)
   window.headerSetSiteName = setSiteName
   window.dashboardHeader = {
-    switchTab, toggleTheme, goBack, activeTab, isDarkTheme
+    toggleTheme, goBack, isDarkTheme
   }
 })
 </script>
@@ -130,16 +139,8 @@ onMount(() => {
     <span id="current-site-name" class="site-name-header">{{ siteName() }}</span>
   </div>
 
-  <nav class="header-nav">
-    <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
-    <button class="nav-btn" data-tab="live" onclick="switchTab('live')">Live</button>
-    <button class="nav-btn" data-tab="sessions" onclick="switchTab('sessions')">Sessions</button>
-    <button class="nav-btn" data-tab="funnels" onclick="switchTab('funnels')">Funnels</button>
-    <button class="nav-btn" data-tab="flow" onclick="switchTab('flow')">User Flow</button>
-    <button class="nav-btn" data-tab="vitals" onclick="switchTab('vitals')">Web Vitals</button>
-    <button class="nav-btn" data-tab="errors" onclick="switchTab('errors')">Errors</button>
-    <button class="nav-btn" data-tab="insights" onclick="switchTab('insights')">Insights</button>
-    <button class="nav-btn" data-tab="settings" onclick="switchTab('settings')">Settings</button>
+  <nav id="header-nav" class="header-nav">
+    {{-- Navigation links rendered by renderNav() --}}
   </nav>
 
   <div class="header-right">
