@@ -1,0 +1,5 @@
+# Preload the STX plugin to enable .stx file imports
+preload = ["bun-plugin-stx"]
+
+[test]
+# Skip stx files in tests
