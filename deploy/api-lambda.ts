@@ -109,7 +109,7 @@ async function deployLambdaAPI() {
   // Step 2: Pre-build STX views to HTML (skip if views already exist)
   console.log('\n2. Pre-building STX views...')
 
-  const viewsExist = await Bun.file('./dist/views/dashboard.html').exists()
+  const viewsExist = await Bun.file('./dist/views/dashboard/index.html').exists()
   if (viewsExist && process.env.SKIP_VIEW_BUILD !== 'false') {
     console.log('   Using existing pre-built views from dist/views/')
   } else {
@@ -170,7 +170,7 @@ async function deployLambdaAPI() {
       const destPath = `${destDir}/${entry.name}`
       if (entry.isDirectory()) {
         copyViewsRecursive(srcPath, destPath, count)
-      } else if (entry.name.endsWith('.html') || entry.name.endsWith('.json')) {
+      } else if (entry.name.endsWith('.html') || entry.name.endsWith('.json') || entry.name.endsWith('.js')) {
         fs.copyFileSync(srcPath, destPath)
         count.files++
       }

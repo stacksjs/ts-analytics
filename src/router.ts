@@ -94,16 +94,46 @@ export async function createRouter(): Promise<Router> {
   // Favicon (return empty to prevent 404)
   await router.get('/favicon.ico', () => new Response(null, { status: 204 }))
 
+  // Serve compiled dashboard script
+  await router.get('/scripts/dashboard.js', async () => {
+    // Try multiple locations for the compiled script
+    const locations = [
+      '/var/task/views/scripts/dashboard.js', // Lambda
+      './dist/views/scripts/dashboard.js',    // Local dev
+      './views/scripts/dashboard.js',         // Alternative
+    ]
+
+    for (const loc of locations) {
+      try {
+        const file = Bun.file(loc)
+        if (await file.exists()) {
+          return new Response(await file.text(), {
+            headers: {
+              'Content-Type': 'application/javascript',
+              'Cache-Control': 'public, max-age=31536000',
+            },
+          })
+        }
+      } catch {
+        // Try next location
+      }
+    }
+
+    return new Response('// Script not found', {
+      status: 404,
+      headers: { 'Content-Type': 'application/javascript' },
+    })
+  })
+
   // HTML pages
   await router.get('/', views.handleDashboard)
   await router.get('/dashboard', views.handleDashboard)
+  await router.get('/dashboard/{tab}', (req) => views.handleDashboardTab(req, req.params.tab))
   await router.get('/test-errors', views.handleTestErrors)
   await router.get('/errors/{errorId}', (req) => {
     const errorId = decodeURIComponent(req.params.errorId)
     return views.handleErrorDetailPage(req, errorId)
   })
-
-  // File-based routing is automatic - routes discovered from src/views/
 
   // Collection endpoints
   await router.post('/collect', collect.handleCollect)

@@ -26,7 +26,7 @@ function findViewsDir(): string {
 
   for (const dir of candidates) {
     try {
-      if (fs.existsSync(path.join(dir, 'dashboard.html'))) {
+      if (fs.existsSync(path.join(dir, 'dashboard/index.html'))) {
         return dir
       }
     } catch {
@@ -44,7 +44,7 @@ const PREBUILT_DIR = findViewsDir()
 const VIEWS_DIR = path.resolve(import.meta.dir, '../views')
 
 // Check if pre-built views exist
-const hasPrebuiltViews = fs.existsSync(path.join(PREBUILT_DIR, 'dashboard.html'))
+const hasPrebuiltViews = fs.existsSync(path.join(PREBUILT_DIR, 'dashboard/index.html'))
 
 // Placeholder tokens used in pre-built HTML
 const PLACEHOLDERS = {

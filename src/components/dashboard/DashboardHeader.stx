@@ -85,21 +85,28 @@ function setSiteName(name) {
   siteName.set(name || 'Analytics Dashboard')
 }
 
-// Render navigation tabs
-function renderNav() {
+// Update navigation tabs with siteId and active state
+function updateNav() {
   const nav = document.getElementById('header-nav')
   if (!nav) return
 
   const currentTab = getCurrentTab()
-  nav.innerHTML = tabs.map(tab => `
-    <a
-      class="nav-btn${currentTab === tab.id ? ' active' : ''}"
-      href="${getTabUrl(tab.path)}"
-      data-tab="${tab.id}"
-    >
-      ${tab.label}
-    </a>
-  `).join('')
+  const siteId = getSiteId()
+
+  nav.querySelectorAll('a.nav-btn').forEach(link => {
+    const tab = link.getAttribute('data-tab')
+    // Add siteId to href
+    if (siteId) {
+      const basePath = link.getAttribute('href').split('?')[0]
+      link.href = `${basePath}?siteId=${encodeURIComponent(siteId)}`
+    }
+    // Mark active tab
+    if (tab === currentTab) {
+      link.classList.add('active')
+    } else {
+      link.classList.remove('active')
+    }
+  })
 }
 
 // Update theme icons
@@ -120,13 +127,20 @@ effect(() => {
 // Expose functions
 onMount(() => {
   initTheme()
-  renderNav()
+  updateNav()
   updateThemeIcons()
   window.headerSetSiteName = setSiteName
   window.dashboardHeader = {
     toggleTheme, goBack, isDarkTheme
   }
 })
+
+// Also update nav immediately for faster response
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', updateNav)
+} else {
+  updateNav()
+}
 </script>
 
 <header class="header">
@@ -140,7 +154,15 @@ onMount(() => {
   </div>
 
   <nav id="header-nav" class="header-nav">
-    {{-- Navigation links rendered by renderNav() --}}
+    <a class="nav-btn" href="/dashboard" data-tab="dashboard">Dashboard</a>
+    <a class="nav-btn" href="/dashboard/live" data-tab="live">Live</a>
+    <a class="nav-btn" href="/dashboard/sessions" data-tab="sessions">Sessions</a>
+    <a class="nav-btn" href="/dashboard/funnels" data-tab="funnels">Funnels</a>
+    <a class="nav-btn" href="/dashboard/flow" data-tab="flow">User Flow</a>
+    <a class="nav-btn" href="/dashboard/vitals" data-tab="vitals">Web Vitals</a>
+    <a class="nav-btn" href="/dashboard/errors" data-tab="errors">Errors</a>
+    <a class="nav-btn" href="/dashboard/insights" data-tab="insights">Insights</a>
+    <a class="nav-btn" href="/dashboard/settings" data-tab="settings">Settings</a>
   </nav>
 
   <div class="header-right">
