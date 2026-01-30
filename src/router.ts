@@ -103,10 +103,14 @@ export async function createRouter(): Promise<Router> {
     return views.handleErrorDetailPage(req, errorId)
   })
 
-  // Dashboard tabs - file-based routing (each tab is its own .stx file)
-  await router.get('/dashboard/{tab}', (req) => {
-    const tab = req.params.tab
-    return views.handleDashboardTab(req, tab)
+  // File-based routing: auto-discovers .stx files from src/views/
+  // Custom render function uses ts-analytics' pre-built views support
+  router.views({
+    render: async (filePath, _data, req) => {
+      const match = filePath.match(/views\/dashboard\/(.+)\.stx$/)
+      const tab = match?.[1]
+      return tab ? views.handleDashboardTab(req, tab) : views.handleDashboard(req)
+    },
   })
 
   // Collection endpoints
