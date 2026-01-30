@@ -158,6 +158,9 @@ onMount(() => {
             <span @if="errorData().severity" @class="['severity-badge', getSeverityClass(errorData().severity)]">
               {{ errorData().severity }}
             </span>
+            <span @if="errorData().trend" @class="['trend-badge', 'trend-' + errorData().trend]">
+              {{ errorData().trend }}
+            </span>
             <span @if="errorData().category" class="category-badge">
               {{ errorData().category }}
             </span>
@@ -201,8 +204,16 @@ onMount(() => {
           <div class="meta-value">{{ errorData().count ? errorData().count : 1 }}</div>
         </div>
         <div class="meta-card">
+          <div class="meta-label">Affected Visitors</div>
+          <div class="meta-value">{{ errorData().affectedVisitors || errorData().count || 1 }}</div>
+        </div>
+        <div class="meta-card">
           <div class="meta-label">Browsers</div>
           <div class="meta-value">{{ (errorData().browsers ? errorData().browsers : []).length > 0 ? (errorData().browsers ? errorData().browsers : []).join(', ') : 'Unknown' }}</div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Operating Systems</div>
+          <div class="meta-value">{{ (errorData().operatingSystems || []).join(', ') || errorData().latestOccurrence?.os || 'Unknown' }}</div>
         </div>
         <div class="meta-card">
           <div class="meta-label">Devices</div>
@@ -211,6 +222,20 @@ onMount(() => {
         <div class="meta-card">
           <div class="meta-label">Frameworks</div>
           <div class="meta-value">{{ (errorData().frameworks ? errorData().frameworks : []).length > 0 ? (errorData().frameworks ? errorData().frameworks : []).join(', ') : (errorData().latestOccurrence?.framework ? errorData().latestOccurrence.framework : 'Unknown') }}</div>
+        </div>
+      </div>
+
+      <!-- Environment Breakdown -->
+      <div @if="errorData().environments && Object.keys(errorData().environments).length > 0" class="section">
+        <h4 class="section-title">Environment Breakdown</h4>
+        <div class="env-breakdown">
+          <div @for="env in Object.entries(errorData().environments)" class="env-bar-row">
+            <span class="env-bar-label">{{ env[0] }}</span>
+            <div class="env-bar-track">
+              <div class="env-bar-fill" :style="`width: ${Math.min(100, Math.round((env[1] / (errorData().count || 1)) * 100))}%`"></div>
+            </div>
+            <span class="env-bar-count">{{ env[1] }}</span>
+          </div>
         </div>
       </div>
 
@@ -419,6 +444,17 @@ body.error-detail-page {
   background: rgba(156, 163, 175, 0.2);
   color: #d1d5db;
 }
+.trend-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.trend-new { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+.trend-increasing { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+.trend-decreasing { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+.trend-stable { background: rgba(156, 163, 175, 0.15); color: #d1d5db; }
 .category-badge {
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
@@ -635,6 +671,42 @@ body.error-detail-page {
 }
 .btn-secondary:hover {
   background: #4b5563;
+}
+.env-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.env-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.env-bar-label {
+  font-size: 0.8125rem;
+  color: var(--text);
+  min-width: 100px;
+  font-weight: 500;
+}
+.env-bar-track {
+  flex: 1;
+  height: 20px;
+  background: var(--bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.env-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  min-width: 4px;
+  transition: width 0.3s ease;
+}
+.env-bar-count {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  min-width: 40px;
+  text-align: right;
 }
 .loading-state, .error-state {
   text-align: center;

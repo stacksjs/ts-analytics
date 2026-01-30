@@ -148,6 +148,34 @@ export function getErrorFingerprint(message: string, stack: string | undefined):
 }
 
 /**
+ * Determine error trend based on timing and frequency
+ */
+export function getErrorTrend(firstSeen: string, lastSeen: string, count: number): 'new' | 'increasing' | 'decreasing' | 'stable' {
+  const now = Date.now()
+  const first = new Date(firstSeen).getTime()
+  const last = new Date(lastSeen).getTime()
+  const dayMs = 24 * 60 * 60 * 1000
+
+  // New: first seen less than 24h ago
+  if (now - first < dayMs) {
+    return 'new'
+  }
+
+  // Decreasing: last seen more than 7 days ago
+  if (now - last > 7 * dayMs) {
+    return 'decreasing'
+  }
+
+  // Increasing: high rate (count per day > 10)
+  const ageDays = Math.max(1, (now - first) / dayMs)
+  if (count / ageDays > 10) {
+    return 'increasing'
+  }
+
+  return 'stable'
+}
+
+/**
  * Check if error should be ignored (noise reduction)
  */
 export function shouldIgnoreError(message: string): boolean {

@@ -200,6 +200,12 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/sites/{siteId}/errors', (req) => errors.handleGetErrors(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/errors/statuses', (req) => errors.handleGetErrorStatuses(req, req.params.siteId))
   await router.post('/api/sites/{siteId}/errors/status', (req) => errors.handleUpdateErrorStatus(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/errors/timeseries', (req) => errors.handleGetErrorTimeseries(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/errors/comparison', (req) => errors.handleGetErrorComparison(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/errors/groups', (req) => errors.handleGetErrorGroups(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/errors/alerts', (req) => errors.handleGetErrorAlerts(req, req.params.siteId))
+  await router.post('/api/sites/{siteId}/errors/alerts', (req) => errors.handleCreateErrorAlert(req, req.params.siteId))
+  await router.post('/api/sites/{siteId}/errors/alerts/evaluate', (req) => errors.handleEvaluateErrorAlerts(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/errors/{errorId}', (req) => errors.handleGetErrorDetail(req, req.params.siteId, req.params.errorId))
 
   // Performance & Vitals

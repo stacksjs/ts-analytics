@@ -7,7 +7,8 @@ import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
-import { categorizeError, getErrorSeverity, getErrorFingerprint, shouldIgnoreError } from '../utils/errors'
+import { categorizeError, getErrorSeverity, getErrorFingerprint, getErrorTrend, shouldIgnoreError } from '../utils/errors'
+import { getTimeInterval } from '../utils/date'
 
 /**
  * GET /api/sites/{siteId}/errors
@@ -281,13 +282,15 @@ export async function handleCollectError(request: Request, siteId: string, keyId
       }),
     })
 
+    const groupKey = {
+      pk: { S: `SITE#${siteId}` },
+      sk: { S: `ERROR_GROUP#${fingerprint}` },
+    }
+
     // Upsert error group with atomic counters
     await dynamodb.updateItem({
       TableName: TABLE_NAME,
-      Key: {
-        pk: { S: `SITE#${siteId}` },
-        sk: { S: `ERROR_GROUP#${fingerprint}` },
-      },
+      Key: groupKey,
       UpdateExpression: [
         'SET #count = if_not_exists(#count, :zero) + :one',
         'lastSeen = :now',
@@ -313,6 +316,55 @@ export async function handleCollectError(request: Request, siteId: string, keyId
         ':open': { S: 'open' },
       },
     })
+
+    // Track environment counts, browser and OS sets on the group record
+    const env = body.environment || 'production'
+    const browser = body.browser || 'Unknown'
+    const os = body.os || 'Unknown'
+
+    try {
+      await dynamodb.updateItem({
+        TableName: TABLE_NAME,
+        Key: groupKey,
+        UpdateExpression: 'SET environments = if_not_exists(environments, :emptyMap)',
+        ExpressionAttributeValues: {
+          ':emptyMap': { M: {} },
+        },
+      })
+
+      await dynamodb.updateItem({
+        TableName: TABLE_NAME,
+        Key: groupKey,
+        UpdateExpression: [
+          'SET environments.#envKey = if_not_exists(environments.#envKey, :zero) + :one',
+          'severity = :sev',
+        ].join(', '),
+        ExpressionAttributeNames: {
+          '#envKey': env,
+        },
+        ExpressionAttributeValues: {
+          ':zero': { N: '0' },
+          ':one': { N: '1' },
+          ':sev': { S: severity },
+        },
+      })
+
+      await dynamodb.updateItem({
+        TableName: TABLE_NAME,
+        Key: groupKey,
+        UpdateExpression: 'ADD browsers :browserSet, operatingSystems :osSet',
+        ExpressionAttributeValues: {
+          ':browserSet': { SS: [browser] },
+          ':osSet': { SS: [os] },
+        },
+      })
+    } catch (e) {
+      // Non-critical — don't fail the request if env/browser tracking fails
+      console.error('Error tracking group metadata:', e)
+    }
+
+    // Fire-and-forget: evaluate error alerts (with cooldown)
+    evaluateErrorAlertsThrottled(siteId).catch(() => {})
 
     return new Response(null, { status: 204 })
   } catch (error) {
@@ -395,17 +447,24 @@ export async function handleGetErrorDetail(request: Request, siteId: string, err
     const urls = new Set<string>()
     const devices = new Set<string>()
     const frameworks = new Set<string>()
+    const operatingSystems = new Set<string>()
+    const userAgents = new Set<string>()
 
     for (const occ of occurrences) {
       if (occ.browser) browsers.add(occ.browser)
       if (occ.url) urls.add(occ.url)
       if (occ.deviceType) devices.add(occ.deviceType)
       if (occ.framework) frameworks.add(occ.framework)
+      if (occ.os) operatingSystems.add(occ.os)
+      if (occ.userAgent) userAgents.add(occ.userAgent)
     }
 
     const latest = occurrences[0] || {}
     const category = group?.category || latest.category || categorizeError(latest.message || '')
     const count = group?.count || occurrences.length
+    const firstSeen = group?.firstSeen || occurrences[occurrences.length - 1]?.timestamp
+    const lastSeen = group?.lastSeen || latest.timestamp
+    const trend = firstSeen && lastSeen ? getErrorTrend(firstSeen, lastSeen, count) : 'stable'
 
     return jsonResponse({
       error: {
@@ -415,12 +474,16 @@ export async function handleGetErrorDetail(request: Request, siteId: string, err
         severity: getErrorSeverity(category, count),
         status: group?.status || 'open',
         count,
-        firstSeen: group?.firstSeen || occurrences[occurrences.length - 1]?.timestamp,
-        lastSeen: group?.lastSeen || latest.timestamp,
+        firstSeen,
+        lastSeen,
+        trend,
         browsers: Array.from(browsers),
+        operatingSystems: Array.from(operatingSystems),
         affectedUrls: Array.from(urls).slice(0, 10),
+        affectedVisitors: userAgents.size || occurrences.length,
         devices: Array.from(devices),
         frameworks: Array.from(frameworks),
+        environments: group?.environments || {},
         // Latest occurrence details
         latestOccurrence: latest.id ? {
           id: latest.id,
@@ -458,4 +521,500 @@ export async function handleGetErrorDetail(request: Request, siteId: string, err
     console.error('Get error detail error:', error)
     return errorResponse('Failed to fetch error details')
   }
+}
+
+/**
+ * GET /api/sites/{siteId}/errors/timeseries
+ * Returns error counts bucketed by time period.
+ */
+export async function handleGetErrorTimeseries(request: Request, siteId: string): Promise<Response> {
+  try {
+    const query = getQueryParams(request)
+    const { startDate, endDate } = parseDateRange(query)
+    const interval = getTimeInterval(startDate, endDate)
+
+    // Query errors in the time range
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `ERROR#${startDate.toISOString()}` },
+        ':end': { S: `ERROR#${endDate.toISOString()}` },
+      },
+      ScanIndexForward: true,
+    }) as { Items?: any[] }
+
+    const errors = (result.Items || []).map(unmarshall)
+
+    // Query all error groups to get firstSeen per fingerprint
+    const groupResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':prefix': { S: 'ERROR_GROUP#' },
+      },
+    }) as { Items?: any[] }
+
+    const groups = (groupResult.Items || []).map(unmarshall)
+    const groupFirstSeen: Record<string, string> = {}
+    for (const g of groups) {
+      if (g.fingerprint) groupFirstSeen[g.fingerprint] = g.firstSeen
+    }
+
+    // Build time buckets
+    const buckets: Record<string, { timestamp: string, total: number, new: number, recurring: number }> = {}
+    const fingerprints = new Set<string>()
+    const newFingerprints = new Set<string>()
+
+    for (const error of errors) {
+      const ts = new Date(error.timestamp)
+      let bucketKey: string
+
+      if (interval === 'hour') {
+        bucketKey = `${ts.toISOString().slice(0, 13)}:00:00.000Z`
+      } else {
+        bucketKey = `${ts.toISOString().slice(0, 10)}T00:00:00.000Z`
+      }
+
+      if (!buckets[bucketKey]) {
+        buckets[bucketKey] = { timestamp: bucketKey, total: 0, new: 0, recurring: 0 }
+      }
+
+      buckets[bucketKey].total++
+      fingerprints.add(error.fingerprint || error.message)
+
+      // Check if this error was first seen within this bucket's window
+      const fp = error.fingerprint || error.message
+      const firstSeen = groupFirstSeen[fp]
+      if (firstSeen) {
+        const firstSeenDate = new Date(firstSeen)
+        if (firstSeenDate >= startDate && firstSeenDate <= endDate) {
+          buckets[bucketKey].new++
+          newFingerprints.add(fp)
+        } else {
+          buckets[bucketKey].recurring++
+        }
+      } else {
+        buckets[bucketKey].new++
+        newFingerprints.add(fp)
+      }
+    }
+
+    const timeseries = Object.values(buckets).sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+
+    return jsonResponse({
+      timeseries,
+      summary: {
+        totalErrors: errors.length,
+        uniqueErrors: fingerprints.size,
+        newErrors: newFingerprints.size,
+      },
+    })
+  } catch (error) {
+    console.error('Get error timeseries error:', error)
+    return errorResponse('Failed to fetch error timeseries')
+  }
+}
+
+/**
+ * GET /api/sites/{siteId}/errors/comparison
+ * Compares error counts between current and previous period.
+ */
+export async function handleGetErrorComparison(request: Request, siteId: string): Promise<Response> {
+  try {
+    const query = getQueryParams(request)
+    const { startDate, endDate } = parseDateRange(query)
+
+    const periodMs = endDate.getTime() - startDate.getTime()
+    const previousStart = new Date(startDate.getTime() - periodMs)
+    const previousEnd = startDate
+
+    // Query current period
+    const currentResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `ERROR#${startDate.toISOString()}` },
+        ':end': { S: `ERROR#${endDate.toISOString()}` },
+      },
+    }) as { Items?: any[] }
+
+    // Query previous period
+    const previousResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `ERROR#${previousStart.toISOString()}` },
+        ':end': { S: `ERROR#${previousEnd.toISOString()}` },
+      },
+    }) as { Items?: any[] }
+
+    const currentErrors = (currentResult.Items || []).map(unmarshall)
+    const previousErrors = (previousResult.Items || []).map(unmarshall)
+
+    const currentFingerprints = new Set(currentErrors.map(e => e.fingerprint || e.message))
+    const previousFingerprints = new Set(previousErrors.map(e => e.fingerprint || e.message))
+
+    const currentTotal = currentErrors.length
+    const previousTotal = previousErrors.length
+    const currentUnique = currentFingerprints.size
+    const previousUnique = previousFingerprints.size
+
+    const totalChange = previousTotal === 0 ? (currentTotal > 0 ? 100 : 0)
+      : Math.round(((currentTotal - previousTotal) / previousTotal) * 100)
+    const uniqueChange = previousUnique === 0 ? (currentUnique > 0 ? 100 : 0)
+      : Math.round(((currentUnique - previousUnique) / previousUnique) * 100)
+
+    return jsonResponse({
+      current: { total: currentTotal, unique: currentUnique },
+      previous: { total: previousTotal, unique: previousUnique },
+      changes: { total: totalChange, unique: uniqueChange },
+    })
+  } catch (error) {
+    console.error('Get error comparison error:', error)
+    return errorResponse('Failed to fetch error comparison')
+  }
+}
+
+/**
+ * GET /api/sites/{siteId}/errors/groups
+ * Returns enriched error groups with metadata.
+ */
+export async function handleGetErrorGroups(request: Request, siteId: string): Promise<Response> {
+  try {
+    const query = getQueryParams(request)
+    const sort = query.sort || 'count' // count | lastSeen | firstSeen
+    const status = query.status // open | resolved | ignored | all
+    const category = query.category
+    const limit = Math.min(Number(query.limit) || 50, 200)
+
+    // Query all ERROR_GROUP# records
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':prefix': { S: 'ERROR_GROUP#' },
+      },
+    }) as { Items?: any[] }
+
+    let groups = (result.Items || []).map(unmarshall)
+
+    // Filter by status
+    if (status && status !== 'all') {
+      groups = groups.filter(g => (g.status || 'open') === status)
+    }
+
+    // Filter by category
+    if (category) {
+      groups = groups.filter(g => g.category === category)
+    }
+
+    // Enrich groups with computed fields
+    const enriched = groups.map(g => {
+      const count = g.count || 0
+      const cat = g.category || 'Other'
+      const trend = g.firstSeen && g.lastSeen ? getErrorTrend(g.firstSeen, g.lastSeen, count) : 'stable'
+
+      return {
+        fingerprint: g.fingerprint,
+        message: g.message || 'Unknown error',
+        category: cat,
+        count,
+        firstSeen: g.firstSeen,
+        lastSeen: g.lastSeen,
+        status: g.status || 'open',
+        severity: g.severity || getErrorSeverity(cat, count),
+        trend,
+        environments: g.environments || {},
+        browsers: g.browsers || [],
+        operatingSystems: g.operatingSystems || [],
+      }
+    })
+
+    // Sort
+    if (sort === 'lastSeen') {
+      enriched.sort((a, b) => (b.lastSeen || '').localeCompare(a.lastSeen || ''))
+    } else if (sort === 'firstSeen') {
+      enriched.sort((a, b) => (b.firstSeen || '').localeCompare(a.firstSeen || ''))
+    } else {
+      enriched.sort((a, b) => b.count - a.count)
+    }
+
+    const limited = enriched.slice(0, limit)
+
+    // Summary stats
+    let totalCount = 0
+    let criticalCount = 0
+    const envBreakdown: Record<string, number> = {}
+    for (const g of enriched) {
+      totalCount += g.count
+      if (g.severity === 'critical') criticalCount++
+      for (const [env, envCount] of Object.entries(g.environments)) {
+        envBreakdown[env] = (envBreakdown[env] || 0) + (envCount as number)
+      }
+    }
+
+    return jsonResponse({
+      groups: limited,
+      summary: {
+        totalCount,
+        uniqueGroups: enriched.length,
+        criticalCount,
+        environments: envBreakdown,
+      },
+    })
+  } catch (error) {
+    console.error('Get error groups error:', error)
+    return errorResponse('Failed to fetch error groups')
+  }
+}
+
+/**
+ * GET /api/sites/{siteId}/errors/alerts
+ * Returns error-specific alerts and recent triggers.
+ */
+export async function handleGetErrorAlerts(request: Request, siteId: string): Promise<Response> {
+  try {
+    // Query all ALERT# records and filter to error-specific ones
+    const alertResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':prefix': { S: 'ALERT#' },
+      },
+    }) as { Items?: any[] }
+
+    const allAlerts = (alertResult.Items || []).map(unmarshall)
+    const errorAlerts = allAlerts.filter(a => a.metric && String(a.metric).startsWith('error_'))
+
+    // Query recent triggers (last 7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const triggerResult = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `ALERT_TRIGGER#${sevenDaysAgo.toISOString()}` },
+        ':end': { S: `ALERT_TRIGGER#${new Date().toISOString()}z` },
+      },
+      ScanIndexForward: false,
+    }) as { Items?: any[] }
+
+    const recentTriggers = (triggerResult.Items || []).map(unmarshall)
+
+    return jsonResponse({ alerts: errorAlerts, recentTriggers })
+  } catch (error) {
+    console.error('Get error alerts error:', error)
+    return errorResponse('Failed to fetch error alerts')
+  }
+}
+
+/**
+ * POST /api/sites/{siteId}/errors/alerts
+ * Creates an error-specific alert.
+ */
+export async function handleCreateErrorAlert(request: Request, siteId: string): Promise<Response> {
+  try {
+    const body = await request.json() as Record<string, any>
+
+    const validTypes = ['error_rate_spike', 'new_error_type', 'error_threshold']
+    if (!body.name || !body.type || !validTypes.includes(body.type)) {
+      return jsonResponse({ error: `Missing or invalid fields. type must be: ${validTypes.join(', ')}` }, 400)
+    }
+
+    if (body.type !== 'new_error_type' && (body.threshold === undefined || body.threshold === null)) {
+      return jsonResponse({ error: 'threshold is required for this alert type' }, 400)
+    }
+
+    const alertId = generateId()
+    const alert = {
+      pk: `SITE#${siteId}`,
+      sk: `ALERT#${alertId}`,
+      id: alertId,
+      siteId,
+      name: body.name,
+      metric: body.type,
+      condition: body.type === 'error_rate_spike' ? 'change_percent' : 'above',
+      threshold: body.threshold || 0,
+      windowMinutes: body.windowMinutes || 60,
+      isActive: body.isActive ?? true,
+      lastTriggered: null,
+      createdAt: new Date().toISOString(),
+    }
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall(alert),
+    })
+
+    return jsonResponse({ alert }, 201)
+  } catch (error) {
+    console.error('Create error alert error:', error)
+    return errorResponse('Failed to create error alert')
+  }
+}
+
+/**
+ * POST /api/sites/{siteId}/errors/alerts/evaluate
+ * Evaluates all active error alerts for the site.
+ */
+export async function handleEvaluateErrorAlerts(request: Request, siteId: string): Promise<Response> {
+  try {
+    const triggered = await evaluateErrorAlerts(siteId)
+    return jsonResponse({ triggered })
+  } catch (error) {
+    console.error('Evaluate error alerts error:', error)
+    return errorResponse('Failed to evaluate error alerts')
+  }
+}
+
+// Cooldown map for throttled alert evaluation
+const alertEvalCooldowns = new Map<string, number>()
+const EVAL_COOLDOWN_MS = 5 * 60 * 1000 // 5 minutes
+
+async function evaluateErrorAlertsThrottled(siteId: string): Promise<void> {
+  const lastEval = alertEvalCooldowns.get(siteId) || 0
+  if (Date.now() - lastEval < EVAL_COOLDOWN_MS) return
+  alertEvalCooldowns.set(siteId, Date.now())
+
+  try {
+    await evaluateErrorAlerts(siteId)
+  } catch (e) {
+    console.error('Throttled alert evaluation error:', e)
+  }
+}
+
+async function evaluateErrorAlerts(siteId: string): Promise<any[]> {
+  // Query active error alerts
+  const alertResult = await dynamodb.query({
+    TableName: TABLE_NAME,
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+    ExpressionAttributeValues: {
+      ':pk': { S: `SITE#${siteId}` },
+      ':prefix': { S: 'ALERT#' },
+    },
+  }) as { Items?: any[] }
+
+  const allAlerts = (alertResult.Items || []).map(unmarshall)
+  const errorAlerts = allAlerts.filter(a => a.isActive && a.metric && String(a.metric).startsWith('error_'))
+
+  if (errorAlerts.length === 0) return []
+
+  const now = new Date()
+  const triggered: any[] = []
+
+  for (const alert of errorAlerts) {
+    const windowMs = (alert.windowMinutes || 60) * 60 * 1000
+    const windowStart = new Date(now.getTime() - windowMs)
+
+    let shouldTrigger = false
+    let currentValue = 0
+
+    if (alert.metric === 'error_rate_spike') {
+      // Compare error count in current window vs previous window
+      const prevWindowStart = new Date(windowStart.getTime() - windowMs)
+
+      const [currentResult, prevResult] = await Promise.all([
+        dynamodb.query({
+          TableName: TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+          ExpressionAttributeValues: {
+            ':pk': { S: `SITE#${siteId}` },
+            ':start': { S: `ERROR#${windowStart.toISOString()}` },
+            ':end': { S: `ERROR#${now.toISOString()}` },
+          },
+          Select: 'COUNT',
+        }) as Promise<{ Count?: number }>,
+        dynamodb.query({
+          TableName: TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+          ExpressionAttributeValues: {
+            ':pk': { S: `SITE#${siteId}` },
+            ':start': { S: `ERROR#${prevWindowStart.toISOString()}` },
+            ':end': { S: `ERROR#${windowStart.toISOString()}` },
+          },
+          Select: 'COUNT',
+        }) as Promise<{ Count?: number }>,
+      ])
+
+      const currentCount = currentResult.Count || 0
+      const prevCount = prevResult.Count || 0
+      currentValue = prevCount === 0 ? (currentCount > 0 ? 100 : 0)
+        : Math.round(((currentCount - prevCount) / prevCount) * 100)
+      shouldTrigger = currentValue >= (alert.threshold || 50)
+    } else if (alert.metric === 'new_error_type') {
+      // Check if any ERROR_GROUP firstSeen is within window
+      const groupResult = await dynamodb.query({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+        ExpressionAttributeValues: {
+          ':pk': { S: `SITE#${siteId}` },
+          ':prefix': { S: 'ERROR_GROUP#' },
+        },
+      }) as { Items?: any[] }
+
+      const groups = (groupResult.Items || []).map(unmarshall)
+      const newGroups = groups.filter(g => g.firstSeen && new Date(g.firstSeen) >= windowStart)
+      currentValue = newGroups.length
+      shouldTrigger = currentValue > 0
+    } else if (alert.metric === 'error_threshold') {
+      // Count errors in window
+      const countResult = await dynamodb.query({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+        ExpressionAttributeValues: {
+          ':pk': { S: `SITE#${siteId}` },
+          ':start': { S: `ERROR#${windowStart.toISOString()}` },
+          ':end': { S: `ERROR#${now.toISOString()}` },
+        },
+        Select: 'COUNT',
+      }) as { Count?: number }
+
+      currentValue = countResult.Count || 0
+      shouldTrigger = currentValue >= (alert.threshold || 100)
+    }
+
+    if (shouldTrigger) {
+      const triggerId = `${now.toISOString()}#${alert.id}`
+      const trigger = {
+        pk: `SITE#${siteId}`,
+        sk: `ALERT_TRIGGER#${triggerId}`,
+        alertId: alert.id,
+        alertName: alert.name,
+        metric: alert.metric,
+        triggeredAt: now.toISOString(),
+        currentValue,
+        threshold: alert.threshold,
+        ttl: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60, // 7 days
+      }
+
+      await dynamodb.putItem({
+        TableName: TABLE_NAME,
+        Item: marshall(trigger),
+      })
+
+      // Update lastTriggered on the alert
+      await dynamodb.updateItem({
+        TableName: TABLE_NAME,
+        Key: {
+          pk: { S: `SITE#${siteId}` },
+          sk: { S: `ALERT#${alert.id}` },
+        },
+        UpdateExpression: 'SET lastTriggered = :now',
+        ExpressionAttributeValues: {
+          ':now': { S: now.toISOString() },
+        },
+      })
+
+      triggered.push(trigger)
+    }
+  }
+
+  return triggered
 }
