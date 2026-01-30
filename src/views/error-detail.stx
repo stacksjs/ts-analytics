@@ -153,7 +153,7 @@ onMount(() => {
       <!-- Header Card -->
       <div class="error-card">
         <div class="error-card-header">
-          <h3 class="error-message">{{ errorData().message || 'Unknown Error' }}</h3>
+          <h3 class="error-message">{{ errorData().message ? errorData().message : 'Unknown Error' }}</h3>
           <div class="error-badges">
             <span @if="errorData().severity" @class="['severity-badge', getSeverityClass(errorData().severity)]">
               {{ errorData().severity }}
@@ -162,7 +162,7 @@ onMount(() => {
               {{ errorData().category }}
             </span>
             <span @class="['error-status-badge', getStatusClass(errorData().status)]">
-              {{ errorData().status || 'open' }}
+              {{ errorData().status ? errorData().status : 'open' }}
             </span>
           </div>
         </div>
@@ -198,19 +198,19 @@ onMount(() => {
         </div>
         <div class="meta-card">
           <div class="meta-label">Occurrences</div>
-          <div class="meta-value">{{ errorData().count || 1 }}</div>
+          <div class="meta-value">{{ errorData().count ? errorData().count : 1 }}</div>
         </div>
         <div class="meta-card">
           <div class="meta-label">Browsers</div>
-          <div class="meta-value">{{ (errorData().browsers || []).join(', ') || 'Unknown' }}</div>
+          <div class="meta-value">{{ (errorData().browsers ? errorData().browsers : []).length > 0 ? (errorData().browsers ? errorData().browsers : []).join(', ') : 'Unknown' }}</div>
         </div>
         <div class="meta-card">
           <div class="meta-label">Devices</div>
-          <div class="meta-value">{{ (errorData().devices || []).join(', ') || errorData().latestOccurrence?.deviceType || 'Unknown' }}</div>
+          <div class="meta-value">{{ (errorData().devices ? errorData().devices : []).length > 0 ? (errorData().devices ? errorData().devices : []).join(', ') : (errorData().latestOccurrence?.deviceType ? errorData().latestOccurrence.deviceType : 'Unknown') }}</div>
         </div>
         <div class="meta-card">
           <div class="meta-label">Frameworks</div>
-          <div class="meta-value">{{ (errorData().frameworks || []).join(', ') || errorData().latestOccurrence?.framework || 'Unknown' }}</div>
+          <div class="meta-value">{{ (errorData().frameworks ? errorData().frameworks : []).length > 0 ? (errorData().frameworks ? errorData().frameworks : []).join(', ') : (errorData().latestOccurrence?.framework ? errorData().latestOccurrence.framework : 'Unknown') }}</div>
         </div>
       </div>
 
@@ -220,15 +220,15 @@ onMount(() => {
         <div class="error-meta-grid">
           <div class="meta-card">
             <div class="meta-label">URL</div>
-            <div class="meta-value truncate">{{ errorData().latestOccurrence.url || 'Unknown' }}</div>
+            <div class="meta-value truncate">{{ errorData().latestOccurrence.url ? errorData().latestOccurrence.url : 'Unknown' }}</div>
           </div>
           <div class="meta-card">
             <div class="meta-label">Browser</div>
-            <div class="meta-value">{{ errorData().latestOccurrence.browser || '' }} {{ errorData().latestOccurrence.browserVersion || '' }}</div>
+            <div class="meta-value">{{ errorData().latestOccurrence.browser ? errorData().latestOccurrence.browser : '' }} {{ errorData().latestOccurrence.browserVersion ? errorData().latestOccurrence.browserVersion : '' }}</div>
           </div>
           <div class="meta-card">
             <div class="meta-label">OS</div>
-            <div class="meta-value">{{ errorData().latestOccurrence.os || '' }} {{ errorData().latestOccurrence.osVersion || '' }}</div>
+            <div class="meta-value">{{ errorData().latestOccurrence.os ? errorData().latestOccurrence.os : '' }} {{ errorData().latestOccurrence.osVersion ? errorData().latestOccurrence.osVersion : '' }}</div>
           </div>
           <div @if="errorData().latestOccurrence.environment" class="meta-card">
             <div class="meta-label">Environment</div>
@@ -258,7 +258,7 @@ onMount(() => {
       <!-- Stack Trace -->
       <div @if="errorData().latestOccurrence?.stack || errorData().stack" class="section">
         <h4 class="section-title">Stack Trace</h4>
-        <pre class="error-stack">{{ errorData().latestOccurrence?.stack || errorData().stack }}</pre>
+        <pre class="error-stack">{{ errorData().latestOccurrence?.stack ? errorData().latestOccurrence.stack : errorData().stack }}</pre>
       </div>
 
       <!-- Breadcrumbs -->
@@ -296,9 +296,9 @@ onMount(() => {
           </div>
           <div @for="occ in errorData().recentOccurrences" class="occurrence-row">
             <span>{{ formatRelativeTime(occ.timestamp) }}</span>
-            <span>{{ occ.browser || 'Unknown' }}</span>
-            <span>{{ occ.os || 'Unknown' }}</span>
-            <span class="truncate">{{ occ.url || '' }}</span>
+            <span>{{ occ.browser ? occ.browser : 'Unknown' }}</span>
+            <span>{{ occ.os ? occ.os : 'Unknown' }}</span>
+            <span class="truncate">{{ occ.url ? occ.url : '' }}</span>
           </div>
         </div>
       </div>

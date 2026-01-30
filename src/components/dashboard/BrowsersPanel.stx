@@ -50,9 +50,9 @@ window.refreshBrowsersPanel = fetchBrowsers
     </thead>
     <tbody>
       <tr @for="browser in browsers()" @loading="loading()" @if="!loading()">
-        <td class="name">{{ browser.name || 'Unknown' }}</td>
+        <td class="name">{{ browser.name ? browser.name : 'Unknown' }}</td>
         <td class="value">{{ browser.visitors | fmt }}</td>
-        <td class="value">{{ browser.percentage || 0 }}%</td>
+        <td class="value">{{ browser.percentage ? browser.percentage : 0 }}%</td>
       </tr>
       <tr @for-loading>
         <td colspan="3" class="loading-cell">Loading...</td>

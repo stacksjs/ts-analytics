@@ -69,16 +69,16 @@ onMount(() => {
 
     <div @for="session in sessions()" class="session-card" @click="viewSession(session.sessionId)">
       <div class="session-card-header">
-        <span class="session-path">{{ session.entryPage || '/' }}</span>
+        <span class="session-path">{{ session.entryPage ? session.entryPage : '/' }}</span>
         <span class="session-time">{{ timeAgo(session.startTime) }}</span>
       </div>
       <div class="session-card-meta">
-        <span class="session-pages">{{ session.pageViews || 1 }} page{{ (session.pageViews || 1) !== 1 ? 's' : '' }}</span>
+        <span class="session-pages">{{ session.pageViews ? session.pageViews : 1 }} page{{ (session.pageViews ? session.pageViews : 1) !== 1 ? 's' : '' }}</span>
         <span @class="['session-duration', session.bounced ? 'bounced' : '']">
           {{ session.bounced ? 'Bounced' : formatDuration(session.duration) }}
         </span>
-        <span class="session-browser">{{ session.browser || 'Unknown' }}</span>
-        <span class="session-country">{{ session.country || 'Unknown' }}</span>
+        <span class="session-browser">{{ session.browser ? session.browser : 'Unknown' }}</span>
+        <span class="session-country">{{ session.country ? session.country : 'Unknown' }}</span>
       </div>
     </div>
   </div>

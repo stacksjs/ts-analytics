@@ -43,7 +43,7 @@ function getTypeBadgeClass(type: string): string {
             <td>
               <span class="{{ getTypeBadgeClass(goal.type) }}">{{ goal.type }}</span>
             </td>
-            <td class="goal-conversions text-right">{{ goal.conversions || 0 | fmt }}</td>
+            <td class="goal-conversions text-right">{{ (goal.conversions ? goal.conversions : 0) | fmt }}</td>
             <td class="goal-value text-right">
               @if(goal.value)
                 {{ formatCurrency(goal.value) }}

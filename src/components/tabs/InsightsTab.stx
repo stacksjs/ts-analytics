@@ -74,11 +74,11 @@ onMount(() => {
         <div class="insights-stat-label">Views Last Week</div>
       </div>
       <div class="insights-stat">
-        <div class="insights-stat-value">{{ comparisonStats().sessions || 0 }}</div>
+        <div class="insights-stat-value">{{ comparisonStats().sessions ? comparisonStats().sessions : 0 }}</div>
         <div class="insights-stat-label">Sessions</div>
       </div>
       <div class="insights-stat">
-        <div class="insights-stat-value">{{ comparisonStats().bounceRate || 0 }}%</div>
+        <div class="insights-stat-value">{{ comparisonStats().bounceRate ? comparisonStats().bounceRate : 0 }}%</div>
         <div class="insights-stat-label">Bounce Rate</div>
       </div>
     </div>

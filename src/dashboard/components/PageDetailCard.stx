@@ -67,7 +67,7 @@ const metrics = page ? [
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
           <h3 class="text-lg font-semibold text-gray-900 truncate" title="{{ page.path }}">
-            {{ page.title || page.path }}
+            {{ page.title ? page.title : page.path }}
           </h3>
           <p class="text-sm text-gray-500 truncate mt-0.5" title="{{ page.path }}">
             {{ page.path }}

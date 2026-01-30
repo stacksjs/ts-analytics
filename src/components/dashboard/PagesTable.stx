@@ -51,9 +51,9 @@ function getPageUrl(path) {
           </a>
           <span @if="!getPageUrl(page.path)">{{ page.path }}</span>
         </td>
-        <td class="value">{{ page.entries || 0 | fmt }}</td>
-        <td class="value">{{ page.visitors || 0 | fmt }}</td>
-        <td class="value">{{ page.views || 0 | fmt }}</td>
+        <td class="value">{{ (page.entries ? page.entries : 0) | fmt }}</td>
+        <td class="value">{{ (page.visitors ? page.visitors : 0) | fmt }}</td>
+        <td class="value">{{ (page.views ? page.views : 0) | fmt }}</td>
       </tr>
     </tbody>
   </table>

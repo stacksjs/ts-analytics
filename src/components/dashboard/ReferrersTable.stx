@@ -43,7 +43,7 @@ function getDomain(source) {
       </tr>
       <tr @for="ref in referrers()" @if="!loading()">
         <td class="name">
-          <a @if="isExternalLink(ref.source || 'Direct')"
+          <a @if="isExternalLink(ref.source ? ref.source : 'Direct')"
              :href="getHref(ref.source)"
              target="_blank"
              rel="noopener"
@@ -55,15 +55,15 @@ function getDomain(source) {
               class="favicon"
               @error="e => e.target.style.display = 'none'"
             />
-            {{ ref.source || 'Direct' }}
+            {{ ref.source ? ref.source : 'Direct' }}
             <svg class="external-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
             </svg>
           </a>
-          <span @if="!isExternalLink(ref.source || 'Direct')">{{ ref.source || 'Direct' }}</span>
+          <span @if="!isExternalLink(ref.source ? ref.source : 'Direct')">{{ ref.source ? ref.source : 'Direct' }}</span>
         </td>
-        <td class="value">{{ ref.visitors || 0 | fmt }}</td>
-        <td class="value">{{ ref.views || 0 | fmt }}</td>
+        <td class="value">{{ (ref.visitors ? ref.visitors : 0) | fmt }}</td>
+        <td class="value">{{ (ref.views ? ref.views : 0) | fmt }}</td>
       </tr>
     </tbody>
   </table>

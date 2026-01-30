@@ -57,9 +57,9 @@ window.refreshCampaignsPanel = fetchCampaigns
         <td colspan="3" class="empty-cell">No campaign data</td>
       </tr>
       <tr @for="campaign in campaigns()" @if="!loading()">
-        <td class="name">{{ campaign.name || campaign.source || 'Unknown' }}</td>
-        <td class="value">{{ campaign.visitors || 0 | fmt }}</td>
-        <td class="value">{{ campaign.views || 0 | fmt }}</td>
+        <td class="name">{{ campaign.name ? campaign.name : (campaign.source ? campaign.source : 'Unknown') }}</td>
+        <td class="value">{{ (campaign.visitors ? campaign.visitors : 0) | fmt }}</td>
+        <td class="value">{{ (campaign.views ? campaign.views : 0) | fmt }}</td>
       </tr>
     </tbody>
   </table>

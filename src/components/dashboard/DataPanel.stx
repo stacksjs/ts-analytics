@@ -50,7 +50,7 @@ const { id, title, icon, viewAllLink, columns, bodyId } = withDefaults(
         @endforeach
       </tr>
     </thead>
-    <tbody id="{{ bodyId || id + '-body' }}">
+    <tbody id="{{ bodyId ? bodyId : (id + '-body') }}">
       <tr>
         <td colspan="{{ columns.length }}" class="empty-cell">Loading...</td>
       </tr>

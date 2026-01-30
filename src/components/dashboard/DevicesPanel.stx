@@ -64,10 +64,10 @@ window.refreshDevicesPanel = fetchDevices
           <svg class="device-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(device.type)"/>
           </svg>
-          {{ device.type || 'Unknown' | capitalize }}
+          {{ (device.type ? device.type : 'Unknown') | capitalize }}
         </td>
         <td class="value">{{ device.visitors | fmt }}</td>
-        <td class="value">{{ device.percentage || 0 }}%</td>
+        <td class="value">{{ device.percentage ? device.percentage : 0 }}%</td>
       </tr>
       <tr @for-loading>
         <td colspan="3" class="loading-cell">Loading...</td>

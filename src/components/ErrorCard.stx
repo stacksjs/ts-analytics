@@ -36,13 +36,13 @@ function handleAction(action, e) {
   <a :href="errorUrl()" :class="classNames()">
     <div @class="['error-card-gradient', severity()]"></div>
     <div class="error-card-header">
-      <span class="error-severity">{{ severityLabels[severity()] || 'Unknown' }}</span>
-      <span class="error-category">{{ error.category || 'Error' }}</span>
-      <span @class="['error-status', status]">{{ statusLabels[status] || 'New' }}</span>
+      <span class="error-severity">{{ severityLabels[severity()] ? severityLabels[severity()] : 'Unknown' }}</span>
+      <span class="error-category">{{ error.category ? error.category : 'Error' }}</span>
+      <span @class="['error-status', status]">{{ statusLabels[status] ? statusLabels[status] : 'New' }}</span>
       <span class="error-count">{{ error.count }} event{{ error.count !== 1 ? 's' : '' }}</span>
     </div>
     <div class="error-source">{{ source() }}</div>
-    <div class="error-message">{{ error.message || 'Unknown error' }}</div>
+    <div class="error-message">{{ error.message ? error.message : 'Unknown error' }}</div>
     <div class="error-meta">
       <span class="error-first-seen">First: {{ error.firstSeen ? new Date(error.firstSeen).toLocaleDateString() : 'N/A' }}</span>
       <span class="error-last-seen">Last: {{ new Date(error.lastSeen).toLocaleString() }}</span>

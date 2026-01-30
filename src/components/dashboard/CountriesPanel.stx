@@ -67,8 +67,8 @@ window.refreshCountriesPanel = fetchCountries
     <tbody>
       <tr @for="country in countries()" @loading="loading()" @if="!loading()">
         <td class="name">
-          <span class="flag">{{ getFlag(country.name || country.code) }}</span>
-          {{ country.name || country.code || 'Unknown' }}
+          <span class="flag">{{ getFlag(country.name ? country.name : country.code) }}</span>
+          {{ country.name ? country.name : (country.code ? country.code : 'Unknown') }}
         </td>
         <td class="value">{{ country.visitors | fmt }}</td>
       </tr>

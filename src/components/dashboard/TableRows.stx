@@ -44,9 +44,9 @@ function isExternalLink(source: string): boolean {
             </svg>
           </a>
         </td>
-        <td class="value">{{ page.entries || 0 | fmt }}</td>
-        <td class="value">{{ page.visitors || 0 | fmt }}</td>
-        <td class="value">{{ page.views || 0 | fmt }}</td>
+        <td class="value">{{ (page.entries ? page.entries : 0) | fmt }}</td>
+        <td class="value">{{ (page.visitors ? page.visitors : 0) | fmt }}</td>
+        <td class="value">{{ (page.views ? page.views : 0) | fmt }}</td>
       </tr>
     @endforeach
   @endif
@@ -62,22 +62,22 @@ function isExternalLink(source: string): boolean {
     @foreach(referrers as ref)
       <tr>
         <td class="name">
-          @if(isExternalLink(ref.source || 'Direct'))
+          @if(isExternalLink(ref.source ? ref.source : 'Direct'))
             <a href="{{ ref.source.startsWith('http') ? ref.source : 'https://' + ref.source }}"
                target="_blank" rel="noopener" class="referrer-link">
               <img src="https://www.google.com/s2/favicons?domain={{ getDomain(ref.source) }}&sz=16"
                    width="14" height="14" class="favicon" onerror="this.style.display='none'" />
-              {{ ref.source || 'Direct' }}
+              {{ ref.source ? ref.source : 'Direct' }}
               <svg class="external-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
               </svg>
             </a>
           @else
-            {{ ref.source || 'Direct' }}
+            {{ ref.source ? ref.source : 'Direct' }}
           @endif
         </td>
-        <td class="value">{{ ref.visitors || 0 | fmt }}</td>
-        <td class="value">{{ ref.views || 0 | fmt }}</td>
+        <td class="value">{{ (ref.visitors ? ref.visitors : 0) | fmt }}</td>
+        <td class="value">{{ (ref.views ? ref.views : 0) | fmt }}</td>
       </tr>
     @endforeach
   @endif
@@ -102,10 +102,10 @@ function isExternalLink(source: string): boolean {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
             @endif
           </svg>
-          {{ device.type || 'Unknown' }}
+          {{ device.type ? device.type : 'Unknown' }}
         </td>
-        <td class="value">{{ device.visitors || 0 | fmt }}</td>
-        <td class="value">{{ device.percentage || 0 }}%</td>
+        <td class="value">{{ (device.visitors ? device.visitors : 0) | fmt }}</td>
+        <td class="value">{{ device.percentage ? device.percentage : 0 }}%</td>
       </tr>
     @endforeach
   @endif
@@ -120,9 +120,9 @@ function isExternalLink(source: string): boolean {
   @else
     @foreach(browsers as browser)
       <tr>
-        <td class="name">{{ browser.name || 'Unknown' }}</td>
-        <td class="value">{{ browser.visitors || 0 | fmt }}</td>
-        <td class="value">{{ browser.percentage || 0 }}%</td>
+        <td class="name">{{ browser.name ? browser.name : 'Unknown' }}</td>
+        <td class="value">{{ (browser.visitors ? browser.visitors : 0) | fmt }}</td>
+        <td class="value">{{ browser.percentage ? browser.percentage : 0 }}%</td>
       </tr>
     @endforeach
   @endif
@@ -138,10 +138,10 @@ function isExternalLink(source: string): boolean {
     @foreach(countries as country)
       <tr>
         <td class="name">
-          <span class="country-flag">{{ getFlag(country.name || country.code) }}</span>
-          {{ country.name || country.code || 'Unknown' }}
+          <span class="country-flag">{{ getFlag(country.name ? country.name : country.code) }}</span>
+          {{ country.name ? country.name : (country.code ? country.code : 'Unknown') }}
         </td>
-        <td class="value">{{ country.visitors || 0 | fmt }}</td>
+        <td class="value">{{ (country.visitors ? country.visitors : 0) | fmt }}</td>
       </tr>
     @endforeach
   @endif
@@ -156,9 +156,9 @@ function isExternalLink(source: string): boolean {
   @else
     @foreach(campaigns as campaign)
       <tr>
-        <td class="name">{{ campaign.name || campaign.source || 'Unknown' }}</td>
-        <td class="value">{{ campaign.visitors || 0 | fmt }}</td>
-        <td class="value">{{ campaign.views || 0 | fmt }}</td>
+        <td class="name">{{ campaign.name ? campaign.name : (campaign.source ? campaign.source : 'Unknown') }}</td>
+        <td class="value">{{ (campaign.visitors ? campaign.visitors : 0) | fmt }}</td>
+        <td class="value">{{ (campaign.views ? campaign.views : 0) | fmt }}</td>
       </tr>
     @endforeach
   @endif

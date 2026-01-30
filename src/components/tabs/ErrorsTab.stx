@@ -160,18 +160,18 @@ onMount(() => {
            @class="['error-card', getErrorStatus(e.message) === 'resolved' ? 'resolved' : '', getErrorStatus(e.message) === 'ignored' ? 'ignored' : '']">
           <div @class="['error-card-gradient', e.severity || 'medium']"></div>
           <div class="error-card-header">
-            <span class="error-severity">{{ severityLabels[e.severity] || 'Unknown' }}</span>
-            <span class="error-category">{{ e.category || 'Error' }}</span>
-            <span @class="['error-status', getErrorStatus(e.message)]">{{ statusLabels[getErrorStatus(e.message)] || 'New' }}</span>
+            <span class="error-severity">{{ severityLabels[e.severity] ? severityLabels[e.severity] : 'Unknown' }}</span>
+            <span class="error-category">{{ e.category ? e.category : 'Error' }}</span>
+            <span @class="['error-status', getErrorStatus(e.message)]">{{ statusLabels[getErrorStatus(e.message)] ? statusLabels[getErrorStatus(e.message)] : 'New' }}</span>
             <span class="error-count">{{ e.count }} event{{ e.count !== 1 ? 's' : '' }}</span>
           </div>
           <div class="error-source">{{ e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source' }}</div>
-          <div class="error-message">{{ e.message || 'Unknown error' }}</div>
+          <div class="error-message">{{ e.message ? e.message : 'Unknown error' }}</div>
           <div class="error-meta">
             <span>First: {{ e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A' }}</span>
             <span>Last: {{ new Date(e.lastSeen).toLocaleString() }}</span>
-            <span>{{ (e.browsers || []).join(', ') || 'Unknown' }}</span>
-            <span>{{ (e.paths || []).length }} page{{ (e.paths || []).length !== 1 ? 's' : '' }}</span>
+            <span>{{ (e.browsers ? e.browsers : []).join(', ') ? (e.browsers ? e.browsers : []).join(', ') : 'Unknown' }}</span>
+            <span>{{ (e.paths ? e.paths : []).length }} page{{ (e.paths ? e.paths : []).length !== 1 ? 's' : '' }}</span>
           </div>
           <div class="error-actions-inline" @click.stop>
             <button @if="getErrorStatus(e.message) !== 'resolved'" @click.stop="updateStatus(encodeURIComponent(getErrorId(e.message)), 'resolved')" class="btn btn-resolve">✓ Resolve</button>

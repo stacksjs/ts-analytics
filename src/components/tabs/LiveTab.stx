@@ -48,9 +48,9 @@ onMount(() => {
     <div @for="activity in activities()" @loading="loading()" @if="!loading()" class="live-activity-card">
       <div class="live-dot"></div>
       <div class="live-activity-content">
-        <div class="live-activity-path">{{ activity.path || '/' }}</div>
+        <div class="live-activity-path">{{ activity.path ? activity.path : '/' }}</div>
         <div class="live-activity-meta">
-          {{ activity.country || 'Unknown' }} &bull; {{ activity.device || 'Unknown' }} &bull; {{ activity.browser || 'Unknown' }}
+          {{ activity.country ? activity.country : 'Unknown' }} &bull; {{ activity.device ? activity.device : 'Unknown' }} &bull; {{ activity.browser ? activity.browser : 'Unknown' }}
         </div>
       </div>
       <div class="live-activity-time">{{ activity.timestamp | timeAgo }}</div>

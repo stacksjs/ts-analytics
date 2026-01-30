@@ -41,10 +41,10 @@ function getFlag(name) {
       </tr>
       <tr @for="country in countries()" @if="!loading()">
         <td class="name">
-          <span class="flag">{{ getFlag(country.name || country.code) }}</span>
-          {{ country.name || country.code || 'Unknown' }}
+          <span class="flag">{{ getFlag(country.name ? country.name : country.code) }}</span>
+          {{ country.name ? country.name : (country.code ? country.code : 'Unknown') }}
         </td>
-        <td class="value">{{ country.visitors || 0 | fmt }}</td>
+        <td class="value">{{ (country.visitors ? country.visitors : 0) | fmt }}</td>
       </tr>
     </tbody>
   </table>

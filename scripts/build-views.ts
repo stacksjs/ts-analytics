@@ -30,7 +30,7 @@ const result = await buildViews({
   layoutsDir: path.join(VIEWS_DIR, 'layouts'),
   partialsDir: path.join(VIEWS_DIR, 'partials'),
   placeholders: PLACEHOLDERS,
-  debug: true,
+  debug: false,
   views: [
     { input: 'dashboard.stx' },
     { input: 'test-errors.stx' },

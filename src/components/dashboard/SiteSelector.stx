@@ -1,94 +1,9 @@
 <script>
 /**
  * SiteSelector Component - Site selection and creation
- * Uses STX signals for reactive state
+ * Note: All functionality is handled by dashboard.ts (fetchSites, renderSiteSelector, etc.)
+ * This component just provides the HTML structure and styles.
  */
-
-// State
-const sites = state([])
-const loading = state(true)
-const newSiteName = state('')
-const newSiteDomain = state('')
-const creating = state(false)
-const error = state(null)
-
-// Fetch available sites
-async function fetchSites() {
-  loading.set(true)
-  error.set(null)
-
-  try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites`))
-    if (!res.ok) throw new Error('Failed to fetch sites')
-    const data = await res.json()
-    sites.set(data.sites || [])
-  } catch (err) {
-    error.set('Failed to load sites')
-    console.error('Failed to fetch sites:', err)
-  } finally {
-    loading.set(false)
-  }
-}
-
-// Create new site
-async function createSite(e) {
-  e.preventDefault()
-
-  const name = newSiteName().trim()
-  const domain = newSiteDomain().trim()
-
-  if (!name) {
-    error.set('Site name is required')
-    return
-  }
-
-  creating.set(true)
-  error.set(null)
-
-  try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, domain: domain || undefined })
-    })
-    const data = await res.json()
-
-    if (!res.ok) {
-      error.set(data.error || 'Failed to create site')
-      return
-    }
-
-    // Reset form
-    newSiteName.set('')
-    newSiteDomain.set('')
-
-    // Refresh sites list
-    await fetchSites()
-
-    // Select the new site
-    if (data.site) {
-      selectSite(data.site)
-    }
-  } catch (err) {
-    error.set('Failed to create site')
-    console.error('Failed to create site:', err)
-  } finally {
-    creating.set(false)
-  }
-}
-
-// Select a site
-function selectSite(site) {
-  if (window.selectSite) {
-    window.selectSite(site.id, site.name || '')
-  }
-}
-
-// Expose functions
-onMount(() => {
-  window.fetchSites = fetchSites
-  window.refreshSitesList = fetchSites
-})
 </script>
 
 <div id="site-selector" class="site-selector" style="display:none">
@@ -96,64 +11,10 @@ onMount(() => {
   <p class="subtitle">Select a site to view analytics</p>
 
   <div id="site-list" class="site-list">
-    <!-- Create Site Form -->
-    <div class="create-form-container">
-      <h3 class="section-title">Create New Site</h3>
-      <form @submit="createSite" class="create-form">
-        <input
-          type="text"
-          class="form-input"
-          placeholder="Site name (e.g. My Website)"
-          @model="newSiteName"
-          required
-          :disabled="creating()"
-        />
-        <input
-          type="text"
-          class="form-input"
-          placeholder="Domain (optional)"
-          @model="newSiteDomain"
-          :disabled="creating()"
-        />
-        <button type="submit" class="btn-create" :disabled="creating()">
-          {{ creating() ? 'Creating...' : 'Create' }}
-        </button>
-      </form>
-      <p @if="error()" class="error-message">{{ error() }}</p>
-    </div>
-
-    <!-- Loading State -->
-    <div @if="loading()" class="loading-state">
+    <!-- Content populated by renderSiteSelector() in dashboard.ts -->
+    <div class="loading-state">
       <div class="spinner"></div>
       <span>Loading sites...</span>
-    </div>
-
-    <!-- Sites List -->
-    <div @if="!loading() && sites().length > 0" class="sites-container">
-      <h3 class="section-title">Your Sites</h3>
-      <button @for="site in sites()" class="site-card" @click="selectSite(site)">
-        <div class="site-icon">
-          <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-          </svg>
-        </div>
-        <div class="site-info">
-          <span class="site-name">{{ site.name || 'Unnamed' }}</span>
-          <span class="site-domain">{{ site.domains?.[0] || site.id }}</span>
-        </div>
-        <svg class="arrow" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
-      </button>
-    </div>
-
-    <!-- Empty State -->
-    <div @if="!loading() && sites().length === 0" class="empty-state">
-      <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-      </svg>
-      <p>No sites yet</p>
-      <p class="empty-hint">Create your first site above to start tracking analytics</p>
     </div>
   </div>
 </div>
@@ -186,60 +47,6 @@ onMount(() => {
   width: 100%;
   max-width: 600px;
 }
-.create-form-container {
-  width: 100%;
-  max-width: 500px;
-  margin-bottom: 1.5rem;
-}
-.section-title {
-  font-size: 0.875rem;
-  color: var(--text2);
-  margin-bottom: 0.75rem;
-  text-align: left;
-}
-.create-form {
-  display: flex;
-  gap: 0.5rem;
-}
-.form-input {
-  flex: 1;
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--bg2);
-  color: var(--text);
-  font-size: 0.875rem;
-}
-.form-input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-.form-input:disabled {
-  opacity: 0.6;
-}
-.btn-create {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  background: var(--accent);
-  color: white;
-  border: none;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.15s;
-}
-.btn-create:hover:not(:disabled) {
-  background: var(--accent2);
-}
-.btn-create:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.error-message {
-  color: var(--error);
-  font-size: 0.75rem;
-  margin-top: 0.5rem;
-  text-align: left;
-}
 .loading-state {
   display: flex;
   align-items: center;
@@ -257,10 +64,6 @@ onMount(() => {
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-.sites-container {
-  width: 100%;
-  max-width: 500px;
 }
 .site-card {
   background: var(--bg2);
@@ -316,16 +119,8 @@ onMount(() => {
 .site-card:hover .arrow {
   color: var(--accent);
 }
-.empty-state {
+.empty {
   color: var(--muted);
   padding: 2rem;
-}
-.empty-state svg {
-  margin-bottom: 1rem;
-}
-.empty-hint {
-  font-size: 0.75rem;
-  margin-top: 0.5rem;
-  color: var(--muted);
 }
 </style>

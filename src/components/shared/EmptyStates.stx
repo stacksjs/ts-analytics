@@ -7,7 +7,7 @@
   @if(loading)
     <div class="loading">
       <div class="spinner"></div>
-      <p>{{ message || 'Loading...' }}</p>
+      <p>{{ message ? message : 'Loading...' }}</p>
     </div>
   @elseif(error)
     <div class="error">

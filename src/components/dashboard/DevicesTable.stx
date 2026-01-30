@@ -45,8 +45,8 @@ function getIconPath(type) {
           </svg>
           {{ device.type }}
         </td>
-        <td class="value">{{ device.visitors || 0 | fmt }}</td>
-        <td class="value">{{ device.percentage || 0 }}%</td>
+        <td class="value">{{ (device.visitors ? device.visitors : 0) | fmt }}</td>
+        <td class="value">{{ device.percentage ? device.percentage : 0 }}%</td>
       </tr>
     </tbody>
   </table>

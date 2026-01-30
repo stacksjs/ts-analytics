@@ -74,17 +74,55 @@ function setSiteName(name) {
   siteName.set(name || 'Analytics Dashboard')
 }
 
+// Render navigation tabs
+function renderNav() {
+  const nav = document.getElementById('header-nav')
+  if (!nav) return
+
+  const currentTab = activeTab()
+  nav.innerHTML = tabs.map(tab => `
+    <button
+      class="nav-btn${currentTab === tab.id ? ' active' : ''}"
+      data-tab="${tab.id}"
+      onclick="window.dashboardHeader.switchTab('${tab.id}')"
+    >
+      ${tab.label}
+    </button>
+  `).join('')
+}
+
+// Update theme icons
+function updateThemeIcons() {
+  const moonIcon = document.getElementById('moon-icon')
+  const sunIcon = document.getElementById('sun-icon')
+  if (moonIcon && sunIcon) {
+    moonIcon.style.display = isDarkTheme() ? 'block' : 'none'
+    sunIcon.style.display = isDarkTheme() ? 'none' : 'block'
+  }
+}
+
+// React to state changes
+effect(() => {
+  renderNav()
+  updateThemeIcons()
+})
+
 // Expose functions
 onMount(() => {
   initTheme()
+  renderNav()
+  updateThemeIcons()
   window.headerSetActiveTab = (tab) => activeTab.set(tab)
   window.headerSetSiteName = setSiteName
+  window.dashboardHeader = {
+    switchTab, toggleTheme, goBack, activeTab, isDarkTheme
+  }
 })
 </script>
 
 <header class="header">
   <div class="header-left">
-    <button class="back-btn" @click="goBack" title="Back to sites">
+    <button class="back-btn" onclick="window.dashboardHeader.goBack()" title="Back to sites">
       <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
@@ -93,23 +131,23 @@ onMount(() => {
   </div>
 
   <nav class="header-nav">
-    <button
-      @for="tab in tabs"
-      class="nav-btn"
-      :class="{ active: activeTab() === tab.id }"
-      :data-tab="tab.id"
-      @click="switchTab(tab.id)"
-    >
-      {{ tab.label }}
-    </button>
+    <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+    <button class="nav-btn" data-tab="live" onclick="switchTab('live')">Live</button>
+    <button class="nav-btn" data-tab="sessions" onclick="switchTab('sessions')">Sessions</button>
+    <button class="nav-btn" data-tab="funnels" onclick="switchTab('funnels')">Funnels</button>
+    <button class="nav-btn" data-tab="flow" onclick="switchTab('flow')">User Flow</button>
+    <button class="nav-btn" data-tab="vitals" onclick="switchTab('vitals')">Web Vitals</button>
+    <button class="nav-btn" data-tab="errors" onclick="switchTab('errors')">Errors</button>
+    <button class="nav-btn" data-tab="insights" onclick="switchTab('insights')">Insights</button>
+    <button class="nav-btn" data-tab="settings" onclick="switchTab('settings')">Settings</button>
   </nav>
 
   <div class="header-right">
-    <button id="theme-toggle" class="theme-toggle" @click="toggleTheme" title="Toggle dark/light mode">
-      <svg @if="isDarkTheme()" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <button id="theme-toggle" class="theme-toggle" onclick="window.dashboardHeader.toggleTheme()" title="Toggle dark/light mode">
+      <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
       </svg>
-      <svg @if="!isDarkTheme()" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none">
         <circle cx="12" cy="12" r="5" stroke-width="2"/>
         <path stroke-linecap="round" stroke-width="2" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
       </svg>

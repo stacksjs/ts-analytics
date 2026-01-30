@@ -31,13 +31,13 @@ function getBarWidth(count: number, max: number): number {
           <div class="event-bar-info">
             <div class="event-bar-header">
               <span class="event-bar-name">{{ event.name }}</span>
-              <span class="event-bar-pct">{{ getPercentage(event.count || 0, getTotalCount(events)) }}%</span>
+              <span class="event-bar-pct">{{ getPercentage((event.count ? event.count : 0), getTotalCount(events)) }}%</span>
             </div>
             <div class="event-bar-track">
-              <div class="event-bar-fill" style="width: {{ getBarWidth(event.count || 0, getMaxCount(events)) }}%"></div>
+              <div class="event-bar-fill" style="width: {{ getBarWidth((event.count ? event.count : 0), getMaxCount(events)) }}%"></div>
             </div>
           </div>
-          <span class="event-bar-count">{{ event.count || 0 | fmt }}</span>
+          <span class="event-bar-count">{{ (event.count ? event.count : 0) | fmt }}</span>
         </div>
       @endforeach
     </div>

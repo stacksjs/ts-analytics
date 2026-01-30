@@ -106,18 +106,23 @@ async function deployLambdaAPI() {
     }
   }
 
-  // Step 2: Pre-build STX views to HTML
+  // Step 2: Pre-build STX views to HTML (skip if views already exist)
   console.log('\n2. Pre-building STX views...')
 
-  const buildViewsProc = Bun.spawn(['bun', 'run', './scripts/build-views.ts'], {
-    cwd: process.cwd(),
-    stdout: 'inherit',
-    stderr: 'inherit',
-  })
-  await buildViewsProc.exited
+  const viewsExist = await Bun.file('./dist/views/dashboard.html').exists()
+  if (viewsExist && process.env.SKIP_VIEW_BUILD !== 'false') {
+    console.log('   Using existing pre-built views from dist/views/')
+  } else {
+    const buildViewsProc = Bun.spawn(['bun', 'run', './scripts/build-views.ts'], {
+      cwd: process.cwd(),
+      stdout: 'inherit',
+      stderr: 'inherit',
+    })
+    await buildViewsProc.exited
 
-  if (buildViewsProc.exitCode !== 0) {
-    throw new Error('Failed to pre-build views')
+    if (buildViewsProc.exitCode !== 0) {
+      throw new Error('Failed to pre-build views')
+    }
   }
 
   // Step 3: Bundle and upload Lambda code
