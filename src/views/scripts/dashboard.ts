@@ -190,6 +190,17 @@ let comparisonData: any = null
 // Tab state
 let activeTab = 'dashboard'
 const validTabs = ['dashboard', 'live', 'sessions', 'funnels', 'flow', 'vitals', 'errors', 'insights', 'settings']
+const tabTitles: Record<string, string> = {
+  dashboard: 'Dashboard',
+  live: 'Live View',
+  sessions: 'Sessions',
+  funnels: 'Funnels',
+  flow: 'User Flow',
+  vitals: 'Web Vitals',
+  errors: 'Errors',
+  insights: 'Insights',
+  settings: 'Settings'
+}
 
 // Theme management
 function getPreferredTheme() {
@@ -557,6 +568,9 @@ function updateUrlForTab(tab: string, replace = false) {
 function switchTab(tab: string, updateHistory = true) {
   if (!validTabs.includes(tab)) tab = 'dashboard'
   activeTab = tab
+
+  // Update document title based on current tab
+  document.title = `${tabTitles[tab] || 'Dashboard'} - Analytics`
 
   if (updateHistory && siteId) {
     updateUrlForTab(tab)

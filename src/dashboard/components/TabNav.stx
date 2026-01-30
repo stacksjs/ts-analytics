@@ -1,6 +1,6 @@
 {{-- TabNav Component --}}
 {{-- Props: tabs (array of {id, label}), activeTab --}}
-<div class="tabs" data-tab-group="{{ tabGroup ? tabGroup : 'default' }}">
+<div class="tabs" data-tab-group="{{ tabGroup || 'default' }}">
   @foreach(tabs as tab)
     <button
       class="tab-btn @if(tab.id === activeTab) active @endif"
