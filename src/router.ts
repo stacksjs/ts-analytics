@@ -103,15 +103,7 @@ export async function createRouter(): Promise<Router> {
     return views.handleErrorDetailPage(req, errorId)
   })
 
-  // File-based routing: auto-discovers .stx files from src/views/
-  // Custom render function uses ts-analytics' pre-built views support
-  router.views({
-    render: async (filePath, _data, req) => {
-      const match = filePath.match(/views\/dashboard\/(.+)\.stx$/)
-      const tab = match?.[1]
-      return tab ? views.handleDashboardTab(req, tab) : views.handleDashboard(req)
-    },
-  })
+  // File-based routing is automatic - routes discovered from src/views/
 
   // Collection endpoints
   await router.post('/collect', collect.handleCollect)
