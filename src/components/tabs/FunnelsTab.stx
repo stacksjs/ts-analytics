@@ -183,7 +183,7 @@ function addFunnelStep() {
 
 function removeFunnelStep(index) {
   // Save current values first
-  _queryAll(_doc,('.funnel-step-input').forEach((input, i) => {
+  _queryAll(_doc, '.funnel-step-input').forEach((input, i) => {
     newFunnelSteps[i] = input.value
   })
   newFunnelSteps.splice(index, 1)
@@ -204,7 +204,7 @@ async function createFunnel() {
 
   // Get steps from inputs
   const steps = []
-  _queryAll(_doc,('.funnel-step-input').forEach(input => {
+  _queryAll(_doc, '.funnel-step-input').forEach(input => {
     if (input.value.trim()) steps.push(input.value.trim())
   })
 
