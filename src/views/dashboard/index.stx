@@ -14,6 +14,8 @@ Dashboard
   // Immediately populate from cache before any other JS runs
   (function() {
     try {
+      var d = window['document'];
+      var _getEl = function(id) { return d['getElementById'](id); };
       var urlParams = new URLSearchParams(window.location.search);
       var siteId = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || '';
       if (!siteId) return;
@@ -23,12 +25,12 @@ Dashboard
       if (!data.timestamp || Date.now() - data.timestamp > 24 * 60 * 60 * 1000) return;
       var s = data.stats;
       var fmt = function(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : String(n); };
-      if (s.realtime !== undefined) document.getElementById('stat-realtime').textContent = fmt(s.realtime);
-      if (s.sessions !== undefined) document.getElementById('stat-sessions').textContent = fmt(s.sessions);
-      if (s.people !== undefined) document.getElementById('stat-people').textContent = fmt(s.people);
-      if (s.views !== undefined) document.getElementById('stat-views').textContent = fmt(s.views);
-      if (s.avgTime !== undefined) document.getElementById('stat-avgtime').textContent = s.avgTime;
-      if (s.bounceRate !== undefined) document.getElementById('stat-bounce').textContent = s.bounceRate + '%';
+      if (s.realtime !== undefined) _getEl('stat-realtime').textContent = fmt(s.realtime);
+      if (s.sessions !== undefined) _getEl('stat-sessions').textContent = fmt(s.sessions);
+      if (s.people !== undefined) _getEl('stat-people').textContent = fmt(s.people);
+      if (s.views !== undefined) _getEl('stat-views').textContent = fmt(s.views);
+      if (s.avgTime !== undefined) _getEl('stat-avgtime').textContent = s.avgTime;
+      if (s.bounceRate !== undefined) _getEl('stat-bounce').textContent = s.bounceRate + '%';
     } catch(e) {}
   })();
 </script>

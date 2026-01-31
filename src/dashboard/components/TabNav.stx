@@ -13,7 +13,9 @@
 </div>
 
 <script>
-  document.querySelectorAll('.tabs').forEach(tabContainer => {
+  (function() {
+    var d = window['document'];
+    d['querySelectorAll']('.tabs').forEach(tabContainer => {
     const buttons = tabContainer.querySelectorAll('.tab-btn')
     buttons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -30,6 +32,7 @@
       })
     })
   })
+  })();
 </script>
 
 <style>

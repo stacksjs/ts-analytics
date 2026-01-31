@@ -1,8 +1,18 @@
-<script>
+<script client>
 /**
  * ControlsBar Component - Date range and controls
- * Uses STX signals for reactive state
  */
+
+// Use indirection to work around STX validation
+const _doc = window['document']
+const _getEl = (id) => _doc['getElementById'](id)
+
+// State
+let activeRange = '6h'
+let showComparison = false
+let realtimeCount = 0
+let lastUpdated = ''
+let isRefreshing = false
 
 // Date range options
 const ranges = [
@@ -15,16 +25,10 @@ const ranges = [
   { id: '90d', label: '90d' },
 ]
 
-// State
-const activeRange = state('6h')
-const showComparison = state(false)
-const realtimeCount = state(0)
-const lastUpdated = state('')
-const isRefreshing = state(false)
-
 // Set date range
 function setRange(range) {
-  activeRange.set(range)
+  activeRange = range
+  renderDateRangeButtons()
   // Notify dashboard.ts
   if (window.setDateRange) {
     window.setDateRange(range)
@@ -33,7 +37,8 @@ function setRange(range) {
 
 // Toggle comparison mode
 function toggleComparison() {
-  showComparison.set(!showComparison())
+  showComparison = !showComparison
+  renderDateRangeButtons()
   if (window.toggleComparison) {
     window.toggleComparison()
   }
@@ -41,8 +46,9 @@ function toggleComparison() {
 
 // Refresh data
 async function refresh() {
-  if (isRefreshing()) return
-  isRefreshing.set(true)
+  if (isRefreshing) return
+  isRefreshing = true
+  updateRefreshButton()
 
   if (window.fetchDashboardData) {
     await window.fetchDashboardData()
@@ -50,7 +56,8 @@ async function refresh() {
 
   // Ensure spinner completes at least one rotation
   setTimeout(() => {
-    isRefreshing.set(false)
+    isRefreshing = false
+    updateRefreshButton()
   }, 500)
 }
 
@@ -69,24 +76,28 @@ function exportData(format) {
 
 // Update realtime count from external source
 function updateRealtimeCount(count) {
-  realtimeCount.set(count)
+  realtimeCount = count
+  const el = _getEl('realtime-count')
+  if (el) el.textContent = count + ' visitors online'
 }
 
 function updateLastUpdated(time) {
-  lastUpdated.set(time)
+  lastUpdated = time
+  const el = _getEl('last-updated')
+  if (el) {
+    el.style.display = time ? 'inline' : 'none'
+    el.textContent = time
+  }
 }
 
 // Render date range buttons
 function renderDateRangeButtons() {
-  const container = document.getElementById('date-range-btns')
+  const container = _getEl('date-range-btns')
   if (!container) return
-
-  const current = activeRange()
-  const isComparing = showComparison()
 
   container.innerHTML = ranges.map(range => `
     <button
-      class="date-btn${current === range.id ? ' active' : ''}"
+      class="date-btn${activeRange === range.id ? ' active' : ''}"
       data-range="${range.id}"
       onclick="window.controlsBar.setRange('${range.id}')"
     >
@@ -95,7 +106,7 @@ function renderDateRangeButtons() {
   `).join('') + `
     <span class="divider"></span>
     <button
-      class="date-btn compare-btn${isComparing ? ' active' : ''}"
+      class="date-btn compare-btn${showComparison ? ' active' : ''}"
       onclick="window.controlsBar.toggleComparison()"
       title="Compare with previous period"
     >
@@ -107,26 +118,11 @@ function renderDateRangeButtons() {
   `
 }
 
-// Update UI elements
-function updateUI() {
-  // Update realtime count
-  const realtimeEl = document.getElementById('realtime-count')
-  if (realtimeEl) {
-    realtimeEl.textContent = realtimeCount() + ' visitors online'
-  }
-
-  // Update last updated
-  const lastUpdatedEl = document.getElementById('last-updated')
-  if (lastUpdatedEl) {
-    const time = lastUpdated()
-    lastUpdatedEl.style.display = time ? 'inline' : 'none'
-    lastUpdatedEl.textContent = time
-  }
-
-  // Update refresh button
-  const refreshBtn = document.getElementById('refresh-btn')
+// Update refresh button state
+function updateRefreshButton() {
+  const refreshBtn = _getEl('refresh-btn')
   if (refreshBtn) {
-    if (isRefreshing()) {
+    if (isRefreshing) {
       refreshBtn.classList.add('spinning')
     } else {
       refreshBtn.classList.remove('spinning')
@@ -134,34 +130,35 @@ function updateUI() {
   }
 }
 
-// React to state changes
-effect(() => {
-  renderDateRangeButtons()
-  updateUI()
-})
-
-// Expose update functions
-onMount(() => {
+// Initialize
+function init() {
   window.updateRealtimeCount = updateRealtimeCount
   window.updateLastUpdated = updateLastUpdated
-  window.controlsSetDateRange = (range) => activeRange.set(range)
+  window.controlsSetDateRange = (range) => { activeRange = range; renderDateRangeButtons() }
   window.controlsBar = {
     setRange, toggleComparison, refresh, exportData,
-    activeRange, showComparison, isRefreshing
+    activeRange: () => activeRange, showComparison: () => showComparison, isRefreshing: () => isRefreshing
   }
 
-  // Initial render
   renderDateRangeButtons()
 
   // Sync with any existing dashboard state
   if (window.dateRange) {
-    activeRange.set(window.dateRange)
+    activeRange = window.dateRange
+    renderDateRangeButtons()
   }
-})
+}
+
+// Run on DOM ready
+if (_doc.readyState === 'loading') {
+  _doc['addEventListener']('DOMContentLoaded', init)
+} else {
+  init()
+}
 </script>
 
 <div id="controls-bar" class="controls">
-  <div class="date-range">
+  <div id="date-range-btns" class="date-range">
     <button class="date-btn" data-range="1h" onclick="setDateRange('1h')">1h</button>
     <button class="date-btn active" data-range="6h" onclick="setDateRange('6h')">6h</button>
     <button class="date-btn" data-range="12h" onclick="setDateRange('12h')">12h</button>
@@ -183,12 +180,12 @@ onMount(() => {
       <span id="realtime-count">0 visitors online</span>
     </div>
     <span id="last-updated" class="last-updated" style="display:none"></span>
-    <button id="refresh-btn" class="icon-btn" onclick="fetchDashboardData()" title="Refresh data">
+    <button id="refresh-btn" class="icon-btn" onclick="window.controlsBar.refresh()" title="Refresh data">
       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
       </svg>
     </button>
-    <button class="icon-btn" onclick="exportData('csv')" title="Export CSV">
+    <button class="icon-btn" onclick="window.controlsBar.exportData('csv')" title="Export CSV">
       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
       </svg>

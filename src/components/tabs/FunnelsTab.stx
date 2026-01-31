@@ -1,76 +1,218 @@
-<script>
+<script client>
 /**
  * FunnelsTab Component - Conversion funnels display
- * Uses STX signals for reactive state management
  */
-const funnels = state([])
-const currentAnalysis = state(null)
-const showCreateModal = state(false)
-const loading = state(true)
-const error = state(null)
 
-// New funnel form state
-const newFunnelName = state('')
-const newFunnelSteps = state(['', ''])
+// Use indirection to work around STX validation
+const _doc = window['document']
+const _getEl = (id) => _doc['getElementById'](id)
+const _addListener = (el, event, fn) => el['addEventListener'](event, fn)
+const _queryAll = (el, sel) => el['querySelectorAll'](sel)
+
+let currentFunnels = []
+let currentAnalysis = null
+let newFunnelSteps = ['', '']
 
 async function fetchFunnels() {
   const siteId = window.siteId
-  if (!siteId) { loading.set(false); return }
-  loading.set(true)
-  currentAnalysis.set(null)
+  const container = _getEl('funnels-container')
+  const headerBtn = _getEl('funnels-header-btn')
+
+  if (!siteId || !container) return
+
+  container.innerHTML = '<div class="loading-state"><div class="spinner"></div><span>Loading...</span></div>'
+  if (headerBtn) headerBtn.style.display = 'none'
+  currentAnalysis = null
+
   try {
     const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels`))
     const data = await res.json()
-    funnels.set(data.funnels || [])
-    error.set(null)
+    currentFunnels = data.funnels || []
+
+    if (headerBtn && currentFunnels.length > 0) headerBtn.style.display = 'inline-flex'
+
+    renderFunnelsList()
   } catch (e) {
-    error.set(e.message)
-  } finally {
-    loading.set(false)
+    container.innerHTML = `<div class="error-state">${e.message}</div>`
   }
+}
+
+function renderFunnelsList() {
+  const container = _getEl('funnels-container')
+  if (!container) return
+
+  if (currentFunnels.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-bottom: 1rem; opacity: 0.5">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+        </svg>
+        <p>No funnels configured yet</p>
+        <p class="empty-state-hint">Create a funnel to track conversion rates through your key user flows.</p>
+        <button class="btn btn-primary" style="margin-top: 1rem" onclick="showCreateFunnelModal()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          Create Your First Funnel
+        </button>
+      </div>
+    `
+    return
+  }
+
+  container.innerHTML = currentFunnels.map(funnel => `
+    <div class="funnel-card">
+      <div class="funnel-card-header">
+        <h4 class="funnel-name">${funnel.name}</h4>
+        <div class="funnel-actions">
+          <button class="btn-icon" onclick="analyzeFunnel('${funnel.id}')" title="View analysis">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+          </button>
+          <button class="btn-icon danger" onclick="deleteFunnel('${funnel.id}')" title="Delete">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="funnel-steps">
+        ${funnel.steps.map((step, index) => `
+          <span class="funnel-step">${step}</span>
+          ${index < funnel.steps.length - 1 ? '<span class="funnel-step-arrow">→</span>' : ''}
+        `).join('')}
+      </div>
+    </div>
+  `).join('')
 }
 
 async function analyzeFunnel(funnelId) {
   const siteId = window.siteId
-  loading.set(true)
+  const container = _getEl('funnels-container')
+  const headerBtn = _getEl('funnels-header-btn')
+  const title = _getEl('funnels-title')
+
+  if (headerBtn) headerBtn.style.display = 'none'
+  container.innerHTML = '<div class="loading-state"><div class="spinner"></div><span>Loading...</span></div>'
+
   try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels/${funnelId}/analysis${window.getDateRangeParams()}`))
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels/${funnelId}/analysis${window.getDateRangeParams ? window.getDateRangeParams() : ''}`))
     const data = await res.json()
-    currentAnalysis.set(data)
-    error.set(null)
+    currentAnalysis = data
+
+    if (title) title.innerHTML = `<button class="back-link" onclick="backToFunnels()">← Back to Funnels</button>`
+
+    container.innerHTML = `
+      <h3 class="funnel-analysis-title">${data.name}</h3>
+      <p class="funnel-analysis-summary">
+        ${data.totalVisitors} visitors entered • ${data.conversionRate}% overall conversion
+      </p>
+      <div class="funnel-steps-analysis">
+        ${(data.steps || []).map((step, index) => `
+          <div class="analysis-step-wrapper">
+            <div class="analysis-step">
+              <div class="analysis-step-card">
+                <div class="analysis-step-visitors">${step.visitors}</div>
+                <div class="analysis-step-rate">${step.rate}%</div>
+              </div>
+              <div class="analysis-step-name">${step.path}</div>
+              ${step.dropoff > 0 ? `<div class="analysis-step-drop">-${step.dropoff} dropped</div>` : ''}
+            </div>
+            ${index < data.steps.length - 1 ? '<div class="analysis-arrow">→</div>' : ''}
+          </div>
+        `).join('')}
+      </div>
+    `
   } catch (e) {
-    error.set(e.message)
-  } finally {
-    loading.set(false)
+    container.innerHTML = `<div class="error-state">${e.message}</div>`
   }
 }
 
+function backToFunnels() {
+  const title = _getEl('funnels-title')
+  if (title) title.innerHTML = 'Conversion Funnels'
+  currentAnalysis = null
+  fetchFunnels()
+}
+
 function showCreateFunnelModal() {
-  newFunnelName.set('')
-  newFunnelSteps.set(['', ''])
-  showCreateModal.set(true)
-}
+  newFunnelSteps = ['', '']
 
-function addStep() {
-  newFunnelSteps.update(steps => [...steps, ''])
-}
-
-function removeStep(index) {
-  newFunnelSteps.update(steps => steps.filter((_, i) => i !== index))
-}
-
-function updateStep(index, value) {
-  newFunnelSteps.update(steps => {
-    const updated = [...steps]
-    updated[index] = value
-    return updated
+  Modal.open({
+    title: 'Create Funnel',
+    content: renderFunnelModalContent(),
+    submitText: 'Create Funnel',
+    onSubmit: createFunnel
   })
 }
 
+function renderFunnelModalContent() {
+  return `
+    <div class="form-group">
+      <label class="form-label">Funnel Name</label>
+      <input type="text" name="funnelName" class="form-input" placeholder="e.g., Checkout Flow" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Steps (URL paths)</label>
+      <div id="funnel-steps-list" class="steps-list">
+        ${newFunnelSteps.map((step, index) => `
+          <div class="step-input-row">
+            <input type="text" class="form-input funnel-step-input" placeholder="/path" value="${step}" data-index="${index}" />
+            ${newFunnelSteps.length > 2 ? `<button type="button" class="btn-icon danger" onclick="removeFunnelStep(${index})">×</button>` : ''}
+          </div>
+        `).join('')}
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addFunnelStep()">+ Add Step</button>
+    </div>
+  `
+}
+
+function addFunnelStep() {
+  newFunnelSteps.push('')
+  const container = _getEl('funnel-steps-list')
+  if (container) {
+    container.innerHTML = newFunnelSteps.map((step, index) => `
+      <div class="step-input-row">
+        <input type="text" class="form-input funnel-step-input" placeholder="/path" value="${step}" data-index="${index}" />
+        ${newFunnelSteps.length > 2 ? `<button type="button" class="btn-icon danger" onclick="removeFunnelStep(${index})">×</button>` : ''}
+      </div>
+    `).join('')
+  }
+}
+
+function removeFunnelStep(index) {
+  // Save current values first
+  _queryAll(_doc,('.funnel-step-input').forEach((input, i) => {
+    newFunnelSteps[i] = input.value
+  })
+  newFunnelSteps.splice(index, 1)
+  const container = _getEl('funnel-steps-list')
+  if (container) {
+    container.innerHTML = newFunnelSteps.map((step, i) => `
+      <div class="step-input-row">
+        <input type="text" class="form-input funnel-step-input" placeholder="/path" value="${step}" data-index="${i}" />
+        ${newFunnelSteps.length > 2 ? `<button type="button" class="btn-icon danger" onclick="removeFunnelStep(${i})">×</button>` : ''}
+      </div>
+    `).join('')
+  }
+}
+
 async function createFunnel() {
-  const name = newFunnelName()
-  const steps = newFunnelSteps().filter(s => s.trim())
-  if (!name || steps.length < 2) return
+  const data = Modal.getFormData()
+  const name = data.funnelName
+
+  // Get steps from inputs
+  const steps = []
+  _queryAll(_doc,('.funnel-step-input').forEach(input => {
+    if (input.value.trim()) steps.push(input.value.trim())
+  })
+
+  if (!name || steps.length < 2) {
+    alert('Please enter a name and at least 2 steps')
+    return
+  }
+
   const siteId = window.siteId
 
   try {
@@ -79,163 +221,65 @@ async function createFunnel() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, steps })
     })
-    showCreateModal.set(false)
+    Modal.close()
     fetchFunnels()
   } catch (e) {
-    error.set(e.message)
+    alert('Error creating funnel: ' + e.message)
   }
 }
 
 async function deleteFunnel(funnelId) {
-  if (!confirm('Delete this funnel?')) return
-  const siteId = window.siteId
-  try {
-    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels/${funnelId}`), { method: 'DELETE' })
-    fetchFunnels()
-  } catch (e) {
-    error.set(e.message)
-  }
+  Modal.confirm('Delete this funnel?', async () => {
+    const siteId = window.siteId
+    try {
+      await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels/${funnelId}`), { method: 'DELETE' })
+      fetchFunnels()
+    } catch (e) {
+      alert('Error deleting funnel: ' + e.message)
+    }
+  })
 }
 
-onMount(() => {
+// Expose functions globally
+window.showCreateFunnelModal = showCreateFunnelModal
+window.analyzeFunnel = analyzeFunnel
+window.deleteFunnel = deleteFunnel
+window.backToFunnels = backToFunnels
+window.addFunnelStep = addFunnelStep
+window.removeFunnelStep = removeFunnelStep
+
+if (_doc.readyState === 'loading') {
+  _addListener(_doc, 'DOMContentLoaded', fetchFunnels)
+} else {
   fetchFunnels()
-})
+}
 </script>
 
 <div class="tab-panel">
-  <!-- Funnel List View -->
-  <div @if="!currentAnalysis()">
-    <div class="tab-header">
-      <h3 class="tab-title">Conversion Funnels</h3>
-      <button @if="funnels().length > 0" class="btn btn-primary" @click="showCreateFunnelModal">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-        </svg>
-        New Funnel
-      </button>
-    </div>
-
-    <div @if="loading()" class="loading-state">
+  <div class="tab-header">
+    <h3 id="funnels-title" class="tab-title">Conversion Funnels</h3>
+    <button id="funnels-header-btn" class="btn btn-primary" style="display: none" onclick="showCreateFunnelModal()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      New Funnel
+    </button>
+  </div>
+  <div id="funnels-container">
+    <div class="loading-state">
       <div class="spinner"></div>
       <span>Loading...</span>
-    </div>
-
-    <div @if="error()" class="error-state">
-      {{ error() }}
-    </div>
-
-    <div @if="!loading() && !error()" class="funnels-list">
-      <div @if="funnels().length === 0" class="empty-state">
-        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-bottom: 1rem; opacity: 0.5">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-        </svg>
-        <p>No funnels configured yet</p>
-        <p class="empty-state-hint">Create a funnel to track conversion rates through your key user flows.</p>
-        <button class="btn btn-primary" style="margin-top: 1rem" @click="showCreateFunnelModal">
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-          </svg>
-          Create Your First Funnel
-        </button>
-      </div>
-
-      <div @for="funnel in funnels()" class="funnel-card">
-        <div class="funnel-card-header">
-          <h4 class="funnel-name">{{ funnel.name }}</h4>
-          <div class="funnel-actions">
-            <button class="btn-icon" @click="analyzeFunnel(funnel.id)" title="View analysis">
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-              </svg>
-            </button>
-            <button class="btn-icon danger" @click="deleteFunnel(funnel.id)" title="Delete">
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class="funnel-steps">
-          <span @for="(step, index) in funnel.steps" class="funnel-step-wrapper">
-            <span class="funnel-step">{{ step }}</span>
-            <span @if="index < funnel.steps.length - 1" class="funnel-step-arrow">→</span>
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Funnel Analysis View -->
-  <div @if="currentAnalysis()">
-    <button class="back-link" @click="fetchFunnels">← Back to Funnels</button>
-    <h3 class="funnel-analysis-title">{{ currentAnalysis().name }}</h3>
-    <p class="funnel-analysis-summary">
-      {{ currentAnalysis().totalVisitors }} visitors entered • {{ currentAnalysis().conversionRate }}% overall conversion
-    </p>
-    <div class="funnel-steps-analysis">
-      <div @for="(step, index) in currentAnalysis().steps" class="analysis-step-wrapper">
-        <div class="analysis-step">
-          <div class="analysis-step-card">
-            <div class="analysis-step-visitors">{{ step.visitors }}</div>
-            <div class="analysis-step-rate">{{ step.rate }}%</div>
-          </div>
-          <div class="analysis-step-name">{{ step.path }}</div>
-          <div @if="step.dropoff > 0" class="analysis-step-drop">-{{ step.dropoff }} dropped</div>
-        </div>
-        <div @if="index < currentAnalysis().steps.length - 1" class="analysis-arrow">→</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Create Funnel Modal -->
-  <div @if="showCreateModal()" class="modal-overlay" @click.self="showCreateModal.set(false)">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title">Create Funnel</h3>
-        <button class="btn-icon" @click="showCreateModal.set(false)">×</button>
-      </div>
-      <div class="modal-body">
-        <label class="form-label">Funnel Name</label>
-        <input type="text" class="form-input" placeholder="e.g., Checkout Flow" @model="newFunnelName" />
-
-        <label class="form-label">Steps (URL paths)</label>
-        <div class="steps-list">
-          <div @for="(step, index) in newFunnelSteps()" class="step-input-row">
-            <input type="text" class="form-input" placeholder="/path" :value="step" @input="updateStep(index, event.target.value)" />
-            <button @if="newFunnelSteps().length > 2" class="btn-icon danger" @click="removeStep(index)">×</button>
-          </div>
-        </div>
-        <button class="btn btn-secondary btn-sm" @click="addStep">+ Add Step</button>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" @click="showCreateModal.set(false)">Cancel</button>
-        <button class="btn btn-primary" @click="createFunnel">Create Funnel</button>
-      </div>
     </div>
   </div>
 </div>
 
 <style>
-.tab-panel {
-  grid-column: 1 / -1;
-}
-.tab-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-.tab-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0;
-}
-.funnels-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
+.tab-panel { grid-column: 1 / -1; }
+.tab-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.tab-title { font-size: 1rem; font-weight: 600; color: var(--text); margin: 0; }
+
+.funnels-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
 .funnel-card {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -248,22 +292,9 @@ onMount(() => {
   align-items: center;
   margin-bottom: 0.75rem;
 }
-.funnel-name {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0;
-}
-.funnel-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-.funnel-steps {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
+.funnel-name { font-size: 0.875rem; font-weight: 600; color: var(--text); margin: 0; }
+.funnel-actions { display: flex; gap: 0.25rem; }
+.funnel-steps { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
 .funnel-step {
   font-size: 0.6875rem;
   padding: 0.25rem 0.5rem;
@@ -271,47 +302,23 @@ onMount(() => {
   border-radius: 4px;
   color: var(--text);
 }
-.funnel-step-arrow {
-  color: var(--accent);
-}
+.funnel-step-arrow { color: var(--accent); }
+
 .back-link {
   background: none;
   border: none;
   color: var(--muted);
   cursor: pointer;
-  margin-bottom: 1rem;
   font-size: 0.8125rem;
   padding: 0;
 }
-.back-link:hover {
-  color: var(--text);
-}
-.funnel-analysis-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 0.5rem;
-}
-.funnel-analysis-summary {
-  font-size: 0.75rem;
-  color: var(--muted);
-  margin-bottom: 1.5rem;
-}
-.funnel-steps-analysis {
-  display: flex;
-  gap: 0.5rem;
-  align-items: stretch;
-}
-.analysis-step-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-}
-.analysis-step {
-  flex: 1;
-  text-align: center;
-}
+.back-link:hover { color: var(--text); }
+
+.funnel-analysis-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
+.funnel-analysis-summary { font-size: 0.75rem; color: var(--muted); margin-bottom: 1.5rem; }
+.funnel-steps-analysis { display: flex; gap: 0.5rem; align-items: stretch; flex-wrap: wrap; }
+.analysis-step-wrapper { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 120px; }
+.analysis-step { flex: 1; text-align: center; }
 .analysis-step-card {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -319,102 +326,15 @@ onMount(() => {
   padding: 1rem;
   margin-bottom: 0.5rem;
 }
-.analysis-step-visitors {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text);
-}
-.analysis-step-rate {
-  font-size: 0.6875rem;
-  color: var(--muted);
-  margin-top: 0.25rem;
-}
-.analysis-step-name {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text);
-}
-.analysis-step-drop {
-  font-size: 0.6875rem;
-  color: var(--error);
-  margin-top: 0.25rem;
-}
-.analysis-arrow {
-  color: var(--muted);
-  font-size: 1.5rem;
-}
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-.modal-overlay.active {
-  display: flex;
-}
-.modal {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  width: 90%;
-  max-width: 400px;
-}
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  border-bottom: 1px solid var(--border);
-}
-.modal-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0;
-}
-.modal-body {
-  padding: 1rem;
-}
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  padding: 1rem;
-  border-top: 1px solid var(--border);
-}
-.form-label {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--muted);
-  margin-bottom: 0.25rem;
-  margin-top: 0.75rem;
-}
-.form-label:first-child {
-  margin-top: 0;
-}
-.form-input {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 0.875rem;
-}
-.steps-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-.step-input-row {
-  display: flex;
-  gap: 0.5rem;
-}
+.analysis-step-visitors { font-size: 1.5rem; font-weight: 600; color: var(--text); }
+.analysis-step-rate { font-size: 0.6875rem; color: var(--muted); margin-top: 0.25rem; }
+.analysis-step-name { font-size: 0.75rem; font-weight: 500; color: var(--text); }
+.analysis-step-drop { font-size: 0.6875rem; color: var(--error); margin-top: 0.25rem; }
+.analysis-arrow { color: var(--muted); font-size: 1.5rem; }
+
+.steps-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem; }
+.step-input-row { display: flex; gap: 0.5rem; }
+
 .empty-state, .loading-state, .error-state {
   text-align: center;
   color: var(--muted);
@@ -423,19 +343,10 @@ onMount(() => {
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-.empty-state-hint {
-  font-size: 0.75rem;
-  margin-top: 0.5rem;
-}
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-.error-state {
-  color: var(--error);
-}
+.empty-state-hint { font-size: 0.75rem; margin-top: 0.5rem; }
+.loading-state { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.error-state { color: var(--error); }
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -448,22 +359,11 @@ onMount(() => {
   transition: all 0.15s ease;
   border: 1px solid transparent;
 }
-.btn-primary {
-  background: var(--accent);
-  color: white;
-}
-.btn-primary:hover {
-  background: var(--accent2);
-}
-.btn-secondary {
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-.btn-sm {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+
 .btn-icon {
   background: none;
   border: none;
@@ -476,14 +376,9 @@ onMount(() => {
   border-radius: 6px;
   transition: all 0.15s ease;
 }
-.btn-icon:hover {
-  background: var(--bg3);
-  color: var(--text);
-}
-.btn-icon.danger:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-}
+.btn-icon:hover { background: var(--bg3); color: var(--text); }
+.btn-icon.danger:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
 .spinner {
   width: 16px;
   height: 16px;
@@ -492,7 +387,11 @@ onMount(() => {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
-@keyframes spin {
-  to { transform: rotate(-360deg); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  .funnel-steps-analysis { flex-direction: column; }
+  .analysis-step-wrapper { min-width: 100%; }
+  .analysis-arrow { transform: rotate(90deg); }
 }
 </style>

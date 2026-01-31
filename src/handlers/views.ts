@@ -8,8 +8,17 @@
 import { generateTrackingScript, generateMinimalTrackingScript } from '../index'
 import { htmlResponse, jsResponse } from '../utils/response'
 import { getQueryParams, getLambdaEvent } from '../../deploy/lambda-adapter'
+import { injectQueryPreservationScript } from 'bun-router'
 import path from 'node:path'
 import fs from 'node:fs'
+
+// Query preservation config for dashboard pages
+const queryPreservationConfig = {
+  enabled: true,
+  preserve: ['siteId'],
+  exclude: ['_t', '_cache', 'callback'],
+  routes: ['/dashboard', '/dashboard/*'],
+}
 
 // Pre-built views directory - check multiple locations in order of priority
 // 1. Lambda deployment: /var/task/views/ (Lambda working directory)
@@ -139,6 +148,9 @@ export async function handleDashboard(request: Request): Promise<Response> {
     html = await renderStxDirect('dashboard/index.stx', { siteId, apiEndpoint })
   }
 
+  // Inject query preservation script for siteId
+  html = injectQueryPreservationScript(html, queryPreservationConfig)
+
   return htmlResponse(html)
 }
 
@@ -168,6 +180,9 @@ export async function handleDashboardTab(request: Request, tab: string): Promise
   } else {
     html = await renderStxDirect(`dashboard/${tab}.stx`, { siteId, apiEndpoint })
   }
+
+  // Inject query preservation script for siteId
+  html = injectQueryPreservationScript(html, queryPreservationConfig)
 
   return htmlResponse(html)
 }
@@ -206,6 +221,9 @@ export async function handleErrorDetailPage(request: Request, errorId: string): 
   } else {
     html = await renderStxDirect('error-detail.stx', { errorId, siteId, apiEndpoint })
   }
+
+  // Inject query preservation script for siteId
+  html = injectQueryPreservationScript(html, queryPreservationConfig)
 
   return htmlResponse(html)
 }
@@ -250,6 +268,9 @@ export async function handleDetailPage(request: Request, section: string): Promi
   } else {
     html = await renderStxDirect('detail.stx', { section, siteId, apiEndpoint, title, iconPath })
   }
+
+  // Inject query preservation script for siteId
+  html = injectQueryPreservationScript(html, queryPreservationConfig)
 
   return htmlResponse(html)
 }

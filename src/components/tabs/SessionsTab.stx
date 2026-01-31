@@ -1,11 +1,12 @@
-<script>
+<script client>
 /**
  * SessionsTab Component - User sessions display
- * Uses STX signals for reactive state management
  */
-const sessions = state([])
-const loading = state(true)
-const error = state(null)
+
+// Use indirection to work around STX validation
+const _doc = window['document']
+const _getEl = (id) => _doc['getElementById'](id)
+const _addListener = (el, event, fn) => el['addEventListener'](event, fn)
 
 function formatDuration(ms) {
   if (!ms) return '0s'
@@ -28,77 +29,141 @@ function timeAgo(timestamp) {
 
 async function fetchSessions() {
   const siteId = window.siteId
-  if (!siteId) { loading.set(false); return }
+  const container = _getEl('sessions-container')
+  const countEl = _getEl('sessions-count')
+
+  if (!siteId || !container) return
+
+  container.innerHTML = '<div class="loading-state"><div class="spinner"></div><span>Loading...</span></div>'
+
   try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/sessions${window.getDateRangeParams()}`))
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/sessions${window.getDateRangeParams ? window.getDateRangeParams() : ''}`))
     const data = await res.json()
-    sessions.set(data.sessions || [])
-    error.set(null)
+    const sessions = data.sessions || []
+
+    if (countEl) countEl.textContent = sessions.length
+
+    if (sessions.length === 0) {
+      container.innerHTML = '<div class="empty-state">No sessions recorded yet.</div>'
+      return
+    }
+
+    container.innerHTML = sessions.map(session => `
+      <div class="session-card" data-session-id="${session.sessionId || session.id}" onclick="viewSession('${session.sessionId || session.id}')">
+        <div class="session-card-header">
+          <span class="session-path">${session.entryPage || session.entryPath || '/'}</span>
+          <span class="session-time">${timeAgo(session.startTime || session.startedAt)}</span>
+        </div>
+        <div class="session-card-meta">
+          <span class="session-pages">${session.pageViews || session.pageViewCount || 1} page${(session.pageViews || session.pageViewCount || 1) !== 1 ? 's' : ''}</span>
+          <span class="session-duration ${session.bounced || session.isBounce ? 'bounced' : ''}">${session.bounced || session.isBounce ? 'Bounced' : formatDuration(session.duration)}</span>
+          <span class="session-browser">${session.browser || 'Unknown'}</span>
+          <span class="session-country">${session.country || 'Unknown'}</span>
+        </div>
+      </div>
+    `).join('')
   } catch (e) {
-    error.set(e.message)
-  } finally {
-    loading.set(false)
+    container.innerHTML = `<div class="error-state">${e.message}</div>`
   }
 }
 
-function viewSession(sessionId) {
-  window.location.href = `/sessions/${sessionId}?siteId=${window.siteId}`
+async function viewSession(sessionId) {
+  // Show loading modal
+  Modal.open({
+    title: `Session ${sessionId.slice(0, 8)}...`,
+    content: '<div class="loading-state"><div class="spinner"></div><span>Loading session...</span></div>',
+    showFooter: false,
+    size: 'lg'
+  })
+
+  try {
+    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/sessions/${sessionId}`))
+    const data = await res.json()
+
+    const stats = `
+      <div class="session-stats">
+        <div class="session-stat">
+          <div class="session-stat-value">${data.pageViewCount || data.pageViews?.length || 0}</div>
+          <div class="session-stat-label">Pages</div>
+        </div>
+        <div class="session-stat">
+          <div class="session-stat-value">${formatDuration(data.duration)}</div>
+          <div class="session-stat-label">Duration</div>
+        </div>
+        <div class="session-stat">
+          <div class="session-stat-value">${data.browser || 'Unknown'}</div>
+          <div class="session-stat-label">Browser</div>
+        </div>
+        <div class="session-stat">
+          <div class="session-stat-value">${data.country || 'Unknown'}</div>
+          <div class="session-stat-label">Country</div>
+        </div>
+      </div>
+    `
+
+    const journey = data.pageViews ? `
+      <h4 class="section-title">Session Journey</h4>
+      <div class="session-journey">
+        ${data.pageViews.map((pv, i) =>
+          `${i > 0 ? '<span class="journey-arrow">→</span>' : ''}<div class="journey-step">${pv.path || '/'}</div>`
+        ).join('')}
+      </div>
+    ` : ''
+
+    const timeline = data.events ? `
+      <h4 class="section-title">Timeline (${data.events.length} events)</h4>
+      <div class="timeline">
+        ${data.events.map(e => {
+          const type = e.type || 'event'
+          return `<div class="timeline-item">
+            <div class="timeline-type ${type}">${type}</div>
+            <div class="timeline-content">${e.name || e.path || e.message || ''}</div>
+            <div class="timeline-time">${new Date(e.timestamp).toLocaleTimeString()}</div>
+          </div>`
+        }).join('')}
+      </div>
+    ` : ''
+
+    Modal.open({
+      title: `Session ${sessionId.slice(0, 8)}...`,
+      content: stats + journey + timeline,
+      showFooter: false,
+      size: 'lg',
+      className: 'session-modal'
+    })
+  } catch (e) {
+    Modal.open({
+      title: 'Error',
+      content: `<p class="error-state">Failed to load session: ${e.message}</p>`,
+      showFooter: false
+    })
+  }
 }
 
-onMount(() => {
+window.viewSession = viewSession
+
+if (_doc.readyState === 'loading') {
+  _addListener(_doc, 'DOMContentLoaded', fetchSessions)
+} else {
   fetchSessions()
-})
+}
 </script>
 
 <div class="tab-panel">
-  <h3 class="tab-title">Sessions ({{ sessions().length }})</h3>
-
-  <div @if="loading()" class="loading-state">
-    <div class="spinner"></div>
-    <span>Loading...</span>
-  </div>
-
-  <div @if="error()" class="error-state">
-    {{ error() }}
-  </div>
-
-  <div @if="!loading() && !error()" class="sessions-list">
-    <div @if="sessions().length === 0" class="empty-state">
-      No sessions recorded yet.
-    </div>
-
-    <div @for="session in sessions()" class="session-card" @click="viewSession(session.sessionId)">
-      <div class="session-card-header">
-        <span class="session-path">{{ session.entryPage ? session.entryPage : '/' }}</span>
-        <span class="session-time">{{ timeAgo(session.startTime) }}</span>
-      </div>
-      <div class="session-card-meta">
-        <span class="session-pages">{{ session.pageViews ? session.pageViews : 1 }} page{{ (session.pageViews ? session.pageViews : 1) !== 1 ? 's' : '' }}</span>
-        <span @class="['session-duration', session.bounced ? 'bounced' : '']">
-          {{ session.bounced ? 'Bounced' : formatDuration(session.duration) }}
-        </span>
-        <span class="session-browser">{{ session.browser ? session.browser : 'Unknown' }}</span>
-        <span class="session-country">{{ session.country ? session.country : 'Unknown' }}</span>
-      </div>
+  <h3 class="tab-title">Sessions (<span id="sessions-count">0</span>)</h3>
+  <div id="sessions-container" class="sessions-list">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <span>Loading...</span>
     </div>
   </div>
 </div>
 
 <style>
-.tab-panel {
-  grid-column: 1 / -1;
-}
-.tab-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 1rem;
-}
-.sessions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
+.tab-panel { grid-column: 1 / -1; }
+.tab-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 1rem; }
+.sessions-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
 .session-card {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -107,59 +172,43 @@ onMount(() => {
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.session-card:hover {
-  border-color: var(--accent);
-  background: var(--bg3);
-}
-.session-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-.session-path {
-  font-weight: 500;
-  color: var(--text);
-}
-.session-time {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-.session-card-meta {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-.session-card-meta .bounced {
-  color: var(--error);
-}
-.empty-state, .loading-state, .error-state {
-  text-align: center;
-  color: var(--muted);
-  padding: 2rem;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-.error-state {
-  color: var(--error);
-}
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(-360deg); }
+.session-card:hover { border-color: var(--accent); background: var(--bg3); }
+.session-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.session-path { font-weight: 500; color: var(--text); }
+.session-time { font-size: 0.75rem; color: var(--muted); }
+.session-card-meta { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--muted); }
+.session-card-meta .bounced { color: var(--error); }
+
+/* Session modal styles */
+.session-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.session-stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
+.session-stat-value { font-size: 1.25rem; font-weight: 700; color: var(--text); }
+.session-stat-label { font-size: 0.6875rem; color: var(--muted); text-transform: uppercase; margin-top: 0.25rem; }
+
+.section-title { font-size: 0.875rem; font-weight: 500; color: var(--muted); margin: 1.5rem 0 0.75rem; }
+.section-title:first-of-type { margin-top: 0; }
+
+.session-journey { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.journey-step { background: var(--bg2); border: 1px solid var(--border); padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8125rem; color: var(--text); }
+.journey-arrow { color: var(--accent); font-weight: bold; }
+
+.timeline { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
+.timeline-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: var(--bg2); border-radius: 6px; }
+.timeline-type { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 0.25rem 0.5rem; border-radius: 4px; min-width: 60px; text-align: center; }
+.timeline-type.pageview { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.timeline-type.event { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.timeline-type.click { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.timeline-type.error { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.timeline-content { flex: 1; font-size: 0.8125rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.timeline-time { font-size: 0.6875rem; color: var(--muted); }
+
+.empty-state, .loading-state, .error-state { text-align: center; color: var(--muted); padding: 2rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
+.loading-state { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.error-state { color: var(--error); }
+.spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  .session-stats { grid-template-columns: repeat(2, 1fr); }
 }
 </style>

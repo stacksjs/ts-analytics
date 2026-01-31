@@ -86,7 +86,15 @@ const STEALTH_PATHS = {
  * Create and configure the router with all routes
  */
 export async function createRouter(): Promise<Router> {
-  const router = new Router()
+  const router = new Router({
+    // Automatically preserve siteId across all dashboard navigation
+    queryPreservation: {
+      enabled: true,
+      preserve: ['siteId'],
+      exclude: ['_t', '_cache', 'callback'],
+      routes: ['/dashboard', '/dashboard/*'],
+    },
+  })
 
   // Health check
   await router.get('/health', misc.handleHealth)

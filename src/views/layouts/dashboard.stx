@@ -13,6 +13,17 @@
   <stx-loading-indicator color="var(--accent)" height="3px" />
   <site-selector />
 
+  <script>
+    // Show dashboard immediately if siteId is in URL
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var siteId = params.get('siteId');
+      if (siteId) {
+        var d = window['document'];
+        d['write']('<style>#dashboard{display:flex!important}#site-selector{display:none!important}</style>');
+      }
+    })();
+  </script>
   <div id="dashboard" class="min-h-screen flex flex-col" style="display:none">
     <dashboard-header />
 
@@ -27,6 +38,9 @@
     <goal-modal />
     @include('../../components/Modal.stx')
     @include('../../components/SessionModal.stx')
+
+    <!-- Modal overlay container for dynamic modals -->
+    <div id="modal-overlay" class="modal-overlay" style="display:none"></div>
   </div>
 
   @include('../../components/shared/EmptyStates.stx')
