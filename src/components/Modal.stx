@@ -1,124 +1,3 @@
-<script>
-/**
- * Modal Component - Reusable modal system
- * Uses STX reactivity for state management
- */
-
-// Modal state - prefixed to avoid conflicts
-const modalIsOpen = state(false)
-const modalTitle = state('')
-const modalContent = state('')
-const modalSize = state('md')
-const modalShowFooter = state(true)
-const modalShowSubmit = state(true)
-const modalSubmitText = state('Save')
-const modalCancelText = state('Cancel')
-const modalIsSubmitting = state(false)
-const modalClassName = state('')
-
-let onSubmitCallback = null
-let onCancelCallback = null
-
-const Modal = {
-  open(options = {}) {
-    modalTitle.set(options.title || '')
-    modalContent.set(options.content || '')
-    modalSize.set(options.size || 'md')
-    modalShowFooter.set(options.showFooter !== false)
-    modalShowSubmit.set(!!options.onSubmit)
-    modalSubmitText.set(options.submitText || 'Save')
-    modalCancelText.set(options.cancelText || 'Cancel')
-    modalClassName.set(options.className || '')
-    modalIsSubmitting.set(false)
-
-    onSubmitCallback = options.onSubmit || null
-    onCancelCallback = options.onCancel || null
-
-    modalIsOpen.set(true)
-
-    // Focus first input after render
-    setTimeout(() => {
-      const input = document.querySelector('#modal-overlay input, #modal-overlay select, #modal-overlay textarea')
-      if (input) input.focus()
-    }, 50)
-
-    return this
-  },
-
-  close() {
-    modalIsOpen.set(false)
-    modalContent.set('')
-    if (onCancelCallback) onCancelCallback()
-    onSubmitCallback = null
-    onCancelCallback = null
-  },
-
-  async handleSubmit() {
-    if (!onSubmitCallback || modalIsSubmitting()) return
-
-    modalIsSubmitting.set(true)
-    try {
-      await onSubmitCallback()
-    } catch (e) {
-      console.error('Modal submit error:', e)
-      modalIsSubmitting.set(false)
-    }
-  },
-
-  getFormData() {
-    const data = {}
-    document.querySelectorAll('#modal-overlay input, #modal-overlay select, #modal-overlay textarea').forEach(el => {
-      if (el.name) {
-        data[el.name] = el.type === 'checkbox' ? el.checked : el.value
-      }
-    })
-    return data
-  },
-
-  confirm(message, onConfirm) {
-    return this.open({
-      title: 'Confirm',
-      content: `<p class="confirm-message">${message}</p>`,
-      size: 'sm',
-      submitText: 'Confirm',
-      onSubmit: async () => {
-        await onConfirm()
-        this.close()
-      }
-    })
-  },
-
-  alert(alertTitle, message) {
-    return this.open({
-      title: alertTitle,
-      content: `<p class="alert-message">${message}</p>`,
-      size: 'sm',
-      showFooter: true,
-      onSubmit: null
-    })
-  }
-}
-
-// Handle ESC key
-function handleKeydown(e) {
-  if (e.key === 'Escape' && modalIsOpen()) {
-    Modal.close()
-  }
-}
-
-// Handle overlay click
-function handleOverlayClick(e) {
-  if (e.target.id === 'modal-overlay') {
-    Modal.close()
-  }
-}
-
-onMount(() => {
-  document.addEventListener('keydown', handleKeydown)
-  window.Modal = Modal
-})
-</script>
-
 <!-- Modal Template -->
 <div
   id="modal-overlay"
@@ -152,6 +31,130 @@ onMount(() => {
     </div>
   </div>
 </div>
+
+<script>
+/**
+ * Modal Component - Reusable modal system
+ * Uses STX reactivity for state management
+ */
+
+// Modal state signals
+const modalIsOpen = state(false)
+const modalTitle = state('')
+const modalContent = state('')
+const modalSize = state('md')
+const modalShowFooter = state(true)
+const modalShowSubmit = state(true)
+const modalSubmitText = state('Save')
+const modalCancelText = state('Cancel')
+const modalIsSubmitting = state(false)
+const modalClassName = state('')
+
+let onSubmitCallback = null
+let onCancelCallback = null
+
+const Modal = {
+  open: function(options) {
+    options = options || {}
+    modalTitle.set(options.title || '')
+    modalContent.set(options.content || '')
+    modalSize.set(options.size || 'md')
+    modalShowFooter.set(options.showFooter !== false)
+    modalShowSubmit.set(!!options.onSubmit)
+    modalSubmitText.set(options.submitText || 'Save')
+    modalCancelText.set(options.cancelText || 'Cancel')
+    modalClassName.set(options.className || '')
+    modalIsSubmitting.set(false)
+
+    onSubmitCallback = options.onSubmit || null
+    onCancelCallback = options.onCancel || null
+
+    modalIsOpen.set(true)
+
+    // Focus first input after render
+    setTimeout(function() {
+      const input = document.querySelector('#modal-overlay input, #modal-overlay select, #modal-overlay textarea')
+      if (input) input.focus()
+    }, 50)
+
+    return this
+  },
+
+  close: function() {
+    modalIsOpen.set(false)
+    modalContent.set('')
+    if (onCancelCallback) onCancelCallback()
+    onSubmitCallback = null
+    onCancelCallback = null
+  },
+
+  handleSubmit: async function() {
+    if (!onSubmitCallback || modalIsSubmitting()) return
+
+    modalIsSubmitting.set(true)
+    try {
+      await onSubmitCallback()
+    } catch (e) {
+      console.error('Modal submit error:', e)
+      modalIsSubmitting.set(false)
+    }
+  },
+
+  getFormData: function() {
+    const data = {}
+    document.querySelectorAll('#modal-overlay input, #modal-overlay select, #modal-overlay textarea').forEach(function(el) {
+      if (el.name) {
+        data[el.name] = el.type === 'checkbox' ? el.checked : el.value
+      }
+    })
+    return data
+  },
+
+  confirm: function(message, onConfirm) {
+    const self = this
+    return this.open({
+      title: 'Confirm',
+      content: '<p class="confirm-message">' + message + '</p>',
+      size: 'sm',
+      submitText: 'Confirm',
+      onSubmit: async function() {
+        await onConfirm()
+        self.close()
+      }
+    })
+  },
+
+  alert: function(alertTitle, message) {
+    return this.open({
+      title: alertTitle,
+      content: '<p class="alert-message">' + message + '</p>',
+      size: 'sm',
+      showFooter: true,
+      onSubmit: null
+    })
+  }
+}
+
+// Handle ESC key
+function handleKeydown(e) {
+  if (e.key === 'Escape' && modalIsOpen()) {
+    Modal.close()
+  }
+}
+
+// Handle overlay click
+function handleOverlayClick(e) {
+  if (e.target.id === 'modal-overlay') {
+    Modal.close()
+  }
+}
+
+// Register on mount
+onMount(function() {
+  document.addEventListener('keydown', handleKeydown)
+  window.Modal = Modal
+})
+</script>
 
 <style>
 .modal-overlay {
