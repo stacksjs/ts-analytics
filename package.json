@@ -48,7 +48,7 @@
     "postinstall": "bunx git-hooks",
     "prepublishOnly": "bun --bun run build",
     "test": "bun test",
-    "typecheck": "bun --bun tsc --noEmit"
+    "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
     "@stacksjs/stx": "link:@stacksjs/stx",

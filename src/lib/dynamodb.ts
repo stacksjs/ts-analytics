@@ -10,8 +10,8 @@ import {
 } from '../../src/models/orm'
 
 // Configuration
-export const TABLE_NAME = process.env.ANALYTICS_TABLE_NAME || 'ts-analytics'
-export const REGION = process.env.AWS_REGION || 'us-east-1'
+export const TABLE_NAME: string = process.env.ANALYTICS_TABLE_NAME || 'ts-analytics'
+export const REGION: string = process.env.AWS_REGION || 'us-east-1'
 
 // Configure analytics models on module load
 configureAnalytics({
@@ -20,7 +20,7 @@ configureAnalytics({
 })
 
 // Create native DynamoDB client for direct queries (used in dashboard handlers)
-export const dynamodb = createClient({ region: REGION })
+export const dynamodb: ReturnType<typeof createClient> = createClient({ region: REGION })
 
 // Re-export marshalling utilities
 export { marshall, unmarshall }

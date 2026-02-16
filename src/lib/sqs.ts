@@ -14,7 +14,7 @@ let sqsProducer: Awaited<ReturnType<typeof createAnalyticsProducer>> | null = nu
 /**
  * Get or initialize the SQS producer
  */
-export async function getSQSProducer() {
+export async function getSQSProducer(): Promise<Awaited<ReturnType<typeof createAnalyticsProducer>> | null> {
   if (!sqsProducer && SQS_ENABLED && SQS_QUEUE_URL) {
     sqsProducer = await createAnalyticsProducer({
       queueUrl: SQS_QUEUE_URL,
@@ -39,7 +39,7 @@ export async function sendToSQS<T extends Record<string, unknown>>(event: T): Pr
   if (!producer) return false
 
   try {
-    await producer.send(event)
+    await producer.sendEvent(event as any)
     return true
   } catch (error) {
     console.error('[SQS] Failed to send event:', error)
@@ -55,7 +55,7 @@ export async function sendBatchToSQS<T extends Record<string, unknown>>(events: 
   if (!producer) return false
 
   try {
-    await producer.sendBatch(events)
+    await producer.sendEventsBatch(events as any)
     return true
   } catch (error) {
     console.error('[SQS] Failed to send batch:', error)

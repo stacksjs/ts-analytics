@@ -1118,7 +1118,7 @@ export class AnalyticsStore {
       }
     }
 
-    const input: ReturnType<typeof this.getCitiesCommand>['input'] = {
+    const input: { TableName: string; KeyConditionExpression: string; ExpressionAttributeValues: Record<string, unknown>; FilterExpression?: string; ExpressionAttributeNames?: Record<string, string>; Limit: number } = {
       TableName: this.options.tableName,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
       ExpressionAttributeValues: {

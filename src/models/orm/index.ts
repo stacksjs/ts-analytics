@@ -97,7 +97,7 @@ export function configureAnalytics(config: AnalyticsConfig): void {
  * - GSI1SK: PATH#{path}
  */
 export class PageView extends Model {
-  static get tableName() { return getTableName() }
+  static get tableName(): string { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'PAGEVIEW'
   static primaryKey = 'id'
@@ -201,6 +201,7 @@ interface PageViewData {
   deviceType?: DeviceType
   browser?: string
   os?: string
+  country?: string
   screenWidth?: number
   screenHeight?: number
   isUnique: boolean
@@ -305,7 +306,7 @@ class PageViewQueryBuilder {
  * - SK: SESSION#{sessionId}
  */
 export class Session extends Model {
-  static get tableName() { return getTableName() }
+  static get tableName(): string { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'SESSION'
   static primaryKey = 'id'
@@ -524,7 +525,7 @@ class SessionQueryBuilder {
  * - GSI1SK: EVENT#{name}
  */
 export class CustomEvent extends Model {
-  static get tableName() { return getTableName() }
+  static get tableName(): string { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'EVENT'
   static primaryKey = 'id'
@@ -782,7 +783,7 @@ function unmarshallValue(value: any): any {
  * - GSI1SK: HMCLICK#{timestamp}
  */
 export class HeatmapClick extends Model {
-  static get tableName() { return getTableName() }
+  static get tableName(): string { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'HMCLICK'
   static primaryKey = 'id'
@@ -1024,7 +1025,7 @@ interface HeatmapAggregation {
  * - SK: HMMOVE#{sessionId}#{path}#{timestamp}
  */
 export class HeatmapMovement extends Model {
-  static get tableName() { return getTableName() }
+  static get tableName(): string { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'HMMOVE'
   static primaryKey = 'id'
@@ -1184,7 +1185,7 @@ class HeatmapMovementQueryBuilder {
  * - SK: HMSCROLL#{sessionId}#{path}
  */
 export class HeatmapScroll extends Model {
-  static get tableName() { return getTableName() }
+  static get tableName(): string { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'HMSCROLL'
   static primaryKey = 'id'
@@ -1444,8 +1445,9 @@ interface ScrollAggregation {
  * - PK: SITE#{siteId}
  * - SK: GOAL#{goalId}
  */
+// @ts-expect-error - Goal.create has a specialized signature different from Model.create
 export class Goal extends Model {
-  static get tableName() { return getTableName() }
+  static get tableName(): string { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'GOAL'
   static primaryKey = 'id'
@@ -1667,7 +1669,7 @@ class GoalQueryBuilder {
  * - GSI1SK: CONVERSION#{timestamp}
  */
 export class Conversion extends Model {
-  static get tableName() { return getTableName() }
+  static get tableName(): string { return getTableName() }
   static pkPrefix = 'SITE'
   static skPrefix = 'CONVERSION'
   static primaryKey = 'id'

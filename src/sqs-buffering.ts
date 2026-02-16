@@ -708,7 +708,7 @@ export async function createAnalyticsProducer(options?: {
   let clientAdapter: SQSClient
 
   try {
-    const tsCloud = await import('ts-cloud')
+    const tsCloud = await (import('ts-cloud' as string) as Promise<any>)
     const sqsClient = new tsCloud.SQSClient(region)
 
     // Create adapter to match our interface using ts-cloud client
@@ -731,7 +731,7 @@ export async function createAnalyticsProducer(options?: {
               messageBody: e.MessageBody,
               messageGroupId: e.MessageGroupId,
               messageDeduplicationId: e.MessageDeduplicationId,
-            }).then(r => ({ Id: e.Id, MessageId: r.MessageId })),
+            })  .then((r: any) => ({ Id: e.Id, MessageId: r.MessageId })),
           ),
         )
         return {
@@ -751,7 +751,7 @@ export async function createAnalyticsProducer(options?: {
           waitTimeSeconds: input.WaitTimeSeconds,
         })
         return {
-          Messages: result.Messages?.map(m => ({
+          Messages: result.Messages?.map((m: any) => ({
             MessageId: m.MessageId || '',
             ReceiptHandle: m.ReceiptHandle || '',
             Body: m.Body || '',

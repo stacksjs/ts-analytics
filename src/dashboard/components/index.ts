@@ -78,7 +78,7 @@ export const componentRegistry: Record<string, string> = {
 }
 
 // List of all component names
-export const allComponents = Object.keys(componentRegistry)
+export const allComponents: string[] = Object.keys(componentRegistry)
 
 // Function to get component file path
 export function getComponentPath(name: string): string | undefined {

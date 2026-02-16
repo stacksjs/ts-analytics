@@ -259,7 +259,7 @@ export class AnalyticsAPI {
         // Get geolocation from headers (Cloudflare, Vercel, etc.) or IP lookup
         let geoResult: IPGeoResult | null = null
         try {
-          geoResult = lookupFromHeaders(req.headers)
+          geoResult = await lookupFromHeaders(req.headers as any)
           // Note: For IP-based lookup (slower), you could use:
           // if (!geoResult && req.ip) {
           //   geoResult = await lookupIP(req.ip)

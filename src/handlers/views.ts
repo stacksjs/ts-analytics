@@ -290,8 +290,8 @@ export async function handleScript(request: Request): Promise<Response> {
   const siteId = pathMatch?.[1] || 'unknown'
 
   const script = minimal
-    ? generateMinimalTrackingScript({ siteId, endpoint: apiEndpoint })
-    : generateTrackingScript({ siteId, endpoint: apiEndpoint })
+    ? generateMinimalTrackingScript({ siteId, apiEndpoint })
+    : generateTrackingScript({ siteId, apiEndpoint })
 
   return jsResponse(script)
 }

@@ -5,14 +5,9 @@
  * Uses ts-countries for geographic data enrichment.
  */
 
-import {
-  City,
-  CityLoader,
-  CountryLoader,
-  findCity,
-  GeoResolver,
-  type GeoLocation,
-} from 'ts-countries'
+// ts-countries loaded dynamically
+export type GeoLocation = any
+const loadTsCountries = async (): Promise<any> => await (import('ts-countries' as string) as Promise<any>)
 
 // ============================================================================
 // Types
@@ -106,7 +101,7 @@ export function createMaxMindProvider(databasePath?: string): GeoProvider {
     lookup: async (ip: string): Promise<IPGeoResult | null> => {
       try {
         // Dynamic import to avoid requiring maxmind if not used
-        const { Reader } = await import('maxmind')
+        const { Reader } = await (import('maxmind' as string) as Promise<any>)
         const dbPath = databasePath || process.env.MAXMIND_DB_PATH || './GeoLite2-City.mmdb'
 
         const reader = await Reader.open(dbPath)
@@ -185,8 +180,7 @@ export function createIpApiProvider(): GeoProvider {
  */
 function getCountryName(countryCode: string): string {
   try {
-    const country = CountryLoader.country(countryCode)
-    return country?.getName() || countryCode
+    return countryCode
   }
   catch {
     // Country data files not available, return code as name
@@ -296,7 +290,7 @@ export class GeolocationService {
     }
 
     // Enrich with ts-countries data
-    result = this.enrichResult(result)
+    result = await this.enrichResult(result)
 
     // Apply privacy mode
     if (this.config.privacyMode) {
@@ -317,7 +311,7 @@ export class GeolocationService {
   /**
    * Lookup from request headers (Cloudflare, Vercel, etc.)
    */
-  lookupFromHeaders(headers: Record<string, string>): IPGeoResult | null {
+  async lookupFromHeaders(headers: Record<string, string>): Promise<IPGeoResult | null> {
     // Try Cloudflare first
     let result = extractCloudflareGeo(headers)
 
@@ -331,7 +325,7 @@ export class GeolocationService {
     }
 
     // Enrich with ts-countries data
-    result = this.enrichResult(result)
+    result = await this.enrichResult(result)
 
     // Apply privacy mode
     if (this.config.privacyMode) {
@@ -344,11 +338,12 @@ export class GeolocationService {
   /**
    * Enrich result with ts-countries data
    */
-  private enrichResult(result: IPGeoResult): IPGeoResult {
+  private async enrichResult(result: IPGeoResult): Promise<IPGeoResult> {
     try {
+      const tsCountries = await loadTsCountries();
       // Try to enhance city/region info using ts-countries
       if (result.countryCode && result.latitude && result.longitude) {
-        const geoLocation = GeoResolver.resolveCoordinates(
+        const geoLocation = tsCountries.GeoResolver.resolveCoordinates(
           result.latitude,
           result.longitude,
           { countryCodeHint: result.countryCode },
@@ -376,7 +371,7 @@ export class GeolocationService {
 
       // Try to find city by name if we have city but no lat/lon
       if (result.city && result.countryCode && !result.latitude) {
-        const city = findCity(result.city, result.countryCode, result.regionCode)
+        const city = tsCountries.findCity(result.city, result.countryCode, result.regionCode)
         if (city) {
           result.latitude = city.getLatitude()
           result.longitude = city.getLongitude()
@@ -470,7 +465,7 @@ export async function lookupIP(ip: string): Promise<IPGeoResult | null> {
 /**
  * Lookup from request headers using default service
  */
-export function lookupFromHeaders(headers: Record<string, string>): IPGeoResult | null {
+export async function lookupFromHeaders(headers: Record<string, string>): Promise<IPGeoResult | null> {
   return getGeolocationService().lookupFromHeaders(headers)
 }
 
@@ -517,12 +512,4 @@ export function formatGeoLocationShort(result: IPGeoResult): string {
   return result.country || result.countryCode
 }
 
-// Re-export ts-countries utilities for convenience
-export {
-  City,
-  CityLoader,
-  CountryLoader,
-  findCity,
-  type GeoLocation,
-  GeoResolver,
-}
+

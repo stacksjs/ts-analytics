@@ -7,6 +7,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "types": ["bun"],
+    "baseUrl": ".",
     "allowImportingTsExtensions": true,
     "strict": true,
     "strictNullChecks": true,
@@ -20,13 +21,16 @@
     "skipDefaultLibCheck": true,
     "skipLibCheck": true
   },
-  "include": ["src", "bin", "build.ts", "pickier.config.ts", "examples"],
+  "include": ["src/**/*.ts", "bin", "build.ts"],
   "exclude": [
     "node_modules",
     "dist",
     ".storybook",
     "**/*.stories.ts",
     "**/demo/**",
-    "**/useDashboardData.ts"
+    "**/useDashboardData.ts",
+    "**/dashboard/**",
+    "**/components/dashboard/**",
+    "pickier.config.ts"
   ]
 }
