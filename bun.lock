@@ -13,6 +13,7 @@
       "devDependencies": {
         "@iconify-json/heroicons": "^1.2.2",
         "better-dx": "^0.2.5",
+        "ts-countries": "^0.1.1",
       },
     },
   },
@@ -114,6 +115,8 @@
     "strnum": ["strnum@2.1.2", "", {}, "sha512-l63NF9y/cLROq/yqKXSLtcMeeyOfnSQlfMSlzFt/K73oIaD8DGaQWd7Z34X9GPiKqP5rbSh84Hl4bOlLcjiSrQ=="],
 
     "tinyglobby": ["tinyglobby@0.2.15", "", { "dependencies": { "fdir": "^6.5.0", "picomatch": "^4.0.3" } }, "sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ=="],
+
+    "ts-countries": ["ts-countries@0.1.1", "", {}, "sha512-4NMJzyQ8o4LZezmXePfjLYWmcBwqkWAFjfKW+CZycuitUqbzxaVp12UMnqqotuC2+PCQCbMGMaESEVcjffrkWQ=="],
 
     "ts-error-handling": ["ts-error-handling@0.1.0", "", {}, "sha512-v0t9+8PBJkyQoOG2SY/PGKJLPrahsRA/4ZbU/C7+RWVviXtUrXRyGKkHa+2+UwgVFJVdI//D9PINuSfciqNKOQ=="],
 
