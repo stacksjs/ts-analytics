@@ -45,7 +45,7 @@
     "changelog": "bunx logsmith --verbose",
     "changelog:generate": "bunx logsmith --output CHANGELOG.md",
     "release": "bun --bun run changelog:generate && bunx --bun bumpx prompt --recursive",
-    "postinstall": "bunx git-hooks",
+    "postinstall": "bunx git-hooks || true",
     "prepublishOnly": "bun --bun run build",
     "test": "bun test",
     "typecheck": "bunx tsc --noEmit"
@@ -54,7 +54,7 @@
     "@stacksjs/stx": "link:@stacksjs/stx",
     "bun-plugin-stx": "link:bun-plugin-stx",
     "bun-query-builder": "file:../bun-query-builder/packages/bun-query-builder",
-    "bun-router": "file:../bun-router/packages/bun-router",
+    "@stacksjs/bun-router": "^0.0.2",
     "dynamodb-tooling": "^0.3.2"
   },
   "devDependencies": {
