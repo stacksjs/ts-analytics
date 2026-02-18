@@ -37,7 +37,6 @@ export interface ModelTraits {
   useSoftDeletes?: boolean
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type KeyFunction = (item: any) => string
 
 /**

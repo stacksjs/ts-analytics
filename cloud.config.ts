@@ -8,7 +8,6 @@
  */
 
 // Type-safe configuration without requiring ts-cloud types at compile time
-// eslint-disable-next-line ts/consistent-type-definitions
 type CloudConfig = {
   project: { name: string, slug: string, region: string }
   environments: Record<string, unknown>

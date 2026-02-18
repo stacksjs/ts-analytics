@@ -1,7 +1,20 @@
 import type { PickierConfig } from 'pickier'
 
-const config: Partial<PickierConfig> = {
-  ignores: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+const config: PickierConfig = {
+  verbose: false,
+  ignores: [
+    '**/node_modules/**',
+    '**/dist/**',
+    '**/build/**',
+    '**/bin/**',
+    '**/.git/**',
+    '**/coverage/**',
+    '**/*.min.js',
+    '**/bun.lock',
+    '**/benchmarks/**',
+    '**/.claude/**',
+    '**/.zed/**',
+  ],
 
   lint: {
     extensions: ['ts', 'js'],
@@ -10,30 +23,47 @@ const config: Partial<PickierConfig> = {
     maxWarnings: -1,
   },
 
+  format: {
+    extensions: ['ts', 'js', 'json', 'md', 'yaml', 'yml'],
+    trimTrailingWhitespace: true,
+    maxConsecutiveBlankLines: 1,
+    finalNewline: 'one',
+    indent: 2,
+    quotes: 'single',
+    semi: false,
+  },
+
   rules: {
-    // Allow console in CLI tools and build scripts
+    noDebugger: 'error',
     noConsole: 'off',
-    noDebugger: 'warn',
   },
 
   pluginRules: {
-    // Disable false positives on TypeScript function signatures
-    'regexp/no-unused-capturing-group': 'off',
-
-    // Disable false positives where division operators are misread as regex
-    'regexp/no-super-linear-backtracking': 'off',
-
-    // Allow top-level await (supported in Bun and modern Node.js ESM)
+    // TypeScript rules
+    'ts/no-explicit-any': 'off',
+    'ts/no-unused-vars': 'warn',
     'ts/no-top-level-await': 'off',
 
-    // Disable style rules that trigger false positives in embedded JS/CSS template strings
+    // Disable rules with false positives
+    'regexp/no-unused-capturing-group': 'off',
+    'regexp/no-super-linear-backtracking': 'off',
     'style/brace-style': 'off',
     'style/max-statements-per-line': 'off',
-
-    // Disable indent rule (false positives in template strings with formatted output)
     'indent': 'off',
     'style/indent': 'off',
     '@stylistic/indent': 'off',
+
+    // Markdown rules
+    'markdown/heading-increment': 'error',
+    'markdown/no-trailing-spaces': 'error',
+    'markdown/fenced-code-language': 'warn',
+    'markdown/no-inline-html': 'off',
+    'markdown/reference-links-images': 'off',
+    'markdown/single-title': 'off',
+    'markdown/blanks-around-fences': 'off',
+    'markdown/no-duplicate-heading': 'off',
+    'markdown/single-trailing-newline': 'off',
+    'markdown/link-image-style': 'off',
   },
 }
 
