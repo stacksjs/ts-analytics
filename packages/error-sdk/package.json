@@ -10,10 +10,17 @@
   "files": [
     "src"
   ],
+  "dependencies": {
+    "@nuxt/kit": "^3.17.4"
+  },
   "peerDependencies": {
+    "nuxt": "^3.0.0",
     "vue": "^3.0.0"
   },
   "peerDependenciesMeta": {
+    "nuxt": {
+      "optional": true
+    },
     "vue": {
       "optional": true
     }
