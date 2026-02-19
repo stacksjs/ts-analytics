@@ -103,7 +103,7 @@ export async function handleValidateApiKey(
         ':zero': { N: '0' },
         ':one': { N: '1' },
       },
-    }).catch(e => console.error('Failed to update API key usage:', e))
+    }).catch((e: unknown) => console.error('Failed to update API key usage:', e))
 
     return result
   } catch (error) {

@@ -35,10 +35,7 @@
  * ```
  */
 
-// Import from bun-query-builder - these will be bundled during Lambda deployment
-// Note: Using a direct path for reliable resolution
-import { Model, configureModels } from '../../../../bun-query-builder/packages/bun-query-builder/src/dynamodb/model'
-import { DynamoDBClient, createClient } from '../../../../bun-query-builder/packages/bun-query-builder/src/dynamodb/client'
+import { Model, configureModels, DynamoDBClient, createClient } from 'bun-query-builder/dynamodb'
 import type { DeviceType } from '../../types'
 
 // ============================================================================
