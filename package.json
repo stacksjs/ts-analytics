@@ -53,9 +53,9 @@
     "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "@stacksjs/stx": "link:@stacksjs/stx",
-    "bun-plugin-stx": "link:bun-plugin-stx",
-    "bun-query-builder": "file:../bun-query-builder/packages/bun-query-builder",
+    "@stacksjs/stx": "^0.2.4",
+    "bun-plugin-stx": "^0.2.4",
+    "bun-query-builder": "^0.1.11",
     "@stacksjs/bun-router": "^0.0.2",
     "dynamodb-tooling": "^0.3.2"
   },
