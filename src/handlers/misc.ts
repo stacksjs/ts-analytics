@@ -6,6 +6,8 @@ import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
+import { generateApiKey } from './api-keys'
+import { generateId } from '../index'
 
 /**
  * GET /health
@@ -57,6 +59,31 @@ export async function handleCreateSite(request: Request): Promise<Response> {
       }),
     })
 
+    // Auto-generate the first API key
+    const keyId = generateId()
+    const apiKey = generateApiKey()
+    const permissions = ['read', 'error-tracking']
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
+        pk: `SITE#${siteId}`,
+        sk: `API_KEY#${keyId}`,
+        gsi1pk: `API_KEY#${apiKey}`,
+        gsi1sk: `SITE#${siteId}`,
+        id: keyId,
+        siteId,
+        name: 'Default',
+        key: apiKey,
+        keyPrefix: apiKey.slice(0, 8),
+        permissions,
+        lastUsed: null,
+        usageCount: 0,
+        isActive: true,
+        createdAt: now,
+      }),
+    })
+
     return jsonResponse({
       success: true,
       site: {
@@ -64,6 +91,12 @@ export async function handleCreateSite(request: Request): Promise<Response> {
         name: body.name,
         domains,
         createdAt: now,
+      },
+      apiKey: {
+        id: keyId,
+        key: apiKey,
+        name: 'Default',
+        permissions,
       },
     }, 201)
   } catch (error) {

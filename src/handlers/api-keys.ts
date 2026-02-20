@@ -10,7 +10,7 @@ import { getQueryParams } from '../../deploy/lambda-adapter'
 /**
  * Generate a secure API key
  */
-function generateApiKey(): string {
+export function generateApiKey(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
   let key = 'ak_'
   for (let i = 0; i < 32; i++) {
