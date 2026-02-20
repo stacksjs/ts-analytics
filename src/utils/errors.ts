@@ -3,6 +3,13 @@
  */
 
 /**
+ * Check if framework is a PHP framework
+ */
+function isPhpFramework(framework?: string): boolean {
+  return framework === 'laravel'
+}
+
+/**
  * Escape HTML entities for safe output
  */
 export function escapeHtml(text: string): string {
@@ -17,9 +24,9 @@ export function escapeHtml(text: string): string {
 }
 
 /**
- * Categorize error by type/message
+ * Categorize JS/browser error by message
  */
-export function categorizeError(message: string): string {
+function categorizeJsError(message: string): string {
   const lowerMessage = message.toLowerCase()
 
   if (lowerMessage.includes('network') || lowerMessage.includes('fetch') || lowerMessage.includes('xhr')) {
@@ -57,6 +64,70 @@ export function categorizeError(message: string): string {
 }
 
 /**
+ * Categorize PHP error by exception type, then message fallback
+ */
+function categorizePhpError(message: string, type?: string): string {
+  if (type) {
+    const shortType = type.split('\\').pop() || type
+    switch (shortType) {
+      case 'PDOException':
+      case 'QueryException':
+        return 'Database'
+      case 'AuthenticationException':
+      case 'AuthorizationException':
+      case 'TokenMismatchException':
+        return 'Auth'
+      case 'ValidationException':
+        return 'Validation'
+      case 'NotFoundHttpException':
+        return 'HTTP 404'
+      case 'MethodNotAllowedHttpException':
+      case 'HttpException':
+        return 'HTTP'
+      case 'TypeError':
+        return 'Type'
+      case 'RuntimeException':
+      case 'LogicException':
+        return 'Runtime'
+      case 'ParseError':
+        return 'Syntax'
+    }
+  }
+
+  const lowerMessage = message.toLowerCase()
+  if (lowerMessage.includes('sqlstate') || lowerMessage.includes('pdo')) {
+    return 'Database'
+  }
+  if (lowerMessage.includes('allowed memory size')) {
+    return 'Memory'
+  }
+  if (lowerMessage.includes('maximum execution time')) {
+    return 'Timeout'
+  }
+  if (lowerMessage.includes('view [') || lowerMessage.includes('blade')) {
+    return 'View'
+  }
+  if (lowerMessage.includes('unauthenticated') || lowerMessage.includes('unauthorized') || lowerMessage.includes('token mismatch')) {
+    return 'Auth'
+  }
+  if (lowerMessage.includes('not found') || lowerMessage.includes('404')) {
+    return 'HTTP 404'
+  }
+
+  return 'Other'
+}
+
+/**
+ * Categorize error by type/message
+ */
+export function categorizeError(message: string, type?: string, framework?: string): string {
+  if (isPhpFramework(framework)) {
+    return categorizePhpError(message, type)
+  }
+  return categorizeJsError(message)
+}
+
+/**
  * Get error severity based on type and frequency
  */
 export function getErrorSeverity(category: string, count: number): 'low' | 'medium' | 'high' | 'critical' {
@@ -65,17 +136,25 @@ export function getErrorSeverity(category: string, count: number): 'low' | 'medi
     return 'critical'
   }
 
-  // High severity for common breaking errors
-  if (['Type', 'Reference', 'Syntax'].includes(category)) {
+  // High severity — breaking errors (JS + PHP Database)
+  if (['Type', 'Reference', 'Syntax', 'Database'].includes(category)) {
+    if (count > 100) return 'critical'
+    if (count > 10) return 'high'
+    if (category === 'Database') return 'high'
+    return 'medium'
+  }
+
+  // Medium severity — network/timeout/runtime/auth/http/view
+  if (['Network', 'Timeout', 'CORS', 'Auth', 'HTTP', 'Runtime', 'View'].includes(category)) {
     if (count > 100) return 'critical'
     if (count > 10) return 'high'
     return 'medium'
   }
 
-  // Medium severity for network/timeout issues
-  if (['Network', 'Timeout', 'CORS'].includes(category)) {
-    if (count > 100) return 'high'
-    return 'medium'
+  // Low severity — validation, HTTP 404
+  if (['Validation', 'HTTP 404'].includes(category)) {
+    if (count > 100) return 'medium'
+    return 'low'
   }
 
   // Low severity by default
@@ -93,11 +172,27 @@ export interface StackFrame {
   function?: string
 }
 
-export function parseStackTrace(stack: string | undefined): StackFrame[] {
+export function parseStackTrace(stack: string | undefined, framework?: string): StackFrame[] {
   if (!stack) return []
 
   const frames: StackFrame[] = []
   const lines = stack.split('\n')
+
+  if (isPhpFramework(framework)) {
+    for (const line of lines) {
+      // PHP format: #0 /app/path.php(42): Class->method()
+      const phpMatch = line.match(/^#\d+\s+(.+?)\((\d+)\):\s*(.+)$/)
+      if (phpMatch) {
+        frames.push({
+          file: phpMatch[1],
+          line: parseInt(phpMatch[2]),
+          column: 0,
+          function: phpMatch[3],
+        })
+      }
+    }
+    return frames
+  }
 
   for (const line of lines) {
     // Chrome/Edge format: at functionName (file:line:column)
@@ -131,7 +226,7 @@ export function parseStackTrace(stack: string | undefined): StackFrame[] {
 /**
  * Group similar errors for deduplication
  */
-export function getErrorFingerprint(message: string, stack: string | undefined): string {
+export function getErrorFingerprint(message: string, stack: string | undefined, framework?: string): string {
   // Remove variable parts from message (numbers, hashes, etc)
   const normalizedMessage = message
     .replace(/\d+/g, 'N')
@@ -140,7 +235,7 @@ export function getErrorFingerprint(message: string, stack: string | undefined):
     .toLowerCase()
 
   // Get first frame from stack for location
-  const frames = parseStackTrace(stack)
+  const frames = parseStackTrace(stack, framework)
   const firstFrame = frames[0]
   const location = firstFrame ? `${firstFrame.file}:${firstFrame.line}` : 'unknown'
 
@@ -178,8 +273,18 @@ export function getErrorTrend(firstSeen: string, lastSeen: string, count: number
 /**
  * Check if error should be ignored (noise reduction)
  */
-export function shouldIgnoreError(message: string): boolean {
-  const ignorePatterns = [
+export function shouldIgnoreError(message: string, framework?: string): boolean {
+  if (isPhpFramework(framework)) {
+    const phpIgnorePatterns = [
+      /^session store not set on request$/i,
+      /^deprecated:/i,
+      /deprecated\s+function/i,
+      /undefined array key/i,
+    ]
+    return phpIgnorePatterns.some(pattern => pattern.test(message))
+  }
+
+  const jsIgnorePatterns = [
     /^script error\.?$/i,
     /^resizeobserver loop/i,
     /^cancelled$/i,
@@ -189,5 +294,5 @@ export function shouldIgnoreError(message: string): boolean {
     /^null$/,
   ]
 
-  return ignorePatterns.some(pattern => pattern.test(message))
+  return jsIgnorePatterns.some(pattern => pattern.test(message))
 }

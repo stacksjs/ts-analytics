@@ -57,7 +57,7 @@ export async function handleGetErrors(request: Request, siteId: string): Promise
       const key = error.fingerprint || error.message || 'Unknown error'
       const message = error.message || 'Unknown error'
       if (!errorGroups[key]) {
-        const category = error.category || categorizeError(message)
+        const category = error.category || categorizeError(message, error.errorType, error.framework)
         errorGroups[key] = {
           message,
           count: 0,
@@ -68,7 +68,7 @@ export async function handleGetErrors(request: Request, siteId: string): Promise
           status: error.status || 'open',
           category,
           errorId: error.errorId || error.id,
-          fingerprint: error.fingerprint || getErrorFingerprint(message, error.stack),
+          fingerprint: error.fingerprint || getErrorFingerprint(message, error.stack, error.framework),
         }
       }
       errorGroups[key].count++
@@ -229,14 +229,14 @@ export async function handleCollectError(request: Request, siteId: string, keyId
       return new Response(null, { status: 400 })
     }
 
-    if (shouldIgnoreError(body.message)) {
+    if (shouldIgnoreError(body.message, body.framework)) {
       return new Response(null, { status: 204 })
     }
 
     const timestamp = new Date()
     const id = generateId()
-    const fingerprint = body.fingerprint || getErrorFingerprint(body.message, body.stack)
-    const category = categorizeError(body.message)
+    const fingerprint = body.fingerprint || getErrorFingerprint(body.message, body.stack, body.framework)
+    const category = categorizeError(body.message, body.type, body.framework)
     const severity = getErrorSeverity(category, 1)
     const dateKey = timestamp.toISOString().slice(0, 10)
 
@@ -460,7 +460,7 @@ export async function handleGetErrorDetail(request: Request, siteId: string, err
     }
 
     const latest = occurrences[0] || {}
-    const category = group?.category || latest.category || categorizeError(latest.message || '')
+    const category = group?.category || latest.category || categorizeError(latest.message || '', latest.errorType, latest.framework)
     const count = group?.count || occurrences.length
     const firstSeen = group?.firstSeen || occurrences[occurrences.length - 1]?.timestamp
     const lastSeen = group?.lastSeen || latest.timestamp
