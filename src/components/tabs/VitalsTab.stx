@@ -4,10 +4,8 @@
  * Uses STX signals for reactive state management
  */
 
-// DOM helpers & dashboard globals
-const _siteId = () => window['siteId']
-const _apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${_siteId()}${path}`)
-const _dateParams = () => (window['getDateRangeParams'] ? window['getDateRangeParams']() : '')
+import { useSiteApi } from '@composables'
+const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi()
 
 const vitals = state([])
 const violations = state([])

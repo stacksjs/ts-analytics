@@ -4,10 +4,8 @@
  * Uses STX signals for reactive state management
  */
 
-// DOM helpers & dashboard globals
-const _siteId = () => window['siteId']
-const _apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${_siteId()}${path}`)
-const _dateParams = () => (window['getDateRangeParams'] ? window['getDateRangeParams']() : '')
+import { useSiteApi } from '@composables'
+const { siteId: _siteId, apiUrlWithDates } = useSiteApi()
 
 const insights = state([])
 const comparisonStats = state(null)
@@ -30,8 +28,8 @@ async function fetchInsights() {
   if (!_siteId()) { loading.set(false); return }
   try {
     const [insightsRes, comparisonRes] = await Promise.all([
-      fetch(_apiUrl('/insights' + _dateParams())),
-      fetch(_apiUrl('/comparison' + _dateParams()))
+      fetch(apiUrlWithDates('/insights')),
+      fetch(apiUrlWithDates('/comparison'))
     ])
     const insightsData = await insightsRes.json()
     const comparisonData = await comparisonRes.json()

@@ -3,14 +3,15 @@
  * FunnelsTab Component - Conversion funnels display
  */
 
-// DOM helpers & dashboard globals
+import { useSiteApi, useModal } from '@composables'
+const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi()
+const Modal = useModal()
+
+// DOM helpers
 const _doc = document
 const _getEl = (id) => _doc.getElementById(id)
 const _addListener = (el, event, fn) => el.addEventListener(event, fn)
 const _queryAll = (el, sel) => el.querySelectorAll(sel)
-const _siteId = () => window['siteId']
-const _apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${_siteId()}${path}`)
-const _dateParams = () => (window['getDateRangeParams'] ? window['getDateRangeParams']() : '')
 
 let currentFunnels = []
 let currentAnalysis = null

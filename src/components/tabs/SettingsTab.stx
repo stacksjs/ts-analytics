@@ -3,12 +3,14 @@
  * SettingsTab Component - Site settings management
  */
 
-// Dashboard globals & DOM helpers
+import { useSiteApi, useModal } from '@composables'
+const { siteId, apiUrl } = useSiteApi()
+const Modal = useModal()
+
+// DOM helpers
 const _doc = document
 const _getEl = (id) => _doc.getElementById(id)
 const _addListener = (el, event, fn) => el.addEventListener(event, fn)
-const siteId = () => window['siteId']
-const apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${siteId()}${path}`)
 
 let settingsData = {
   apiKey: null,
@@ -597,24 +599,24 @@ function gdprDelete() {
   })
 }
 
-// Expose functions to other components
-provide('regenerateApiKey', regenerateApiKey)
-provide('showAlertModal', showAlertModal)
-provide('showEmailReportModal', showEmailReportModal)
-provide('showUptimeModal', showUptimeModal)
-provide('showTeamModal', showTeamModal)
-provide('showWebhookModal', showWebhookModal)
-provide('showPerfBudgetModal', showPerfBudgetModal)
-provide('updatePerfThresholdLabel', updatePerfThresholdLabel)
-provide('copyApiKey', copyApiKey)
-provide('deleteAlert', deleteAlert)
-provide('deleteEmailReport', deleteEmailReport)
-provide('deleteUptimeMonitor', deleteUptimeMonitor)
-provide('removeTeamMember', removeTeamMember)
-provide('deleteWebhook', deleteWebhook)
-provide('deletePerfBudget', deletePerfBudget)
-provide('gdprExport', gdprExport)
-provide('gdprDelete', gdprDelete)
+// Expose functions globally for onclick handlers in dynamic HTML
+window.regenerateApiKey = regenerateApiKey
+window.showAlertModal = showAlertModal
+window.showEmailReportModal = showEmailReportModal
+window.showUptimeModal = showUptimeModal
+window.showTeamModal = showTeamModal
+window.showWebhookModal = showWebhookModal
+window.showPerfBudgetModal = showPerfBudgetModal
+window.updatePerfThresholdLabel = updatePerfThresholdLabel
+window.copyApiKey = copyApiKey
+window.deleteAlert = deleteAlert
+window.deleteEmailReport = deleteEmailReport
+window.deleteUptimeMonitor = deleteUptimeMonitor
+window.removeTeamMember = removeTeamMember
+window.deleteWebhook = deleteWebhook
+window.deletePerfBudget = deletePerfBudget
+window.gdprExport = gdprExport
+window.gdprDelete = gdprDelete
 
 if (_doc.readyState === 'loading') {
   _addListener(_doc, 'DOMContentLoaded', fetchSettings)

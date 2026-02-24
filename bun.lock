@@ -33,7 +33,7 @@
 
     "@stacksjs/desktop": ["@stacksjs/desktop@0.2.5", "", { "peerDependencies": { "craft": "*" }, "optionalPeers": ["craft"] }, "sha512-v0NQwktvCmGSxRuni2PoBcouR1Add0PbF2FFlvA3zH3zwA1wPGy8RepcktWny4pGXruF9hb41xjd9QEOn6aTcw=="],
 
-    "@stacksjs/dtsx": ["@stacksjs/dtsx@0.9.10", "", { "dependencies": { "@stacksjs/clapp": "^0.2.0" }, "peerDependencies": { "typescript": ">=5.9.3" }, "bin": { "dtsx": "./dist/bin/cli.js" } }, "sha512-7LRwOv8JSEEXDWIK+JrdcEN80wXrRLaiXz1Vvhe6hjAuzQSggEv0pSdZnq9Gx7OjhOotdRJLmHOBGJnnzoDRHQ=="],
+    "@stacksjs/dtsx": ["@stacksjs/dtsx@0.9.11", "", { "dependencies": { "@stacksjs/clapp": "^0.2.0" }, "peerDependencies": { "typescript": ">=5.9.3" }, "bin": { "dtsx": "./dist/bin/cli.js" } }, "sha512-8e5ZS359hstYkPGV5L93VpB8oDBy02SSbqwdp3yJXWoRT7gvK2qL8rW1hHJoecLMMQv+KACgxdjD4XLn8bFLYw=="],
 
     "@stacksjs/gitlint": ["@stacksjs/gitlint@0.1.5", "", { "bin": { "gitlint": "dist/bin/cli.js" } }, "sha512-5nSr6PN8/cRPdIz9Cj65Dh12N9gR7BPtJzR3rnqhAgpm5q0ihjmVTTybFQqigMcYuRpt2qX4HenV7YXuFOYScw=="],
 
@@ -71,7 +71,7 @@
 
     "bun-git-hooks": ["bun-git-hooks@0.3.1", "", { "bin": { "git-hooks": "dist/bin/cli.js", "bun-git-hooks": "dist/bin/cli.js" } }, "sha512-Xs/QUqIYgBmLHSVr5VBLVbM5lZbUoAXKX2WZyoQDb2LlzcxC3BpBvMkMTQH75UuOJZwaRBq8yEe4IR6NckqdgQ=="],
 
-    "bun-plugin-dtsx": ["bun-plugin-dtsx@0.9.10", "", { "dependencies": { "@stacksjs/dtsx": "0.9.10" } }, "sha512-ffbVq0QCZ3Ib1WbOUxescjT1khh0iO01DUhjvlpsqwp1HUhjtwxvtQp8e6ny/95kJQN4KY7ZcaJrQjJlPKL1FA=="],
+    "bun-plugin-dtsx": ["bun-plugin-dtsx@0.9.11", "", { "dependencies": { "@stacksjs/dtsx": "0.9.11" } }, "sha512-guIzQrrkZTKsy6oAn0iKSiWdKQ3uzWvVOOjJjOHDfhTremB5xrVHnzPjnj3MTtCOm2mvVYUzm1yU6H0uUAe7Mw=="],
 
     "bun-plugin-stx": ["bun-plugin-stx@0.2.5", "", { "dependencies": { "@stacksjs/stx": "0.2.5" }, "bin": { "serve": "./dist/serve.js", "stx-serve": "./dist/serve.js" } }, "sha512-IkS8/efSbDi8mlaEnLFS2t7Klcc5vr3J3rPMocDj5N6CXUQMJFhRMrbmrJ6bCq02msHSbpxj6WrwZGBYU4ROQQ=="],
 

@@ -4,6 +4,9 @@
  * Uses STX signals for reactive form state
  */
 
+import { useSiteApi } from '@composables'
+const { siteId: _siteId, apiUrl: _apiUrl } = useSiteApi()
+
 // Form state signals
 const showModal = state(false)
 const isEditing = state(false)
@@ -66,8 +69,7 @@ async function handleSubmit(e) {
   e.preventDefault()
   if (saving()) return
 
-  const siteId = window.siteId
-  if (!siteId) {
+  if (!_siteId()) {
     error.set('No site selected')
     return
   }
@@ -91,8 +93,8 @@ async function handleSubmit(e) {
   error.set(null)
 
   const url = isEditing()
-    ? window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/goals/${editingGoalId()}`)
-    : window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/goals`)
+    ? _apiUrl(`/goals/${editingGoalId()}`)
+    : _apiUrl('/goals')
   const method = isEditing() ? 'PUT' : 'POST'
 
   try {

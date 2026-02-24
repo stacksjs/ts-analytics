@@ -139,6 +139,44 @@ export async function createRouter(): Promise<Router> {
     })
   }
 
+  // Serve composables script (same pattern as dashboard script)
+  const serveComposablesScript = async () => {
+    const locations = [
+      './src/views/scripts/composables.ts',     // Local dev (source)
+      '/var/task/views/scripts/composables.js',  // Lambda
+      './dist/views/scripts/composables.js',     // Local dev (compiled)
+      './views/scripts/composables.js',          // Alternative
+    ]
+
+    for (const loc of locations) {
+      try {
+        const file = Bun.file(loc)
+        if (await file.exists()) {
+          let content = await file.text()
+          if (loc.endsWith('.ts')) {
+            const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'browser' })
+            content = transpiler.transformSync(content)
+          }
+          return new Response(content, {
+            headers: {
+              'Content-Type': 'application/javascript',
+              'Cache-Control': 'public, max-age=3600',
+            },
+          })
+        }
+      } catch {
+        // Try next location
+      }
+    }
+
+    return new Response('// Script not found', {
+      status: 404,
+      headers: { 'Content-Type': 'application/javascript' },
+    })
+  }
+
+  await router.get('/dashboard/scripts/composables.ts', serveComposablesScript)
+
   await router.get('/scripts/dashboard.js', serveDashboardScript)
   await router.get('/dashboard/scripts/dashboard.ts', serveDashboardScript)
 

@@ -4,10 +4,8 @@
  * Uses STX signals for reactive state management
  */
 
-// DOM helpers & dashboard globals
-const _siteId = () => window['siteId']
-const _apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${_siteId()}${path}`)
-const _dateParams = () => (window['getDateRangeParams'] ? window['getDateRangeParams']() : '')
+import { useSiteApi } from '@composables'
+const { siteId: _siteId, apiUrlWithDates } = useSiteApi()
 
 const flowData = state(null)
 const loading = state(true)
@@ -32,7 +30,7 @@ const summary = derived(() => {
 async function fetchFlow() {
   if (!_siteId()) { loading.set(false); return }
   try {
-    const res = await fetch(_apiUrl('/flow' + _dateParams()))
+    const res = await fetch(apiUrlWithDates('/flow'))
     const data = await res.json()
     flowData.set(data)
     error.set(null)

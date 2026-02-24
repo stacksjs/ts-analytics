@@ -4,9 +4,8 @@
  * Uses STX signals for reactive state management
  */
 
-// DOM helpers & dashboard globals
-const _siteId = () => window['siteId']
-const _apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${_siteId()}${path}`)
+import { useSiteApi } from '@composables'
+const { siteId: _siteId, apiUrl: _apiUrl } = useSiteApi()
 
 const activities = state([])
 const loading = state(true)
