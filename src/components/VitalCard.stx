@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * VitalCard Component
  * Displays a Core Web Vital metric with rating bar

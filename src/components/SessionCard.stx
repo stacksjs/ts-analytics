@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * SessionCard Component
  * Displays a session summary with metadata

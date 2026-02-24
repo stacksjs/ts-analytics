@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * FlowNode Component
  * Displays a node in the user flow visualization

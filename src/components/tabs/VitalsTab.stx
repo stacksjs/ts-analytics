@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * VitalsTab Component - Core Web Vitals display
  * Uses STX signals for reactive state management

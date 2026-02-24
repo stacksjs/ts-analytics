@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * CampaignsPanel Component
  * Displays campaign breakdown with reactive data fetching

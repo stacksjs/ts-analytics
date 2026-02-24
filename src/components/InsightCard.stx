@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * InsightCard Component
  * Displays an individual insight with icon and description

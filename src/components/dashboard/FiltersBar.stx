@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * FiltersBar Component - Data filtering controls
  * Uses STX signals for reactive filter state

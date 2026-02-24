@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * SiteCard Component
  * Displays a site in the site selector

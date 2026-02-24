@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * DevicesPanel Component
  * Displays device breakdown with reactive data fetching

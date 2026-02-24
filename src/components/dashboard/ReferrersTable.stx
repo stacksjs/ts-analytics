@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * ReferrersTable Component
  * Displays top referrers with visitors and views

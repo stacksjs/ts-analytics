@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * EventsPanel Component
  * Displays custom events with bar chart visualization

@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * SiteSelector Component - Site selection and creation
  * Note: All functionality is handled by dashboard.ts (fetchSites, renderSiteSelector, etc.)

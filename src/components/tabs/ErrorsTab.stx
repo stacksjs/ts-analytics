@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * ErrorsTab Component - Error tracking display
  * Uses STX signals for reactive state management

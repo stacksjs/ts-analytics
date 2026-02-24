@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * StatCard Component
  * Displays a statistic with optional change indicator

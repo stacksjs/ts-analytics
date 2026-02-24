@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * GoalModal Component - Goal creation/editing modal
  * Uses STX signals for reactive form state

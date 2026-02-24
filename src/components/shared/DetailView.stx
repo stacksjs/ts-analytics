@@ -1,6 +1,6 @@
 {{-- DetailView Component - Reusable data table view --}}
 {{-- Props: section, title, icon --}}
-<script>
+<script client>
 const allData = state([])
 const filteredData = state([])
 const loading = state(true)

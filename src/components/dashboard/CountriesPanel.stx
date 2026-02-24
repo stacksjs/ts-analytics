@@ -1,4 +1,4 @@
-<script>
+<script client>
 /**
  * CountriesPanel Component
  * Displays country breakdown with reactive data fetching
