@@ -3,6 +3,12 @@
  * ErrorsTab Component - Error tracking display
  * Uses STX signals for reactive state management
  */
+
+// DOM helpers & dashboard globals
+const _siteId = () => window['siteId']
+const _apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${_siteId()}${path}`)
+const _dateParams = () => (window['getDateRangeParams'] ? window['getDateRangeParams']() : '')
+
 const errors = state([])
 const errorStatuses = state({})
 const statusFilter = state('all')
@@ -50,12 +56,11 @@ function getErrorStatus(msg) {
 }
 
 async function fetchErrors() {
-  const siteId = window.siteId
-  if (!siteId) { loading.set(false); return }
+  if (!_siteId()) { loading.set(false); return }
   try {
     const [errorsRes, statusesRes] = await Promise.all([
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/errors${window.getDateRangeParams()}`)),
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/errors/statuses`))
+      fetch(_apiUrl('/errors' + _dateParams())),
+      fetch(_apiUrl('/errors/statuses'))
     ])
     const errorsData = await errorsRes.json()
     const statusesData = await statusesRes.json()
@@ -71,9 +76,8 @@ async function fetchErrors() {
 }
 
 async function updateStatus(errorId, newStatus) {
-  const siteId = window.siteId
   try {
-    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/errors/status`), {
+    await fetch(_apiUrl('/errors/status'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ errorId: decodeURIComponent(errorId), status: newStatus })
@@ -156,7 +160,7 @@ onMount(() => {
       </div>
 
       <div @for="e in filteredErrors()" class="error-card-wrapper">
-        <a :href="`/errors/${encodeURIComponent(getErrorId(e.message))}?siteId=${window.siteId}`"
+        <a :href="`/errors/${encodeURIComponent(getErrorId(e.message))}?siteId=${_siteId()}`"
            @class="['error-card', getErrorStatus(e.message) === 'resolved' ? 'resolved' : '', getErrorStatus(e.message) === 'ignored' ? 'ignored' : '']">
           <div @class="['error-card-gradient', e.severity || 'medium']"></div>
           <div class="error-card-header">

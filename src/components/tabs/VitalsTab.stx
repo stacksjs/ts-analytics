@@ -3,6 +3,12 @@
  * VitalsTab Component - Core Web Vitals display
  * Uses STX signals for reactive state management
  */
+
+// DOM helpers & dashboard globals
+const _siteId = () => window['siteId']
+const _apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${_siteId()}${path}`)
+const _dateParams = () => (window['getDateRangeParams'] ? window['getDateRangeParams']() : '')
+
 const vitals = state([])
 const violations = state([])
 const loading = state(true)
@@ -10,12 +16,11 @@ const error = state(null)
 
 // Fetch vitals data
 async function fetchVitals() {
-  const siteId = window.siteId
-  if (!siteId) { loading.set(false); return }
+  if (!_siteId()) { loading.set(false); return }
   try {
     const [vitalsRes, budgetsRes] = await Promise.all([
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/vitals${window.getDateRangeParams()}`)),
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/performance-budgets/check`))
+      fetch(_apiUrl('/vitals' + _dateParams())),
+      fetch(_apiUrl('/performance-budgets/check'))
     ])
     const vitalsData = await vitalsRes.json()
     const budgetsData = await budgetsRes.json()

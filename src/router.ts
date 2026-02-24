@@ -5,7 +5,7 @@
  * Note: bun-router uses {param} syntax for route parameters, not :param
  */
 
-import { Router } from 'bun-router'
+import { Router } from '@stacksjs/bun-router'
 
 // Import handlers
 import * as stats from './handlers/stats'
@@ -102,12 +102,12 @@ export async function createRouter(): Promise<Router> {
   // Favicon (return empty to prevent 404)
   await router.get('/favicon.ico', () => new Response(null, { status: 204 }))
 
-  // Serve compiled dashboard script
-  await router.get('/scripts/dashboard.js', async () => {
-    // Try multiple locations for the compiled script
+  // Serve dashboard script (transpile TS on the fly for dev, serve compiled JS for prod)
+  const serveDashboardScript = async () => {
     const locations = [
+      './src/views/scripts/dashboard.ts',   // Local dev (source)
       '/var/task/views/scripts/dashboard.js', // Lambda
-      './dist/views/scripts/dashboard.js',    // Local dev
+      './dist/views/scripts/dashboard.js',    // Local dev (compiled)
       './views/scripts/dashboard.js',         // Alternative
     ]
 
@@ -115,10 +115,16 @@ export async function createRouter(): Promise<Router> {
       try {
         const file = Bun.file(loc)
         if (await file.exists()) {
-          return new Response(await file.text(), {
+          let content = await file.text()
+          // Transpile TypeScript files for the browser
+          if (loc.endsWith('.ts')) {
+            const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'browser' })
+            content = transpiler.transformSync(content)
+          }
+          return new Response(content, {
             headers: {
               'Content-Type': 'application/javascript',
-              'Cache-Control': 'public, max-age=31536000',
+              'Cache-Control': 'public, max-age=3600',
             },
           })
         }
@@ -131,7 +137,10 @@ export async function createRouter(): Promise<Router> {
       status: 404,
       headers: { 'Content-Type': 'application/javascript' },
     })
-  })
+  }
+
+  await router.get('/scripts/dashboard.js', serveDashboardScript)
+  await router.get('/dashboard/scripts/dashboard.ts', serveDashboardScript)
 
   // HTML pages
   await router.get('/', views.handleDashboard)
@@ -251,9 +260,8 @@ export async function createRouter(): Promise<Router> {
   await router.delete('/api/sites/{siteId}/email-reports/{reportId}', (req: any) => alerts.handleDeleteEmailReport(req, req.params.siteId, req.params.reportId))
 
   // API Keys
-  await router.get('/api/sites/{siteId}/api-keys', (req: any) => apiKeys.handleGetApiKeys(req, req.params.siteId))
-  await router.post('/api/sites/{siteId}/api-keys', (req: any) => apiKeys.handleCreateApiKey(req, req.params.siteId))
-  await router.delete('/api/sites/{siteId}/api-keys/{keyId}', (req: any) => apiKeys.handleDeleteApiKey(req, req.params.siteId, req.params.keyId))
+  await router.get('/api/sites/{siteId}/api-keys', (req: any) => apiKeys.handleGetApiKey(req, req.params.siteId))
+  await router.post('/api/sites/{siteId}/api-keys/regenerate', (req: any) => apiKeys.handleRegenerateApiKey(req, req.params.siteId))
 
   // Uptime Monitoring
   await router.get('/api/sites/{siteId}/uptime', (req: any) => uptime.handleGetUptimeMonitors(req, req.params.siteId))
@@ -393,9 +401,8 @@ export async function createRouter(): Promise<Router> {
   await router.delete('/api/p/{siteId}/scheduled/{reportId}', (req: any) => alerts.handleDeleteEmailReport(req, req.params.siteId, req.params.reportId))
 
   // API Keys (stealth)
-  await router.get('/api/p/{siteId}/tokens', (req: any) => apiKeys.handleGetApiKeys(req, req.params.siteId))
-  await router.post('/api/p/{siteId}/tokens', (req: any) => apiKeys.handleCreateApiKey(req, req.params.siteId))
-  await router.delete('/api/p/{siteId}/tokens/{keyId}', (req: any) => apiKeys.handleDeleteApiKey(req, req.params.siteId, req.params.keyId))
+  await router.get('/api/p/{siteId}/tokens', (req: any) => apiKeys.handleGetApiKey(req, req.params.siteId))
+  await router.post('/api/p/{siteId}/tokens/regenerate', (req: any) => apiKeys.handleRegenerateApiKey(req, req.params.siteId))
 
   // Uptime Monitoring (stealth)
   await router.get('/api/p/{siteId}/monitors', (req: any) => uptime.handleGetUptimeMonitors(req, req.params.siteId))

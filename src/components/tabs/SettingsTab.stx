@@ -3,13 +3,15 @@
  * SettingsTab Component - Site settings management
  */
 
-// Use indirection to work around STX validation
-const _doc = window['document']
-const _getEl = (id) => _doc['getElementById'](id)
-const _addListener = (el, event, fn) => el['addEventListener'](event, fn)
+// Dashboard globals & DOM helpers
+const _doc = document
+const _getEl = (id) => _doc.getElementById(id)
+const _addListener = (el, event, fn) => el.addEventListener(event, fn)
+const siteId = () => window['siteId']
+const apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${siteId()}${path}`)
 
 let settingsData = {
-  apiKeys: [],
+  apiKey: null,
   alerts: [],
   emailReports: [],
   uptimeMonitors: [],
@@ -21,20 +23,20 @@ let settingsData = {
 
 async function fetchSettings() {
   const container = _getEl('settings-container')
-  if (!window.siteId || !container) return
+  if (!siteId() || !container) return
 
   container.innerHTML = '<div class="loading-state"><div class="spinner"></div><span>Loading...</span></div>'
 
   try {
     const [keysRes, alertsRes, reportsRes, uptimeRes, teamRes, webhooksRes, budgetsRes, retentionRes] = await Promise.all([
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/api-keys`)),
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/alerts`)),
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/email-reports`)),
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/uptime`)),
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/team`)),
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/webhooks`)),
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/performance-budgets`)),
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/retention`))
+      fetch(apiUrl('/api-keys')),
+      fetch(apiUrl('/alerts')),
+      fetch(apiUrl('/email-reports')),
+      fetch(apiUrl('/uptime')),
+      fetch(apiUrl('/team')),
+      fetch(apiUrl('/webhooks')),
+      fetch(apiUrl('/performance-budgets')),
+      fetch(apiUrl('/retention'))
     ])
 
     const [keysData, alertsData, reportsData, uptimeData, teamData, webhooksData, budgetsData, retentionData] = await Promise.all([
@@ -43,7 +45,7 @@ async function fetchSettings() {
     ])
 
     settingsData = {
-      apiKeys: keysData.keys || [],
+      apiKey: keysData.apiKey || null,
       alerts: alertsData.alerts || [],
       emailReports: reportsData.reports || [],
       uptimeMonitors: uptimeData.monitors || [],
@@ -82,25 +84,31 @@ function renderSettings() {
 }
 
 function renderApiKeysPanel() {
-  const items = settingsData.apiKeys.map(key => `
+  const key = settingsData.apiKey
+
+  const keyContent = key ? `
     <div class="list-item">
       <div class="list-item-content">
         <div class="list-item-name">${key.name}</div>
         <code class="list-item-code">${key.key}</code>
       </div>
-      <button class="btn-icon danger" onclick="deleteApiKey('${key.id}')" title="Delete">×</button>
+      <div class="list-item-actions">
+        <button class="btn-icon" onclick="copyApiKey()" title="Copy key">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" stroke-width="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke-width="2"/></svg>
+        </button>
+      </div>
     </div>
-  `).join('')
+  ` : '<p class="panel-empty">No API key found.</p>'
 
   return `
     <div class="settings-panel">
       <div class="panel-header">
-        <h4 class="panel-title">API Keys</h4>
-        <button class="btn btn-sm" onclick="showApiKeyModal()">+ New Key</button>
+        <h4 class="panel-title">API Key</h4>
+        <button class="btn btn-sm" onclick="regenerateApiKey()">Regenerate</button>
       </div>
-      <p class="panel-desc">Generate API keys for programmatic access to your analytics data.</p>
+      <p class="panel-desc">Use this key for programmatic access to your analytics data.</p>
       <div class="panel-list">
-        ${settingsData.apiKeys.length === 0 ? '<p class="panel-empty">No API keys created yet.</p>' : items}
+        ${keyContent}
       </div>
     </div>
   `
@@ -278,28 +286,34 @@ function renderDataPrivacyPanel() {
   `
 }
 
-// Modal functions
-function showApiKeyModal() {
-  Modal.open({
-    title: 'Create API Key',
-    content: `
-      <div class="form-group">
-        <label class="form-label">Key Name</label>
-        <input type="text" name="keyName" class="form-input" placeholder="e.g., Production API" />
-      </div>
-    `,
-    submitText: 'Create Key',
-    onSubmit: async () => {
-      const data = Modal.getFormData()
-      if (!data.keyName) return
-      await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/api-keys`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: data.keyName })
-      })
-      Modal.close()
-      fetchSettings()
-    }
+// Modal functions (access via window since script runs in strict-mode IIFE)
+function regenerateApiKey() {
+  Modal.confirm('Regenerate API key? The current key will stop working immediately.', async () => {
+    const res = await fetch(apiUrl('/api-keys/regenerate'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    const result = await res.json()
+    const fullKey = result.apiKey && result.apiKey.key
+
+    Modal.open({
+      title: 'New API Key',
+      content: `
+        <p class="panel-desc" style="margin-bottom: 1rem">Your new API key is ready. Copy it now.</p>
+        <div class="form-group">
+          <label class="form-label">Default</label>
+          <div style="display: flex; gap: 0.5rem; align-items: center">
+            <input type="text" class="form-input" value="${fullKey || ''}" readonly style="font-family: monospace; font-size: 0.8125rem" />
+            <button type="button" class="btn btn-sm" onclick="navigator.clipboard.writeText('${fullKey || ''}'); this.textContent='Copied!'">Copy</button>
+          </div>
+        </div>
+      `,
+      submitText: 'Done',
+      onSubmit: () => {
+        Modal.close()
+        fetchSettings()
+      }
+    })
   })
 }
 
@@ -328,7 +342,7 @@ function showAlertModal() {
     submitText: 'Create Alert',
     onSubmit: async () => {
       const data = Modal.getFormData()
-      await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/alerts`), {
+      await fetch(apiUrl('/alerts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ metric: data.metric, threshold: parseInt(data.threshold), email: data.email })
@@ -359,7 +373,7 @@ function showEmailReportModal() {
     submitText: 'Add Report',
     onSubmit: async () => {
       const data = Modal.getFormData()
-      await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/email-reports`), {
+      await fetch(apiUrl('/email-reports'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: data.email, frequency: data.frequency })
@@ -392,7 +406,7 @@ function showUptimeModal() {
     submitText: 'Add Monitor',
     onSubmit: async () => {
       const data = Modal.getFormData()
-      await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/uptime`), {
+      await fetch(apiUrl('/uptime'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: data.url, interval: parseInt(data.interval) })
@@ -423,7 +437,7 @@ function showTeamModal() {
     submitText: 'Invite',
     onSubmit: async () => {
       const data = Modal.getFormData()
-      await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/team`), {
+      await fetch(apiUrl('/team'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: data.email, role: data.role })
@@ -460,7 +474,7 @@ function showWebhookModal() {
       if (data.event_session) events.push('session')
       if (data.event_error) events.push('error')
       if (data.event_goal) events.push('goal')
-      await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/webhooks`), {
+      await fetch(apiUrl('/webhooks'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: data.url, events })
@@ -493,7 +507,7 @@ function showPerfBudgetModal() {
     submitText: 'Add Budget',
     onSubmit: async () => {
       const data = Modal.getFormData()
-      await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/performance-budgets`), {
+      await fetch(apiUrl('/performance-budgets'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ metric: data.metric, threshold: parseFloat(data.threshold) })
@@ -512,86 +526,95 @@ function updatePerfThresholdLabel() {
   }
 }
 
-// Delete functions
-async function deleteApiKey(keyId) {
-  Modal.confirm('Delete this API key?', async () => {
-    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/api-keys/${keyId}`), { method: 'DELETE' })
-    fetchSettings()
-  })
+// Copy API key to clipboard
+function copyApiKey() {
+  const key = settingsData.apiKey
+  if (key && key.key) {
+    navigator.clipboard.writeText(key.key).then(() => {
+      const btn = _doc.querySelector('[onclick="copyApiKey()"]')
+      if (btn) {
+        btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="#22c55e" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
+        setTimeout(() => {
+          btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" stroke-width="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke-width="2"/></svg>'
+        }, 2000)
+      }
+    })
+  }
 }
 
+// Delete functions
 async function deleteAlert(alertId) {
   Modal.confirm('Delete this alert?', async () => {
-    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/alerts/${alertId}`), { method: 'DELETE' })
+    await fetch(apiUrl('/alerts/' + alertId), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
 async function deleteEmailReport(reportId) {
   Modal.confirm('Delete this email report?', async () => {
-    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/email-reports/${reportId}`), { method: 'DELETE' })
+    await fetch(apiUrl('/email-reports/' + reportId), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
 async function deleteUptimeMonitor(monitorId) {
   Modal.confirm('Delete this uptime monitor?', async () => {
-    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/uptime/${monitorId}`), { method: 'DELETE' })
+    await fetch(apiUrl('/uptime/' + monitorId), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
 async function removeTeamMember(memberId) {
   Modal.confirm('Remove this team member?', async () => {
-    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/team/${memberId}`), { method: 'DELETE' })
+    await fetch(apiUrl('/team/' + memberId), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
 async function deleteWebhook(webhookId) {
   Modal.confirm('Delete this webhook?', async () => {
-    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/webhooks/${webhookId}`), { method: 'DELETE' })
+    await fetch(apiUrl('/webhooks/' + webhookId), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
 async function deletePerfBudget(budgetId) {
   Modal.confirm('Delete this performance budget?', async () => {
-    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/performance-budgets/${budgetId}`), { method: 'DELETE' })
+    await fetch(apiUrl('/performance-budgets/' + budgetId), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
 // GDPR functions
 function gdprExport() {
-  window.location.href = window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/gdpr/export`)
+  location.href = apiUrl('/gdpr/export')
 }
 
 function gdprDelete() {
   Modal.confirm('This will permanently delete ALL analytics data for this site. This action cannot be undone. Are you sure?', async () => {
-    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/gdpr/delete`), { method: 'DELETE' })
+    await fetch(apiUrl('/gdpr/delete'), { method: 'DELETE' })
     Modal.alert('Success', 'All data has been deleted.')
   })
 }
 
-// Expose functions globally
-window.showApiKeyModal = showApiKeyModal
-window.showAlertModal = showAlertModal
-window.showEmailReportModal = showEmailReportModal
-window.showUptimeModal = showUptimeModal
-window.showTeamModal = showTeamModal
-window.showWebhookModal = showWebhookModal
-window.showPerfBudgetModal = showPerfBudgetModal
-window.updatePerfThresholdLabel = updatePerfThresholdLabel
-window.deleteApiKey = deleteApiKey
-window.deleteAlert = deleteAlert
-window.deleteEmailReport = deleteEmailReport
-window.deleteUptimeMonitor = deleteUptimeMonitor
-window.removeTeamMember = removeTeamMember
-window.deleteWebhook = deleteWebhook
-window.deletePerfBudget = deletePerfBudget
-window.gdprExport = gdprExport
-window.gdprDelete = gdprDelete
+// Expose functions to other components
+provide('regenerateApiKey', regenerateApiKey)
+provide('showAlertModal', showAlertModal)
+provide('showEmailReportModal', showEmailReportModal)
+provide('showUptimeModal', showUptimeModal)
+provide('showTeamModal', showTeamModal)
+provide('showWebhookModal', showWebhookModal)
+provide('showPerfBudgetModal', showPerfBudgetModal)
+provide('updatePerfThresholdLabel', updatePerfThresholdLabel)
+provide('copyApiKey', copyApiKey)
+provide('deleteAlert', deleteAlert)
+provide('deleteEmailReport', deleteEmailReport)
+provide('deleteUptimeMonitor', deleteUptimeMonitor)
+provide('removeTeamMember', removeTeamMember)
+provide('deleteWebhook', deleteWebhook)
+provide('deletePerfBudget', deletePerfBudget)
+provide('gdprExport', gdprExport)
+provide('gdprDelete', gdprDelete)
 
 if (_doc.readyState === 'loading') {
   _addListener(_doc, 'DOMContentLoaded', fetchSettings)
@@ -639,6 +662,7 @@ if (_doc.readyState === 'loading') {
   border-radius: 4px;
 }
 .list-item-content { flex: 1; min-width: 0; }
+.list-item-actions { display: flex; align-items: center; gap: 0.25rem; }
 .list-item-name { font-size: 0.8125rem; font-weight: 500; color: var(--text); }
 .list-item-code { font-size: 0.6875rem; color: var(--muted); word-break: break-all; }
 .list-item-meta, .list-item-role, .list-item-events { font-size: 0.6875rem; color: var(--muted); }

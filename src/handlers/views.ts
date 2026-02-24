@@ -8,7 +8,7 @@
 import { generateTrackingScript, generateMinimalTrackingScript } from '../index'
 import { htmlResponse, jsResponse } from '../utils/response'
 import { getQueryParams, getLambdaEvent } from '../../deploy/lambda-adapter'
-import { injectQueryPreservationScript } from 'bun-router'
+import { injectQueryPreservationScript } from '@stacksjs/bun-router'
 import path from 'node:path'
 import fs from 'node:fs'
 

@@ -3,10 +3,13 @@
  * SessionsTab Component - User sessions display
  */
 
-// Use indirection to work around STX validation
-const _doc = window['document']
-const _getEl = (id) => _doc['getElementById'](id)
-const _addListener = (el, event, fn) => el['addEventListener'](event, fn)
+// DOM helpers & dashboard globals
+const _doc = document
+const _getEl = (id) => _doc.getElementById(id)
+const _addListener = (el, event, fn) => el.addEventListener(event, fn)
+const _siteId = () => window['siteId']
+const _apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${_siteId()}${path}`)
+const _dateParams = () => (window['getDateRangeParams'] ? window['getDateRangeParams']() : '')
 
 function formatDuration(ms) {
   if (!ms) return '0s'
@@ -28,7 +31,7 @@ function timeAgo(timestamp) {
 }
 
 async function fetchSessions() {
-  const siteId = window.siteId
+  const siteId = _siteId()
   const container = _getEl('sessions-container')
   const countEl = _getEl('sessions-count')
 
@@ -37,7 +40,7 @@ async function fetchSessions() {
   container.innerHTML = '<div class="loading-state"><div class="spinner"></div><span>Loading...</span></div>'
 
   try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/sessions${window.getDateRangeParams ? window.getDateRangeParams() : ''}`))
+    const res = await fetch(_apiUrl('/sessions' + _dateParams()))
     const data = await res.json()
     const sessions = data.sessions || []
 
@@ -77,7 +80,7 @@ async function viewSession(sessionId) {
   })
 
   try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/sessions/${sessionId}`))
+    const res = await fetch(_apiUrl('/sessions/' + sessionId))
     const data = await res.json()
 
     const stats = `
@@ -140,7 +143,7 @@ async function viewSession(sessionId) {
   }
 }
 
-window.viewSession = viewSession
+provide('viewSession', viewSession)
 
 if (_doc.readyState === 'loading') {
   _addListener(_doc, 'DOMContentLoaded', fetchSessions)

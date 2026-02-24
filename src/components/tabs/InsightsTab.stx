@@ -3,6 +3,12 @@
  * InsightsTab Component - Analytics insights and trends
  * Uses STX signals for reactive state management
  */
+
+// DOM helpers & dashboard globals
+const _siteId = () => window['siteId']
+const _apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${_siteId()}${path}`)
+const _dateParams = () => (window['getDateRangeParams'] ? window['getDateRangeParams']() : '')
+
 const insights = state([])
 const comparisonStats = state(null)
 const loading = state(true)
@@ -21,12 +27,11 @@ function getIconPath(type) {
 }
 
 async function fetchInsights() {
-  const siteId = window.siteId
-  if (!siteId) { loading.set(false); return }
+  if (!_siteId()) { loading.set(false); return }
   try {
     const [insightsRes, comparisonRes] = await Promise.all([
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/insights${window.getDateRangeParams()}`)),
-      fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/comparison${window.getDateRangeParams()}`))
+      fetch(_apiUrl('/insights' + _dateParams())),
+      fetch(_apiUrl('/comparison' + _dateParams()))
     ])
     const insightsData = await insightsRes.json()
     const comparisonData = await comparisonRes.json()

@@ -4,17 +4,7 @@
  */
 
 import { describe, expect, it } from 'bun:test'
-
-// Inline the generateApiKey logic (same as src/handlers/api-keys.ts)
-// to avoid pulling in the full module dependency chain
-function generateApiKey(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  let key = 'ak_'
-  for (let i = 0; i < 32; i++) {
-    key += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return key
-}
+import { generateApiKey } from '../src/handlers/api-keys'
 
 // ============================================================================
 // API Key Generation

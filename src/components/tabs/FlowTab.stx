@@ -3,6 +3,12 @@
  * FlowTab Component - User flow visualization
  * Uses STX signals for reactive state management
  */
+
+// DOM helpers & dashboard globals
+const _siteId = () => window['siteId']
+const _apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${_siteId()}${path}`)
+const _dateParams = () => (window['getDateRangeParams'] ? window['getDateRangeParams']() : '')
+
 const flowData = state(null)
 const loading = state(true)
 const error = state(null)
@@ -24,10 +30,9 @@ const summary = derived(() => {
 })
 
 async function fetchFlow() {
-  const siteId = window.siteId
-  if (!siteId) { loading.set(false); return }
+  if (!_siteId()) { loading.set(false); return }
   try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/flow${window.getDateRangeParams()}`))
+    const res = await fetch(_apiUrl('/flow' + _dateParams()))
     const data = await res.json()
     flowData.set(data)
     error.set(null)

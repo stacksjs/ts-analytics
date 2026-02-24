@@ -113,60 +113,10 @@ export async function handleValidateApiKey(
 }
 
 /**
- * POST /api/sites/{siteId}/api-keys
- */
-export async function handleCreateApiKey(request: Request, siteId: string): Promise<Response> {
-  try {
-    const body = await request.json() as Record<string, any>
-
-    if (!body.name) {
-      return jsonResponse({ error: 'Missing required field: name' }, 400)
-    }
-
-    const keyId = generateId()
-    const apiKey = generateApiKey()
-    const keyRecord = {
-      pk: `SITE#${siteId}`,
-      sk: `API_KEY#${keyId}`,
-      gsi1pk: `API_KEY#${apiKey}`,
-      gsi1sk: `SITE#${siteId}`,
-      id: keyId,
-      siteId,
-      name: body.name,
-      key: apiKey,
-      keyPrefix: apiKey.slice(0, 8),
-      permissions: body.permissions || ['read'],
-      lastUsed: null,
-      usageCount: 0,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    }
-
-    await dynamodb.putItem({
-      TableName: TABLE_NAME,
-      Item: marshall(keyRecord),
-    })
-
-    // Return full key only on creation
-    return jsonResponse({
-      apiKey: {
-        id: keyId,
-        name: body.name,
-        key: apiKey,
-        permissions: keyRecord.permissions,
-        createdAt: keyRecord.createdAt,
-      },
-    }, 201)
-  } catch (error) {
-    console.error('Create API key error:', error)
-    return errorResponse('Failed to create API key')
-  }
-}
-
-/**
  * GET /api/sites/{siteId}/api-keys
+ * Returns the single API key for the site
  */
-export async function handleGetApiKeys(request: Request, siteId: string): Promise<Response> {
+export async function handleGetApiKey(_request: Request, siteId: string): Promise<Response> {
   try {
     const result = await dynamodb.query({
       TableName: TABLE_NAME,
@@ -177,40 +127,98 @@ export async function handleGetApiKeys(request: Request, siteId: string): Promis
       },
     }) as { Items?: any[] }
 
-    const apiKeys = (result.Items || []).map(unmarshall).map(key => ({
-      id: key.id,
-      name: key.name,
-      keyPrefix: key.keyPrefix,
-      permissions: key.permissions,
-      lastUsed: key.lastUsed,
-      usageCount: key.usageCount,
-      isActive: key.isActive,
-      createdAt: key.createdAt,
-    }))
+    const keys = (result.Items || []).map(unmarshall)
+    const active = keys.find(k => k.isActive) || keys[0]
 
-    return jsonResponse({ apiKeys })
+    if (!active) {
+      return jsonResponse({ apiKey: null })
+    }
+
+    return jsonResponse({
+      apiKey: {
+        id: active.id,
+        key: active.key,
+        name: active.name,
+        permissions: active.permissions,
+        createdAt: active.createdAt,
+        lastUsed: active.lastUsed,
+        usageCount: active.usageCount,
+      },
+    })
   } catch (error) {
-    console.error('Get API keys error:', error)
-    return errorResponse('Failed to fetch API keys')
+    console.error('Get API key error:', error)
+    return errorResponse('Failed to fetch API key')
   }
 }
 
 /**
- * DELETE /api/sites/{siteId}/api-keys/{keyId}
+ * POST /api/sites/{siteId}/api-keys/regenerate
+ * Deletes all existing keys and creates a fresh one
  */
-export async function handleDeleteApiKey(_request: Request, siteId: string, keyId: string): Promise<Response> {
+export async function handleRegenerateApiKey(_request: Request, siteId: string): Promise<Response> {
   try {
-    await dynamodb.deleteItem({
+    // 1. Query existing keys
+    const result = await dynamodb.query({
       TableName: TABLE_NAME,
-      Key: marshall({
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':prefix': { S: 'API_KEY#' },
+      },
+    }) as { Items?: any[] }
+
+    // 2. Delete each existing key
+    for (const item of result.Items || []) {
+      const record = unmarshall(item)
+      // Invalidate cache entries for old key
+      tokenCache.delete(`${record.key}:read`)
+      tokenCache.delete(`${record.key}:error-tracking`)
+      await dynamodb.deleteItem({
+        TableName: TABLE_NAME,
+        Key: marshall({
+          pk: `SITE#${siteId}`,
+          sk: `API_KEY#${record.id}`,
+        }),
+      })
+    }
+
+    // 3. Create new key
+    const keyId = generateId()
+    const apiKey = generateApiKey()
+    const permissions = ['read', 'error-tracking']
+
+    await dynamodb.putItem({
+      TableName: TABLE_NAME,
+      Item: marshall({
         pk: `SITE#${siteId}`,
         sk: `API_KEY#${keyId}`,
+        gsi1pk: `API_KEY#${apiKey}`,
+        gsi1sk: `SITE#${siteId}`,
+        id: keyId,
+        siteId,
+        name: 'Default',
+        key: apiKey,
+        keyPrefix: apiKey.slice(0, 8),
+        permissions,
+        lastUsed: null,
+        usageCount: 0,
+        isActive: true,
+        createdAt: new Date().toISOString(),
       }),
     })
 
-    return jsonResponse({ success: true })
+    // 4. Return the new key
+    return jsonResponse({
+      apiKey: {
+        id: keyId,
+        key: apiKey,
+        name: 'Default',
+        permissions,
+        createdAt: new Date().toISOString(),
+      },
+    })
   } catch (error) {
-    console.error('Delete API key error:', error)
-    return errorResponse('Failed to delete API key')
+    console.error('Regenerate API key error:', error)
+    return errorResponse('Failed to regenerate API key')
   }
 }

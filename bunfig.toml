@@ -2,4 +2,4 @@
 preload = ["bun-plugin-stx"]
 
 [test]
-# Skip stx files in tests
+preload = ["./test/preload.ts"]

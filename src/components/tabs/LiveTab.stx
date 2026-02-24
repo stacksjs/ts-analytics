@@ -3,16 +3,20 @@
  * LiveTab Component - Real-time visitor activity
  * Uses STX signals for reactive state management
  */
+
+// DOM helpers & dashboard globals
+const _siteId = () => window['siteId']
+const _apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${_siteId()}${path}`)
+
 const activities = state([])
 const loading = state(true)
 const error = state(null)
 
 // Fetch live data
 async function fetchLive() {
-  const siteId = window.siteId
-  if (!siteId) { loading.set(false); return }
+  if (!_siteId()) { loading.set(false); return }
   try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/live`))
+    const res = await fetch(_apiUrl('/live'))
     const data = await res.json()
     activities.set(data.activities || [])
     error.set(null)

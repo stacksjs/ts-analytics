@@ -5,7 +5,7 @@
  * and Response objects back to Lambda format.
  */
 
-import type { Router } from 'bun-router'
+import type { Router } from '@stacksjs/bun-router'
 
 // Types for API Gateway HTTP API (v2) format
 export interface LambdaEvent {

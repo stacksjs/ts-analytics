@@ -3,18 +3,21 @@
  * FunnelsTab Component - Conversion funnels display
  */
 
-// Use indirection to work around STX validation
-const _doc = window['document']
-const _getEl = (id) => _doc['getElementById'](id)
-const _addListener = (el, event, fn) => el['addEventListener'](event, fn)
-const _queryAll = (el, sel) => el['querySelectorAll'](sel)
+// DOM helpers & dashboard globals
+const _doc = document
+const _getEl = (id) => _doc.getElementById(id)
+const _addListener = (el, event, fn) => el.addEventListener(event, fn)
+const _queryAll = (el, sel) => el.querySelectorAll(sel)
+const _siteId = () => window['siteId']
+const _apiUrl = (path) => (window['apiPath'] || (u => u))(`${window['API_ENDPOINT'] || ''}/api/sites/${_siteId()}${path}`)
+const _dateParams = () => (window['getDateRangeParams'] ? window['getDateRangeParams']() : '')
 
 let currentFunnels = []
 let currentAnalysis = null
 let newFunnelSteps = ['', '']
 
 async function fetchFunnels() {
-  const siteId = window.siteId
+  const siteId = _siteId()
   const container = _getEl('funnels-container')
   const headerBtn = _getEl('funnels-header-btn')
 
@@ -25,7 +28,7 @@ async function fetchFunnels() {
   currentAnalysis = null
 
   try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels`))
+    const res = await fetch(_apiUrl('/funnels'))
     const data = await res.json()
     currentFunnels = data.funnels || []
 
@@ -88,7 +91,7 @@ function renderFunnelsList() {
 }
 
 async function analyzeFunnel(funnelId) {
-  const siteId = window.siteId
+  const siteId = _siteId()
   const container = _getEl('funnels-container')
   const headerBtn = _getEl('funnels-header-btn')
   const title = _getEl('funnels-title')
@@ -97,7 +100,7 @@ async function analyzeFunnel(funnelId) {
   container.innerHTML = '<div class="loading-state"><div class="spinner"></div><span>Loading...</span></div>'
 
   try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels/${funnelId}/analysis${window.getDateRangeParams ? window.getDateRangeParams() : ''}`))
+    const res = await fetch(_apiUrl('/funnels/' + funnelId + '/analysis' + _dateParams()))
     const data = await res.json()
     currentAnalysis = data
 
@@ -213,10 +216,10 @@ async function createFunnel() {
     return
   }
 
-  const siteId = window.siteId
+  const siteId = _siteId()
 
   try {
-    await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels`), {
+    await fetch(_apiUrl('/funnels'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, steps })
@@ -230,9 +233,9 @@ async function createFunnel() {
 
 async function deleteFunnel(funnelId) {
   Modal.confirm('Delete this funnel?', async () => {
-    const siteId = window.siteId
+    const siteId = _siteId()
     try {
-      await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/funnels/${funnelId}`), { method: 'DELETE' })
+      await fetch(_apiUrl('/funnels/' + funnelId), { method: 'DELETE' })
       fetchFunnels()
     } catch (e) {
       alert('Error deleting funnel: ' + e.message)
@@ -241,12 +244,12 @@ async function deleteFunnel(funnelId) {
 }
 
 // Expose functions globally
-window.showCreateFunnelModal = showCreateFunnelModal
-window.analyzeFunnel = analyzeFunnel
-window.deleteFunnel = deleteFunnel
-window.backToFunnels = backToFunnels
-window.addFunnelStep = addFunnelStep
-window.removeFunnelStep = removeFunnelStep
+provide('showCreateFunnelModal', showCreateFunnelModal)
+provide('analyzeFunnel', analyzeFunnel)
+provide('deleteFunnel', deleteFunnel)
+provide('backToFunnels', backToFunnels)
+provide('addFunnelStep', addFunnelStep)
+provide('removeFunnelStep', removeFunnelStep)
 
 if (_doc.readyState === 'loading') {
   _addListener(_doc, 'DOMContentLoaded', fetchFunnels)
