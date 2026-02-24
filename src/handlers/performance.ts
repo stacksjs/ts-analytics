@@ -215,7 +215,7 @@ export async function handleCreatePerformanceBudget(request: Request, siteId: st
 /**
  * GET /api/sites/{siteId}/performance-budgets
  */
-export async function handleGetPerformanceBudgets(request: Request, siteId: string): Promise<Response> {
+export async function handleGetPerformanceBudgets(_request: Request, siteId: string): Promise<Response> {
   try {
     const result = await dynamodb.query({
       TableName: TABLE_NAME,

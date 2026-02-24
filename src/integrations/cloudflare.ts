@@ -193,7 +193,7 @@ export function createAnalyticsHandler(options: CloudflareHandlerOptions = {}): 
 
 async function handleCollect(
   request: Request,
-  env: CloudflareEnv,
+  _env: CloudflareEnv,
   storage: StorageAdapter,
   sessionStore: SessionStore | null,
 ): Promise<Response> {
@@ -479,7 +479,7 @@ function createKVSessionStore(kv: KVNamespace, ttl: number): SessionStore {
 function createDynamoDBAdapter(env: CloudflareEnv): StorageAdapter {
   // Simple fetch-based DynamoDB adapter for Cloudflare Workers
   const endpoint = env.DYNAMODB_ENDPOINT ?? `https://dynamodb.${env.AWS_REGION ?? 'us-east-1'}.amazonaws.com`
-  const region = env.AWS_REGION ?? 'us-east-1'
+  const _region = env.AWS_REGION ?? 'us-east-1'
 
   return {
     async putItem(tableName: string, item: Record<string, unknown>): Promise<void> {
@@ -667,6 +667,7 @@ function parseReferrerSource(referrer?: string): string | undefined {
   }
 }
 
+/* eslint-disable prefer-const */
 function generateTrackingScript(siteId: string, apiEndpoint: string): string {
   return `<script>
 (function(w,d,s,a){
@@ -679,6 +680,7 @@ analytics('init','${siteId}');
 analytics('track','pageview');
 </script>`
 }
+/* eslint-enable prefer-const */
 
 function marshalItem(item: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {}

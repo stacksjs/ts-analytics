@@ -177,8 +177,8 @@ const cachedStats = loadCachedStats()
 let stats = cachedStats || { realtime: 0, sessions: 0, people: 0, views: 0, avgTime: '00:00', bounceRate: 0, events: 0 }
 let timeSeriesData: any[] = []
 let goals: any[] = []
-let siteHostname: string | null = null
-let showGoalModal = false
+const _siteHostname: string | null = null
+const _showGoalModal = false
 let editingGoal: any = null
 let siteHasHistoricalData = cachedStats ? true : false
 

@@ -104,7 +104,7 @@ interface WriteRequest {
  */
 export async function handler(
   event: SQSEvent,
-  context: Context,
+  _context: Context,
 ): Promise<SQSBatchResponse> {
   console.log(`[SQS Consumer] Processing ${event.Records.length} messages`)
 
@@ -342,7 +342,7 @@ function sessionToWriteRequest(
 function customEventToWriteRequest(
   event: AnalyticsEvent,
   timestamp: Date,
-  dateStr: string,
+  _dateStr: string,
 ): WriteRequest {
   const data = event.data as unknown as Record<string, unknown>
   const id = (data.id as string) || generateId()

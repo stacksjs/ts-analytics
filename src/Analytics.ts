@@ -3125,6 +3125,7 @@ export interface TrackingScriptOptions {
 /**
  * Generate minimal tracking script
  */
+/* eslint-disable prefer-const, pickier/no-unused-vars */
 export function generateTrackingScript(options: TrackingScriptOptions): string {
   const endpoint = options.stealthMode ? '/t' : '/collect'
   const webVitalsCode = options.trackWebVitals !== false ? `
@@ -3262,3 +3263,4 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
 </script>
 `.trim()
 }
+/* eslint-enable prefer-const, pickier/no-unused-vars */

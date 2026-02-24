@@ -265,6 +265,7 @@ export function generateCloudFormationYaml(
 /**
  * Simple JSON to YAML converter (handles CloudFormation intrinsic functions)
  */
+// eslint-disable-next-line pickier/no-unused-vars
 function jsonToYaml(obj: unknown, indent = 0): string {
   const spaces = '  '.repeat(indent)
 
@@ -347,7 +348,7 @@ function jsonToYaml(obj: unknown, indent = 0): string {
  */
 export function generateSamTemplate(config: CloudFormationConfig = {}): Record<string, unknown> {
   const cfnTemplate = generateCloudFormationTemplate(config)
-  const mergedConfig = { ...defaultConfig, ...config }
+  const _mergedConfig = { ...defaultConfig, ...config }
 
   return {
     AWSTemplateFormatVersion: '2010-09-09',

@@ -774,7 +774,7 @@ export async function createAnalyticsProducer(options?: {
             .map(r => r.value),
           Failed: results
             .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-            .map((r, i) => ({ Id: input.Entries[i].Id, Code: 'DeleteFailed' })),
+            .map((_r, i) => ({ Id: input.Entries[i].Id, Code: 'DeleteFailed' })),
         }
       },
     }

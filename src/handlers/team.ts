@@ -51,7 +51,7 @@ export async function handleInviteTeamMember(request: Request, siteId: string): 
 /**
  * GET /api/sites/{siteId}/team
  */
-export async function handleGetTeamMembers(request: Request, siteId: string): Promise<Response> {
+export async function handleGetTeamMembers(_request: Request, siteId: string): Promise<Response> {
   try {
     const result = await dynamodb.query({
       TableName: TABLE_NAME,

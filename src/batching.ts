@@ -167,7 +167,7 @@ export class EventBatchQueue {
     }
 
     const itemsToFlush = this.queue.splice(0, this.queue.length)
-    let totalResult: BatchWriteResult = { successful: 0, failed: 0, unprocessedItems: [] }
+    const totalResult: BatchWriteResult = { successful: 0, failed: 0, unprocessedItems: [] }
 
     this.flushPromise = (async () => {
       // Process in batches of maxBatchSize

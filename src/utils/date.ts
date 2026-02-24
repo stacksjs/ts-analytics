@@ -27,7 +27,7 @@ export function parseDateRange(query: Record<string, string> | undefined): { sta
 export function parseDateRangeString(dateRange: string | undefined): { startDate: Date; endDate: Date } {
   const now = new Date()
   const endDate = now
-  let startDate = new Date(now)
+  const startDate = new Date(now)
 
   const range = dateRange || '30d'
   const value = parseInt(range.slice(0, -1))

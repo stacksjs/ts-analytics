@@ -55,7 +55,7 @@ export async function handleCreateUptimeMonitor(request: Request, siteId: string
 /**
  * GET /api/sites/{siteId}/uptime
  */
-export async function handleGetUptimeMonitors(request: Request, siteId: string): Promise<Response> {
+export async function handleGetUptimeMonitors(_request: Request, siteId: string): Promise<Response> {
   try {
     const result = await dynamodb.query({
       TableName: TABLE_NAME,

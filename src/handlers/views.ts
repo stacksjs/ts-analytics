@@ -55,6 +55,11 @@ const VIEWS_DIR = path.resolve(import.meta.dir, '../views')
 // Check if pre-built views exist
 const hasPrebuiltViews = fs.existsSync(path.join(PREBUILT_DIR, 'dashboard/index.html'))
 
+console.error('[DEBUG] PREBUILT_DIR:', PREBUILT_DIR)
+console.error('[DEBUG] VIEWS_DIR:', VIEWS_DIR)
+console.error('[DEBUG] hasPrebuiltViews:', hasPrebuiltViews)
+console.error('[DEBUG] import.meta.dir:', import.meta.dir)
+
 // Placeholder tokens used in pre-built HTML
 const PLACEHOLDERS = {
   siteId: '{{__SITE_ID__}}',
@@ -107,6 +112,13 @@ async function renderStxDirect(templateName: string, props: Record<string, unkno
   // Replace <script client> with regular <script> for output
   templateContent = templateContent.replace(/<script\s+client\s*>/gi, '<script>')
 
+  // Preserve external <script src> tags from STX validation (re-injected after processing)
+  const externalScripts: string[] = []
+  templateContent = templateContent.replace(/<script\s+([^>]*src\s*=\s*[^>]+)><\/script>/gi, (match) => {
+    externalScripts.push(match)
+    return `<!--STX_EXTERNAL_SCRIPT_${externalScripts.length - 1}-->`
+  })
+
   // Build context with props
   const context: Record<string, unknown> = {
     __filename: templatePath,
@@ -128,7 +140,16 @@ async function renderStxDirect(templateName: string, props: Record<string, unkno
     partialsDir: path.join(VIEWS_DIR, 'partials'),
   }
 
-  const result = await processDirectives(templateContent, context, templatePath, config, new Set())
+  console.error('[DEBUG renderStxDirect] componentsDir:', config.componentsDir)
+  console.error('[DEBUG renderStxDirect] templatePath:', templatePath)
+
+  let result = await processDirectives(templateContent, context, templatePath, config, new Set())
+
+  // Re-inject external script tags
+  for (let i = 0; i < externalScripts.length; i++) {
+    result = result.replace(`<!--STX_EXTERNAL_SCRIPT_${i}-->`, externalScripts[i])
+  }
+
   return result
 }
 
@@ -158,6 +179,7 @@ export async function handleDashboard(request: Request): Promise<Response> {
  * GET /dashboard/{tab} - Serve individual tab pages
  */
 export async function handleDashboardTab(request: Request, tab: string): Promise<Response> {
+  console.error('[DEBUG handleDashboardTab] called with tab:', tab)
   const query = getQueryParams(request)
   const event = getLambdaEvent(request)
   const siteId = query.siteId || ''

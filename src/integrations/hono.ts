@@ -291,7 +291,7 @@ export function createAnalyticsRoutes(options: AnalyticsMiddlewareOptions): {
         const startDate = start ? new Date(start) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
         const endDate = end ? new Date(end) : new Date()
         const period = determinePeriod(startDate, endDate)
-        const periodStart = getPeriodStart(endDate, period)
+        const _periodStart = getPeriodStart(endDate, period)
 
         const result = await executeCommand({
           command: 'Query',
@@ -516,6 +516,7 @@ function parseReferrerSource(referrer?: string): string | undefined {
   }
 }
 
+/* eslint-disable prefer-const */
 function generateTrackingScript(siteId: string, apiEndpoint: string): string {
   return `<script>
 (function(w,d,s,a){

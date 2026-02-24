@@ -377,7 +377,7 @@ export async function handleCollectError(request: Request, siteId: string, keyId
  * GET /api/sites/{siteId}/errors/{errorId}
  * Returns detailed information for a specific error group (by fingerprint).
  */
-export async function handleGetErrorDetail(request: Request, siteId: string, errorId: string): Promise<Response> {
+export async function handleGetErrorDetail(_request: Request, siteId: string, errorId: string): Promise<Response> {
   try {
     const decodedId = decodeURIComponent(errorId)
 
@@ -778,7 +778,7 @@ export async function handleGetErrorGroups(request: Request, siteId: string): Pr
  * GET /api/sites/{siteId}/errors/alerts
  * Returns error-specific alerts and recent triggers.
  */
-export async function handleGetErrorAlerts(request: Request, siteId: string): Promise<Response> {
+export async function handleGetErrorAlerts(_request: Request, siteId: string): Promise<Response> {
   try {
     // Query all ALERT# records and filter to error-specific ones
     const alertResult = await dynamodb.query({
@@ -864,7 +864,7 @@ export async function handleCreateErrorAlert(request: Request, siteId: string): 
  * POST /api/sites/{siteId}/errors/alerts/evaluate
  * Evaluates all active error alerts for the site.
  */
-export async function handleEvaluateErrorAlerts(request: Request, siteId: string): Promise<Response> {
+export async function handleEvaluateErrorAlerts(_request: Request, siteId: string): Promise<Response> {
   try {
     const triggered = await evaluateErrorAlerts(siteId)
     return jsonResponse({ triggered })

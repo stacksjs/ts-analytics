@@ -53,7 +53,7 @@ export async function handleCreateExperiment(request: Request, siteId: string): 
 /**
  * GET /api/sites/{siteId}/experiments
  */
-export async function handleGetExperiments(request: Request, siteId: string): Promise<Response> {
+export async function handleGetExperiments(_request: Request, siteId: string): Promise<Response> {
   try {
     const result = await dynamodb.query({
       TableName: TABLE_NAME,

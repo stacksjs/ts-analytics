@@ -55,7 +55,7 @@ export async function handleCreateAlert(request: Request, siteId: string): Promi
 /**
  * GET /api/sites/{siteId}/alerts
  */
-export async function handleGetAlerts(request: Request, siteId: string): Promise<Response> {
+export async function handleGetAlerts(_request: Request, siteId: string): Promise<Response> {
   try {
     const result = await dynamodb.query({
       TableName: TABLE_NAME,
@@ -140,7 +140,7 @@ export async function handleCreateEmailReport(request: Request, siteId: string):
 /**
  * GET /api/sites/{siteId}/email-reports
  */
-export async function handleGetEmailReports(request: Request, siteId: string): Promise<Response> {
+export async function handleGetEmailReports(_request: Request, siteId: string): Promise<Response> {
   try {
     const result = await dynamodb.query({
       TableName: TABLE_NAME,

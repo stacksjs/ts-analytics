@@ -3,12 +3,13 @@
 
 <script client>
 ;(function() {
+  var _doc = document
   let onSubmitCallback = null
   let onCancelCallback = null
   let isSubmitting = false
 
   function getOverlay() {
-    return document.getElementById('modal-overlay')
+    return _doc.getElementById('modal-overlay')
   }
 
   function render(options) {
@@ -67,7 +68,7 @@
 
       // Focus first input after render
       setTimeout(function() {
-        var input = document.querySelector('#modal-overlay input, #modal-overlay select, #modal-overlay textarea')
+        var input = _doc.querySelector('#modal-overlay input, #modal-overlay select, #modal-overlay textarea')
         if (input) input.focus()
       }, 50)
 
@@ -90,7 +91,7 @@
       if (!onSubmitCallback || isSubmitting) return
 
       isSubmitting = true
-      var submitBtn = document.querySelector('#modal-overlay .modal-submit')
+      var submitBtn = _doc.querySelector('#modal-overlay .modal-submit')
       if (submitBtn) {
         submitBtn.disabled = true
         submitBtn.textContent = 'Saving...'
@@ -110,7 +111,7 @@
 
     getFormData: function() {
       var data = {}
-      document.querySelectorAll('#modal-overlay input, #modal-overlay select, #modal-overlay textarea').forEach(function(el) {
+      _doc.querySelectorAll('#modal-overlay input, #modal-overlay select, #modal-overlay textarea').forEach(function(el) {
         if (el.name) {
           data[el.name] = el.type === 'checkbox' ? el.checked : el.value
         }
@@ -155,7 +156,7 @@
   }
 
   // Handle ESC key
-  document.addEventListener('keydown', function(e) {
+  _doc.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && overlay && overlay.style.display !== 'none') {
       Modal.close()
     }

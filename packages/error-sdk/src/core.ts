@@ -16,7 +16,7 @@ export class ErrorReporter {
   private transport: ErrorTransport
   private isInitialized = false
   private originalOnError: OnErrorEventHandler = null
-  private originalOnUnhandledRejection: ((event: PromiseRejectionEvent) => void) | null = null
+  private originalOnUnhandledRejection: ((_event: PromiseRejectionEvent) => void) | null = null
 
   constructor(config: ErrorTrackerConfig) {
     this.config = {

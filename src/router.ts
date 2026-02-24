@@ -33,7 +33,7 @@ import * as views from './handlers/views'
  * These use innocuous names to bypass content blockers
  * /api/p/ = "project" (instead of /api/sites/)
  */
-const STEALTH_PATHS = {
+const _STEALTH_PATHS = {
   // Analytics data
   stats: 'summary',
   realtime: 'pulse',

@@ -512,6 +512,7 @@ export function formatFunnelReport(analysis: FunnelAnalysis): string {
 /**
  * Identify common drop-off points
  */
+// eslint-disable-next-line pickier/no-unused-vars
 export function identifyDropOffPoints(analysis: FunnelAnalysis): Array<{
   step: FunnelStep
   dropOffRate: number

@@ -75,7 +75,7 @@ export async function handleExport(request: Request, siteId: string): Promise<Re
 /**
  * GET /api/sites/{siteId}/retention
  */
-export async function handleGetRetentionSettings(request: Request, siteId: string): Promise<Response> {
+export async function handleGetRetentionSettings(_request: Request, siteId: string): Promise<Response> {
   try {
     const result = await dynamodb.query({
       TableName: TABLE_NAME,
@@ -190,7 +190,7 @@ export async function handleGdprExport(request: Request, siteId: string): Promis
 /**
  * POST /api/sites/{siteId}/gdpr/delete
  */
-export async function handleGdprDelete(request: Request, siteId: string): Promise<Response> {
+export async function handleGdprDelete(request: Request, _siteId: string): Promise<Response> {
   try {
     const body = await request.json() as Record<string, any>
     const visitorId = body.visitorId

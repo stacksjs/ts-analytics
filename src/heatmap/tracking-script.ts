@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 /**
  * Heatmap Tracking Script Generator
  *
@@ -297,7 +298,7 @@ function trackClick(event) {
 document.addEventListener('click', trackClick, true);`
 }
 
-function buildMovementTracking(config: HeatmapConfig): string {
+function buildMovementTracking(_config: HeatmapConfig): string {
   return `// Movement Tracking
 var lastMovementTime = 0;
 var rafId = null;
@@ -386,7 +387,7 @@ setInterval(function() {
   return parts.join('\n')
 }
 
-function buildHeatmapInit(config: HeatmapConfig): string {
+function buildHeatmapInit(_config: HeatmapConfig): string {
   return `// Heatmap Initialization
 hmLog('Heatmap tracking initialized');
 hmLog('Click tracking:', HEATMAP_CONFIG.trackClicks);

@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 /**
  * Tracking Script Generator
  *
@@ -263,7 +264,7 @@ function sendBeacon(data) {
 }`
 }
 
-function buildSessionManagement(config: TrackingScriptConfig): string {
+function buildSessionManagement(_config: TrackingScriptConfig): string {
   return `// Session Management
 var SESSION_KEY = 'sa_session';
 var VISITOR_KEY = 'sa_visitor';
@@ -321,7 +322,7 @@ function updateSessionActivity() {
 }`
 }
 
-function buildCoreTracking(config: TrackingScriptConfig): string {
+function buildCoreTracking(_config: TrackingScriptConfig): string {
   return `// Core Tracking
 function track(eventType, eventData) {
   if (!shouldTrack()) return;
@@ -570,7 +571,7 @@ if (window.sa && window.sa.q) {
 }`
 }
 
-function buildInitialization(config: TrackingScriptConfig): string {
+function buildInitialization(_config: TrackingScriptConfig): string {
   return `// Initialization
 function init() {
   log('Initializing analytics...');

@@ -394,6 +394,7 @@ export function createAnalyticsComposable(options: UseAnalyticsOptions): {
 /**
  * Fetch all dashboard data at once
  */
+// eslint-disable-next-line pickier/no-unused-vars
 export async function fetchDashboardData(
   config: AnalyticsApiConfig,
   options: FetchOptions = {},

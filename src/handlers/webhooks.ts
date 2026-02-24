@@ -55,7 +55,7 @@ export async function handleCreateWebhook(request: Request, siteId: string): Pro
 /**
  * GET /api/sites/{siteId}/webhooks
  */
-export async function handleGetWebhooks(request: Request, siteId: string): Promise<Response> {
+export async function handleGetWebhooks(_request: Request, siteId: string): Promise<Response> {
   try {
     const result = await dynamodb.query({
       TableName: TABLE_NAME,

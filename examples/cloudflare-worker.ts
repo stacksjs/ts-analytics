@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 /**
  * Cloudflare Workers Example
  *

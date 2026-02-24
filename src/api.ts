@@ -367,7 +367,7 @@ export class AnalyticsAPI {
           const goals = await ctx.getGoals(payload.s)
           if (goals.length > 0) {
             const matcher = new GoalMatcher(goals)
-            const matches = matcher.matchPageView(pageView)
+            const _matches = matcher.matchPageView(pageView)
             // Note: Conversions are typically tracked during aggregation, not real-time
             // This could be extended to store real-time conversion events
           }

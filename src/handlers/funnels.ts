@@ -45,7 +45,7 @@ export async function handleCreateFunnel(request: Request, siteId: string): Prom
 /**
  * GET /api/sites/{siteId}/funnels
  */
-export async function handleGetFunnels(request: Request, siteId: string): Promise<Response> {
+export async function handleGetFunnels(_request: Request, siteId: string): Promise<Response> {
   try {
     const result = await dynamodb.query({
       TableName: TABLE_NAME,

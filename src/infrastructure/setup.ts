@@ -224,6 +224,7 @@ export async function enableTtl(
 /**
  * Check if table exists and is active
  */
+// eslint-disable-next-line pickier/no-unused-vars
 export async function checkTableStatus(
   client: DynamoDBClientLike,
   tableName: string,
@@ -276,7 +277,7 @@ export async function checkTableStatus(
  */
 export async function runMigrations(
   client: DynamoDBClientLike,
-  tableName: string,
+  _tableName: string,
   migrations: MigrationStep[],
 ): Promise<MigrationResult> {
   const stepsCompleted: string[] = []

@@ -37,7 +37,7 @@ export interface ModelTraits {
   useSoftDeletes?: boolean
 }
 
-type KeyFunction = (item: any) => string
+type KeyFunction = (_item: any) => string
 
 /**
  * DynamoDB key configuration for single-table design
