@@ -347,26 +347,23 @@ export async function handleLogout(request: Request): Promise<Response> {
 }
 
 /**
- * Seed the default user account (idempotent)
+ * Assign unowned sites to the default admin user.
+ * The user account is created out-of-band (not in source).
  */
-export async function seedDefaultUser(): Promise<void> {
-  const email = 'chris@easyotc.com'
-  const password = 'easyotc123'
+export async function assignUnownedSites(): Promise<void> {
+  const adminEmail = process.env.ADMIN_EMAIL
+  if (!adminEmail) return
 
   try {
-    const existing = await getUserByEmail(email)
-    let userId: string
-
-    if (existing) {
-      console.log(`[auth] Default user already exists: ${email}`)
-      userId = existing.userId
-    } else {
-      const user = await createUser(email, password)
-      userId = user.userId
-      console.log(`[auth] Default user seeded: ${email}`)
+    const admin = await getUserByEmail(adminEmail)
+    if (!admin) {
+      console.log(`[auth] Admin user ${adminEmail} not found, skipping site assignment`)
+      return
     }
 
-    // Assign any unowned sites to this user
+    const userId = admin.userId
+
+    // Assign any unowned sites to admin
     const sitesResult = await dynamodb.query({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk',
@@ -391,10 +388,10 @@ export async function seedDefaultUser(): Promise<void> {
             ':gsi1sk': { S: site.sk },
           },
         })
-        console.log(`[auth] Assigned site ${site.siteId || site.id} to ${email}`)
+        console.log(`[auth] Assigned site ${site.siteId || site.id} to ${adminEmail}`)
       }
     }
   } catch (error) {
-    console.error('[auth] Seed error:', error)
+    console.error('[auth] Site assignment error:', error)
   }
 }

@@ -6,7 +6,7 @@
  */
 
 import { createRouter } from '../src/router'
-import { seedDefaultUser } from '../src/handlers/auth'
+import { assignUnownedSites } from '../src/handlers/auth'
 
 // Configuration from environment
 const PORT = Number.parseInt(process.env.PORT || '3001', 10)
@@ -17,8 +17,8 @@ console.log(`Region: ${process.env.AWS_REGION || 'us-east-1'}`)
 console.log(`Port: ${PORT}`)
 console.log(`CORS: ${process.env.CORS_ORIGINS || '*'}`)
 
-// Seed default user account (idempotent)
-await seedDefaultUser()
+// Assign unowned sites to admin (if ADMIN_EMAIL is set)
+await assignUnownedSites()
 
 const router = await createRouter()
 await router.serve({ port: PORT })
