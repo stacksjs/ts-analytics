@@ -7,6 +7,16 @@
   <title>@yield('title', 'Dashboard') - Analytics</title>
   <script src="/dashboard/scripts/composables.ts"></script>
   <script src="/dashboard/scripts/dashboard.ts"></script>
+  <script>
+    window.STX_ROUTER_OPTIONS = {
+      container: '#main-content',
+      scrollToTop: true,
+      viewTransitions: true,
+      cache: true,
+      prefetch: true
+    };
+  </script>
+  <script src="/stx-router.js"></script>
   @include('../../components/dashboard/DashboardStyles.stx')
   @yield('head')
 </head>

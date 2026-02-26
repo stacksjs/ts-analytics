@@ -377,7 +377,12 @@ function goBack() {
 }
 
 function navigateTo(section: string) {
-  window.location.href = '/dashboard/' + section + '?siteId=' + encodeURIComponent(siteId)
+  const url = '/dashboard/' + section + '?siteId=' + encodeURIComponent(siteId)
+  if ((window as any).stxRouter?.navigate) {
+    (window as any).stxRouter.navigate(url)
+  } else {
+    window.location.href = url
+  }
 }
 
 // Date range handling
@@ -1023,8 +1028,34 @@ function renderChart() {
   }
 }
 
+// SPA navigation handler — update UI after STX router swaps content
+window.addEventListener('stx:navigate', () => {
+  const tab = getTabFromUrl()
+  activeTab = tab
+  document.title = `${tabTitles[tab] || 'Dashboard'} - Analytics`
+
+  // Update active nav state
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.classList.toggle('active', (btn as HTMLElement).dataset.tab === tab)
+  })
+
+  // Toggle controls visibility (controls are outside #main-content, persist across swaps)
+  const controlsBar = document.getElementById('controls-bar')
+  const filtersBar = document.getElementById('filters-bar')
+  const statsSection = document.querySelector('.stats') as HTMLElement | null
+  const chartBox = document.querySelector('.chart-box') as HTMLElement | null
+  const tabsWithControls = ['dashboard', 'sessions', 'flow', 'live', 'funnels']
+  const showControls = tabsWithControls.includes(tab)
+
+  if (controlsBar) (controlsBar as HTMLElement).style.display = showControls ? 'flex' : 'none'
+  if (filtersBar) (filtersBar as HTMLElement).style.display = showControls ? 'flex' : 'none'
+  if (statsSection) statsSection.style.display = tab === 'dashboard' ? 'grid' : 'none'
+  if (chartBox) chartBox.style.display = tab === 'dashboard' ? 'block' : 'none'
+})
+
 // Event handlers
 window.addEventListener('popstate', (event) => {
+  if ((window as any).stxRouter) return // STX router handles popstate and dispatches stx:navigate
   if (event.state && event.state.tab) {
     switchTab(event.state.tab, false)
   } else if (event.state && event.state.siteId) {

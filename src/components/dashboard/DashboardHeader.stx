@@ -119,6 +119,11 @@ function init() {
   }
 }
 
+// Re-run nav update after SPA content swap
+window.addEventListener('stx:navigate', function() {
+  updateNav()
+})
+
 // Run on DOM ready
 if (_doc.readyState === 'loading') {
   _addListener(_doc, 'DOMContentLoaded', init)
@@ -138,15 +143,15 @@ if (_doc.readyState === 'loading') {
   </div>
 
   <nav id="header-nav" class="header-nav">
-    <a class="nav-btn" href="/dashboard" data-tab="dashboard">Dashboard</a>
-    <a class="nav-btn" href="/dashboard/live" data-tab="live">Live</a>
-    <a class="nav-btn" href="/dashboard/sessions" data-tab="sessions">Sessions</a>
-    <a class="nav-btn" href="/dashboard/funnels" data-tab="funnels">Funnels</a>
-    <a class="nav-btn" href="/dashboard/flow" data-tab="flow">User Flow</a>
-    <a class="nav-btn" href="/dashboard/vitals" data-tab="vitals">Web Vitals</a>
-    <a class="nav-btn" href="/dashboard/errors" data-tab="errors">Errors</a>
-    <a class="nav-btn" href="/dashboard/insights" data-tab="insights">Insights</a>
-    <a class="nav-btn" href="/dashboard/settings" data-tab="settings">Settings</a>
+    <a class="nav-btn" href="/dashboard" data-tab="dashboard" data-stx-prefetch>Dashboard</a>
+    <a class="nav-btn" href="/dashboard/live" data-tab="live" data-stx-prefetch>Live</a>
+    <a class="nav-btn" href="/dashboard/sessions" data-tab="sessions" data-stx-prefetch>Sessions</a>
+    <a class="nav-btn" href="/dashboard/funnels" data-tab="funnels" data-stx-prefetch>Funnels</a>
+    <a class="nav-btn" href="/dashboard/flow" data-tab="flow" data-stx-prefetch>User Flow</a>
+    <a class="nav-btn" href="/dashboard/vitals" data-tab="vitals" data-stx-prefetch>Web Vitals</a>
+    <a class="nav-btn" href="/dashboard/errors" data-tab="errors" data-stx-prefetch>Errors</a>
+    <a class="nav-btn" href="/dashboard/insights" data-tab="insights" data-stx-prefetch>Insights</a>
+    <a class="nav-btn" href="/dashboard/settings" data-tab="settings" data-stx-prefetch>Settings</a>
   </nav>
 
   <div class="header-right">
