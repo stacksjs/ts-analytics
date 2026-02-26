@@ -19,7 +19,7 @@ export async function handleHealth(_request: Request): Promise<Response> {
 /**
  * POST /api/sites - Create a new site
  */
-export async function handleCreateSite(request: Request): Promise<Response> {
+export async function handleCreateSite(request: Request, ownerId?: string): Promise<Response> {
   try {
     const body = await request.json() as { name?: string; domain?: string; domains?: string[] }
 
@@ -45,18 +45,26 @@ export async function handleCreateSite(request: Request): Promise<Response> {
     }
 
     // Create the site
+    const siteItem: Record<string, unknown> = {
+      pk: 'SITES',
+      sk: `SITE#${siteId}`,
+      id: siteId,
+      siteId,
+      name: body.name,
+      domains,
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    if (ownerId) {
+      siteItem.ownerId = ownerId
+      siteItem.gsi1pk = `OWNER#${ownerId}`
+      siteItem.gsi1sk = `SITE#${siteId}`
+    }
+
     await dynamodb.putItem({
       TableName: TABLE_NAME,
-      Item: marshall({
-        pk: 'SITES',
-        sk: `SITE#${siteId}`,
-        id: siteId,
-        siteId,
-        name: body.name,
-        domains,
-        createdAt: now,
-        updatedAt: now,
-      }),
+      Item: marshall(siteItem),
     })
 
     // Auto-generate the first API key
@@ -108,7 +116,7 @@ export async function handleCreateSite(request: Request): Promise<Response> {
 /**
  * Ensure a site exists (auto-create if not) - used by collect handler
  */
-export async function ensureSiteExists(siteId: string, hostname?: string): Promise<void> {
+export async function ensureSiteExists(siteId: string, hostname?: string, ownerId?: string): Promise<void> {
   try {
     // Check if site exists
     const existing = await dynamodb.getItem({
@@ -123,20 +131,28 @@ export async function ensureSiteExists(siteId: string, hostname?: string): Promi
       const now = new Date().toISOString()
       const domains = hostname ? [hostname] : []
 
+      const siteItem: Record<string, unknown> = {
+        pk: 'SITES',
+        sk: `SITE#${siteId}`,
+        id: siteId,
+        siteId,
+        name: siteId,
+        domains,
+        createdAt: now,
+        updatedAt: now,
+        autoCreated: true,
+      }
+
+      if (ownerId) {
+        siteItem.ownerId = ownerId
+        siteItem.gsi1pk = `OWNER#${ownerId}`
+        siteItem.gsi1sk = `SITE#${siteId}`
+      }
+
       // Auto-create the site
       await dynamodb.putItem({
         TableName: TABLE_NAME,
-        Item: marshall({
-          pk: 'SITES',
-          sk: `SITE#${siteId}`,
-          id: siteId,
-          siteId,
-          name: siteId, // Use siteId as name, can be updated later
-          domains,
-          createdAt: now,
-          updatedAt: now,
-          autoCreated: true,
-        }),
+        Item: marshall(siteItem),
       })
       console.log(`[ensureSiteExists] Auto-created site: ${siteId}`)
     }
@@ -149,15 +165,30 @@ export async function ensureSiteExists(siteId: string, hostname?: string): Promi
 /**
  * GET /api/sites
  */
-export async function handleGetSites(_request: Request): Promise<Response> {
+export async function handleGetSites(_request: Request, ownerId?: string): Promise<Response> {
   try {
-    const result = await dynamodb.query({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk',
-      ExpressionAttributeValues: {
-        ':pk': { S: 'SITES' },
-      },
-    }) as { Items?: any[] }
+    let result: { Items?: any[] }
+
+    if (ownerId) {
+      // Query GSI1 for sites owned by this user
+      result = await dynamodb.query({
+        TableName: TABLE_NAME,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'gsi1pk = :pk',
+        ExpressionAttributeValues: {
+          ':pk': { S: `OWNER#${ownerId}` },
+        },
+      }) as { Items?: any[] }
+    } else {
+      // Fallback: return all sites (for unauthenticated API access)
+      result = await dynamodb.query({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk',
+        ExpressionAttributeValues: {
+          ':pk': { S: 'SITES' },
+        },
+      }) as { Items?: any[] }
+    }
 
     const sites = (result.Items || []).map(unmarshall).map((s: any) => ({
       id: s.id || s.siteId,

@@ -159,6 +159,13 @@ if (_doc.readyState === 'loading') {
         <path stroke-linecap="round" stroke-width="2" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
       </svg>
     </button>
+    <form method="POST" action="/logout" style="display:inline">
+      <button type="submit" class="logout-btn" title="Logout">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+      </button>
+    </form>
   </div>
 </header>
 
@@ -242,6 +249,21 @@ if (_doc.readyState === 'loading') {
 .theme-toggle:hover {
   background: var(--bg3);
   color: var(--text);
+}
+.logout-btn {
+  background: none;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logout-btn:hover {
+  background: var(--bg3);
+  color: #f87171;
 }
 
 @media (max-width: 1200px) {

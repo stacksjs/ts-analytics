@@ -9,6 +9,7 @@ import { generateTrackingScript, generateMinimalTrackingScript } from '../index'
 import { htmlResponse, jsResponse } from '../utils/response'
 import { getQueryParams, getLambdaEvent } from '../../deploy/lambda-adapter'
 import { injectQueryPreservationScript } from '@stacksjs/bun-router'
+import { requireAuth } from './auth'
 import path from 'node:path'
 import fs from 'node:fs'
 
@@ -149,6 +150,9 @@ async function renderStxDirect(templateName: string, props: Record<string, unkno
  * GET /dashboard or /
  */
 export async function handleDashboard(request: Request): Promise<Response> {
+  const authResult = await requireAuth(request)
+  if (authResult instanceof Response) return authResult
+
   const query = getQueryParams(request)
   const event = getLambdaEvent(request)
   const siteId = query.siteId || ''
@@ -171,6 +175,9 @@ export async function handleDashboard(request: Request): Promise<Response> {
  * GET /dashboard/{tab} - Serve individual tab pages
  */
 export async function handleDashboardTab(request: Request, tab: string): Promise<Response> {
+  const authResult = await requireAuth(request)
+  if (authResult instanceof Response) return authResult
+
   const query = getQueryParams(request)
   const event = getLambdaEvent(request)
   const siteId = query.siteId || ''
@@ -223,6 +230,9 @@ export async function handleTestErrors(request: Request): Promise<Response> {
  * GET /errors/{errorId}
  */
 export async function handleErrorDetailPage(request: Request, errorId: string): Promise<Response> {
+  const authResult = await requireAuth(request)
+  if (authResult instanceof Response) return authResult
+
   const query = getQueryParams(request)
   const event = getLambdaEvent(request)
   const siteId = query.siteId || ''

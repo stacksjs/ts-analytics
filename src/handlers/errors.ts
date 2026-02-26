@@ -84,7 +84,7 @@ export async function handleGetErrors(request: Request, siteId: string): Promise
 
     const groupedErrors = Object.entries(errorGroups)
       .map(([_key, data]) => ({
-        errorId: data.errorId,
+        errorId: data.fingerprint,
         message: data.message,
         count: data.count,
         firstSeen: data.firstSeen,
@@ -119,29 +119,43 @@ export async function handleGetErrors(request: Request, siteId: string): Promise
 export async function handleGetErrorStatuses(request: Request, siteId: string): Promise<Response> {
   try {
     const query = getQueryParams(request)
-    const errorIds = query.errorIds?.split(',') || []
+    const errorIds = query.errorIds?.split(',').filter(Boolean) || []
 
-    if (errorIds.length === 0) {
-      return jsonResponse({ statuses: {} })
+    if (errorIds.length > 0) {
+      // Query specific error status records
+      const statuses: Record<string, { status: string }> = {}
+      for (const errorId of errorIds.slice(0, 50)) {
+        const result = await dynamodb.query({
+          TableName: TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND sk = :sk',
+          ExpressionAttributeValues: {
+            ':pk': { S: `SITE#${siteId}` },
+            ':sk': { S: `ERROR_STATUS#${errorId}` },
+          },
+        }) as { Items?: any[] }
+
+        if (result.Items && result.Items.length > 0) {
+          const item = unmarshall(result.Items[0])
+          statuses[errorId] = { status: item.status || 'new' }
+        }
+      }
+      return jsonResponse({ statuses })
     }
 
-    // Query error status records
-    const statuses: Record<string, string> = {}
-    for (const errorId of errorIds.slice(0, 50)) {
-      const result = await dynamodb.query({
-        TableName: TABLE_NAME,
-        KeyConditionExpression: 'pk = :pk AND sk = :sk',
-        ExpressionAttributeValues: {
-          ':pk': { S: `SITE#${siteId}` },
-          ':sk': { S: `ERROR_STATUS#${errorId}` },
-        },
-      }) as { Items?: any[] }
+    // No errorIds specified — return all statuses for this site
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':prefix': { S: 'ERROR_STATUS#' },
+      },
+    }) as { Items?: any[] }
 
-      if (result.Items && result.Items.length > 0) {
-        const item = unmarshall(result.Items[0])
-        statuses[errorId] = item.status || 'open'
-      } else {
-        statuses[errorId] = 'open'
+    const statuses: Record<string, { status: string }> = {}
+    for (const item of (result.Items || []).map(unmarshall)) {
+      if (item.errorId) {
+        statuses[item.errorId] = { status: item.status || 'new' }
       }
     }
 
@@ -162,7 +176,7 @@ export async function handleUpdateErrorStatus(request: Request, siteId: string):
 
     // Handle bulk updates
     if (errorIds && Array.isArray(errorIds) && bulkStatus) {
-      const validStatuses = ['open', 'resolved', 'ignored']
+      const validStatuses = ['new', 'open', 'resolved', 'ignored']
       if (!validStatuses.includes(bulkStatus)) {
         return jsonResponse({ error: 'Invalid status. Must be: open, resolved, or ignored' }, 400)
       }
@@ -194,7 +208,7 @@ export async function handleUpdateErrorStatus(request: Request, siteId: string):
       return jsonResponse({ error: 'Missing required fields: errorId, status' }, 400)
     }
 
-    const validStatuses = ['open', 'resolved', 'ignored']
+    const validStatuses = ['new', 'open', 'resolved', 'ignored']
     if (!validStatuses.includes(status)) {
       return jsonResponse({ error: 'Invalid status. Must be: open, resolved, or ignored' }, 400)
     }
@@ -261,7 +275,7 @@ export async function handleCollectError(request: Request, siteId: string, keyId
         col: body.col || 0,
         stack: String(body.stack || '').slice(0, 4000),
         url: body.url || '',
-        path: body.url ? new URL(body.url).pathname : '',
+        path: (() => { try { return body.url ? new URL(body.url).pathname : '' } catch { return body.url || '' } })(),
         browser: body.browser || '',
         browserVersion: body.browserVersion || '',
         os: body.os || '',

@@ -125,11 +125,11 @@ onMount(() => {
 </head>
 <body class="error-detail-page">
   <div class="container">
-    <a :href="'/dashboard?siteId=' + SITE_ID" class="back-link">
+    <a :href="'/dashboard/errors?siteId=' + SITE_ID" class="back-link">
       <svg class="back-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
-      Back to Dashboard
+      Back to Errors
     </a>
 
     <header class="page-header">

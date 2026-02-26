@@ -16,26 +16,23 @@ const error = state(null)
 const severityLabels = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
 const statusLabels = { new: 'New', resolved: 'Resolved', ignored: 'Ignored', regression: 'Regression' }
 
-// Computed: filtered errors based on status
 const filteredErrors = derived(() => {
   const filter = statusFilter()
   const all = errors()
   if (filter === 'all') return all
-  return all.filter(e => getErrorStatus(e.message) === filter)
+  return all.filter(e => getErrorStatus(e.fingerprint) === filter)
 })
 
-// Computed: status counts
 const statusCounts = derived(() => {
   const counts = { new: 0, resolved: 0, ignored: 0 }
   errors().forEach(e => {
-    const status = getErrorStatus(e.message)
+    const status = getErrorStatus(e.fingerprint)
     if (counts[status] !== undefined) counts[status]++
     else counts.new++
   })
   return counts
 })
 
-// Computed: severity counts
 const severityCounts = derived(() => {
   const counts = { critical: 0, high: 0, medium: 0, low: 0 }
   filteredErrors().forEach(e => {
@@ -44,13 +41,21 @@ const severityCounts = derived(() => {
   return counts
 })
 
-function getErrorId(msg) {
-  return btoa(msg || '').slice(0, 20)
+function getErrorStatus(fingerprint) {
+  return errorStatuses()[fingerprint]?.status || 'new'
 }
 
-function getErrorStatus(msg) {
-  const id = getErrorId(msg)
-  return errorStatuses()[id]?.status || 'new'
+function timeAgo(ts) {
+  if (!ts) return ''
+  const diff = Date.now() - new Date(ts).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return mins + 'm ago'
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return hrs + 'h ago'
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return days + 'd ago'
+  return new Date(ts).toLocaleDateString()
 }
 
 async function fetchErrors() {
@@ -62,7 +67,6 @@ async function fetchErrors() {
     ])
     const errorsData = await errorsRes.json()
     const statusesData = await statusesRes.json()
-
     errors.set(errorsData.errors || [])
     errorStatuses.set(statusesData.statuses || {})
     error.set(null)
@@ -73,14 +77,14 @@ async function fetchErrors() {
   }
 }
 
-async function updateStatus(errorId, newStatus) {
+async function updateStatus(fingerprint, newStatus) {
   try {
     await fetch(_apiUrl('/errors/status'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ errorId: decodeURIComponent(errorId), status: newStatus })
+      body: JSON.stringify({ errorId: fingerprint, status: newStatus })
     })
-    errorStatuses.update(s => ({ ...s, [decodeURIComponent(errorId)]: { status: newStatus } }))
+    errorStatuses.update(s => ({ ...s, [fingerprint]: { status: newStatus } }))
   } catch (e) {
     console.error('Failed to update status:', e)
   }
@@ -88,18 +92,22 @@ async function updateStatus(errorId, newStatus) {
 
 async function bulkResolve() {
   if (!confirm('Mark all new errors as resolved?')) return
-  const newErrors = errors().filter(e => getErrorStatus(e.message) === 'new')
+  const newErrors = errors().filter(e => getErrorStatus(e.fingerprint) === 'new')
   for (const e of newErrors) {
-    await updateStatus(getErrorId(e.message), 'resolved')
+    await updateStatus(e.fingerprint, 'resolved')
   }
 }
 
 async function bulkIgnore() {
   if (!confirm('Ignore all new errors?')) return
-  const newErrors = errors().filter(e => getErrorStatus(e.message) === 'new')
+  const newErrors = errors().filter(e => getErrorStatus(e.fingerprint) === 'new')
   for (const e of newErrors) {
-    await updateStatus(getErrorId(e.message), 'ignored')
+    await updateStatus(e.fingerprint, 'ignored')
   }
+}
+
+function setFilter(f) {
+  statusFilter.set(f)
 }
 
 onMount(() => {
@@ -107,78 +115,123 @@ onMount(() => {
 })
 </script>
 
-<div class="tab-panel">
-  <div class="errors-header">
-    <h3 class="tab-title">Errors</h3>
-    <div @if="errors().length > 0" class="errors-actions">
-      <select @model="statusFilter">
-        <option value="all">All ({{ errors().length }})</option>
-        <option value="new">New ({{ statusCounts().new }})</option>
-        <option value="resolved">Resolved ({{ statusCounts().resolved }})</option>
-        <option value="ignored">Ignored ({{ statusCounts().ignored }})</option>
-      </select>
-      <button @if="statusCounts().new > 0" @click="bulkResolve" class="btn btn-secondary">Resolve All</button>
-      <button @if="statusCounts().new > 0" @click="bulkIgnore" class="btn btn-secondary">Ignore All</button>
+<div class="errors-panel">
+  <!-- Header -->
+  <div class="errors-toolbar">
+    <div class="toolbar-left">
+      <h3 class="panel-title">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+        </svg>
+        Errors
+      </h3>
+    </div>
+    <div @if="errors().length > 0" class="toolbar-right">
+      <button @if="statusCounts().new > 0" :click="bulkResolve" class="toolbar-btn">
+        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        Resolve All
+      </button>
+      <button @if="statusCounts().new > 0" :click="bulkIgnore" class="toolbar-btn">
+        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+        Ignore All
+      </button>
     </div>
   </div>
 
-  <div @if="loading()" class="loading-state">
+  <!-- Loading -->
+  <div @if="loading()" class="state-card">
     <div class="spinner"></div>
-    <span>Loading...</span>
+    <span>Loading errors...</span>
   </div>
 
-  <div @if="error()" class="error-state">
+  <!-- Error state -->
+  <div @if="error()" class="state-card state-error">
+    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
     {{ error() }}
   </div>
 
-  <div @if="!loading() && !error() && errors().length === 0" class="empty-state-centered">
-    <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity: 0.5">
+  <!-- Empty state -->
+  <div @if="!loading() && !error() && errors().length === 0" class="state-card state-empty">
+    <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity: 0.4">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
     </svg>
-    <p class="empty-state-title">No errors recorded</p>
-    <p class="empty-state-hint">Your application is running smoothly!</p>
+    <p class="state-title">No errors recorded</p>
+    <p class="state-hint">Your application is running smoothly</p>
   </div>
 
+  <!-- Content -->
   <div @if="!loading() && !error() && errors().length > 0">
-    <p class="errors-count">{{ filteredErrors().length }} error{{ filteredErrors().length !== 1 ? 's' : '' }}</p>
-
-    <!-- Severity Summary -->
-    <div class="severity-summary">
-      <div @for="sev in ['critical', 'high', 'medium', 'low']" @class="['severity-card', sev]">
-        <div class="severity-card-count">{{ severityCounts()[sev] }}</div>
-        <div class="severity-card-label">{{ severityLabels[sev] }}</div>
+    <!-- Severity stats -->
+    <div class="severity-grid">
+      <div @for="sev in ['critical', 'high', 'medium', 'low']" @class="['sev-stat', sev]">
+        <span class="sev-count">{{ severityCounts()[sev] }}</span>
+        <span class="sev-label">{{ severityLabels[sev] }}</span>
       </div>
     </div>
 
-    <!-- Errors List -->
-    <div class="errors-list">
-      <div @if="filteredErrors().length === 0" class="empty-state">
-        <p class="empty-state-title">No {{ statusFilter() }} errors</p>
-        <p class="empty-state-hint">Try a different filter.</p>
+    <!-- Filter tabs -->
+    <div class="filter-bar">
+      <div class="filter-tabs">
+        <button @class="['filter-tab', statusFilter() === 'all' ? 'active' : '']" :click="setFilter('all')">
+          All <span class="tab-count">{{ errors().length }}</span>
+        </button>
+        <button @class="['filter-tab', statusFilter() === 'new' ? 'active' : '']" :click="setFilter('new')">
+          <span class="status-dot new"></span> New <span class="tab-count">{{ statusCounts().new }}</span>
+        </button>
+        <button @class="['filter-tab', statusFilter() === 'resolved' ? 'active' : '']" :click="setFilter('resolved')">
+          <span class="status-dot resolved"></span> Resolved <span class="tab-count">{{ statusCounts().resolved }}</span>
+        </button>
+        <button @class="['filter-tab', statusFilter() === 'ignored' ? 'active' : '']" :click="setFilter('ignored')">
+          <span class="status-dot ignored"></span> Ignored <span class="tab-count">{{ statusCounts().ignored }}</span>
+        </button>
       </div>
+      <span class="result-count">{{ filteredErrors().length }} result{{ filteredErrors().length !== 1 ? 's' : '' }}</span>
+    </div>
 
-      <div @for="e in filteredErrors()" class="error-card-wrapper">
-        <a :href="`/errors/${encodeURIComponent(getErrorId(e.message))}?siteId=${_siteId()}`"
-           @class="['error-card', getErrorStatus(e.message) === 'resolved' ? 'resolved' : '', getErrorStatus(e.message) === 'ignored' ? 'ignored' : '']">
-          <div @class="['error-card-gradient', e.severity || 'medium']"></div>
-          <div class="error-card-header">
-            <span class="error-severity">{{ severityLabels[e.severity] ? severityLabels[e.severity] : 'Unknown' }}</span>
-            <span class="error-category">{{ e.category ? e.category : 'Error' }}</span>
-            <span @class="['error-status', getErrorStatus(e.message)]">{{ statusLabels[getErrorStatus(e.message)] ? statusLabels[getErrorStatus(e.message)] : 'New' }}</span>
-            <span class="error-count">{{ e.count }} event{{ e.count !== 1 ? 's' : '' }}</span>
+    <!-- Empty filter state -->
+    <div @if="filteredErrors().length === 0" class="state-card" style="margin-top: 0.5rem;">
+      <p class="state-title">No {{ statusFilter() }} errors</p>
+      <p class="state-hint">Try a different filter</p>
+    </div>
+
+    <!-- Error list -->
+    <div class="error-list">
+      <div @for="e in filteredErrors()" class="error-row-wrapper">
+        <a :href="`/errors/${encodeURIComponent(e.errorId)}?siteId=${_siteId()}`"
+           @class="['error-row', getErrorStatus(e.fingerprint)]">
+          <div @class="['severity-bar', e.severity || 'medium']"></div>
+          <div class="error-body">
+            <div class="error-top">
+              <div class="error-badges">
+                <span @class="['badge', 'badge-severity', e.severity || 'medium']">{{ severityLabels[e.severity] || 'Unknown' }}</span>
+                <span class="badge badge-category">{{ e.category || 'Error' }}</span>
+                <span @class="['badge', 'badge-status', getErrorStatus(e.fingerprint)]">{{ statusLabels[getErrorStatus(e.fingerprint)] || 'New' }}</span>
+              </div>
+              <span class="event-count">
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                {{ e.count }}
+              </span>
+            </div>
+            <div class="error-msg">{{ e.message || 'Unknown error' }}</div>
+            <div class="error-footer">
+              <span class="footer-item">
+                <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                {{ timeAgo(e.lastSeen) }}
+              </span>
+              <span @if="e.source" class="footer-item footer-mono">{{ e.source.split('/').pop() }}{{ e.line ? ':' + e.line : '' }}</span>
+              <span class="footer-item">{{ (e.browsers || []).join(', ') || 'server' }}</span>
+            </div>
           </div>
-          <div class="error-source">{{ e.source ? e.source.split('/').pop() + ':' + e.line : 'Unknown source' }}</div>
-          <div class="error-message">{{ e.message ? e.message : 'Unknown error' }}</div>
-          <div class="error-meta">
-            <span>First: {{ e.firstSeen ? new Date(e.firstSeen).toLocaleDateString() : 'N/A' }}</span>
-            <span>Last: {{ new Date(e.lastSeen).toLocaleString() }}</span>
-            <span>{{ (e.browsers ? e.browsers : []).join(', ') ? (e.browsers ? e.browsers : []).join(', ') : 'Unknown' }}</span>
-            <span>{{ (e.paths ? e.paths : []).length }} page{{ (e.paths ? e.paths : []).length !== 1 ? 's' : '' }}</span>
-          </div>
-          <div class="error-actions-inline" @click.stop>
-            <button @if="getErrorStatus(e.message) !== 'resolved'" @click.stop="updateStatus(encodeURIComponent(getErrorId(e.message)), 'resolved')" class="btn btn-resolve">✓ Resolve</button>
-            <button @if="getErrorStatus(e.message) !== 'ignored'" @click.stop="updateStatus(encodeURIComponent(getErrorId(e.message)), 'ignored')" class="btn btn-secondary">Ignore</button>
-            <button @if="getErrorStatus(e.message) !== 'new'" @click.stop="updateStatus(encodeURIComponent(getErrorId(e.message)), 'new')" class="btn btn-secondary">Reopen</button>
+          <div class="error-actions" :click.stop>
+            <button @if="getErrorStatus(e.fingerprint) !== 'resolved'" :click.stop="updateStatus(e.fingerprint, 'resolved')" class="action-btn resolve" title="Resolve">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            </button>
+            <button @if="getErrorStatus(e.fingerprint) !== 'ignored'" :click.stop="updateStatus(e.fingerprint, 'ignored')" class="action-btn ignore" title="Ignore">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+            </button>
+            <button @if="getErrorStatus(e.fingerprint) !== 'new'" :click.stop="updateStatus(e.fingerprint, 'new')" class="action-btn reopen" title="Reopen">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
           </div>
         </a>
       </div>
@@ -187,10 +240,12 @@ onMount(() => {
 </div>
 
 <style>
-.tab-panel {
+.errors-panel {
   grid-column: 1 / -1;
 }
-.errors-header {
+
+/* Toolbar */
+.errors-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -198,212 +253,338 @@ onMount(() => {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
-.tab-title {
-  font-size: 1rem;
+.toolbar-left { display: flex; align-items: center; gap: 0.5rem; }
+.toolbar-right { display: flex; gap: 0.375rem; }
+.panel-title {
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--text);
   margin: 0;
-}
-.errors-actions {
   display: flex;
-  gap: 0.5rem;
   align-items: center;
+  gap: 0.5rem;
 }
-.errors-actions select {
-  background: var(--bg2);
-  border: 1px solid var(--border);
+.panel-title svg { color: var(--text2); }
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 0.375rem 0.625rem;
   border-radius: 6px;
-  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toolbar-btn:hover {
+  background: var(--bg2);
   color: var(--text);
-  font-size: 0.8125rem;
+  border-color: var(--muted);
 }
-.errors-count {
-  font-size: 0.8125rem;
-  color: var(--muted);
-  margin: 0 0 1rem 0;
-}
-.severity-summary {
+
+/* Severity grid */
+.severity-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
-.severity-card {
+.sev-stat {
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 0.75rem;
-  text-align: center;
+  padding: 0.625rem 0.75rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  border-left: 3px solid transparent;
 }
-.severity-card.critical { border-left: 3px solid var(--error); }
-.severity-card.high { border-left: 3px solid #f97316; }
-.severity-card.medium { border-left: 3px solid var(--warning); }
-.severity-card.low { border-left: 3px solid var(--muted); }
-.severity-card-count {
-  font-size: 1.25rem;
+.sev-stat.critical { border-left-color: var(--error); }
+.sev-stat.high { border-left-color: #f97316; }
+.sev-stat.medium { border-left-color: var(--warning); }
+.sev-stat.low { border-left-color: var(--muted); }
+.sev-count {
+  font-size: 1.125rem;
   font-weight: 700;
   color: var(--text);
 }
-.severity-card-label {
+.sev-label {
   font-size: 0.6875rem;
   color: var(--muted);
   text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
-.errors-list {
+
+/* Filter bar */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.filter-tabs {
+  display: flex;
+  gap: 0;
+}
+.filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text2);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-tab:hover { color: var(--text); }
+.filter-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.tab-count {
+  background: var(--bg3);
+  color: var(--muted);
+  font-size: 0.625rem;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+.filter-tab.active .tab-count {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent);
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot.new { background: var(--error); }
+.status-dot.resolved { background: var(--success); }
+.status-dot.ignored { background: var(--muted); }
+.result-count {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+/* Error list */
+.error-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-}
-.error-card {
-  display: block;
-  background: var(--bg2);
+  gap: 1px;
+  background: var(--border);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 1rem;
-  text-decoration: none;
-  position: relative;
   overflow: hidden;
-  transition: border-color 0.2s;
+  margin-top: 0.5rem;
 }
-.error-card:hover {
-  border-color: var(--accent);
-}
-.error-card.resolved {
-  opacity: 0.6;
-}
-.error-card.ignored {
-  opacity: 0.4;
-}
-.error-card-gradient {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 3px;
-  height: 100%;
-}
-.error-card-gradient.critical { background: var(--error); }
-.error-card-gradient.high { background: #f97316; }
-.error-card-gradient.medium { background: var(--warning); }
-.error-card-gradient.low { background: var(--muted); }
-.error-card-header {
+.error-row {
   display: flex;
-  gap: 0.5rem;
+  align-items: stretch;
+  background: var(--bg2);
+  text-decoration: none;
+  transition: background 0.15s;
+  position: relative;
+}
+.error-row:hover {
+  background: var(--bg3);
+}
+.error-row.resolved { opacity: 0.55; }
+.error-row.ignored { opacity: 0.4; }
+
+/* Severity bar */
+.severity-bar {
+  width: 4px;
+  flex-shrink: 0;
+}
+.severity-bar.critical { background: var(--error); }
+.severity-bar.high { background: #f97316; }
+.severity-bar.medium { background: var(--warning); }
+.severity-bar.low { background: var(--muted); }
+
+/* Error body */
+.error-body {
+  flex: 1;
+  min-width: 0;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.error-top {
+  display: flex;
   align-items: center;
-  margin-bottom: 0.5rem;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.error-badges {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
   flex-wrap: wrap;
 }
-.error-severity {
+.badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.125rem 0.4375rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.badge-severity.critical { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.2); }
+.badge-severity.high { background: rgba(249, 115, 22, 0.12); color: #fdba74; border: 1px solid rgba(249, 115, 22, 0.2); }
+.badge-severity.medium { background: rgba(234, 179, 8, 0.12); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.2); }
+.badge-severity.low { background: rgba(107, 114, 128, 0.12); color: #d1d5db; border: 1px solid rgba(107, 114, 128, 0.2); }
+.badge-category {
+  background: var(--bg3);
+  color: var(--text2);
+  border: none;
+}
+.badge-status.new { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.15); }
+.badge-status.resolved { background: rgba(34, 197, 94, 0.12); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.15); }
+.badge-status.ignored { background: rgba(107, 114, 128, 0.12); color: var(--muted); border: 1px solid rgba(107, 114, 128, 0.15); }
+
+/* Light theme badge adjustments */
+[data-theme="light"] .badge-severity.critical { background: rgba(239, 68, 68, 0.08); color: #dc2626; border-color: rgba(239, 68, 68, 0.2); }
+[data-theme="light"] .badge-severity.high { background: rgba(249, 115, 22, 0.08); color: #ea580c; border-color: rgba(249, 115, 22, 0.2); }
+[data-theme="light"] .badge-severity.medium { background: rgba(234, 179, 8, 0.08); color: #b45309; border-color: rgba(234, 179, 8, 0.2); }
+[data-theme="light"] .badge-severity.low { background: rgba(107, 114, 128, 0.08); color: #4b5563; border-color: rgba(107, 114, 128, 0.2); }
+[data-theme="light"] .badge-status.new { background: rgba(239, 68, 68, 0.08); color: #dc2626; border-color: rgba(239, 68, 68, 0.15); }
+[data-theme="light"] .badge-status.resolved { background: rgba(34, 197, 94, 0.08); color: #059669; border-color: rgba(34, 197, 94, 0.15); }
+[data-theme="light"] .badge-status.ignored { background: rgba(107, 114, 128, 0.08); color: #6b7280; border-color: rgba(107, 114, 128, 0.15); }
+[data-theme="light"] .filter-tab.active .tab-count { background: rgba(99, 102, 241, 0.1); }
+
+.event-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text2);
+  white-space: nowrap;
 }
-.error-category {
-  font-size: 0.6875rem;
-  color: var(--muted);
-  background: var(--bg);
-  padding: 0.125rem 0.375rem;
-  border-radius: 4px;
-}
-.error-status {
-  font-size: 0.6875rem;
-  padding: 0.125rem 0.375rem;
-  border-radius: 4px;
-}
-.error-status.new { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-.error-status.resolved { background: rgba(34, 197, 94, 0.2); color: var(--success); }
-.error-status.ignored { background: rgba(156, 163, 175, 0.2); color: var(--muted); }
-.error-count {
-  font-size: 0.6875rem;
-  color: var(--muted);
-  margin-left: auto;
-}
-.error-source {
-  font-size: 0.75rem;
-  color: var(--muted);
-  font-family: monospace;
-  margin-bottom: 0.25rem;
-}
-.error-message {
-  font-size: 0.875rem;
+.event-count svg { color: var(--muted); }
+
+/* Error message */
+.error-msg {
+  font-size: 0.8125rem;
   color: var(--text);
-  margin-bottom: 0.5rem;
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   word-break: break-word;
 }
-.error-meta {
+
+/* Footer */
+.error-footer {
   display: flex;
-  gap: 1rem;
-  font-size: 0.6875rem;
-  color: var(--muted);
+  gap: 0.75rem;
+  align-items: center;
   flex-wrap: wrap;
 }
-.error-actions-inline {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-}
-.btn {
-  font-size: 0.75rem;
-  padding: 0.375rem 0.75rem;
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-resolve {
-  background: var(--success);
-  color: white;
-}
-.btn-secondary {
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-.empty-state-centered {
-  text-align: center;
+.footer-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
   color: var(--muted);
-  padding: 3rem 2rem;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+}
+.footer-item svg { opacity: 0.6; }
+.footer-mono {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  color: var(--text2);
+}
+
+/* Actions */
+.error-actions {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  padding: 0.5rem 0.5rem;
+  opacity: 0;
+  transition: opacity 0.15s;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
 }
-.empty-state, .loading-state, .error-state {
-  text-align: center;
+.error-row:hover .error-actions { opacity: 1; }
+.action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
   color: var(--muted);
-  padding: 2rem;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.empty-state-title {
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-.empty-state-hint {
-  font-size: 0.8125rem;
-}
-.loading-state {
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.15s;
+}
+.action-btn.resolve:hover { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+.action-btn.ignore:hover { background: rgba(107, 114, 128, 0.15); color: var(--muted); }
+.action-btn.reopen:hover { background: rgba(99, 102, 241, 0.15); color: var(--accent); }
+
+/* States */
+.state-card {
+  text-align: center;
+  color: var(--text2);
+  padding: 2.5rem 2rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
 }
-.error-state {
+.state-card.state-error {
   color: var(--error);
+  background: rgba(239, 68, 68, 0.05);
+  border-color: rgba(239, 68, 68, 0.15);
+  flex-direction: row;
+  justify-content: center;
+  padding: 1rem;
+  font-size: 0.8125rem;
 }
-.spinner {
-  width: 16px;
-  height: 16px;
+.state-card.state-empty { padding: 3rem 2rem; }
+.state-title {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.875rem;
+}
+.state-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Loading */
+.state-card .spinner {
+  width: 18px;
+  height: 18px;
   border: 2px solid var(--border);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
-@keyframes spin {
-  to { transform: rotate(-360deg); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .severity-grid { grid-template-columns: repeat(2, 1fr); }
+  .filter-tab { padding: 0.5rem 0.5rem; font-size: 0.6875rem; }
+  .error-actions { opacity: 1; flex-direction: row; padding: 0.25rem; }
 }
 </style>

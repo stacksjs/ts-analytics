@@ -27,6 +27,7 @@ import * as sharing from './handlers/sharing'
 import * as collect from './handlers/collect'
 import * as misc from './handlers/misc'
 import * as views from './handlers/views'
+import * as auth from './handlers/auth'
 
 /**
  * Stealth API path mapping
@@ -96,11 +97,20 @@ export async function createRouter(): Promise<Router> {
     },
   })
 
+  // Disable auto file-based routing (all routes are registered explicitly)
+  // @ts-expect-error - internal property to prevent auto-discovery of src/views/
+  router._fileRoutesInitialized = true
+
   // Health check
   await router.get('/health', misc.handleHealth)
 
   // Favicon (return empty to prevent 404)
   await router.get('/favicon.ico', () => new Response(null, { status: 204 }))
+
+  // Auth routes
+  await router.get('/login', auth.handleLoginPage)
+  await router.post('/login', auth.handleLogin)
+  await router.post('/logout', auth.handleLogout)
 
   // Serve dashboard script (transpile TS on the fly for dev, serve compiled JS for prod)
   const serveDashboardScript = async () => {
@@ -209,9 +219,15 @@ export async function createRouter(): Promise<Router> {
   // Script serving
   await router.get('/sites/{siteId}/script', (req: any) => views.handleScript(req))
 
-  // Sites list and creation
-  await router.get('/api/sites', misc.handleGetSites)
-  await router.post('/api/sites', misc.handleCreateSite)
+  // Sites list and creation (pass ownerId from session if authenticated)
+  await router.get('/api/sites', async (req: any) => {
+    const session = await auth.getSessionFromRequest(req)
+    return misc.handleGetSites(req, session?.userId)
+  })
+  await router.post('/api/sites', async (req: any) => {
+    const session = await auth.getSessionFromRequest(req)
+    return misc.handleCreateSite(req, session?.userId)
+  })
 
   // Share link validation
   await router.get('/api/share/{token}', (req: any) => sharing.handleGetSharedDashboard(req, req.params.token))

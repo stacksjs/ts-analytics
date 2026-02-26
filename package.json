@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@stacksjs/bun-router": "^0.0.2",
-    "@stacksjs/stx": "^0.2.4",
+    "@stacksjs/stx": "link:@stacksjs/stx",
     "bun-plugin-stx": "^0.2.4",
     "bun-query-builder": "^0.1.13",
     "dynamodb-tooling": "^0.3.2"
