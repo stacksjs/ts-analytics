@@ -211,6 +211,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.BUDDY_BOT_TOKEN || secrets.GITHUB_TOKEN }}
           BUDDY_BOT_TOKEN: ${{ secrets.BUDDY_BOT_TOKEN }}
+          BUN_CONFIG_FILE: /dev/null
 
       - name: Create check summary
         if: always()
@@ -304,6 +305,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.BUDDY_BOT_TOKEN || secrets.GITHUB_TOKEN }}
           BUDDY_BOT_TOKEN: ${{ secrets.BUDDY_BOT_TOKEN }}
+          BUN_CONFIG_FILE: /dev/null
 
       - name: Dry run notification
         if: ${{ github.event.inputs.dry_run == 'true' }}
@@ -453,6 +455,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.BUDDY_BOT_TOKEN || secrets.GITHUB_TOKEN }}
           BUDDY_BOT_TOKEN: ${{ secrets.BUDDY_BOT_TOKEN }}
+          BUN_CONFIG_FILE: /dev/null
 
       - name: Dry run notification
         if: ${{ github.event.inputs.dry_run == 'true' }}
