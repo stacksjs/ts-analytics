@@ -32,6 +32,9 @@ jobs:
       - name: Install Dependencies
         run: bun install
 
+      - name: Disable bunfig preload
+        run: sed -i '/^preload/d' bunfig.toml
+
       - name: Lint
         run: bun run lint
 
@@ -53,6 +56,9 @@ jobs:
       - name: Install Dependencies
         run: bun install
 
+      - name: Disable bunfig preload
+        run: sed -i '/^preload/d' bunfig.toml
+
       - name: Typecheck
         run: bun --bun run typecheck
 
@@ -73,6 +79,9 @@ jobs:
 
       - name: Install Dependencies
         run: bun install
+
+      - name: Disable bunfig preload
+        run: sed -i '/^preload/d' bunfig.toml
 
       - name: Unit Test
         run: bun test
