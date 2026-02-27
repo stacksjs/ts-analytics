@@ -1,6 +1,6 @@
-<script server>
-export const id = props.id || 'log'
-export const initialMessage = props.initialMessage || 'Ready...'
+<script server lang="ts">
+export const id: string = props.id || 'log'
+export const initialMessage: string = props.initialMessage || 'Ready...'
 </script>
 
 <div id="{{ id }}" class="mt-4 p-4 bg-gray-800 rounded font-mono text-sm max-h-48 overflow-y-auto">

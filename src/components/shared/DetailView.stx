@@ -1,27 +1,40 @@
 {{-- DetailView Component - Reusable data table view --}}
 {{-- Props: section, title, icon --}}
-<script client>
-const allData = state([])
-const filteredData = state([])
-const loading = state(true)
-const error = state(null)
-const searchQuery = state('')
-const currentPage = state(1)
-const pageSize = 50
+<script client lang="ts">
+interface DataItem {
+  [key: string]: string | number | null
+}
+
+interface SectionConfig {
+  title: string
+  icon: string
+}
+
+interface StealthMap {
+  [key: string]: string
+}
+
+const allData = state<DataItem[]>([])
+const filteredData = state<DataItem[]>([])
+const loading = state<boolean>(true)
+const error = state<string | null>(null)
+const searchQuery = state<string>('')
+const currentPage = state<number>(1)
+const pageSize: number = 50
 
 // Get config from URL and props
-const urlParams = new URLSearchParams(window.location.search)
-const API = window.ANALYTICS_API || urlParams.get('api') || window.location.origin
-const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
-const USE_STEALTH = urlParams.get('stealth') !== 'false'
+const urlParams: URLSearchParams = new URLSearchParams(window.location.search)
+const API: string = window.ANALYTICS_API || urlParams.get('api') || window.location.origin
+const SITE_ID: string = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
+const USE_STEALTH: boolean = urlParams.get('stealth') !== 'false'
 
 // Get section from component attribute or URL
-const sectionAttr = document.currentScript?.closest('[data-section]')?.dataset.section
-const pathMatch = window.location.pathname.match(/\/dashboard\/(.+)/)
-const SECTION = sectionAttr || (pathMatch ? pathMatch[1] : 'pages')
+const sectionAttr: string | undefined = document.currentScript?.closest('[data-section]')?.dataset.section
+const pathMatch: RegExpMatchArray | null = window.location.pathname.match(/\/dashboard\/(.+)/)
+const SECTION: string = sectionAttr || (pathMatch ? pathMatch[1] : 'pages')
 
 // Stealth API path mapper
-const STEALTH_MAP = {
+const STEALTH_MAP: StealthMap = {
   sites: 'projects', stats: 'summary', realtime: 'pulse', pages: 'content',
   referrers: 'sources', devices: 'clients', browsers: 'agents', countries: 'geo',
   regions: 'area', cities: 'locale', timeseries: 'series', events: 'actions',
@@ -30,17 +43,17 @@ const STEALTH_MAP = {
   goals: 'targets', funnels: 'pipelines', annotations: 'notes'
 }
 
-function apiPath(path) {
+function apiPath(path: string): string {
   if (!USE_STEALTH) return path
-  let result = path.replace('/api/sites/', '/api/p/').replace('/api/sites', '/api/projects')
-  Object.keys(STEALTH_MAP).sort((a, b) => b.length - a.length).forEach(k => {
+  let result: string = path.replace('/api/sites/', '/api/p/').replace('/api/sites', '/api/projects')
+  Object.keys(STEALTH_MAP).sort((a: string, b: string) => b.length - a.length).forEach((k: string) => {
     result = result.replace(new RegExp(`/${k}(?=/|\\?|$)`, 'g'), `/${STEALTH_MAP[k]}`)
   })
   return result
 }
 
 // Section metadata
-const sections = {
+const sections: Record<string, SectionConfig> = {
   pages: { title: 'Pages', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
   referrers: { title: 'Referrers', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
   devices: { title: 'Devices', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
@@ -51,28 +64,28 @@ const sections = {
   goals: { title: 'Goals', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' }
 }
 
-const sectionConfig = sections[SECTION] || sections.pages
+const sectionConfig: SectionConfig = sections[SECTION] || sections.pages
 
 // Computed values
-const paginatedData = derived(() => {
-  const start = (currentPage() - 1) * pageSize
+const paginatedData = derived((): DataItem[] => {
+  const start: number = (currentPage() - 1) * pageSize
   return filteredData().slice(start, start + pageSize)
 })
 
-const totalPages = derived(() => Math.ceil(filteredData().length / pageSize))
+const totalPages = derived((): number => Math.ceil(filteredData().length / pageSize))
 
-const columnKeys = derived(() => {
-  const data = filteredData()
+const columnKeys = derived((): string[] => {
+  const data: DataItem[] = filteredData()
   return data.length > 0 ? Object.keys(data[0]) : []
 })
 
-async function loadData() {
+async function loadData(): Promise<void> {
   loading.set(true)
   try {
-    const res = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/${SECTION}`))
+    const res: Response = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/${SECTION}`))
     if (!res.ok) throw new Error('Failed to load')
-    const data = await res.json()
-    const items = data[SECTION] || data.pages || data.referrers || data.browsers || data.countries || data.campaigns || data.events || data.goals || []
+    const data: Record<string, DataItem[]> = await res.json()
+    const items: DataItem[] = data[SECTION] || data.pages || data.referrers || data.browsers || data.countries || data.campaigns || data.events || data.goals || []
     allData.set(items)
     filteredData.set([...items])
     error.set(null)
@@ -83,31 +96,31 @@ async function loadData() {
   }
 }
 
-function filterData() {
-  const query = searchQuery().toLowerCase()
+function filterData(): void {
+  const query: string = searchQuery().toLowerCase()
   if (!query) {
     filteredData.set([...allData()])
   } else {
-    filteredData.set(allData().filter(item =>
-      Object.values(item).some(val => String(val).toLowerCase().includes(query))
+    filteredData.set(allData().filter((item: DataItem) =>
+      Object.values(item).some((val: string | number | null) => String(val).toLowerCase().includes(query))
     ))
   }
   currentPage.set(1)
 }
 
-function goToPage(page) {
+function goToPage(page: number): void {
   currentPage.set(page)
 }
 
-function formatKey(key) {
-  return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
+function formatKey(key: string): string {
+  return key.replace(/([A-Z])/g, ' $1').replace(/^./, (s: string) => s.toUpperCase())
 }
 
-function formatValue(value, key) {
+function formatValue(value: string | number | null, key: string): string {
   if (value == null) return '-'
   if ((key.includes('time') || key.includes('Time')) && typeof value === 'number') {
-    const mins = Math.floor(value / 60000)
-    const secs = Math.floor((value % 60000) / 1000)
+    const mins: number = Math.floor(value / 60000)
+    const secs: number = Math.floor((value % 60000) / 1000)
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
   if ((key.includes('rate') || key.includes('Rate') || key === 'percentage') && typeof value === 'number') {
@@ -199,6 +212,7 @@ effect(() => {
 </div>
 
 <style>
+/* Spinner animation */
 .spinner {
   width: 16px;
   height: 16px;

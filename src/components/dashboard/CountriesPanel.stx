@@ -1,12 +1,19 @@
-<script client>
+<script client lang="ts">
 /**
  * CountriesPanel Component
  * Displays country breakdown with reactive data fetching
  */
-const countries = state([])
-const loading = state(true)
 
-const countryFlags = {
+interface Country {
+  name?: string
+  code?: string
+  visitors: number
+}
+
+const countries = state<Country[]>([])
+const loading = state<boolean>(true)
+
+const countryFlags: Record<string, string> = {
   'United States': '🇺🇸', 'United Kingdom': '🇬🇧', 'Germany': '🇩🇪', 'France': '🇫🇷',
   'Canada': '🇨🇦', 'Australia': '🇦🇺', 'Japan': '🇯🇵', 'China': '🇨🇳',
   'India': '🇮🇳', 'Brazil': '🇧🇷', 'Netherlands': '🇳🇱', 'Spain': '🇪🇸',
@@ -19,21 +26,21 @@ const countryFlags = {
   'South Africa': '🇿🇦', 'Turkey': '🇹🇷', 'Israel': '🇮🇱', 'UAE': '🇦🇪'
 }
 
-function getFlag(name) {
+function getFlag(name: string): string {
   return countryFlags[name] || '🌍'
 }
 
-async function fetchCountries() {
-  const siteId = window.siteId
+async function fetchCountries(): Promise<void> {
+  const siteId: string | undefined = window.siteId
   if (!siteId) {
     loading.set(false)
     return
   }
   try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/countries${window.getDateRangeParams()}`))
-    const data = await res.json()
+    const res: Response = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/countries${window.getDateRangeParams()}`))
+    const data: { countries?: Country[] } = await res.json()
     countries.set((data.countries || []).slice(0, 10))
-  } catch (e) {
+  } catch (e: unknown) {
     console.error('Failed to fetch countries:', e)
   } finally {
     loading.set(false)
@@ -50,106 +57,35 @@ window.refreshCountriesPanel = fetchCountries
 <div class="panel">
   <div class="panel-header">
     <div class="panel-title">
-      <svg class="panel-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="text-muted" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
       Countries
     </div>
-    <a href="#" @click.prevent="window.navigateTo('countries')" class="view-all">View all &rarr;</a>
+    <a href="#" @click.prevent="window.navigateTo('countries')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
   </div>
-  <table class="data-table">
+  <table class="w-full text-[0.8125rem]">
     <thead>
       <tr>
-        <th class="text-left">Country</th>
-        <th class="text-right">Visitors</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-left">Country</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-right">Visitors</th>
       </tr>
     </thead>
     <tbody>
       <tr @for="country in countries()" @loading="loading()" @if="!loading()">
-        <td class="name">
-          <span class="flag">{{ getFlag(country.name ? country.name : country.code) }}</span>
+        <td class="cell-name flex items-center gap-1.5">
+          <span class="text-base">{{ getFlag(country.name ? country.name : country.code) }}</span>
           {{ country.name ? country.name : (country.code ? country.code : 'Unknown') }}
         </td>
-        <td class="value">{{ country.visitors | fmt }}</td>
+        <td class="cell-value">{{ country.visitors | fmt }}</td>
       </tr>
       <tr @for-loading>
-        <td colspan="2" class="loading-cell">Loading...</td>
+        <td colspan="2" class="text-center text-muted py-4">Loading...</td>
       </tr>
       <tr @for-empty>
-        <td colspan="2" class="empty-cell">No location data</td>
+        <td colspan="2" class="text-center text-muted py-4">No location data</td>
       </tr>
     </tbody>
   </table>
 </div>
 
-<style>
-.panel {
-  background: var(--bg2);
-  border-radius: 8px;
-  padding: 1.5rem;
-  border: 1px solid var(--border);
-}
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-.panel-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--text);
-}
-.panel-icon {
-  color: var(--muted);
-}
-.view-all {
-  font-size: 0.75rem;
-  color: var(--accent);
-  text-decoration: none;
-}
-.view-all:hover {
-  text-decoration: underline;
-}
-.data-table {
-  width: 100%;
-  font-size: 0.8125rem;
-  border-collapse: collapse;
-}
-.data-table th {
-  padding: 0.5rem 0;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-  border-bottom: 1px solid var(--border);
-}
-.data-table td {
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
-}
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-.name {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.flag {
-  font-size: 1rem;
-}
-.value {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-.loading-cell,
-.empty-cell {
-  text-align: center;
-  color: var(--muted);
-  padding: 1rem 0;
-}
-</style>

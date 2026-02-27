@@ -1,22 +1,29 @@
-<script client>
+<script client lang="ts">
 /**
  * BrowsersPanel Component
  * Displays browser breakdown with reactive data fetching
  */
-const browsers = state([])
-const loading = state(true)
 
-async function fetchBrowsers() {
-  const siteId = window.siteId
+interface Browser {
+  name: string
+  visitors: number
+  percentage?: number
+}
+
+const browsers = state<Browser[]>([])
+const loading = state<boolean>(true)
+
+async function fetchBrowsers(): Promise<void> {
+  const siteId: string | undefined = window.siteId
   if (!siteId) {
     loading.set(false)
     return
   }
   try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/browsers${window.getDateRangeParams()}`))
-    const data = await res.json()
+    const res: Response = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/browsers${window.getDateRangeParams()}`))
+    const data: { browsers?: Browser[] } = await res.json()
     browsers.set(data.browsers || [])
-  } catch (e) {
+  } catch (e: unknown) {
     console.error('Failed to fetch browsers:', e)
   } finally {
     loading.set(false)
@@ -33,101 +40,34 @@ window.refreshBrowsersPanel = fetchBrowsers
 <div class="panel">
   <div class="panel-header">
     <div class="panel-title">
-      <svg class="panel-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="text-muted" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
       </svg>
       Browsers
     </div>
-    <a href="#" @click.prevent="window.navigateTo('browsers')" class="view-all">View all &rarr;</a>
+    <a href="#" @click.prevent="window.navigateTo('browsers')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
   </div>
-  <table class="data-table">
+  <table class="w-full text-[0.8125rem]">
     <thead>
       <tr>
-        <th class="text-left">Browser</th>
-        <th class="text-right">Visitors</th>
-        <th class="text-right">%</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-left">Browser</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-right">Visitors</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-right">%</th>
       </tr>
     </thead>
     <tbody>
       <tr @for="browser in browsers()" @loading="loading()" @if="!loading()">
-        <td class="name">{{ browser.name ? browser.name : 'Unknown' }}</td>
-        <td class="value">{{ browser.visitors | fmt }}</td>
-        <td class="value">{{ browser.percentage ? browser.percentage : 0 }}%</td>
+        <td class="cell-name">{{ browser.name ? browser.name : 'Unknown' }}</td>
+        <td class="cell-value">{{ browser.visitors | fmt }}</td>
+        <td class="cell-value">{{ browser.percentage ? browser.percentage : 0 }}%</td>
       </tr>
       <tr @for-loading>
-        <td colspan="3" class="loading-cell">Loading...</td>
+        <td colspan="3" class="text-center text-muted py-4">Loading...</td>
       </tr>
       <tr @for-empty>
-        <td colspan="3" class="empty-cell">No browser data</td>
+        <td colspan="3" class="text-center text-muted py-4">No browser data</td>
       </tr>
     </tbody>
   </table>
 </div>
 
-<style>
-.panel {
-  background: var(--bg2);
-  border-radius: 8px;
-  padding: 1.5rem;
-  border: 1px solid var(--border);
-}
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-.panel-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--text);
-}
-.panel-icon {
-  color: var(--muted);
-}
-.view-all {
-  font-size: 0.75rem;
-  color: var(--accent);
-  text-decoration: none;
-}
-.view-all:hover {
-  text-decoration: underline;
-}
-.data-table {
-  width: 100%;
-  font-size: 0.8125rem;
-  border-collapse: collapse;
-}
-.data-table th {
-  padding: 0.5rem 0;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-  border-bottom: 1px solid var(--border);
-}
-.data-table td {
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
-}
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-.name {
-  font-weight: 500;
-  color: var(--text);
-}
-.value {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-.loading-cell,
-.empty-cell {
-  text-align: center;
-  color: var(--muted);
-  padding: 1rem 0;
-}
-</style>

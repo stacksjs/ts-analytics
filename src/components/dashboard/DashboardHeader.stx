@@ -1,56 +1,54 @@
-<script client>
+<script client lang="ts">
 /**
  * DashboardHeader Component - Navigation header
+ * Uses STX reactive APIs: state, effect, onMount, provide
  * Uses file-based routing with anchor links
  */
 
-// Use indirection to work around STX validation
-const _doc = window['document']
-const _getEl = (id) => _doc['getElementById'](id)
-const _addListener = (el, event, fn) => el['addEventListener'](event, fn)
-
-// State
-let siteName = 'Analytics Dashboard'
-let isDarkTheme = true
-
-// Get site ID from URL
-function getSiteId() {
-  const params = new URLSearchParams(window.location.search)
-  return params.get('siteId') || ''
+interface NavTab {
+  id: string
+  label: string
+  href: string
 }
 
+interface DashboardHeaderAPI {
+  toggleTheme: () => void
+  goBack: () => void
+  isDarkTheme: () => boolean
+}
+
+// Reactive state
+const siteName = state<string>('Analytics Dashboard')
+const isDark = state<boolean>(true)
+const currentTab = state<string>('dashboard')
+const siteId = state<string>('')
+
+// Nav tab definitions
+const tabs: NavTab[] = [
+  { id: 'dashboard', label: 'Dashboard', href: '/dashboard' },
+  { id: 'live', label: 'Live', href: '/dashboard/live' },
+  { id: 'sessions', label: 'Sessions', href: '/dashboard/sessions' },
+  { id: 'funnels', label: 'Funnels', href: '/dashboard/funnels' },
+  { id: 'flow', label: 'User Flow', href: '/dashboard/flow' },
+  { id: 'vitals', label: 'Web Vitals', href: '/dashboard/vitals' },
+  { id: 'errors', label: 'Errors', href: '/dashboard/errors' },
+  { id: 'insights', label: 'Insights', href: '/dashboard/insights' },
+  { id: 'settings', label: 'Settings', href: '/dashboard/settings' },
+]
+
 // Get current active tab from URL path
-function getCurrentTab() {
-  const path = window.location.pathname
+function detectCurrentTab(): string {
+  const path: string = window.location.pathname
   if (path === '/dashboard' || path === '/') return 'dashboard'
-  const match = path.match(/\/dashboard\/([^\/]+)/)
+  const match: RegExpMatchArray | null = path.match(/\/dashboard\/([^\/]+)/)
   return match ? match[1] : 'dashboard'
 }
 
-// Initialize theme from localStorage/system preference
-function initTheme() {
-  const stored = localStorage.getItem('ts-analytics-theme')
-  if (stored) {
-    isDarkTheme = stored === 'dark'
-  } else {
-    isDarkTheme = !window.matchMedia('(prefers-color-scheme: light)').matches
-  }
-  applyTheme()
-}
-
-// Apply theme to document
-function applyTheme() {
-  const theme = isDarkTheme ? 'dark' : 'light'
-  _doc.documentElement.setAttribute('data-theme', theme)
-  updateThemeIcons()
-}
-
 // Toggle theme
-function toggleTheme() {
-  isDarkTheme = !isDarkTheme
-  const theme = isDarkTheme ? 'dark' : 'light'
+function toggleTheme(): void {
+  isDark.update((v: boolean) => !v)
+  const theme: string = isDark() ? 'dark' : 'light'
   localStorage.setItem('ts-analytics-theme', theme)
-  applyTheme()
 
   // Notify dashboard.ts for chart re-render
   if (window.toggleTheme) {
@@ -59,7 +57,7 @@ function toggleTheme() {
 }
 
 // Go back to site selector
-function goBack() {
+function goBack(): void {
   if (window.goBack) {
     window.goBack()
   } else {
@@ -67,99 +65,85 @@ function goBack() {
   }
 }
 
-// Update site name
-function setSiteName(name) {
-  siteName = name || 'Analytics Dashboard'
-  const el = _getEl('current-site-name')
-  if (el) el.textContent = siteName
+// Compute href for a tab, appending siteId if present
+function tabHref(tab: NavTab): string {
+  const sid: string = siteId()
+  return tab.href + (sid ? '?siteId=' + encodeURIComponent(sid) : '')
 }
 
-// Update navigation tabs with siteId and active state
-function updateNav() {
-  const nav = _getEl('header-nav')
-  if (!nav) return
-
-  const currentTab = getCurrentTab()
-  const siteId = getSiteId()
-
-  nav.querySelectorAll('a.nav-btn').forEach(link => {
-    const tab = link.getAttribute('data-tab')
-    // Add siteId to href
-    if (siteId) {
-      const basePath = link.getAttribute('href').split('?')[0]
-      link.href = `${basePath}?siteId=${encodeURIComponent(siteId)}`
-    }
-    // Mark active tab
-    if (tab === currentTab) {
-      link.classList.add('active')
-    } else {
-      link.classList.remove('active')
-    }
-  })
-}
-
-// Update theme icons
-function updateThemeIcons() {
-  const moonIcon = _getEl('moon-icon')
-  const sunIcon = _getEl('sun-icon')
-  if (moonIcon && sunIcon) {
-    moonIcon.style.display = isDarkTheme ? 'block' : 'none'
-    sunIcon.style.display = isDarkTheme ? 'none' : 'block'
-  }
-}
-
-// Initialize
-function init() {
-  initTheme()
-  updateNav()
-  updateThemeIcons()
-  window.headerSetSiteName = setSiteName
-  window.dashboardHeader = {
-    toggleTheme, goBack, isDarkTheme: () => isDarkTheme
-  }
-}
-
-// Re-run nav update after SPA content swap
-window.addEventListener('stx:navigate', function() {
-  updateNav()
+// Apply theme to document root reactively
+effect(() => {
+  document.documentElement.setAttribute('data-theme', isDark() ? 'dark' : 'light')
 })
 
-// Run on DOM ready
-if (_doc.readyState === 'loading') {
-  _addListener(_doc, 'DOMContentLoaded', init)
-} else {
-  init()
-}
+onMount(() => {
+  // Initialize theme from localStorage or system preference
+  const stored: string | null = localStorage.getItem('ts-analytics-theme')
+  if (stored) {
+    isDark.set(stored === 'dark')
+  } else {
+    isDark.set(!window.matchMedia('(prefers-color-scheme: light)').matches)
+  }
+
+  // Initialize siteId and current tab from URL
+  siteId.set(new URLSearchParams(window.location.search).get('siteId') || '')
+  currentTab.set(detectCurrentTab())
+
+  // Expose for backward compat with dashboard.ts
+  window.headerSetSiteName = (name: string) => siteName.set(name || 'Analytics Dashboard')
+  window.dashboardHeader = {
+    toggleTheme,
+    goBack,
+    isDarkTheme: () => isDark(),
+  }
+
+  // Re-run nav update after SPA content swap
+  const onNavigate = (): void => {
+    currentTab.set(detectCurrentTab())
+    siteId.set(new URLSearchParams(window.location.search).get('siteId') || '')
+  }
+  window.addEventListener('stx:navigate', onNavigate)
+
+  return () => {
+    window.removeEventListener('stx:navigate', onNavigate)
+  }
+})
+
+// Provide cross-component communication
+provide('dashboardHeader', {
+  siteName,
+  isDark,
+  currentTab,
+  siteId,
+  toggleTheme,
+  goBack,
+})
 </script>
 
 <header class="flex items-center justify-between py-3 px-6 bg-bg-2 border-b border-border gap-4">
   <div class="flex items-center gap-3">
-    <button class="icon-btn" onclick="window.dashboardHeader.goBack()" title="Back to sites">
+    <button class="icon-btn" @click="goBack()" title="Back to sites">
       <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
     </button>
-    <span id="current-site-name" class="font-semibold text-base text-text">Analytics Dashboard</span>
+    <span id="current-site-name" class="font-semibold text-base text-text">{{ siteName() }}</span>
   </div>
 
   <nav id="header-nav" class="header-nav flex gap-1 flex-wrap justify-center">
-    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard" data-tab="dashboard" data-stx-prefetch>Dashboard</a>
-    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/live" data-tab="live" data-stx-prefetch>Live</a>
-    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/sessions" data-tab="sessions" data-stx-prefetch>Sessions</a>
-    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/funnels" data-tab="funnels" data-stx-prefetch>Funnels</a>
-    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/flow" data-tab="flow" data-stx-prefetch>User Flow</a>
-    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/vitals" data-tab="vitals" data-stx-prefetch>Web Vitals</a>
-    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/errors" data-tab="errors" data-stx-prefetch>Errors</a>
-    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/insights" data-tab="insights" data-stx-prefetch>Insights</a>
-    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/settings" data-tab="settings" data-stx-prefetch>Settings</a>
+    <a @for="tab in tabs"
+       @class="['nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text', currentTab() === tab.id ? 'active' : '']"
+       :href="tabHref(tab)"
+       :data-tab="tab.id"
+       data-stx-prefetch>{{ tab.label }}</a>
   </nav>
 
   <div class="flex items-center gap-2">
-    <button id="theme-toggle" class="icon-btn" onclick="window.dashboardHeader.toggleTheme()" title="Toggle dark/light mode">
-      <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <button id="theme-toggle" class="icon-btn" @click="toggleTheme()" title="Toggle dark/light mode">
+      <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" @show="isDark()">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
       </svg>
-      <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none">
+      <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" @show="!isDark()">
         <circle cx="12" cy="12" r="5" stroke-width="2"/>
         <path stroke-linecap="round" stroke-width="2" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
       </svg>
@@ -175,7 +159,7 @@ if (_doc.readyState === 'loading') {
 </header>
 
 <style>
-/* Active nav state (toggled by JS) */
+/* Active nav state (toggled reactively via @class) */
 .nav-btn.active {
   background: var(--accent);
   color: white;

@@ -1,32 +1,40 @@
-<script client>
+<script client lang="ts">
 /**
  * LiveTab Component - Real-time visitor activity
  * Uses STX signals for reactive state management
  */
 
+interface LiveActivity {
+  path: string
+  country: string
+  device: string
+  browser: string
+  timestamp: string
+}
+
 import { useSiteApi } from '@composables'
 const { siteId: _siteId, apiUrl: _apiUrl } = useSiteApi()
 
-const activities = state([])
-const loading = state(true)
-const error = state(null)
+const activities = state<LiveActivity[]>([])
+const loading = state<boolean>(true)
+const error = state<string | null>(null)
 
 // Fetch live data
-async function fetchLive() {
+async function fetchLive(): Promise<void> {
   if (!_siteId()) { loading.set(false); return }
   try {
-    const res = await fetch(_apiUrl('/live'))
-    const data = await res.json()
+    const res: Response = await fetch(_apiUrl('/live'))
+    const data: { activities?: LiveActivity[] } = await res.json()
     activities.set(data.activities || [])
     error.set(null)
-  } catch (e) {
-    error.set(e.message)
+  } catch (e: unknown) {
+    error.set((e as Error).message)
   } finally {
     loading.set(false)
   }
 }
 
-function timeAgo(ts) {
+function timeAgo(ts: string | null): string {
   if (!ts) return ''
   const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000)
   if (diff < 5) return 'just now'
@@ -79,17 +87,17 @@ onMount(() => {
 </div>
 
 <style>
+/* Pulse animation for live indicator */
 .live-pulse {
-  width: 8px;
-  height: 8px;
-  background: var(--success);
-  border-radius: 50%;
+  @apply w-2 h-2 bg-success rounded-full;
   animation: pulse 2s infinite;
 }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+/* Spinner animation */
 .spinner {
   width: 16px;
   height: 16px;
@@ -98,7 +106,5 @@ onMount(() => {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
-@keyframes spin {
-  to { transform: rotate(-360deg); }
-}
+@keyframes spin { to { transform: rotate(-360deg); } }
 </style>

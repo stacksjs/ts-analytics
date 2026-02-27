@@ -1,4 +1,4 @@
-<script client>
+<script client lang="ts">
 /**
  * SiteSelector Component - Site selection and creation
  * Note: All functionality is handled by dashboard.ts (fetchSites, renderSiteSelector, etc.)
@@ -35,61 +35,31 @@
 
 /* Dynamic classes used by dashboard.ts renderSiteSelector() */
 .site-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-  width: 100%;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: left;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  color: var(--text);
-  margin-bottom: 0.5rem;
+  @apply flex items-center gap-4 w-full py-4 px-4 bg-bg-2 border border-border rounded-lg cursor-pointer text-left mb-2 transition-all duration-200 text-text;
 }
 .site-card:hover {
-  border-color: var(--accent);
+  @apply border-accent bg-bg-3;
   transform: translateY(-1px);
-  background: var(--bg3);
 }
 .site-icon {
-  width: 40px;
-  height: 40px;
-  background: var(--bg3);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: var(--accent);
+  @apply w-10 h-10 bg-bg-3 rounded-lg flex items-center justify-center shrink-0 text-accent;
 }
 .site-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-width: 0;
+  @apply flex-1 flex flex-col gap-1 min-w-0;
 }
 .site-name {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
+  @apply text-base font-semibold text-text;
 }
 .site-domain {
-  font-size: 0.75rem;
-  color: var(--muted);
+  @apply text-xs text-muted;
 }
 .arrow {
-  color: var(--muted);
-  flex-shrink: 0;
+  @apply text-muted shrink-0;
 }
 .site-card:hover .arrow {
   color: var(--accent);
 }
 .empty {
-  color: var(--muted);
-  padding: 2rem;
+  @apply text-muted p-8;
 }
 </style>

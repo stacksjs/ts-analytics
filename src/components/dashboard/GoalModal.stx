@@ -1,24 +1,54 @@
-<script client>
+<script client lang="ts">
 /**
  * GoalModal Component - Goal creation/editing modal
- * Uses STX signals for reactive form state
+ * Uses STX signals for reactive form state and provide/inject for cross-component communication
  */
 
 import { useSiteApi } from '@composables'
+
+interface Goal {
+  id: string
+  name: string
+  type: string
+  pattern?: string
+  matchType?: string
+  durationMinutes?: number
+  value?: number
+  isActive: boolean
+  conversions?: number
+  conversionRate?: number
+}
+
+interface GoalFormData {
+  name: string
+  type: string
+  pattern: string
+  matchType: string
+  durationMinutes?: number
+  value?: number
+  isActive: boolean
+}
+
+interface GoalModalAPI {
+  openCreate: () => void
+  openEdit: (goal: Goal) => void
+  close: () => void
+}
+
 const { siteId: _siteId, apiUrl: _apiUrl } = useSiteApi()
 
 // Form state signals
-const showModal = state(false)
-const isEditing = state(false)
-const editingGoalId = state(null)
-const goalName = state('')
-const goalType = state('pageview')
-const goalPattern = state('')
-const goalMatchType = state('exact')
-const goalDuration = state(5)
-const goalValue = state('')
-const saving = state(false)
-const error = state(null)
+const showModal = state<boolean>(false)
+const isEditing = state<boolean>(false)
+const editingGoalId = state<string | null>(null)
+const goalName = state<string>('')
+const goalType = state<string>('pageview')
+const goalPattern = state<string>('')
+const goalMatchType = state<string>('exact')
+const goalDuration = state<number>(5)
+const goalValue = state<string>('')
+const saving = state<boolean>(false)
+const error = state<string | null>(null)
 
 // Derived state for showing/hiding form sections
 const showPatternGroup = derived(() => goalType() !== 'duration')
@@ -26,7 +56,7 @@ const showDurationGroup = derived(() => goalType() === 'duration')
 const modalTitle = derived(() => isEditing() ? 'Edit Goal' : 'Create Goal')
 
 // Reset form to defaults
-function resetForm() {
+function resetForm(): void {
   goalName.set('')
   goalType.set('pageview')
   goalPattern.set('')
@@ -39,13 +69,13 @@ function resetForm() {
 }
 
 // Open modal for creating new goal
-function openCreateModal() {
+function openCreateModal(): void {
   resetForm()
   showModal.set(true)
 }
 
 // Open modal for editing existing goal
-function openEditModal(goal) {
+function openEditModal(goal: Goal): void {
   isEditing.set(true)
   editingGoalId.set(goal.id)
   goalName.set(goal.name || '')
@@ -59,13 +89,13 @@ function openEditModal(goal) {
 }
 
 // Close modal
-function closeModal() {
+function closeModal(): void {
   showModal.set(false)
   resetForm()
 }
 
 // Handle form submission
-async function handleSubmit(e) {
+async function handleSubmit(e: Event): Promise<void> {
   e.preventDefault()
   if (saving()) return
 
@@ -74,7 +104,7 @@ async function handleSubmit(e) {
     return
   }
 
-  const data = {
+  const data: GoalFormData = {
     name: goalName(),
     type: goalType(),
     pattern: goalType() !== 'duration' ? goalPattern() : '',
@@ -92,13 +122,13 @@ async function handleSubmit(e) {
   saving.set(true)
   error.set(null)
 
-  const url = isEditing()
+  const url: string = isEditing()
     ? _apiUrl(`/goals/${editingGoalId()}`)
     : _apiUrl('/goals')
-  const method = isEditing() ? 'PUT' : 'POST'
+  const method: string = isEditing() ? 'PUT' : 'POST'
 
   try {
-    const res = await fetch(url, {
+    const res: Response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -106,14 +136,14 @@ async function handleSubmit(e) {
 
     if (res.ok) {
       closeModal()
-      // Trigger dashboard refresh
+      // Trigger dashboard refresh via window globals (shared with dashboard.ts)
       if (window.fetchDashboardData) window.fetchDashboardData()
       if (window.refreshAllPanels) window.refreshAllPanels()
     } else {
-      const errData = await res.json()
+      const errData: { error?: string } = await res.json()
       error.set(errData.error || 'Failed to save goal')
     }
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('Save goal error:', err)
     error.set('Failed to save goal')
   } finally {
@@ -121,11 +151,20 @@ async function handleSubmit(e) {
   }
 }
 
-// Expose functions to window for external access
+// Provide goal modal API for other components via inject
+provide('goalModal', {
+  openCreate: openCreateModal,
+  openEdit: openEditModal,
+  close: closeModal
+})
+
+// Handle ESC key to close modal
 onMount(() => {
-  window.showCreateGoalModal = openCreateModal
-  window.showEditGoalModal = openEditModal
-  window.closeGoalModal = closeModal
+  const handleEsc = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape' && showModal()) closeModal()
+  }
+  document.addEventListener('keydown', handleEsc)
+  return () => document.removeEventListener('keydown', handleEsc)
 })
 </script>
 

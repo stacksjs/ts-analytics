@@ -1,24 +1,38 @@
-<script>
+<script client lang="ts">
 /**
  * Detail Page - Generic data detail view
  * Uses STX signals for reactive state management
  */
-const allData = state([])
-const filteredData = state([])
-const loading = state(true)
-const error = state(null)
-const searchQuery = state('')
-const currentPage = state(1)
-const pageSize = 50
+
+interface DataItem {
+  [key: string]: string | number | null
+}
+
+interface SectionConfig {
+  title: string
+  icon: string
+}
+
+interface StealthMap {
+  [key: string]: string
+}
+
+const allData = state<DataItem[]>([])
+const filteredData = state<DataItem[]>([])
+const loading = state<boolean>(true)
+const error = state<string | null>(null)
+const searchQuery = state<string>('')
+const currentPage = state<number>(1)
+const pageSize: number = 50
 
 // Get config from URL
-const urlParams = new URLSearchParams(window.location.search)
-const API = window.ANALYTICS_API || urlParams.get('api') || window.location.origin
-const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
-const USE_STEALTH = urlParams.get('stealth') !== 'false'
+const urlParams: URLSearchParams = new URLSearchParams(window.location.search)
+const API: string = window.ANALYTICS_API || urlParams.get('api') || window.location.origin
+const SITE_ID: string = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
+const USE_STEALTH: boolean = urlParams.get('stealth') !== 'false'
 
 // Stealth API path mapper
-const STEALTH_MAP = {
+const STEALTH_MAP: StealthMap = {
   sites: 'projects', stats: 'summary', realtime: 'pulse', pages: 'content',
   referrers: 'sources', devices: 'clients', browsers: 'agents', countries: 'geo',
   regions: 'area', cities: 'locale', timeseries: 'series', events: 'actions',
@@ -26,19 +40,19 @@ const STEALTH_MAP = {
   live: 'now', heatmap: 'touch', errors: 'issues', vitals: 'metrics',
   goals: 'targets', funnels: 'pipelines', annotations: 'notes'
 }
-function apiPath(path) {
+function apiPath(path: string): string {
   if (!USE_STEALTH) return path
-  let result = path.replace('/api/sites/', '/api/p/').replace('/api/sites', '/api/projects')
-  Object.keys(STEALTH_MAP).sort((a, b) => b.length - a.length).forEach(k => {
+  let result: string = path.replace('/api/sites/', '/api/p/').replace('/api/sites', '/api/projects')
+  Object.keys(STEALTH_MAP).sort((a: string, b: string) => b.length - a.length).forEach((k: string) => {
     result = result.replace(new RegExp(`/${k}(?=/|\\?|$)`, 'g'), `/${STEALTH_MAP[k]}`)
   })
   return result
 }
-const pathMatch = window.location.pathname.match(/\/dashboard\/(.+)/)
-const SECTION = pathMatch ? pathMatch[1] : 'pages'
+const pathMatch: RegExpMatchArray | null = window.location.pathname.match(/\/dashboard\/(.+)/)
+const SECTION: string = pathMatch ? pathMatch[1] : 'pages'
 
 // Section metadata
-const sections = {
+const sections: Record<string, SectionConfig> = {
   pages: {
     title: 'Pages',
     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
@@ -73,30 +87,30 @@ const sections = {
   }
 }
 
-const sectionConfig = sections[SECTION] || sections.pages
+const sectionConfig: SectionConfig = sections[SECTION] || sections.pages
 
 // Computed: paginated data
-const paginatedData = derived(() => {
-  const start = (currentPage() - 1) * pageSize
+const paginatedData = derived((): DataItem[] => {
+  const start: number = (currentPage() - 1) * pageSize
   return filteredData().slice(start, start + pageSize)
 })
 
 // Computed: total pages
-const totalPages = derived(() => Math.ceil(filteredData().length / pageSize))
+const totalPages = derived((): number => Math.ceil(filteredData().length / pageSize))
 
 // Computed: column keys
-const columnKeys = derived(() => {
-  const data = filteredData()
+const columnKeys = derived((): string[] => {
+  const data: DataItem[] = filteredData()
   return data.length > 0 ? Object.keys(data[0]) : []
 })
 
-async function loadData() {
+async function loadData(): Promise<void> {
   loading.set(true)
   try {
-    const res = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/${SECTION}`))
+    const res: Response = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/${SECTION}`))
     if (!res.ok) throw new Error('Failed to load')
-    const data = await res.json()
-    const items = data[SECTION] || data.pages || data.referrers || data.browsers || data.countries || data.campaigns || data.events || data.goals || []
+    const data: Record<string, DataItem[]> = await res.json()
+    const items: DataItem[] = data[SECTION] || data.pages || data.referrers || data.browsers || data.countries || data.campaigns || data.events || data.goals || []
     allData.set(items)
     filteredData.set([...items])
     error.set(null)
@@ -107,31 +121,31 @@ async function loadData() {
   }
 }
 
-function filterData() {
-  const query = searchQuery().toLowerCase()
+function filterData(): void {
+  const query: string = searchQuery().toLowerCase()
   if (!query) {
     filteredData.set([...allData()])
   } else {
-    filteredData.set(allData().filter(item =>
-      Object.values(item).some(val => String(val).toLowerCase().includes(query))
+    filteredData.set(allData().filter((item: DataItem) =>
+      Object.values(item).some((val: string | number | null) => String(val).toLowerCase().includes(query))
     ))
   }
   currentPage.set(1)
 }
 
-function goToPage(page) {
+function goToPage(page: number): void {
   currentPage.set(page)
 }
 
-function formatKey(key) {
-  return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
+function formatKey(key: string): string {
+  return key.replace(/([A-Z])/g, ' $1').replace(/^./, (s: string) => s.toUpperCase())
 }
 
-function formatValue(value, key) {
+function formatValue(value: string | number | null, key: string): string {
   if (value == null) return '-'
   if ((key.includes('time') || key.includes('Time')) && typeof value === 'number') {
-    const mins = Math.floor(value / 60000)
-    const secs = Math.floor((value % 60000) / 1000)
+    const mins: number = Math.floor(value / 60000)
+    const secs: number = Math.floor((value % 60000) / 1000)
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
   if ((key.includes('rate') || key.includes('Rate') || key === 'percentage') && typeof value === 'number') {
@@ -158,39 +172,39 @@ effect(() => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ sectionConfig.title }} - Analytics</title>
 </head>
-<body class="detail-page">
-  <div class="container">
-    <a :href="'/dashboard?siteId=' + SITE_ID" class="back-link">
-      <svg class="back-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<body class="font-sans bg-bg text-text min-h-screen p-8 antialiased">
+  <div class="max-w-6xl mx-auto">
+    <a :href="'/dashboard?siteId=' + SITE_ID" class="inline-flex items-center gap-1 text-accent no-underline mb-4 text-sm hover:underline">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
       Back to Dashboard
     </a>
 
-    <header class="page-header">
-      <h1 class="page-title">
-        <svg class="title-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <header class="mb-6">
+      <h1 class="flex items-center gap-3 text-2xl font-semibold text-text">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="sectionConfig.icon" />
         </svg>
         <span>{{ sectionConfig.title }}</span>
       </h1>
     </header>
 
-    <div class="search-bar">
+    <div class="mb-4">
       <input
         type="text"
         placeholder="Search..."
-        class="search-input"
+        class="search-input w-full max-w-xs py-2 px-4 bg-bg-2 border border-border rounded-md text-text text-sm outline-none transition-colors duration-150 focus:border-accent"
         @model="searchQuery"
       />
     </div>
 
-    <div @if="loading()" class="loading-state">
+    <div @if="loading()" class="flex items-center justify-center gap-2 text-center p-8 text-muted">
       <div class="spinner"></div>
       <span>Loading...</span>
     </div>
 
-    <div @if="error()" class="error-state">
+    <div @if="error()" class="text-center p-8 text-error">
       {{ error() }}
     </div>
 
@@ -199,31 +213,31 @@ effect(() => {
         No data available
       </div>
 
-      <div @if="filteredData().length > 0" class="table-container">
-        <table class="data-table">
+      <div @if="filteredData().length > 0" class="overflow-x-auto">
+        <table class="w-full border-collapse">
           <thead>
             <tr>
-              <th @for="key in columnKeys()">{{ formatKey(key) }}</th>
+              <th @for="key in columnKeys()" class="text-left py-3 px-3 text-muted font-medium text-sm border-b border-border">{{ formatKey(key) }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr @for="item in paginatedData()">
-              <td @for="key in columnKeys()">{{ formatValue(item[key], key) }}</td>
+            <tr @for="item in paginatedData()" class="data-row">
+              <td @for="key in columnKeys()" class="py-3 px-3 text-sm border-b border-bg-3">{{ formatValue(item[key], key) }}</td>
             </tr>
           </tbody>
         </table>
 
-        <div @if="totalPages() > 1" class="pagination">
+        <div @if="totalPages() > 1" class="flex items-center justify-center gap-4 mt-4">
           <button
             @click="goToPage(currentPage() - 1)"
             :disabled="currentPage() === 1"
-            class="pagination-btn"
+            class="py-2 px-4 bg-bg-3 border-none rounded-md text-text text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bg-2"
           >Previous</button>
-          <span class="pagination-info">Page {{ currentPage() }} of {{ totalPages() }}</span>
+          <span class="text-muted text-sm">Page {{ currentPage() }} of {{ totalPages() }}</span>
           <button
             @click="goToPage(currentPage() + 1)"
             :disabled="currentPage() === totalPages()"
-            class="pagination-btn"
+            class="py-2 px-4 bg-bg-3 border-none rounded-md text-text text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bg-2"
           >Next</button>
         </div>
       </div>
@@ -233,143 +247,11 @@ effect(() => {
 </html>
 
 <style>
-:root {
-  --bg: #111827;
-  --bg2: #1f2937;
-  --bg3: #374151;
-  --text: #f3f4f6;
-  --muted: #9ca3af;
-  --border: #374151;
-  --accent: #3b82f6;
-  --error: #ef4444;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body.detail-page {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  padding: 2rem;
-  -webkit-font-smoothing: antialiased;
-}
-.container {
-  max-width: 72rem;
-  margin: 0 auto;
-}
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--accent);
-  text-decoration: none;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-}
-.back-link:hover {
-  text-decoration: underline;
-}
-.back-icon {
-  width: 16px;
-  height: 16px;
-}
-.page-header {
-  margin-bottom: 1.5rem;
-}
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text);
-}
-.title-icon {
-  width: 24px;
-  height: 24px;
-}
-.search-bar {
-  margin-bottom: 1rem;
-}
-.search-input {
-  width: 100%;
-  max-width: 20rem;
-  padding: 0.5rem 1rem;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  font-size: 0.875rem;
-}
 .search-input::placeholder {
   color: var(--muted);
 }
-.search-input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-.table-container {
-  overflow-x: auto;
-}
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.data-table th {
-  text-align: left;
-  padding: 0.75rem;
-  color: var(--muted);
-  font-weight: 500;
-  font-size: 0.875rem;
-  border-bottom: 1px solid var(--border);
-}
-.data-table td {
-  padding: 0.75rem;
-  font-size: 0.875rem;
-  border-bottom: 1px solid var(--bg3);
-}
-.data-table tr:hover {
+.data-row:hover {
   background: rgba(55, 65, 81, 0.5);
-}
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-.pagination-btn {
-  padding: 0.5rem 1rem;
-  background: var(--bg3);
-  border: none;
-  border-radius: 6px;
-  color: var(--text);
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-.pagination-btn:hover:not(:disabled) {
-  background: var(--bg2);
-}
-.pagination-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.pagination-info {
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-.loading-state, .error-state, .empty-state {
-  text-align: center;
-  padding: 2rem;
-  color: var(--muted);
-}
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-.error-state {
-  color: var(--error);
 }
 .spinner {
   width: 16px;

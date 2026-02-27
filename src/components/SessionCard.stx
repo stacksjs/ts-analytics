@@ -1,12 +1,23 @@
-<script client>
+<script client lang="ts">
 /**
  * SessionCard Component
  * Displays a session summary with metadata
  */
-const session = $props.session || {}
-const onClick = $props.onClick
+interface Session {
+  id?: string
+  entryPath?: string
+  startedAt?: string
+  pageViewCount?: number
+  duration?: number
+  browser?: string
+  country?: string
+  isBounce?: boolean
+}
 
-function formatDuration(ms) {
+const session: Session = $props.session || {}
+const onClick: ((id: string | undefined) => void) | undefined = $props.onClick
+
+function formatDuration(ms: number | undefined): string {
   if (!ms) return '0s'
   const s = Math.floor(ms / 1000)
   if (s < 60) return s + 's'
@@ -22,62 +33,21 @@ const browser = derived(() => session.browser || 'Unknown')
 const country = derived(() => session.country || 'Unknown')
 const isBounce = derived(() => session.isBounce)
 
-function handleClick() {
+function handleClick(): void {
   if (onClick) onClick(session.id)
 }
 </script>
 
 <div class="session-card" @click="handleClick">
-  <div class="session-card-header">
-    <span class="session-path">{{ entryPath() }}</span>
-    <span class="session-time">{{ startTime() }}</span>
+  <div class="flex justify-between items-center mb-2">
+    <span class="font-medium text-sm text-text">{{ entryPath() }}</span>
+    <span class="text-xs text-muted">{{ startTime() }}</span>
   </div>
-  <div class="session-card-meta">
-    <span class="session-pages">{{ pageCount() }} pages</span>
-    <span class="session-duration">{{ duration() }}</span>
-    <span class="session-browser">{{ browser() }}</span>
-    <span class="session-country">{{ country() }}</span>
-    <span @if="isBounce()" class="bounced">Bounced</span>
+  <div class="flex gap-3 flex-wrap text-xs text-muted">
+    <span>{{ pageCount() }} pages</span>
+    <span>{{ duration() }}</span>
+    <span>{{ browser() }}</span>
+    <span>{{ country() }}</span>
+    <span @if="isBounce()" class="text-warning font-medium">Bounced</span>
   </div>
 </div>
-
-<style>
-.session-card {
-  background: var(--bg2);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  margin-bottom: 0.5rem;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  transition: border-color 0.15s;
-}
-.session-card:hover {
-  border-color: var(--accent);
-}
-.session-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-.session-path {
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: var(--text);
-}
-.session-time {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-.session-card-meta {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-.bounced {
-  color: #f59e0b;
-  font-weight: 500;
-}
-</style>

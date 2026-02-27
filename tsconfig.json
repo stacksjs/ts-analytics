@@ -8,10 +8,6 @@
     "resolveJsonModule": true,
     "types": ["bun"],
     "baseUrl": ".",
-    "paths": {
-      "@stacksjs/bun-router": ["./src/types/bun-router.d.ts"],
-      "@stacksjs/stx": ["./src/types/stx.d.ts"]
-    },
     "allowImportingTsExtensions": true,
     "strict": true,
     "strictNullChecks": true,

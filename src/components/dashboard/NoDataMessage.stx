@@ -1,10 +1,16 @@
-<script server>
+<script server lang="ts">
 /**
  * NoDataMessage Component
  *
  * Displays instructions when no analytics data is available.
  * Props: siteId, apiEndpoint (passed from parent)
  */
+
+interface NoDataMessageProps {
+  siteId?: string
+  apiEndpoint?: string
+}
+
 // Props are automatically available from parent context
 </script>
 

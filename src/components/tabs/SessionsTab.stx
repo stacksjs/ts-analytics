@@ -1,18 +1,54 @@
-<script client>
+<script client lang="ts">
 /**
  * SessionsTab Component - User sessions display
  */
+
+interface Session {
+  id: string
+  sessionId: string
+  entryPage: string
+  entryPath: string
+  startTime: string
+  startedAt: string
+  pageViews: number
+  pageViewCount: number
+  duration: number
+  bounced: boolean
+  isBounce: boolean
+  browser: string
+  country: string
+}
+
+interface PageView {
+  path: string
+}
+
+interface SessionEvent {
+  type: string
+  name: string
+  path: string
+  message: string
+  timestamp: string
+}
+
+interface SessionDetail {
+  pageViewCount: number
+  pageViews: PageView[]
+  duration: number
+  browser: string
+  country: string
+  events: SessionEvent[]
+}
 
 import { useSiteApi, useModal } from '@composables'
 const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi()
 const Modal = useModal()
 
-// DOM helpers
-const _doc = document
-const _getEl = (id) => _doc.getElementById(id)
-const _addListener = (el, event, fn) => el.addEventListener(event, fn)
+const sessions = state<Session[]>([])
+const loading = state<boolean>(true)
+const error = state<string | null>(null)
 
-function formatDuration(ms) {
+function formatDuration(ms: number): string {
   if (!ms) return '0s'
   const seconds = Math.floor(ms / 1000)
   if (seconds < 60) return seconds + 's'
@@ -22,7 +58,7 @@ function formatDuration(ms) {
   return hours + 'h ' + (minutes % 60) + 'm'
 }
 
-function timeAgo(timestamp) {
+function timeAgo(timestamp: string | null): string {
   if (!timestamp) return 'Just now'
   const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000)
   if (seconds < 60) return 'Just now'
@@ -31,47 +67,22 @@ function timeAgo(timestamp) {
   return Math.floor(seconds / 86400) + 'd ago'
 }
 
-async function fetchSessions() {
-  const siteId = _siteId()
-  const container = _getEl('sessions-container')
-  const countEl = _getEl('sessions-count')
-
-  if (!siteId || !container) return
-
-  container.innerHTML = '<div class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg"><div class="spinner"></div><span>Loading...</span></div>'
-
+async function fetchSessions(): Promise<void> {
+  if (!_siteId()) { loading.set(false); return }
+  loading.set(true)
+  error.set(null)
   try {
-    const res = await fetch(_apiUrl('/sessions' + _dateParams()))
-    const data = await res.json()
-    const sessions = data.sessions || []
-
-    if (countEl) countEl.textContent = sessions.length
-
-    if (sessions.length === 0) {
-      container.innerHTML = '<div class="empty-state">No sessions recorded yet.</div>'
-      return
-    }
-
-    container.innerHTML = sessions.map(session => `
-      <div class="session-card" data-session-id="${session.sessionId || session.id}" onclick="viewSession('${session.sessionId || session.id}')">
-        <div class="flex justify-between items-center mb-2">
-          <span class="font-medium text-text">${session.entryPage || session.entryPath || '/'}</span>
-          <span class="text-xs text-muted">${timeAgo(session.startTime || session.startedAt)}</span>
-        </div>
-        <div class="flex gap-4 text-xs text-muted">
-          <span>${session.pageViews || session.pageViewCount || 1} page${(session.pageViews || session.pageViewCount || 1) !== 1 ? 's' : ''}</span>
-          <span class="${session.bounced || session.isBounce ? 'text-error' : ''}">${session.bounced || session.isBounce ? 'Bounced' : formatDuration(session.duration)}</span>
-          <span>${session.browser || 'Unknown'}</span>
-          <span>${session.country || 'Unknown'}</span>
-        </div>
-      </div>
-    `).join('')
-  } catch (e) {
-    container.innerHTML = `<div class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">${e.message}</div>`
+    const res: Response = await fetch(_apiUrl('/sessions' + _dateParams()))
+    const data: { sessions?: Session[] } = await res.json()
+    sessions.set(data.sessions || [])
+  } catch (e: unknown) {
+    error.set((e as Error).message)
+  } finally {
+    loading.set(false)
   }
 }
 
-async function viewSession(sessionId) {
+async function viewSession(sessionId: string): Promise<void> {
   // Show loading modal
   Modal.open({
     title: `Session ${sessionId.slice(0, 8)}...`,
@@ -81,8 +92,8 @@ async function viewSession(sessionId) {
   })
 
   try {
-    const res = await fetch(_apiUrl('/sessions/' + sessionId))
-    const data = await res.json()
+    const res: Response = await fetch(_apiUrl('/sessions/' + sessionId))
+    const data: SessionDetail = await res.json()
 
     const stats = `
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
@@ -108,8 +119,8 @@ async function viewSession(sessionId) {
     const journey = data.pageViews ? `
       <h4 class="text-sm font-medium text-muted mb-3">Session Journey</h4>
       <div class="flex items-center gap-2 flex-wrap">
-        ${data.pageViews.map((pv, i) =>
-          `${i > 0 ? '<span class="text-accent font-bold">→</span>' : ''}<div class="bg-bg-2 border border-border py-2 px-3 rounded-md text-[0.8125rem] text-text">${pv.path || '/'}</div>`
+        ${data.pageViews.map((pv: PageView, i: number) =>
+          `${i > 0 ? '<span class="text-accent font-bold">&rarr;</span>' : ''}<div class="bg-bg-2 border border-border py-2 px-3 rounded-md text-[0.8125rem] text-text">${pv.path || '/'}</div>`
         ).join('')}
       </div>
     ` : ''
@@ -117,7 +128,7 @@ async function viewSession(sessionId) {
     const timeline = data.events ? `
       <h4 class="text-sm font-medium text-muted mt-6 mb-3">Timeline (${data.events.length} events)</h4>
       <div class="max-h-[300px] overflow-y-auto flex flex-col gap-2">
-        ${data.events.map(e => {
+        ${data.events.map((e: SessionEvent) => {
           const type = e.type || 'event'
           return `<div class="flex items-center gap-3 p-2 bg-bg-2 rounded-md">
             <div class="timeline-type ${type}">${type}</div>
@@ -135,10 +146,10 @@ async function viewSession(sessionId) {
       size: 'lg',
       className: 'session-modal'
     })
-  } catch (e) {
+  } catch (e: unknown) {
     Modal.open({
       title: 'Error',
-      content: `<p class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">Failed to load session: ${e.message}</p>`,
+      content: `<p class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">Failed to load session: ${(e as Error).message}</p>`,
       showFooter: false
     })
   }
@@ -146,34 +157,37 @@ async function viewSession(sessionId) {
 
 provide('viewSession', viewSession)
 
-if (_doc.readyState === 'loading') {
-  _addListener(_doc, 'DOMContentLoaded', fetchSessions)
-} else {
+onMount(() => {
   fetchSessions()
-}
+})
 </script>
 
 <div class="col-span-full">
-  <h3 class="text-base font-semibold text-text mb-4">Sessions (<span id="sessions-count">0</span>)</h3>
-  <div id="sessions-container" class="flex flex-col gap-3">
-    <div class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
-      <div class="spinner"></div>
-      <span>Loading...</span>
+  <h3 class="text-base font-semibold text-text mb-4">Sessions (<span>{{ sessions().length }}</span>)</h3>
+  <div class="flex flex-col gap-3">
+    <div @if="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
+      <div class="spinner"></div><span>Loading...</span>
+    </div>
+    <div @if="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">{{ error() }}</div>
+    <div @if="!loading() && !error() && sessions().length === 0" class="empty-state">No sessions recorded yet.</div>
+    <div @for="session in sessions()" @if="!loading() && !error()" class="session-card" @click="viewSession(session.sessionId || session.id)">
+      <div class="flex justify-between items-center mb-2">
+        <span class="font-medium text-text">{{ session.entryPage || session.entryPath || '/' }}</span>
+        <span class="text-xs text-muted">{{ timeAgo(session.startTime || session.startedAt) }}</span>
+      </div>
+      <div class="flex gap-4 text-xs text-muted">
+        <span>{{ (session.pageViews || session.pageViewCount || 1) }} page{{ (session.pageViews || session.pageViewCount || 1) !== 1 ? 's' : '' }}</span>
+        <span @class="[(session.bounced || session.isBounce) ? 'text-error' : '']">{{ (session.bounced || session.isBounce) ? 'Bounced' : formatDuration(session.duration) }}</span>
+        <span>{{ session.browser || 'Unknown' }}</span>
+        <span>{{ session.country || 'Unknown' }}</span>
+      </div>
     </div>
   </div>
 </div>
 
 <style>
-/* Timeline type badges - color-coded by event type */
-.timeline-type {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  min-width: 60px;
-  text-align: center;
-}
+/* Timeline type badges - base + color variants (rgba values) */
+.timeline-type { @apply text-[0.6875rem] font-semibold uppercase py-1 px-2 rounded min-w-[60px] text-center; }
 .timeline-type.pageview { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
 .timeline-type.event { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
 .timeline-type.click { background: rgba(168, 85, 247, 0.15); color: #a855f7; }

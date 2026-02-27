@@ -1,8 +1,8 @@
-<script server>
-export const title = props.title || 'Analytics Dashboard'
-export const containerClass = props.containerClass || 'max-w-6xl'
-export const apiEndpoint = props.apiEndpoint || ''
-export const siteId = props.siteId || ''
+<script server lang="ts">
+export const title: string = props.title || 'Analytics Dashboard'
+export const containerClass: string = props.containerClass || 'max-w-6xl'
+export const apiEndpoint: string = props.apiEndpoint || ''
+export const siteId: string = props.siteId || ''
 </script>
 
 <!DOCTYPE html>

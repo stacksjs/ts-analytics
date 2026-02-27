@@ -1,55 +1,109 @@
-<script>
+<script client lang="ts">
 /**
  * Error Detail Page - Individual error view
  * Uses STX signals for reactive state management
  */
-const errorData = state(null)
-const loading = state(true)
-const error = state(null)
+
+interface ErrorOccurrence {
+  url?: string
+  browser?: string
+  browserVersion?: string
+  os?: string
+  osVersion?: string
+  environment?: string
+  framework?: string
+  componentName?: string
+  deviceType?: string
+  stack?: string
+  timestamp?: string
+  tags?: Record<string, string>
+  breadcrumbs?: Breadcrumb[]
+}
+
+interface Breadcrumb {
+  type: string
+  category: string
+  message: string
+  timestamp: string
+}
+
+interface ErrorDetail {
+  message?: string
+  severity?: string
+  status?: string
+  count?: number
+  firstSeen?: string
+  lastSeen?: string
+  affectedVisitors?: number
+  browsers?: string[]
+  operatingSystems?: string[]
+  devices?: string[]
+  frameworks?: string[]
+  environments?: Record<string, number>
+  latestOccurrence?: ErrorOccurrence
+  stack?: string
+  affectedUrls?: string[]
+  recentOccurrences?: ErrorOccurrence[]
+  trend?: string
+  category?: string
+}
+
+interface ErrorApiResponse {
+  error?: ErrorDetail
+  errors?: ErrorDetail[]
+}
+
+interface StealthMap {
+  [key: string]: string
+}
+
+const errorData = state<ErrorDetail | null>(null)
+const loading = state<boolean>(true)
+const error = state<string | null>(null)
 
 // Get config from URL
-const urlParams = new URLSearchParams(window.location.search)
-const API = window.ANALYTICS_API || urlParams.get('api') || window.location.origin
-const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
-const pathMatch = window.location.pathname.match(/\/errors\/(.+)/)
-const ERROR_ID = pathMatch ? decodeURIComponent(pathMatch[1]) : ''
-const USE_STEALTH = urlParams.get('stealth') !== 'false'
+const urlParams: URLSearchParams = new URLSearchParams(window.location.search)
+const API: string = window.ANALYTICS_API || urlParams.get('api') || window.location.origin
+const SITE_ID: string = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
+const pathMatch: RegExpMatchArray | null = window.location.pathname.match(/\/errors\/(.+)/)
+const ERROR_ID: string = pathMatch ? decodeURIComponent(pathMatch[1]) : ''
+const USE_STEALTH: boolean = urlParams.get('stealth') !== 'false'
 
 // Stealth API path mapper
-const STEALTH_MAP = {
+const STEALTH_MAP: StealthMap = {
   sites: 'projects', errors: 'issues', 'errors/statuses': 'issues/states',
   'errors/status': 'issues/state'
 }
-function apiPath(path) {
+function apiPath(path: string): string {
   if (!USE_STEALTH) return path
-  let result = path.replace('/api/sites/', '/api/p/').replace('/api/sites', '/api/projects')
-  Object.keys(STEALTH_MAP).sort((a, b) => b.length - a.length).forEach(k => {
+  let result: string = path.replace('/api/sites/', '/api/p/').replace('/api/sites', '/api/projects')
+  Object.keys(STEALTH_MAP).sort((a: string, b: string) => b.length - a.length).forEach((k: string) => {
     result = result.replace(new RegExp(`/${k}(?=/|\\?|$)`, 'g'), `/${STEALTH_MAP[k]}`)
   })
   return result
 }
 
 // Status class mapping
-function getStatusClass(status) {
+function getStatusClass(status: string | undefined): string {
   if (status === 'resolved') return 'status-resolved'
   if (status === 'ignored') return 'status-ignored'
   return 'status-open'
 }
 
-function getSeverityClass(severity) {
+function getSeverityClass(severity: string | undefined): string {
   if (severity === 'critical') return 'severity-critical'
   if (severity === 'high') return 'severity-high'
   if (severity === 'medium') return 'severity-medium'
   return 'severity-low'
 }
 
-async function loadErrorDetails() {
+async function loadErrorDetails(): Promise<void> {
   loading.set(true)
   try {
     // Try the new detail endpoint first
-    const detailRes = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/errors/${encodeURIComponent(ERROR_ID)}`))
+    const detailRes: Response = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/errors/${encodeURIComponent(ERROR_ID)}`))
     if (detailRes.ok) {
-      const data = await detailRes.json()
+      const data: ErrorApiResponse = await detailRes.json()
       if (data.error) {
         errorData.set(data.error)
         error.set(null)
@@ -59,21 +113,21 @@ async function loadErrorDetails() {
     }
 
     // Fallback to legacy query
-    const res = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/errors?errorId=${encodeURIComponent(ERROR_ID)}`))
+    const res: Response = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/errors?errorId=${encodeURIComponent(ERROR_ID)}`))
     if (!res.ok) throw new Error('Failed to load')
-    const data = await res.json()
-    const err = data.errors?.[0]
+    const data: ErrorApiResponse = await res.json()
+    const err: ErrorDetail | undefined = data.errors?.[0]
     if (!err) throw new Error('Error not found')
     errorData.set(err)
     error.set(null)
   } catch (err) {
-    error.set(err.message || 'Failed to load error details')
+    error.set((err as Error).message || 'Failed to load error details')
   } finally {
     loading.set(false)
   }
 }
 
-async function updateStatus(newStatus) {
+async function updateStatus(newStatus: string): Promise<void> {
   try {
     await fetch(apiPath(`${API}/api/sites/${SITE_ID}/errors/status`), {
       method: 'POST',
@@ -86,23 +140,23 @@ async function updateStatus(newStatus) {
   }
 }
 
-function formatDate(timestamp) {
+function formatDate(timestamp: string | undefined): string {
   if (!timestamp) return 'N/A'
   return new Date(timestamp).toLocaleString()
 }
 
-function formatRelativeTime(timestamp) {
+function formatRelativeTime(timestamp: string | undefined): string {
   if (!timestamp) return ''
-  const diff = Date.now() - new Date(timestamp).getTime()
-  const minutes = Math.floor(diff / 60000)
+  const diff: number = Date.now() - new Date(timestamp).getTime()
+  const minutes: number = Math.floor(diff / 60000)
   if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
+  const hours: number = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
+  const days: number = Math.floor(hours / 24)
   return `${days}d ago`
 }
 
-function getBreadcrumbIcon(type) {
+function getBreadcrumbIcon(type: string): string {
   if (type === 'navigation') return '🔗'
   if (type === 'ui') return '👆'
   if (type === 'console') return '📋'
@@ -123,45 +177,45 @@ onMount(() => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Error Details - Analytics</title>
 </head>
-<body class="error-detail-page">
-  <div class="container">
-    <a :href="'/dashboard/errors?siteId=' + SITE_ID" class="back-link">
-      <svg class="back-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<body class="font-sans bg-bg text-text min-h-screen p-8 antialiased">
+  <div class="max-w-6xl mx-auto">
+    <a :href="'/dashboard/errors?siteId=' + SITE_ID" class="inline-flex items-center gap-1 text-accent no-underline mb-4 text-sm hover:underline">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
       Back to Errors
     </a>
 
-    <header class="page-header">
-      <h1 class="page-title">Error Details</h1>
+    <header class="mb-6">
+      <h1 class="text-2xl font-semibold text-text">Error Details</h1>
     </header>
 
-    <div class="error-id-display">
+    <div class="bg-bg-2 rounded-lg py-3 px-4 font-mono text-sm break-all mb-6">
       Error ID: {{ ERROR_ID }}
     </div>
 
-    <div @if="loading()" class="loading-state">
+    <div @if="loading()" class="flex items-center justify-center gap-2 text-center p-8 text-muted">
       <div class="spinner"></div>
       <span>Loading error details...</span>
     </div>
 
-    <div @if="error()" class="error-state">
+    <div @if="error()" class="text-center p-8 text-error">
       {{ error() }}
     </div>
 
-    <div @if="!loading() && !error() && errorData()" class="error-detail-content">
+    <div @if="!loading() && !error() && errorData()" class="flex flex-col gap-6">
       <!-- Header Card -->
       <div class="error-card">
-        <div class="error-card-header">
-          <h3 class="error-message">{{ errorData().message ? errorData().message : 'Unknown Error' }}</h3>
-          <div class="error-badges">
+        <div class="flex justify-between items-start mb-4 gap-4 flex-wrap">
+          <h3 class="text-lg font-medium text-error flex-1 min-w-[200px]">{{ errorData().message ? errorData().message : 'Unknown Error' }}</h3>
+          <div class="flex gap-2 flex-wrap">
             <span @if="errorData().severity" @class="['severity-badge', getSeverityClass(errorData().severity)]">
               {{ errorData().severity }}
             </span>
             <span @if="errorData().trend" @class="['trend-badge', 'trend-' + errorData().trend]">
               {{ errorData().trend }}
             </span>
-            <span @if="errorData().category" class="category-badge">
+            <span @if="errorData().category" class="py-1 px-2 rounded text-xs bg-bg-3 text-muted">
               {{ errorData().category }}
             </span>
             <span @class="['error-status-badge', getStatusClass(errorData().status)]">
@@ -170,7 +224,7 @@ onMount(() => {
           </div>
         </div>
 
-        <div class="error-actions">
+        <div class="flex gap-2">
           <button
             @if="errorData().status !== 'resolved'"
             @click="updateStatus('resolved')"
@@ -192,88 +246,88 @@ onMount(() => {
       <!-- Overview Grid -->
       <div class="error-meta-grid">
         <div class="meta-card">
-          <div class="meta-label">First Seen</div>
-          <div class="meta-value">{{ formatDate(errorData().firstSeen) }}</div>
+          <div class="text-xs text-muted mb-1">First Seen</div>
+          <div class="text-sm font-medium text-text">{{ formatDate(errorData().firstSeen) }}</div>
         </div>
         <div class="meta-card">
-          <div class="meta-label">Last Seen</div>
-          <div class="meta-value">{{ formatDate(errorData().lastSeen) }}</div>
+          <div class="text-xs text-muted mb-1">Last Seen</div>
+          <div class="text-sm font-medium text-text">{{ formatDate(errorData().lastSeen) }}</div>
         </div>
         <div class="meta-card">
-          <div class="meta-label">Occurrences</div>
-          <div class="meta-value">{{ errorData().count ? errorData().count : 1 }}</div>
+          <div class="text-xs text-muted mb-1">Occurrences</div>
+          <div class="text-sm font-medium text-text">{{ errorData().count ? errorData().count : 1 }}</div>
         </div>
         <div class="meta-card">
-          <div class="meta-label">Affected Visitors</div>
-          <div class="meta-value">{{ errorData().affectedVisitors || errorData().count || 1 }}</div>
+          <div class="text-xs text-muted mb-1">Affected Visitors</div>
+          <div class="text-sm font-medium text-text">{{ errorData().affectedVisitors || errorData().count || 1 }}</div>
         </div>
         <div class="meta-card">
-          <div class="meta-label">Browsers</div>
-          <div class="meta-value">{{ (errorData().browsers ? errorData().browsers : []).length > 0 ? (errorData().browsers ? errorData().browsers : []).join(', ') : 'Unknown' }}</div>
+          <div class="text-xs text-muted mb-1">Browsers</div>
+          <div class="text-sm font-medium text-text">{{ (errorData().browsers ? errorData().browsers : []).length > 0 ? (errorData().browsers ? errorData().browsers : []).join(', ') : 'Unknown' }}</div>
         </div>
         <div class="meta-card">
-          <div class="meta-label">Operating Systems</div>
-          <div class="meta-value">{{ (errorData().operatingSystems || []).join(', ') || errorData().latestOccurrence?.os || 'Unknown' }}</div>
+          <div class="text-xs text-muted mb-1">Operating Systems</div>
+          <div class="text-sm font-medium text-text">{{ (errorData().operatingSystems || []).join(', ') || errorData().latestOccurrence?.os || 'Unknown' }}</div>
         </div>
         <div class="meta-card">
-          <div class="meta-label">Devices</div>
-          <div class="meta-value">{{ (errorData().devices ? errorData().devices : []).length > 0 ? (errorData().devices ? errorData().devices : []).join(', ') : (errorData().latestOccurrence?.deviceType ? errorData().latestOccurrence.deviceType : 'Unknown') }}</div>
+          <div class="text-xs text-muted mb-1">Devices</div>
+          <div class="text-sm font-medium text-text">{{ (errorData().devices ? errorData().devices : []).length > 0 ? (errorData().devices ? errorData().devices : []).join(', ') : (errorData().latestOccurrence?.deviceType ? errorData().latestOccurrence.deviceType : 'Unknown') }}</div>
         </div>
         <div class="meta-card">
-          <div class="meta-label">Frameworks</div>
-          <div class="meta-value">{{ (errorData().frameworks ? errorData().frameworks : []).length > 0 ? (errorData().frameworks ? errorData().frameworks : []).join(', ') : (errorData().latestOccurrence?.framework ? errorData().latestOccurrence.framework : 'Unknown') }}</div>
+          <div class="text-xs text-muted mb-1">Frameworks</div>
+          <div class="text-sm font-medium text-text">{{ (errorData().frameworks ? errorData().frameworks : []).length > 0 ? (errorData().frameworks ? errorData().frameworks : []).join(', ') : (errorData().latestOccurrence?.framework ? errorData().latestOccurrence.framework : 'Unknown') }}</div>
         </div>
       </div>
 
       <!-- Environment Breakdown -->
-      <div @if="errorData().environments && Object.keys(errorData().environments).length > 0" class="section">
-        <h4 class="section-title">Environment Breakdown</h4>
-        <div class="env-breakdown">
-          <div @for="env in Object.entries(errorData().environments)" class="env-bar-row">
-            <span class="env-bar-label">{{ env[0] }}</span>
-            <div class="env-bar-track">
-              <div class="env-bar-fill" :style="`width: ${Math.min(100, Math.round((env[1] / (errorData().count || 1)) * 100))}%`"></div>
+      <div @if="errorData().environments && Object.keys(errorData().environments).length > 0" class="bg-bg-2 rounded-lg p-6">
+        <h4 class="text-base font-semibold text-text mb-4">Environment Breakdown</h4>
+        <div class="flex flex-col gap-2">
+          <div @for="env in Object.entries(errorData().environments)" class="flex items-center gap-3">
+            <span class="text-[0.8125rem] text-text min-w-[100px] font-medium">{{ env[0] }}</span>
+            <div class="flex-1 h-5 bg-bg rounded overflow-hidden">
+              <div class="h-full bg-accent rounded min-w-[4px] transition-[width] duration-300" :style="`width: ${Math.min(100, Math.round((env[1] / (errorData().count || 1)) * 100))}%`"></div>
             </div>
-            <span class="env-bar-count">{{ env[1] }}</span>
+            <span class="text-[0.8125rem] text-muted min-w-[40px] text-right">{{ env[1] }}</span>
           </div>
         </div>
       </div>
 
       <!-- Latest Occurrence Details -->
-      <div @if="errorData().latestOccurrence" class="section">
-        <h4 class="section-title">Latest Occurrence</h4>
+      <div @if="errorData().latestOccurrence" class="bg-bg-2 rounded-lg p-6">
+        <h4 class="text-base font-semibold text-text mb-4">Latest Occurrence</h4>
         <div class="error-meta-grid">
           <div class="meta-card">
-            <div class="meta-label">URL</div>
-            <div class="meta-value truncate">{{ errorData().latestOccurrence.url ? errorData().latestOccurrence.url : 'Unknown' }}</div>
+            <div class="text-xs text-muted mb-1">URL</div>
+            <div class="text-sm font-medium text-text truncate">{{ errorData().latestOccurrence.url ? errorData().latestOccurrence.url : 'Unknown' }}</div>
           </div>
           <div class="meta-card">
-            <div class="meta-label">Browser</div>
-            <div class="meta-value">{{ errorData().latestOccurrence.browser ? errorData().latestOccurrence.browser : '' }} {{ errorData().latestOccurrence.browserVersion ? errorData().latestOccurrence.browserVersion : '' }}</div>
+            <div class="text-xs text-muted mb-1">Browser</div>
+            <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.browser ? errorData().latestOccurrence.browser : '' }} {{ errorData().latestOccurrence.browserVersion ? errorData().latestOccurrence.browserVersion : '' }}</div>
           </div>
           <div class="meta-card">
-            <div class="meta-label">OS</div>
-            <div class="meta-value">{{ errorData().latestOccurrence.os ? errorData().latestOccurrence.os : '' }} {{ errorData().latestOccurrence.osVersion ? errorData().latestOccurrence.osVersion : '' }}</div>
+            <div class="text-xs text-muted mb-1">OS</div>
+            <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.os ? errorData().latestOccurrence.os : '' }} {{ errorData().latestOccurrence.osVersion ? errorData().latestOccurrence.osVersion : '' }}</div>
           </div>
           <div @if="errorData().latestOccurrence.environment" class="meta-card">
-            <div class="meta-label">Environment</div>
-            <div class="meta-value">{{ errorData().latestOccurrence.environment }}</div>
+            <div class="text-xs text-muted mb-1">Environment</div>
+            <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.environment }}</div>
           </div>
           <div @if="errorData().latestOccurrence.framework" class="meta-card">
-            <div class="meta-label">Framework</div>
-            <div class="meta-value">{{ errorData().latestOccurrence.framework }}</div>
+            <div class="text-xs text-muted mb-1">Framework</div>
+            <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.framework }}</div>
           </div>
           <div @if="errorData().latestOccurrence.componentName" class="meta-card">
-            <div class="meta-label">Component</div>
-            <div class="meta-value">{{ errorData().latestOccurrence.componentName }}</div>
+            <div class="text-xs text-muted mb-1">Component</div>
+            <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.componentName }}</div>
           </div>
         </div>
 
         <!-- Tags -->
-        <div @if="errorData().latestOccurrence.tags && Object.keys(errorData().latestOccurrence.tags).length > 0" class="tags-section">
-          <h5 class="subsection-title">Tags</h5>
-          <div class="tags-list">
-            <span @for="key in Object.keys(errorData().latestOccurrence.tags)" class="tag">
+        <div @if="errorData().latestOccurrence.tags && Object.keys(errorData().latestOccurrence.tags).length > 0" class="mt-2">
+          <h5 class="text-sm font-semibold text-muted mt-4 mb-2">Tags</h5>
+          <div class="flex flex-wrap gap-2">
+            <span @for="key in Object.keys(errorData().latestOccurrence.tags)" class="bg-bg-3 text-muted py-1 px-2 rounded text-xs font-mono">
               {{ key }}: {{ errorData().latestOccurrence.tags[key] }}
             </span>
           </div>
@@ -281,38 +335,38 @@ onMount(() => {
       </div>
 
       <!-- Stack Trace -->
-      <div @if="errorData().latestOccurrence?.stack || errorData().stack" class="section">
-        <h4 class="section-title">Stack Trace</h4>
-        <pre class="error-stack">{{ errorData().latestOccurrence?.stack ? errorData().latestOccurrence.stack : errorData().stack }}</pre>
+      <div @if="errorData().latestOccurrence?.stack || errorData().stack" class="bg-bg-2 rounded-lg p-6">
+        <h4 class="text-base font-semibold text-text mb-4">Stack Trace</h4>
+        <pre class="bg-bg rounded-md p-4 text-[0.8125rem] overflow-x-auto whitespace-pre-wrap break-words font-mono leading-relaxed">{{ errorData().latestOccurrence?.stack ? errorData().latestOccurrence.stack : errorData().stack }}</pre>
       </div>
 
       <!-- Breadcrumbs -->
-      <div @if="errorData().latestOccurrence?.breadcrumbs && errorData().latestOccurrence.breadcrumbs.length > 0" class="section">
-        <h4 class="section-title">Breadcrumbs</h4>
-        <div class="breadcrumbs-timeline">
-          <div @for="bc in errorData().latestOccurrence.breadcrumbs" class="breadcrumb-item">
-            <span class="breadcrumb-icon">{{ getBreadcrumbIcon(bc.type) }}</span>
-            <div class="breadcrumb-content">
-              <span class="breadcrumb-category">{{ bc.category }}</span>
-              <span class="breadcrumb-message">{{ bc.message }}</span>
+      <div @if="errorData().latestOccurrence?.breadcrumbs && errorData().latestOccurrence.breadcrumbs.length > 0" class="bg-bg-2 rounded-lg p-6">
+        <h4 class="text-base font-semibold text-text mb-4">Breadcrumbs</h4>
+        <div class="flex flex-col gap-2">
+          <div @for="bc in errorData().latestOccurrence.breadcrumbs" class="flex items-center gap-3 py-2 px-3 bg-bg rounded-md text-[0.8125rem]">
+            <span class="shrink-0 w-5 text-center">{{ getBreadcrumbIcon(bc.type) }}</span>
+            <div class="flex-1 min-w-0">
+              <span class="text-accent font-medium mr-2">{{ bc.category }}</span>
+              <span class="text-text break-words">{{ bc.message }}</span>
             </div>
-            <span class="breadcrumb-time">{{ formatRelativeTime(bc.timestamp) }}</span>
+            <span class="shrink-0 text-muted text-xs">{{ formatRelativeTime(bc.timestamp) }}</span>
           </div>
         </div>
       </div>
 
       <!-- Affected URLs -->
-      <div @if="errorData().affectedUrls && errorData().affectedUrls.length > 0" class="section">
-        <h4 class="section-title">Affected URLs</h4>
-        <ul class="url-list">
-          <li @for="url in errorData().affectedUrls" class="url-item">{{ url }}</li>
+      <div @if="errorData().affectedUrls && errorData().affectedUrls.length > 0" class="bg-bg-2 rounded-lg p-6">
+        <h4 class="text-base font-semibold text-text mb-4">Affected URLs</h4>
+        <ul class="list-none">
+          <li @for="url in errorData().affectedUrls" class="py-2 px-3 bg-bg rounded-md mb-2 text-[0.8125rem] font-mono break-all">{{ url }}</li>
         </ul>
       </div>
 
       <!-- Recent Occurrences Timeline -->
-      <div @if="errorData().recentOccurrences && errorData().recentOccurrences.length > 0" class="section">
-        <h4 class="section-title">Recent Occurrences</h4>
-        <div class="occurrences-table">
+      <div @if="errorData().recentOccurrences && errorData().recentOccurrences.length > 0" class="bg-bg-2 rounded-lg p-6">
+        <h4 class="text-base font-semibold text-text mb-4">Recent Occurrences</h4>
+        <div class="flex flex-col border border-border rounded-md overflow-hidden">
           <div class="occurrence-header">
             <span>Time</span>
             <span>Browser</span>
@@ -333,100 +387,9 @@ onMount(() => {
 </html>
 
 <style>
-:root {
-  --bg: #111827;
-  --bg2: #1f2937;
-  --bg3: #374151;
-  --text: #f3f4f6;
-  --muted: #9ca3af;
-  --border: #374151;
-  --accent: #3b82f6;
-  --error: #ef4444;
-  --success: #10b981;
-  --warning: #f59e0b;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body.error-detail-page {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  padding: 2rem;
-  -webkit-font-smoothing: antialiased;
-}
-.container {
-  max-width: 72rem;
-  margin: 0 auto;
-}
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--accent);
-  text-decoration: none;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-}
-.back-link:hover {
-  text-decoration: underline;
-}
-.back-icon {
-  width: 16px;
-  height: 16px;
-}
-.page-header {
-  margin-bottom: 1.5rem;
-}
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text);
-}
-.error-id-display {
-  background: var(--bg2);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-family: monospace;
-  font-size: 0.875rem;
-  word-break: break-all;
-  margin-bottom: 1.5rem;
-}
-.error-detail-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-.error-card {
-  background: var(--bg2);
-  border-radius: 8px;
-  padding: 1.5rem;
-}
-.error-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.error-message {
-  font-size: 1.125rem;
-  font-weight: 500;
-  color: var(--error);
-  flex: 1;
-  min-width: 200px;
-}
-.error-badges {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
+/* Dynamic badge colors with rgba - can't be expressed as utilities */
 .severity-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
+  @apply py-1 px-2 rounded text-xs font-semibold uppercase;
 }
 .severity-critical {
   background: rgba(239, 68, 68, 0.2);
@@ -445,29 +408,15 @@ body.error-detail-page {
   color: #d1d5db;
 }
 .trend-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: capitalize;
+  @apply py-1 px-2 rounded text-xs font-semibold capitalize;
 }
 .trend-new { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
 .trend-increasing { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
 .trend-decreasing { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
 .trend-stable { background: rgba(156, 163, 175, 0.15); color: #d1d5db; }
-.category-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  background: var(--bg3);
-  color: var(--muted);
-}
+
 .error-status-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: capitalize;
+  @apply py-1 px-2 rounded text-xs font-medium capitalize;
 }
 .status-open {
   background: rgba(239, 68, 68, 0.2);
@@ -481,253 +430,44 @@ body.error-detail-page {
   background: rgba(107, 114, 128, 0.2);
   color: #d1d5db;
 }
+
+.meta-card {
+  @apply bg-bg-2 border border-border rounded-md p-3;
+}
 .error-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
+  @apply grid grid-cols-2 gap-3;
 }
 @media (min-width: 768px) {
   .error-meta-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
-.meta-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.75rem;
-}
-.meta-label {
-  font-size: 0.75rem;
-  color: var(--muted);
-  margin-bottom: 0.25rem;
-}
-.meta-value {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text);
-}
-.meta-value.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.section {
-  background: var(--bg2);
-  border-radius: 8px;
-  padding: 1.5rem;
-}
-.section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 1rem;
-}
-.subsection-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--muted);
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-}
-.tags-section {
-  margin-top: 0.5rem;
-}
-.tags-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.tag {
-  background: var(--bg3);
-  color: var(--muted);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-family: monospace;
-}
-.error-stack {
-  background: var(--bg);
-  border-radius: 6px;
-  padding: 1rem;
-  font-size: 0.8125rem;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-  line-height: 1.6;
-}
-.breadcrumbs-timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.breadcrumb-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--bg);
-  border-radius: 6px;
-  font-size: 0.8125rem;
-}
-.breadcrumb-icon {
-  flex-shrink: 0;
-  width: 20px;
-  text-align: center;
-}
-.breadcrumb-content {
-  flex: 1;
-  min-width: 0;
-}
-.breadcrumb-category {
-  color: var(--accent);
-  font-weight: 500;
-  margin-right: 0.5rem;
-}
-.breadcrumb-message {
-  color: var(--text);
-  word-break: break-word;
-}
-.breadcrumb-time {
-  flex-shrink: 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-.url-list {
-  list-style: none;
-}
-.url-item {
-  padding: 0.5rem 0.75rem;
-  background: var(--bg);
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-  font-size: 0.8125rem;
-  font-family: monospace;
-  word-break: break-all;
-}
-.occurrences-table {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-}
+
+/* Occurrence table grid - complex fixed-width columns */
 .occurrence-header {
   display: grid;
   grid-template-columns: 100px 120px 100px 1fr;
-  gap: 0.5rem;
-  padding: 0.625rem 0.75rem;
-  background: var(--bg3);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
+  @apply gap-2 py-2.5 px-3 bg-bg-3 text-xs font-semibold text-muted uppercase;
 }
 .occurrence-row {
   display: grid;
   grid-template-columns: 100px 120px 100px 1fr;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.8125rem;
-  border-top: 1px solid var(--border);
+  @apply gap-2 py-2 px-3 text-[0.8125rem] border-t border-border;
 }
-.occurrence-row .truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.error-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-.btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  transition: background 0.15s;
-}
+
+/* Resolve button */
 .btn-resolve {
-  background: var(--success);
-  color: white;
+  @apply bg-success text-white;
 }
 .btn-resolve:hover {
   background: #059669;
 }
-.btn-primary {
-  background: var(--accent);
-  color: white;
-}
-.btn-primary:hover {
-  background: #2563eb;
-}
-.btn-secondary {
-  background: var(--bg3);
-  color: var(--text);
-}
-.btn-secondary:hover {
-  background: #4b5563;
-}
-.env-breakdown {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.env-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.env-bar-label {
-  font-size: 0.8125rem;
-  color: var(--text);
-  min-width: 100px;
-  font-weight: 500;
-}
-.env-bar-track {
-  flex: 1;
-  height: 20px;
-  background: var(--bg);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.env-bar-fill {
-  height: 100%;
-  background: var(--accent);
-  border-radius: 4px;
-  min-width: 4px;
-  transition: width 0.3s ease;
-}
-.env-bar-count {
-  font-size: 0.8125rem;
-  color: var(--muted);
-  min-width: 40px;
-  text-align: right;
-}
-.loading-state, .error-state {
-  text-align: center;
-  padding: 2rem;
-  color: var(--muted);
-}
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-.error-state {
-  color: var(--error);
-}
+
+/* Spinner animation */
 .spinner {
-  width: 16px;
-  height: 16px;
+  @apply w-4 h-4 rounded-full;
   border: 2px solid var(--border);
   border-top-color: var(--accent);
-  border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin {

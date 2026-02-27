@@ -1,17 +1,46 @@
-<script client>
+<script client lang="ts">
 /**
  * GoalsPanel Component
  * Displays goals with conversion tracking
+ * Uses inject to access goalModal and Modal APIs instead of window globals
  */
-const goals = state([])
-const loading = state(true)
 
-function formatCurrency(n) {
+interface Goal {
+  id: string
+  name: string
+  type: string
+  pattern?: string
+  matchType?: string
+  durationMinutes?: number
+  value?: number
+  isActive: boolean
+  conversions?: number
+  conversionRate?: number
+}
+
+interface GoalModalAPI {
+  openCreate: () => void
+  openEdit: (goal: Goal | string) => void
+  close: () => void
+}
+
+interface ModalAPI {
+  confirm: (message: string, onConfirm: () => Promise<void>) => void
+}
+
+const goals = state<Goal[]>([])
+const loading = state<boolean>(true)
+
+// Inject cross-component APIs
+const goalModal: GoalModalAPI | undefined = inject('goalModal')
+const Modal: ModalAPI | undefined = inject('Modal')
+
+function formatCurrency(n: number): string {
   return '$' + (n || 0).toFixed(2)
 }
 
-function getTypeBadgeClass(type) {
-  const classes = {
+function getTypeBadgeClass(type: string): string {
+  const classes: Record<string, string> = {
     pageview: 'badge type-badge-pageview',
     event: 'badge type-badge-event',
     duration: 'badge type-badge-duration',
@@ -20,32 +49,51 @@ function getTypeBadgeClass(type) {
   return classes[type?.toLowerCase()] || 'badge'
 }
 
-async function fetchGoals() {
-  const siteId = window.siteId
+async function fetchGoals(): Promise<void> {
+  const siteId: string | undefined = window.siteId
   if (!siteId) {
     loading.set(false)
     return
   }
   try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/goals`))
-    const data = await res.json()
+    const res: Response = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/goals`))
+    const data: { goals?: Goal[] } = await res.json()
     goals.set(data.goals || [])
-  } catch (e) {
+  } catch (e: unknown) {
     console.error('Failed to fetch goals:', e)
   } finally {
     loading.set(false)
   }
 }
 
-function editGoal(goalId) {
-  if (typeof window.showEditGoalModal === 'function') {
-    window.showEditGoalModal(goalId)
+function editGoal(goalId: string): void {
+  if (goalModal) {
+    goalModal.openEdit(goalId)
   }
 }
 
-function deleteGoal(goalId) {
-  if (typeof window.confirmDeleteGoal === 'function') {
-    window.confirmDeleteGoal(goalId)
+function deleteGoal(goalId: string): void {
+  if (Modal) {
+    Modal.confirm('Delete this goal? Conversion data will be preserved.', async () => {
+      try {
+        const res: Response = await fetch(
+          window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/goals/${goalId}`),
+          { method: 'DELETE' }
+        )
+        if (res.ok) {
+          fetchGoals()
+          if (window.fetchDashboardData) window.fetchDashboardData()
+        }
+      } catch (err: unknown) {
+        console.error('Delete goal error:', err)
+      }
+    })
+  }
+}
+
+function openCreateGoal(): void {
+  if (goalModal) {
+    goalModal.openCreate()
   }
 }
 
@@ -53,7 +101,8 @@ onMount(() => {
   if (window.siteId) fetchGoals()
 })
 
-window.refreshGoalsPanel = fetchGoals
+// Provide refresh function for other components
+provide('refreshGoalsPanel', fetchGoals)
 </script>
 
 <div class="panel">
@@ -64,7 +113,7 @@ window.refreshGoalsPanel = fetchGoals
       </svg>
       Goals
     </div>
-    <button class="btn btn-primary text-xs py-1.5 px-3" @click="window.showCreateGoalModal()">+ Add Goal</button>
+    <button class="btn btn-primary text-xs py-1.5 px-3" @click="openCreateGoal()">+ Add Goal</button>
   </div>
 
   <div @if="loading()" class="empty-state text-[0.8125rem]">Loading...</div>
@@ -74,14 +123,14 @@ window.refreshGoalsPanel = fetchGoals
     <p class="text-xs mt-2 opacity-80">Click "+ Add Goal" to create your first conversion goal.</p>
   </div>
 
-  <table @if="!loading() && goals().length > 0" class="goals-table">
+  <table @if="!loading() && goals().length > 0" class="w-full border-collapse text-[0.8125rem]">
     <thead>
       <tr>
-        <th>Goal</th>
-        <th>Type</th>
-        <th class="text-right">Conversions</th>
-        <th class="text-right">Value</th>
-        <th class="text-right">Actions</th>
+        <th class="text-left py-2 px-2 border-b border-border text-[0.6875rem] font-medium uppercase tracking-wide text-muted">Goal</th>
+        <th class="text-left py-2 px-2 border-b border-border text-[0.6875rem] font-medium uppercase tracking-wide text-muted">Type</th>
+        <th class="text-right py-2 px-2 border-b border-border text-[0.6875rem] font-medium uppercase tracking-wide text-muted">Conversions</th>
+        <th class="text-right py-2 px-2 border-b border-border text-[0.6875rem] font-medium uppercase tracking-wide text-muted">Value</th>
+        <th class="text-right py-2 px-2 border-b border-border text-[0.6875rem] font-medium uppercase tracking-wide text-muted">Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -115,26 +164,6 @@ window.refreshGoalsPanel = fetchGoals
 </div>
 
 <style>
-.goals-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8125rem;
-}
-.goals-table th {
-  text-align: left;
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-}
-.goals-table td {
-  padding: 0.75rem 0.5rem;
-  border-bottom: 1px solid var(--border);
-  color: var(--text);
-}
 .type-badge-pageview { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
 .type-badge-event { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
 .type-badge-duration { background: rgba(168, 85, 247, 0.15); color: #a855f7; }

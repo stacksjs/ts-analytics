@@ -855,802 +855,310 @@
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      line-height: 1.5;
-      min-height: 100vh;
-    }
+    /* ===== Classes referenced by innerHTML (JS-rendered) - use @apply ===== */
 
-    .dashboard {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 1rem;
-    }
-
-    /* Header */
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem 0;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 1rem;
-    }
-
-    .site-selector {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .site-selector select {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      color: var(--text-primary);
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      font-size: 0.875rem;
-      cursor: pointer;
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .realtime-badge {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: var(--bg-secondary);
-      padding: 0.5rem 1rem;
-      border-radius: 9999px;
-      font-size: 0.875rem;
-    }
-
-    .pulse-dot {
-      width: 8px;
-      height: 8px;
-      background: var(--success);
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-
-    .icon-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-      padding: 0.5rem;
-      border-radius: 6px;
-      transition: all 0.15s;
-    }
-
-    .icon-btn:hover {
-      background: var(--bg-secondary);
-      color: var(--text-primary);
-    }
-
-    /* Date Range Bar */
-    .date-bar {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 0.75rem 0;
-      margin-bottom: 1rem;
-    }
-
-    .date-select {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      color: var(--text-primary);
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      font-size: 0.875rem;
-      cursor: pointer;
-    }
-
-    .date-bar span {
-      color: var(--text-secondary);
-      font-size: 0.875rem;
-    }
-
-    /* Summary Stats */
-    .summary-stats {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .stat-card {
-      background: var(--bg-secondary);
-      padding: 1.25rem;
-      border-radius: 8px;
-      text-align: center;
-    }
-
-    .stat-value {
-      font-size: 1.75rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 0.25rem;
-    }
-
-    .stat-label {
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    /* Chart */
-    .chart-container {
-      background: var(--bg-secondary);
-      border-radius: 8px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-      min-height: 250px;
-    }
-
-    .chart-placeholder {
-      height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    /* Site selector states */
+    .site-selector-loading,
+    .site-selector-error,
+    .site-selector-empty {
+      @apply flex flex-col items-center justify-center p-12 text-center gap-4;
       color: var(--text-muted);
     }
+    .site-selector-error button,
+    .site-selector-empty button {
+      @apply border-none py-2 px-6 rounded-md cursor-pointer text-sm mt-2;
+      background: var(--accent);
+      color: white;
+    }
+    .site-selector-empty h2 {
+      @apply text-lg m-0;
+      color: var(--text-primary);
+    }
+    .site-selector-grid {
+      @apply flex flex-col gap-3;
+    }
+    .site-card {
+      @apply flex items-center gap-4 py-4 px-5 rounded-lg cursor-pointer transition-all duration-150 text-left w-full;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+    }
+    .site-card:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--accent);
+    }
+    .site-card-icon {
+      @apply w-10 h-10 flex items-center justify-center rounded-lg;
+      background: var(--bg-tertiary);
+      color: var(--accent);
+    }
+    .site-card-info {
+      @apply flex-1 flex flex-col gap-1;
+    }
+    .site-card-name {
+      @apply font-medium;
+      color: var(--text-primary);
+    }
+    .site-card-domain {
+      @apply text-xs font-mono;
+      color: var(--text-muted);
+    }
+    .site-card-arrow {
+      color: var(--text-muted);
+    }
+    .site-card:hover .site-card-arrow {
+      color: var(--accent);
+    }
 
+    /* Spinner */
+    .spinner {
+      @apply w-8 h-8 rounded-full;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(-360deg); }
+    }
+
+    /* Data table (used in innerHTML) */
+    .data-table {
+      @apply w-full;
+      font-size: 0.8125rem;
+    }
+    .data-table th {
+      @apply text-left font-medium py-2 uppercase tracking-wider;
+      color: var(--text-muted);
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.6875rem;
+    }
+    .data-table td {
+      border-bottom: 1px solid var(--bg-tertiary);
+      padding: 0.625rem 0;
+    }
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+    .data-table .name {
+      @apply truncate;
+      color: var(--text-primary);
+      max-width: 180px;
+    }
+    .data-table .value {
+      @apply text-right;
+      color: var(--text-secondary);
+    }
+
+    /* Empty state (used in innerHTML) */
+    .empty-state {
+      @apply text-center p-8;
+      color: var(--text-muted);
+    }
+    .empty-state p {
+      @apply mb-4;
+    }
+    .empty-state a {
+      @apply no-underline;
+      color: var(--accent);
+    }
+    .empty-state a:hover {
+      @apply underline;
+    }
+
+    /* Chart tooltip (used in innerHTML) */
     .chart-tooltip {
-      display: none;
-      position: absolute;
+      @apply hidden absolute rounded-lg pointer-events-none z-[100];
       background: var(--bg-tertiary);
       border: 1px solid var(--border);
-      border-radius: 8px;
       padding: 0.75rem 1rem;
       font-size: 0.8125rem;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      pointer-events: none;
-      z-index: 100;
       min-width: 140px;
     }
-
     .tooltip-date {
+      @apply text-xs mb-2 font-medium;
       color: var(--text-secondary);
-      font-size: 0.75rem;
-      margin-bottom: 0.5rem;
-      font-weight: 500;
     }
-
     .tooltip-row {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      @apply flex items-center gap-2;
       color: var(--text-secondary);
       margin: 0.25rem 0;
     }
-
     .tooltip-row strong {
+      @apply ml-auto;
       color: var(--text-primary);
-      margin-left: auto;
     }
-
     .tooltip-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 2px;
+      @apply w-2 h-2 rounded-sm;
     }
-
     .tooltip-dot.views {
       background: var(--accent);
     }
-
     .tooltip-dot.visitors {
       background: var(--success);
     }
 
-    /* Data Grid */
-    .data-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .data-panel {
-      background: var(--bg-secondary);
-      border-radius: 8px;
-      padding: 1rem;
-    }
-
-    .panel-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-
-    .panel-title {
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--text-primary);
-    }
-
-    /* Tabs */
-    .tabs {
-      display: flex;
-      gap: 0.25rem;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 1rem;
-    }
-
-    .tab-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-secondary);
-      padding: 0.5rem 0.75rem;
-      font-size: 0.75rem;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: all 0.15s;
-    }
-
-    .tab-btn:hover {
-      color: var(--text-primary);
-    }
-
-    .tab-btn.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-    }
-
-    /* Data Table */
-    .data-table {
-      width: 100%;
-      font-size: 0.8125rem;
-    }
-
-    .data-table th {
-      text-align: left;
+    /* Heatmap states (used in innerHTML) */
+    .heatmap-loading, .heatmap-empty {
+      @apply flex flex-col items-center justify-center gap-4;
+      height: 500px;
       color: var(--text-muted);
-      font-weight: 500;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.6875rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+    }
+    .heatmap-stats {
+      @apply absolute bottom-4 right-4 py-2 px-4 rounded text-xs text-white;
+      background: rgba(0,0,0,0.7);
     }
 
-    .data-table td {
-      padding: 0.625rem 0;
+    /* Heatmap panel (used in innerHTML) */
+    .heatmap-panel {
+      @apply rounded-lg p-4;
+      background: var(--bg-secondary);
+    }
+    .heatmap-panel h3 {
+      @apply text-sm font-medium mb-4;
+      color: var(--text-primary);
+    }
+
+    /* Scroll heatmap (used in innerHTML) */
+    .scroll-heatmap {
+      @apply p-4;
+    }
+    .scroll-stats {
+      @apply flex gap-8 mb-6;
+    }
+    .scroll-stat {
+      @apply flex flex-col;
+    }
+    .scroll-stat-value {
+      @apply text-3xl font-semibold;
+      color: var(--text-primary);
+    }
+    .scroll-stat-label {
+      @apply text-xs;
+      color: var(--text-muted);
+    }
+    .scroll-bars {
+      @apply flex flex-col gap-2;
+    }
+    .scroll-bar-row {
+      @apply flex items-center gap-3;
+    }
+    .scroll-depth-label {
+      @apply text-xs text-right;
+      width: 40px;
+      color: var(--text-muted);
+    }
+    .scroll-bar-track {
+      @apply flex-1 rounded overflow-hidden;
+      height: 24px;
+      background: var(--bg-tertiary);
+    }
+    .scroll-bar-fill {
+      @apply h-full rounded transition-[width] duration-300;
+    }
+    .scroll-reach-label {
+      @apply text-[0.8125rem] font-medium;
+      width: 50px;
+      color: var(--text-primary);
+    }
+    .scroll-legend {
+      @apply flex justify-center gap-6 mt-6 pt-4 text-xs;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .legend-dot {
+      @apply inline-block w-2.5 h-2.5 rounded-sm mr-1.5;
+    }
+
+    /* Element list (used in innerHTML) */
+    .element-list {
+      @apply flex flex-col gap-3;
+    }
+    .element-item {
+      @apply flex flex-col gap-1.5;
+    }
+    .element-info {
+      @apply flex items-center gap-2;
+    }
+    .element-tag {
+      @apply font-mono rounded;
+      font-size: 0.6875rem;
+      color: var(--accent);
+      background: var(--bg-tertiary);
+      padding: 0.125rem 0.375rem;
+    }
+    .element-selector {
+      @apply text-xs truncate;
+      color: var(--text-secondary);
+      max-width: 200px;
+    }
+    .element-stats {
+      @apply flex items-center gap-2;
+    }
+    .element-bar-track {
+      @apply flex-1 rounded-sm overflow-hidden;
+      height: 6px;
+      background: var(--bg-tertiary);
+    }
+    .element-bar-fill {
+      @apply h-full rounded-sm;
+      background: var(--accent);
+    }
+    .element-clicks {
+      @apply text-xs font-medium text-right;
+      color: var(--text-primary);
+      min-width: 40px;
+    }
+
+    /* Insight list (used in innerHTML) */
+    .insight-list {
+      @apply flex flex-col gap-3;
+    }
+    .insight-item {
+      @apply flex justify-between items-center py-2;
       border-bottom: 1px solid var(--bg-tertiary);
     }
-
-    .data-table tr:last-child td {
+    .insight-item:last-child {
       border-bottom: none;
     }
-
-    .data-table .name {
-      color: var(--text-primary);
-      max-width: 180px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .data-table .value {
+    .insight-label {
+      @apply text-[0.8125rem];
       color: var(--text-secondary);
-      text-align: right;
+    }
+    .insight-value {
+      @apply text-sm font-medium;
+      color: var(--text-primary);
     }
 
-    /* Events Section */
-    .events-section {
-      background: var(--bg-secondary);
-      border-radius: 8px;
-      padding: 1.5rem;
-    }
-
-    .events-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-
-    .events-title {
-      font-size: 0.875rem;
-      font-weight: 500;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 2rem;
+    /* text-muted helper (used in innerHTML) */
+    .text-muted {
+      @apply text-[0.8125rem];
       color: var(--text-muted);
     }
 
-    .empty-state p {
-      margin-bottom: 1rem;
-    }
-
-    .empty-state a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-
-    .empty-state a:hover {
-      text-decoration: underline;
-    }
-
-    /* View Tabs */
-    .view-tabs {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-
-    .view-tab {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      color: var(--text-secondary);
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      font-size: 0.875rem;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .view-tab:hover {
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-    }
-
+    /* View tab active state (toggled by JS classList) */
     .view-tab.active {
       background: var(--accent);
       border-color: var(--accent);
       color: white;
     }
 
-    /* Heatmap Section */
-    .heatmap-container {
-      display: grid;
-      grid-template-columns: 1fr 320px;
-      gap: 1rem;
-    }
-
-    .heatmap-main {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .heatmap-controls {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      background: var(--bg-secondary);
-      padding: 1rem;
-      border-radius: 8px;
-    }
-
-    .heatmap-controls select {
-      flex: 1;
-      max-width: 400px;
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border);
-      color: var(--text-primary);
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      font-size: 0.875rem;
-    }
-
-    .heatmap-mode-btns {
-      display: flex;
-      gap: 0.25rem;
-      background: var(--bg-tertiary);
-      padding: 0.25rem;
-      border-radius: 6px;
-    }
-
-    .heatmap-mode-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-secondary);
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      font-size: 0.8125rem;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .heatmap-mode-btn:hover {
-      color: var(--text-primary);
-    }
-
+    /* Heatmap mode button active state (toggled by JS classList) */
     .heatmap-mode-btn.active {
       background: var(--accent);
       color: white;
     }
 
-    .heatmap-viz-container {
-      background: var(--bg-secondary);
-      border-radius: 8px;
-      padding: 1rem;
-      min-height: 540px;
-    }
-
-    .heatmap-loading, .heatmap-empty {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 500px;
-      color: var(--text-muted);
-      gap: 1rem;
-    }
-
-    .spinner {
-      width: 32px;
-      height: 32px;
-      border: 3px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(-360deg); }
-    }
-
-    .heatmap-canvas-container {
-      position: relative;
-    }
-
-    .heatmap-stats {
-      position: absolute;
-      bottom: 1rem;
-      right: 1rem;
-      background: rgba(0,0,0,0.7);
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      color: white;
-    }
-
-    /* Scroll Heatmap */
-    .scroll-heatmap {
-      padding: 1rem;
-    }
-
-    .scroll-stats {
-      display: flex;
-      gap: 2rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .scroll-stat {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .scroll-stat-value {
-      font-size: 1.75rem;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .scroll-stat-label {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-
-    .scroll-bars {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .scroll-bar-row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .scroll-depth-label {
-      width: 40px;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-align: right;
-    }
-
-    .scroll-bar-track {
-      flex: 1;
-      height: 24px;
-      background: var(--bg-tertiary);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-
-    .scroll-bar-fill {
-      height: 100%;
-      border-radius: 4px;
-      transition: width 0.3s ease;
-    }
-
-    .scroll-reach-label {
-      width: 50px;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      color: var(--text-primary);
-    }
-
-    .scroll-legend {
-      display: flex;
-      justify-content: center;
-      gap: 1.5rem;
-      margin-top: 1.5rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border);
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-
-    .legend-dot {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 2px;
-      margin-right: 0.375rem;
-    }
-
-    /* Heatmap Sidebar */
-    .heatmap-sidebar {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .heatmap-panel {
-      background: var(--bg-secondary);
-      border-radius: 8px;
-      padding: 1rem;
-    }
-
-    .heatmap-panel h3 {
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--text-primary);
-      margin-bottom: 1rem;
-    }
-
-    .element-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .element-item {
-      display: flex;
-      flex-direction: column;
-      gap: 0.375rem;
-    }
-
-    .element-info {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .element-tag {
-      font-size: 0.6875rem;
-      font-family: monospace;
+    /* Tab button active state (toggled by JS classList) */
+    .tab-btn.active {
       color: var(--accent);
-      background: var(--bg-tertiary);
-      padding: 0.125rem 0.375rem;
-      border-radius: 3px;
+      border-bottom-color: var(--accent);
     }
 
-    .element-selector {
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 200px;
-    }
-
-    .element-stats {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .element-bar-track {
-      flex: 1;
-      height: 6px;
-      background: var(--bg-tertiary);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .element-bar-fill {
-      height: 100%;
-      background: var(--accent);
-      border-radius: 3px;
-    }
-
-    .element-clicks {
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: var(--text-primary);
-      min-width: 40px;
-      text-align: right;
-    }
-
-    .insight-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .insight-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid var(--bg-tertiary);
-    }
-
-    .insight-item:last-child {
-      border-bottom: none;
-    }
-
-    .insight-label {
-      font-size: 0.8125rem;
-      color: var(--text-secondary);
-    }
-
-    .insight-value {
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--text-primary);
-    }
-
-    .text-muted {
-      color: var(--text-muted);
-      font-size: 0.8125rem;
-    }
-
-    /* Site Selector Screen */
-    .site-selector-screen {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-    }
-
-    .site-selector-header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-
-    .site-selector-header h1 {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 0.5rem;
-    }
-
-    .site-selector-header p {
-      color: var(--text-secondary);
-      font-size: 0.875rem;
-    }
-
-    .site-selector-container {
-      width: 100%;
-      max-width: 600px;
-    }
-
-    .site-selector-loading,
-    .site-selector-error,
-    .site-selector-empty {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 3rem;
-      text-align: center;
-      color: var(--text-muted);
-      gap: 1rem;
-    }
-
-    .site-selector-error button,
-    .site-selector-empty button {
-      background: var(--accent);
-      color: white;
-      border: none;
-      padding: 0.5rem 1.5rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.875rem;
-      margin-top: 0.5rem;
-    }
-
-    .site-selector-empty h2 {
-      font-size: 1.125rem;
-      color: var(--text-primary);
-      margin: 0;
-    }
-
-    .site-selector-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .site-card {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 1rem 1.25rem;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.15s;
-      text-align: left;
-      width: 100%;
-    }
-
-    .site-card:hover {
-      background: var(--bg-tertiary);
-      border-color: var(--accent);
-    }
-
-    .site-card-icon {
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--bg-tertiary);
-      border-radius: 8px;
-      color: var(--accent);
-    }
-
-    .site-card-info {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .site-card-name {
-      font-weight: 500;
-      color: var(--text-primary);
-    }
-
-    .site-card-domain {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      font-family: monospace;
-    }
-
-    .site-card-arrow {
-      color: var(--text-muted);
-    }
-
-    .site-card:hover .site-card-arrow {
-      color: var(--accent);
+    /* Pulse animation */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
 
     /* Responsive */
@@ -1668,7 +1176,6 @@
         order: -1;
       }
     }
-
     @media (max-width: 640px) {
       .summary-stats {
         grid-template-columns: repeat(2, 1fr);
@@ -1687,14 +1194,14 @@
     }
   </style>
 </head>
-<body>
+<body class="font-sans leading-normal min-h-screen" style="background:var(--bg-primary);color:var(--text-primary);">
   <!-- Site Selector Screen (shown when no siteId) -->
-  <div id="site-selector-screen" class="site-selector-screen" style="display:none">
-    <div class="site-selector-header">
-      <h1>Analytics Dashboard</h1>
-      <p>Select a site to view analytics</p>
+  <div id="site-selector-screen" class="min-h-screen flex flex-col items-center justify-center p-8" style="display:none">
+    <div class="text-center mb-8">
+      <h1 class="text-2xl font-semibold mb-2" style="color:var(--text-primary);">Analytics Dashboard</h1>
+      <p class="text-sm" style="color:var(--text-secondary);">Select a site to view analytics</p>
     </div>
-    <div id="site-selector-container" class="site-selector-container">
+    <div id="site-selector-container" class="w-full max-w-[600px]">
       <div class="site-selector-loading">
         <div class="spinner"></div>
         <p>Loading sites...</p>
@@ -1703,17 +1210,17 @@
   </div>
 
   <!-- Dashboard Content -->
-  <div id="dashboard-content" class="dashboard" style="display:none">
+  <div id="dashboard-content" class="max-w-[1400px] mx-auto p-4" style="display:none">
     <!-- Header -->
-    <header class="header">
-      <div class="site-selector">
-        <select>
+    <header class="header flex justify-between items-center py-4 border-b border-border mb-4">
+      <div class="site-selector flex items-center gap-2">
+        <select class="py-2 px-4 rounded-md text-sm cursor-pointer" style="background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);">
           <option>{{ siteName }}</option>
         </select>
       </div>
-      <div class="header-actions">
-        <div class="realtime-badge">
-          <span class="pulse-dot"></span>
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 py-2 px-4 rounded-full text-sm" style="background:var(--bg-secondary);">
+          <span class="w-2 h-2 rounded-full" style="background:var(--success);animation:pulse 2s infinite;"></span>
           <span id="realtime-count">0 current visitors</span>
         </div>
         <button class="icon-btn" title="Notifications">
@@ -1731,15 +1238,15 @@
     </header>
 
     <!-- View Tabs -->
-    <div class="view-tabs">
-      <button class="view-tab active" data-view="dashboard" onclick="switchView('dashboard')">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline;vertical-align:middle;margin-right:0.375rem">
+    <div class="flex gap-2 mb-4">
+      <button class="view-tab py-2 px-4 rounded-md text-sm cursor-pointer transition-all duration-150 border active" style="background:var(--bg-secondary);border-color:var(--border);color:var(--text-secondary);" data-view="dashboard" onclick="switchView('dashboard')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="inline align-middle mr-1.5">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
         </svg>
         Dashboard
       </button>
-      <button class="view-tab" data-view="heatmap" onclick="switchView('heatmap')">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline;vertical-align:middle;margin-right:0.375rem">
+      <button class="view-tab py-2 px-4 rounded-md text-sm cursor-pointer transition-all duration-150 border" style="background:var(--bg-secondary);border-color:var(--border);color:var(--text-secondary);" data-view="heatmap" onclick="switchView('heatmap')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="inline align-middle mr-1.5">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"/>
         </svg>
@@ -1751,8 +1258,8 @@
     <div id="dashboard-view">
 
     <!-- Date Range Bar -->
-    <div class="date-bar">
-      <select class="date-select">
+    <div class="flex items-center gap-4 py-3 mb-4">
+      <select class="py-2 px-4 rounded-md text-sm cursor-pointer" style="background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);">
         <option>Last 30 days</option>
         <option>Last 7 days</option>
         <option>Today</option>
@@ -1760,13 +1267,13 @@
         <option>Last 12 months</option>
         <option>Custom range</option>
       </select>
-      <span>compared to</span>
-      <select class="date-select">
+      <span class="text-sm" style="color:var(--text-secondary);">compared to</span>
+      <select class="py-2 px-4 rounded-md text-sm cursor-pointer" style="background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);">
         <option>No comparison</option>
         <option>Previous period</option>
         <option>Same period last year</option>
       </select>
-      <select class="date-select">
+      <select class="py-2 px-4 rounded-md text-sm cursor-pointer" style="background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);">
         <option>Auto</option>
         <option>Hourly</option>
         <option>Daily</option>
@@ -1775,45 +1282,45 @@
     </div>
 
     <!-- Summary Stats -->
-    <div class="summary-stats">
-      <div class="stat-card">
-        <div class="stat-value" id="stat-realtime">0</div>
-        <div class="stat-label">Realtime</div>
+    <div class="summary-stats grid grid-cols-6 gap-4 mb-6">
+      <div class="stat-card text-center" style="background:var(--bg-secondary);padding:1.25rem;border-radius:8px;">
+        <div class="text-3xl font-semibold mb-1" style="color:var(--text-primary);" id="stat-realtime">0</div>
+        <div class="text-xs uppercase tracking-wider" style="color:var(--text-secondary);">Realtime</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value" id="stat-people">0</div>
-        <div class="stat-label">People</div>
+      <div class="stat-card text-center" style="background:var(--bg-secondary);padding:1.25rem;border-radius:8px;">
+        <div class="text-3xl font-semibold mb-1" style="color:var(--text-primary);" id="stat-people">0</div>
+        <div class="text-xs uppercase tracking-wider" style="color:var(--text-secondary);">People</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value" id="stat-views">0</div>
-        <div class="stat-label">Views</div>
+      <div class="stat-card text-center" style="background:var(--bg-secondary);padding:1.25rem;border-radius:8px;">
+        <div class="text-3xl font-semibold mb-1" style="color:var(--text-primary);" id="stat-views">0</div>
+        <div class="text-xs uppercase tracking-wider" style="color:var(--text-secondary);">Views</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value" id="stat-avgtime">00:00</div>
-        <div class="stat-label">Avg time</div>
+      <div class="stat-card text-center" style="background:var(--bg-secondary);padding:1.25rem;border-radius:8px;">
+        <div class="text-3xl font-semibold mb-1" style="color:var(--text-primary);" id="stat-avgtime">00:00</div>
+        <div class="text-xs uppercase tracking-wider" style="color:var(--text-secondary);">Avg time</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value" id="stat-bounce">0%</div>
-        <div class="stat-label">Bounce</div>
+      <div class="stat-card text-center" style="background:var(--bg-secondary);padding:1.25rem;border-radius:8px;">
+        <div class="text-3xl font-semibold mb-1" style="color:var(--text-primary);" id="stat-bounce">0%</div>
+        <div class="text-xs uppercase tracking-wider" style="color:var(--text-secondary);">Bounce</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value" id="stat-events">0</div>
-        <div class="stat-label">Events</div>
+      <div class="stat-card text-center" style="background:var(--bg-secondary);padding:1.25rem;border-radius:8px;">
+        <div class="text-3xl font-semibold mb-1" style="color:var(--text-primary);" id="stat-events">0</div>
+        <div class="text-xs uppercase tracking-wider" style="color:var(--text-secondary);">Events</div>
       </div>
     </div>
 
     <!-- Time Series Chart -->
-    <div class="chart-container" style="position: relative;">
+    <div class="rounded-lg p-6 mb-6 min-h-[250px] relative" style="background:var(--bg-secondary);">
       <canvas id="timeSeriesChart"></canvas>
       <div id="chartTooltip" class="chart-tooltip"></div>
     </div>
 
     <!-- Data Grid - Row 1 -->
-    <div class="data-grid">
+    <div class="data-grid grid grid-cols-2 gap-4 mb-6">
       <!-- Pages -->
-      <div class="data-panel">
-        <div class="panel-header">
-          <span class="panel-title">Pages</span>
+      <div class="rounded-lg p-4" style="background:var(--bg-secondary);">
+        <div class="panel-header flex items-center gap-2 mb-4">
+          <span class="panel-title text-sm font-medium" style="color:var(--text-primary);">Pages</span>
         </div>
         <table class="data-table">
           <thead>
@@ -1833,9 +1340,9 @@
       </div>
 
       <!-- Referrers / Sources -->
-      <div class="data-panel">
-        <div class="tabs">
-          <button class="tab-btn active" data-tab="referrers">Referrers</button>
+      <div class="rounded-lg p-4" style="background:var(--bg-secondary);">
+        <div class="tabs flex gap-1 border-b border-border mb-4">
+          <button class="tab-btn active">Referrers</button>
           <button class="tab-btn" data-tab="sources">Sources</button>
         </div>
         <table class="data-table">
@@ -1856,10 +1363,10 @@
     </div>
 
     <!-- Data Grid - Row 2 -->
-    <div class="data-grid">
+    <div class="data-grid grid grid-cols-2 gap-4 mb-6">
       <!-- Device Types / OS -->
-      <div class="data-panel">
-        <div class="tabs">
+      <div class="rounded-lg p-4" style="background:var(--bg-secondary);">
+        <div class="tabs flex gap-1 border-b border-border mb-4">
           <button class="tab-btn active" data-tab="types">Device Types</button>
           <button class="tab-btn" data-tab="os">OS</button>
         </div>
@@ -1879,9 +1386,9 @@
       </div>
 
       <!-- Browsers -->
-      <div class="data-panel">
-        <div class="panel-header">
-          <span class="panel-title">Browsers</span>
+      <div class="rounded-lg p-4" style="background:var(--bg-secondary);">
+        <div class="panel-header flex items-center gap-2 mb-4">
+          <span class="panel-title text-sm font-medium" style="color:var(--text-primary);">Browsers</span>
         </div>
         <table class="data-table">
           <thead>
@@ -1900,10 +1407,10 @@
     </div>
 
     <!-- Data Grid - Row 3 -->
-    <div class="data-grid">
+    <div class="data-grid grid grid-cols-2 gap-4 mb-6">
       <!-- Countries / Regions / Cities -->
-      <div class="data-panel">
-        <div class="tabs">
+      <div class="rounded-lg p-4" style="background:var(--bg-secondary);">
+        <div class="tabs flex gap-1 border-b border-border mb-4">
           <button class="tab-btn active" data-tab="countries">Countries</button>
           <button class="tab-btn" data-tab="regions">Regions</button>
           <button class="tab-btn" data-tab="cities">Cities</button>
@@ -1924,8 +1431,8 @@
       </div>
 
       <!-- Campaigns -->
-      <div class="data-panel">
-        <div class="tabs">
+      <div class="rounded-lg p-4" style="background:var(--bg-secondary);">
+        <div class="tabs flex gap-1 border-b border-border mb-4">
           <button class="tab-btn active" data-tab="campaign">Campaign</button>
           <button class="tab-btn" data-tab="source">Source</button>
           <button class="tab-btn" data-tab="medium">Medium</button>
@@ -1950,9 +1457,9 @@
     </div>
 
     <!-- Events Section -->
-    <div class="events-section">
-      <div class="events-header">
-        <span class="events-title">Events</span>
+    <div class="rounded-lg p-6" style="background:var(--bg-secondary);">
+      <div class="flex justify-between items-center mb-4">
+        <span class="text-sm font-medium">Events</span>
       </div>
       <div id="events-container">
         <div class="empty-state">
@@ -1965,22 +1472,22 @@
 
     <!-- Heatmap View -->
     <div id="heatmap-view" style="display:none">
-      <div class="heatmap-container">
-        <div class="heatmap-main">
+      <div class="heatmap-container grid gap-4" style="grid-template-columns:1fr 320px;">
+        <div class="heatmap-main flex flex-col gap-4">
           <!-- Controls -->
-          <div class="heatmap-controls">
-            <select id="heatmap-page-select" onchange="selectHeatmapPage(this.value)">
+          <div class="heatmap-controls flex items-center gap-4 p-4 rounded-lg" style="background:var(--bg-secondary);">
+            <select id="heatmap-page-select" class="flex-1 max-w-[400px] py-2 px-4 rounded-md text-sm" style="background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-primary);" onchange="selectHeatmapPage(this.value)">
               <option value="">Select a page...</option>
             </select>
-            <div class="heatmap-mode-btns">
-              <button class="heatmap-mode-btn active" data-mode="click" onclick="switchHeatmapMode('click')">
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline;vertical-align:middle;margin-right:0.25rem">
+            <div class="flex gap-1 p-1 rounded-md" style="background:var(--bg-tertiary);">
+              <button class="heatmap-mode-btn py-2 px-4 rounded text-[0.8125rem] cursor-pointer transition-all duration-150 border-none active" style="background:transparent;color:var(--text-secondary);" data-mode="click" onclick="switchHeatmapMode('click')">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="inline align-middle mr-1">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
                 </svg>
                 Clicks
               </button>
-              <button class="heatmap-mode-btn" data-mode="scroll" onclick="switchHeatmapMode('scroll')">
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline;vertical-align:middle;margin-right:0.25rem">
+              <button class="heatmap-mode-btn py-2 px-4 rounded text-[0.8125rem] cursor-pointer transition-all duration-150 border-none" style="background:transparent;color:var(--text-secondary);" data-mode="scroll" onclick="switchHeatmapMode('scroll')">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="inline align-middle mr-1">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
                 </svg>
                 Scroll
@@ -1994,7 +1501,7 @@
           </div>
 
           <!-- Visualization -->
-          <div class="heatmap-viz-container">
+          <div class="rounded-lg p-4 min-h-[540px]" style="background:var(--bg-secondary);">
             <div id="heatmap-viz">
               <div class="heatmap-empty">
                 <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2007,7 +1514,7 @@
         </div>
 
         <!-- Sidebar -->
-        <div class="heatmap-sidebar" id="heatmap-sidebar">
+        <div class="heatmap-sidebar flex flex-col gap-4" id="heatmap-sidebar">
           <div class="heatmap-panel">
             <h3>Getting Started</h3>
             <p class="text-muted">Select a page from the dropdown to view click or scroll heatmaps. Heatmap data is collected from user interactions on your site.</p>

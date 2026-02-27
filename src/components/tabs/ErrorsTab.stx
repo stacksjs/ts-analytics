@@ -1,32 +1,69 @@
-<script client>
+<script client lang="ts">
 /**
  * ErrorsTab Component - Error tracking display
  * Uses STX signals for reactive state management
  */
 
+interface ErrorItem {
+  errorId: string
+  fingerprint: string
+  message: string
+  count: number
+  severity: string
+  category: string
+  source: string
+  line: number
+  lastSeen: string
+  firstSeen: string
+  browsers: string[]
+}
+
+interface ErrorStatusEntry {
+  status: string
+}
+
+interface ErrorStatuses {
+  [fingerprint: string]: ErrorStatusEntry
+}
+
+interface StatusCounts {
+  new: number
+  resolved: number
+  ignored: number
+  [key: string]: number
+}
+
+interface SeverityCounts {
+  critical: number
+  high: number
+  medium: number
+  low: number
+  [key: string]: number
+}
+
 import { useSiteApi } from '@composables'
 const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi()
 
-const errors = state([])
-const errorStatuses = state({})
-const statusFilter = state('all')
-const errorDateRange = state('30d')
-const loading = state(true)
-const error = state(null)
+const errors = state<ErrorItem[]>([])
+const errorStatuses = state<ErrorStatuses>({})
+const statusFilter = state<string>('all')
+const errorDateRange = state<string>('30d')
+const loading = state<boolean>(true)
+const error = state<string | null>(null)
 
-const severityLabels = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
-const statusLabels = { new: 'New', resolved: 'Resolved', ignored: 'Ignored', regression: 'Regression' }
+const severityLabels: Record<string, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
+const statusLabels: Record<string, string> = { new: 'New', resolved: 'Resolved', ignored: 'Ignored', regression: 'Regression' }
 
 const filteredErrors = derived(() => {
   const filter = statusFilter()
   const all = errors()
   if (filter === 'all') return all
-  return all.filter(e => getErrorStatus(e.fingerprint) === filter)
+  return all.filter((e: ErrorItem) => getErrorStatus(e.fingerprint) === filter)
 })
 
 const statusCounts = derived(() => {
-  const counts = { new: 0, resolved: 0, ignored: 0 }
-  errors().forEach(e => {
+  const counts: StatusCounts = { new: 0, resolved: 0, ignored: 0 }
+  errors().forEach((e: ErrorItem) => {
     const status = getErrorStatus(e.fingerprint)
     if (counts[status] !== undefined) counts[status]++
     else counts.new++
@@ -35,18 +72,18 @@ const statusCounts = derived(() => {
 })
 
 const severityCounts = derived(() => {
-  const counts = { critical: 0, high: 0, medium: 0, low: 0 }
-  filteredErrors().forEach(e => {
+  const counts: SeverityCounts = { critical: 0, high: 0, medium: 0, low: 0 }
+  filteredErrors().forEach((e: ErrorItem) => {
     if (counts[e.severity] !== undefined) counts[e.severity]++
   })
   return counts
 })
 
-function getErrorStatus(fingerprint) {
+function getErrorStatus(fingerprint: string): string {
   return errorStatuses()[fingerprint]?.status || 'new'
 }
 
-function timeAgo(ts) {
+function timeAgo(ts: string | null): string {
   if (!ts) return ''
   const diff = Date.now() - new Date(ts).getTime()
   const mins = Math.floor(diff / 60000)
@@ -59,59 +96,59 @@ function timeAgo(ts) {
   return new Date(ts).toLocaleDateString()
 }
 
-async function fetchErrors() {
+async function fetchErrors(): Promise<void> {
   if (!_siteId()) { loading.set(false); return }
   try {
-    const [errorsRes, statusesRes] = await Promise.all([
+    const [errorsRes, statusesRes]: [Response, Response] = await Promise.all([
       fetch(_apiUrl('/errors' + errorDateParams())),
       fetch(_apiUrl('/errors/statuses'))
     ])
-    const errorsData = await errorsRes.json()
-    const statusesData = await statusesRes.json()
+    const errorsData: { errors?: ErrorItem[] } = await errorsRes.json()
+    const statusesData: { statuses?: ErrorStatuses } = await statusesRes.json()
     errors.set(errorsData.errors || [])
     errorStatuses.set(statusesData.statuses || {})
     error.set(null)
-  } catch (e) {
-    error.set(e.message)
+  } catch (e: unknown) {
+    error.set((e as Error).message)
   } finally {
     loading.set(false)
   }
 }
 
-async function updateStatus(fingerprint, newStatus) {
+async function updateStatus(fingerprint: string, newStatus: string): Promise<void> {
   try {
     await fetch(_apiUrl('/errors/status'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ errorId: fingerprint, status: newStatus })
     })
-    errorStatuses.update(s => ({ ...s, [fingerprint]: { status: newStatus } }))
-  } catch (e) {
+    errorStatuses.update((s: ErrorStatuses) => ({ ...s, [fingerprint]: { status: newStatus } }))
+  } catch (e: unknown) {
     console.error('Failed to update status:', e)
   }
 }
 
-async function bulkResolve() {
+async function bulkResolve(): Promise<void> {
   if (!confirm('Mark all new errors as resolved?')) return
-  const newErrors = errors().filter(e => getErrorStatus(e.fingerprint) === 'new')
+  const newErrors = errors().filter((e: ErrorItem) => getErrorStatus(e.fingerprint) === 'new')
   for (const e of newErrors) {
     await updateStatus(e.fingerprint, 'resolved')
   }
 }
 
-async function bulkIgnore() {
+async function bulkIgnore(): Promise<void> {
   if (!confirm('Ignore all new errors?')) return
-  const newErrors = errors().filter(e => getErrorStatus(e.fingerprint) === 'new')
+  const newErrors = errors().filter((e: ErrorItem) => getErrorStatus(e.fingerprint) === 'new')
   for (const e of newErrors) {
     await updateStatus(e.fingerprint, 'ignored')
   }
 }
 
-function errorDateParams() {
+function errorDateParams(): string {
   const range = errorDateRange()
   const now = new Date()
   const end = now.toISOString()
-  let start
+  let start: Date
   switch (range) {
     case '24h': start = new Date(now.getTime() - 24*60*60*1000); break
     case '7d': start = new Date(now.getTime() - 7*24*60*60*1000); break
@@ -122,13 +159,13 @@ function errorDateParams() {
   return '?startDate=' + start.toISOString() + '&endDate=' + end
 }
 
-function setErrorDateRange(range) {
+function setErrorDateRange(range: string): void {
   errorDateRange.set(range)
   loading.set(true)
   fetchErrors()
 }
 
-function setFilter(f) {
+function setFilter(f: string): void {
   statusFilter.set(f)
 }
 
@@ -278,18 +315,18 @@ onMount(() => {
 .sev-low { border-left-color: var(--muted); }
 
 /* Severity bar colors */
-.severity-bar.critical { background: var(--error); }
+.severity-bar.critical { @apply bg-error; }
 .severity-bar.high { background: #f97316; }
-.severity-bar.medium { background: var(--warning); }
-.severity-bar.low { background: var(--muted); }
+.severity-bar.medium { @apply bg-warning; }
+.severity-bar.low { @apply bg-muted; }
 
-/* Severity badge colors */
+/* Severity badge colors (rgba values for transparency) */
 .badge-severity.critical { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.2); }
 .badge-severity.high { background: rgba(249, 115, 22, 0.12); color: #fdba74; border: 1px solid rgba(249, 115, 22, 0.2); }
 .badge-severity.medium { background: rgba(234, 179, 8, 0.12); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.2); }
 .badge-severity.low { background: rgba(107, 114, 128, 0.12); color: #d1d5db; border: 1px solid rgba(107, 114, 128, 0.2); }
 
-/* Status badge colors */
+/* Status badge colors (rgba values for transparency) */
 .badge-status.new { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.15); }
 .badge-status.resolved { background: rgba(34, 197, 94, 0.12); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.15); }
 .badge-status.ignored { background: rgba(107, 114, 128, 0.12); color: var(--muted); border: 1px solid rgba(107, 114, 128, 0.15); }
@@ -304,16 +341,16 @@ onMount(() => {
 [data-theme="light"] .badge-status.ignored { background: rgba(107, 114, 128, 0.08); color: #6b7280; border-color: rgba(107, 114, 128, 0.15); }
 
 /* Error row opacity for resolved/ignored */
-.error-row.resolved { opacity: 0.55; }
-.error-row.ignored { opacity: 0.4; }
+.error-row.resolved { @apply opacity-55; }
+.error-row.ignored { @apply opacity-40; }
 
-/* Action button hover colors */
+/* Action button hover colors (rgba values for transparency) */
 .action-btn.resolve:hover { background: rgba(34, 197, 94, 0.15); color: var(--success); }
 .action-btn.ignore:hover { background: rgba(107, 114, 128, 0.15); color: var(--muted); }
 .action-btn.reopen:hover { background: rgba(99, 102, 241, 0.15); color: var(--accent); }
 
 /* Fallback for group-hover on error-actions */
-.error-row:hover .error-actions { opacity: 1; }
+.error-row:hover .error-actions { @apply opacity-100; }
 
 /* Spinner animation */
 .spinner {
@@ -328,6 +365,6 @@ onMount(() => {
 
 /* Responsive */
 @media (max-width: 640px) {
-  .severity-grid { grid-template-columns: repeat(2, 1fr); }
+  .severity-grid { @apply grid-cols-2; }
 }
 </style>

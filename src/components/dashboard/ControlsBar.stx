@@ -1,21 +1,35 @@
-<script client>
+<script client lang="ts">
 /**
  * ControlsBar Component - Date range and controls
+ * Uses STX reactive APIs: state, effect, onMount, provide
  */
 
-// Use indirection to work around STX validation
-const _doc = window['document']
-const _getEl = (id) => _doc['getElementById'](id)
+interface DateRange {
+  id: string
+  label: string
+}
 
-// State
-let activeRange = '6h'
-let showComparison = false
-let realtimeCount = 0
-let lastUpdated = ''
-let isRefreshing = false
+interface ControlsBarAPI {
+  activeRange: () => string
+  showComparison: () => boolean
+  realtimeCount: () => number
+  lastUpdated: () => string
+  isRefreshing: () => boolean
+  setRange: (range: string) => void
+  toggleComparison: () => void
+  refresh: () => Promise<void>
+  exportData: (format: string) => void
+}
+
+// Reactive state
+const activeRange = state<string>('6h')
+const showComparison = state<boolean>(false)
+const realtimeCount = state<number>(0)
+const lastUpdated = state<string>('')
+const isRefreshing = state<boolean>(false)
 
 // Date range options
-const ranges = [
+const ranges: DateRange[] = [
   { id: '1h', label: '1h' },
   { id: '6h', label: '6h' },
   { id: '12h', label: '12h' },
@@ -26,9 +40,8 @@ const ranges = [
 ]
 
 // Set date range
-function setRange(range) {
-  activeRange = range
-  renderDateRangeButtons()
+function setRange(range: string): void {
+  activeRange.set(range)
   // Notify dashboard.ts
   if (window.setDateRange) {
     window.setDateRange(range)
@@ -36,19 +49,17 @@ function setRange(range) {
 }
 
 // Toggle comparison mode
-function toggleComparison() {
-  showComparison = !showComparison
-  renderDateRangeButtons()
+function toggleComparison(): void {
+  showComparison.update((v: boolean) => !v)
   if (window.toggleComparison) {
     window.toggleComparison()
   }
 }
 
 // Refresh data
-async function refresh() {
-  if (isRefreshing) return
-  isRefreshing = true
-  updateRefreshButton()
+async function refresh(): Promise<void> {
+  if (isRefreshing()) return
+  isRefreshing.set(true)
 
   if (window.fetchDashboardData) {
     await window.fetchDashboardData()
@@ -56,118 +67,63 @@ async function refresh() {
 
   // Ensure spinner completes at least one rotation
   setTimeout(() => {
-    isRefreshing = false
-    updateRefreshButton()
+    isRefreshing.set(false)
   }, 500)
 }
 
 // Export data
-function exportData(format) {
+function exportData(format: string): void {
   if (window.exportData) {
     window.exportData(format)
   } else {
     // Fallback: trigger CSV download
-    const siteId = window.siteId
+    const siteId: string | undefined = window.siteId
     if (siteId) {
       window.location.href = window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/export?format=${format}`)
     }
   }
 }
 
-// Update realtime count from external source
-function updateRealtimeCount(count) {
-  realtimeCount = count
-  const el = _getEl('realtime-count')
-  if (el) el.textContent = count + ' visitors online'
-}
-
-function updateLastUpdated(time) {
-  lastUpdated = time
-  const el = _getEl('last-updated')
-  if (el) {
-    el.style.display = time ? 'inline' : 'none'
-    el.textContent = time
-  }
-}
-
-// Render date range buttons
-function renderDateRangeButtons() {
-  const container = _getEl('date-range-btns')
-  if (!container) return
-
-  container.innerHTML = ranges.map(range => `
-    <button
-      class="date-btn${activeRange === range.id ? ' active' : ''}"
-      data-range="${range.id}"
-      onclick="window.controlsBar.setRange('${range.id}')"
-    >
-      ${range.label}
-    </button>
-  `).join('') + `
-    <span class="divider"></span>
-    <button
-      class="date-btn compare-btn${showComparison ? ' active' : ''}"
-      onclick="window.controlsBar.toggleComparison()"
-      title="Compare with previous period"
-    >
-      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-      </svg>
-      Compare
-    </button>
-  `
-}
-
-// Update refresh button state
-function updateRefreshButton() {
-  const refreshBtn = _getEl('refresh-btn')
-  if (refreshBtn) {
-    if (isRefreshing) {
-      refreshBtn.classList.add('spinning')
-    } else {
-      refreshBtn.classList.remove('spinning')
-    }
-  }
-}
-
-// Initialize
-function init() {
-  window.updateRealtimeCount = updateRealtimeCount
-  window.updateLastUpdated = updateLastUpdated
-  window.controlsSetDateRange = (range) => { activeRange = range; renderDateRangeButtons() }
+onMount(() => {
+  // Expose state setters for backward compat with dashboard.ts
+  window.updateRealtimeCount = (count: number) => realtimeCount.set(count)
+  window.updateLastUpdated = (time: string) => lastUpdated.set(time)
+  window.controlsSetDateRange = (range: string) => activeRange.set(range)
   window.controlsBar = {
-    setRange, toggleComparison, refresh, exportData,
-    activeRange: () => activeRange, showComparison: () => showComparison, isRefreshing: () => isRefreshing
+    setRange,
+    toggleComparison,
+    refresh,
+    exportData,
+    activeRange: () => activeRange(),
+    showComparison: () => showComparison(),
+    isRefreshing: () => isRefreshing(),
   }
-
-  renderDateRangeButtons()
 
   // Sync with any existing dashboard state
   if (window.dateRange) {
-    activeRange = window.dateRange
-    renderDateRangeButtons()
+    activeRange.set(window.dateRange)
   }
-}
+})
 
-// Run on DOM ready
-if (_doc.readyState === 'loading') {
-  _doc['addEventListener']('DOMContentLoaded', init)
-} else {
-  init()
-}
+// Provide cross-component communication
+provide('controlsBar', {
+  activeRange,
+  showComparison,
+  realtimeCount,
+  lastUpdated,
+  isRefreshing,
+  setRange,
+  toggleComparison,
+  refresh,
+  exportData,
+})
 </script>
 
 <div id="controls-bar" class="flex justify-between items-center py-3 px-6 bg-bg border-b border-border gap-4 flex-wrap max-sm:flex-col max-sm:items-stretch">
-  <div id="date-range-btns" class="flex items-center gap-1 max-sm:justify-center">
-    <button class="date-range-btn" data-range="1h" onclick="setDateRange('1h')">1h</button>
-    <button class="date-range-btn date-range-btn-active" data-range="6h" onclick="setDateRange('6h')">6h</button>
-    <button class="date-range-btn" data-range="12h" onclick="setDateRange('12h')">12h</button>
-    <button class="date-range-btn" data-range="24h" onclick="setDateRange('24h')">24h</button>
-    <button class="date-range-btn" data-range="7d" onclick="setDateRange('7d')">7d</button>
-    <button class="date-range-btn" data-range="30d" onclick="setDateRange('30d')">30d</button>
-    <button class="date-range-btn" data-range="90d" onclick="setDateRange('90d')">90d</button>
+  <div class="flex items-center gap-1 max-sm:justify-center">
+    <button @for="range in ranges" @class="['date-range-btn', activeRange() === range.id ? 'date-range-btn-active' : '']" @click="setRange(range.id)">{{ range.label }}</button>
     <span class="border-l border-border h-6 mx-2"></span>
-    <button id="compare-btn" class="date-range-btn flex items-center gap-1 text-[0.6875rem] py-1 px-2" onclick="toggleComparison()" title="Compare with previous period">
+    <button id="compare-btn" @class="['date-range-btn flex items-center gap-1 text-[0.6875rem] py-1 px-2', showComparison() ? 'date-range-btn-active' : '']" @click="toggleComparison()" title="Compare with previous period">
       <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
       </svg>
@@ -177,15 +133,15 @@ if (_doc.readyState === 'loading') {
   <div class="flex items-center gap-3 max-sm:justify-between">
     <div class="flex items-center gap-2 py-1.5 px-3 bg-success/10 rounded-full text-xs font-medium text-success">
       <span class="pulse"></span>
-      <span id="realtime-count">0 visitors online</span>
+      <span id="realtime-count">{{ realtimeCount() }} visitors online</span>
     </div>
-    <span id="last-updated" class="text-xs text-muted" style="display:none"></span>
-    <button id="refresh-btn" class="icon-btn" onclick="window.controlsBar.refresh()" title="Refresh data">
+    <span id="last-updated" class="text-xs text-muted" @show="lastUpdated()">{{ lastUpdated() }}</span>
+    <button id="refresh-btn" @class="['icon-btn', isRefreshing() ? 'spinning' : '']" @click="refresh()" title="Refresh data">
       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
       </svg>
     </button>
-    <button class="icon-btn" onclick="window.controlsBar.exportData('csv')" title="Export CSV">
+    <button class="icon-btn" @click="exportData('csv')" title="Export CSV">
       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
       </svg>
@@ -194,23 +150,6 @@ if (_doc.readyState === 'loading') {
 </div>
 
 <style>
-/* Dynamic classes used by renderDateRangeButtons() in script */
-.date-btn {
-  @apply date-range-btn;
-}
-.date-btn:hover {
-  @apply bg-bg text-text;
-}
-.date-btn.active {
-  @apply date-range-btn-active;
-}
-.compare-btn {
-  @apply flex items-center gap-1 text-[0.6875rem] py-1 px-2;
-}
-.divider {
-  @apply border-l border-border h-6 mx-2;
-}
-
 /* Animations - cannot be expressed as utilities */
 .pulse {
   @apply w-2 h-2 bg-success rounded-full;

@@ -56,7 +56,7 @@
     "@cwcss/crosswind": "^0.1.6",
     "@stacksjs/bun-router": "^0.0.2",
     "@stacksjs/stx": "^0.2.5",
-    "bun-plugin-stx": "^0.2.4",
+    "bun-plugin-stx": "^0.2.5",
     "bun-query-builder": "^0.1.13",
     "dynamodb-tooling": "^0.3.2",
     "ts-countries": "^0.1.2"

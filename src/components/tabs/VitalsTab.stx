@@ -1,40 +1,56 @@
-<script client>
+<script client lang="ts">
 /**
  * VitalsTab Component - Core Web Vitals display
  * Uses STX signals for reactive state management
  */
 
+interface Vital {
+  metric: string
+  p75: number
+  samples: number
+  good: number
+  needsImprovement: number
+  poor: number
+}
+
+interface BudgetViolation {
+  metric: string
+  currentValue: number
+  threshold: number
+  exceededBy: number
+}
+
 import { useSiteApi } from '@composables'
 const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi()
 
-const vitals = state([])
-const violations = state([])
-const loading = state(true)
-const error = state(null)
+const vitals = state<Vital[]>([])
+const violations = state<BudgetViolation[]>([])
+const loading = state<boolean>(true)
+const error = state<string | null>(null)
 
 // Fetch vitals data
-async function fetchVitals() {
+async function fetchVitals(): Promise<void> {
   if (!_siteId()) { loading.set(false); return }
   try {
-    const [vitalsRes, budgetsRes] = await Promise.all([
+    const [vitalsRes, budgetsRes]: [Response, Response] = await Promise.all([
       fetch(_apiUrl('/vitals' + _dateParams())),
       fetch(_apiUrl('/performance-budgets/check'))
     ])
-    const vitalsData = await vitalsRes.json()
-    const budgetsData = await budgetsRes.json()
+    const vitalsData: { vitals?: Vital[] } = await vitalsRes.json()
+    const budgetsData: { violations?: BudgetViolation[] } = await budgetsRes.json()
 
     vitals.set(vitalsData.vitals || [])
     violations.set(budgetsData.violations || [])
     error.set(null)
-  } catch (e) {
-    error.set(e.message)
+  } catch (e: unknown) {
+    error.set((e as Error).message)
   } finally {
     loading.set(false)
   }
 }
 
 // Get rating class
-function getRating(v) {
+function getRating(v: Vital | null): string {
   if (!v || v.samples === 0) return ''
   if ((v.good || 0) >= 75) return 'good'
   if ((v.poor || 0) >= 25) return 'poor'
@@ -42,7 +58,7 @@ function getRating(v) {
 }
 
 // Format vital value
-function formatValue(metric, value) {
+function formatValue(metric: string, value: number): string {
   if (metric === 'CLS') return (value / 1000).toFixed(3)
   return value + 'ms'
 }

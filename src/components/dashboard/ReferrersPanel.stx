@@ -1,39 +1,48 @@
-<script client>
+<script client lang="ts">
 /**
  * ReferrersPanel Component
  * Displays top referrers with reactive data fetching
  */
-const referrers = state([])
-const loading = state(true)
 
-function getDomain(source) {
+interface Referrer {
+  name: string
+  source?: string
+  visitors: number
+  views?: number
+  favicon?: string
+}
+
+const referrers = state<Referrer[]>([])
+const loading = state<boolean>(true)
+
+function getDomain(source: string): string {
   return source.replace(/^https?:\/\//, '').split('/')[0]
 }
 
-function isExternalLink(source) {
-  const lower = (source || '').toLowerCase()
+function isExternalLink(source: string): boolean {
+  const lower: string = (source || '').toLowerCase()
   return lower !== 'direct' && !source.includes('(') && source.includes('.')
 }
 
-function getHref(source) {
+function getHref(source: string): string {
   return source.startsWith('http') ? source : 'https://' + source
 }
 
-function getFaviconUrl(source) {
+function getFaviconUrl(source: string): string {
   return 'https://www.google.com/s2/favicons?domain=' + getDomain(source) + '&sz=16'
 }
 
-async function fetchReferrers() {
-  const siteId = window.siteId
+async function fetchReferrers(): Promise<void> {
+  const siteId: string | undefined = window.siteId
   if (!siteId) {
     loading.set(false)
     return
   }
   try {
-    const res = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/referrers${window.getDateRangeParams()}`))
-    const data = await res.json()
+    const res: Response = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/referrers${window.getDateRangeParams()}`))
+    const data: { referrers?: Referrer[] } = await res.json()
     referrers.set((data.referrers || []).slice(0, 10))
-  } catch (e) {
+  } catch (e: unknown) {
     console.error('Failed to fetch referrers:', e)
   } finally {
     loading.set(false)
@@ -50,142 +59,53 @@ window.refreshReferrersPanel = fetchReferrers
 <div class="panel">
   <div class="panel-header">
     <div class="panel-title">
-      <svg class="panel-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="text-muted" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
       </svg>
       Top Referrers
     </div>
-    <a href="#" @click.prevent="window.navigateTo('referrers')" class="view-all">View all &rarr;</a>
+    <a href="#" @click.prevent="window.navigateTo('referrers')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
   </div>
-  <table class="data-table">
+  <table class="w-full text-[0.8125rem]">
     <thead>
       <tr>
-        <th class="text-left">Source</th>
-        <th class="text-right">Visitors</th>
-        <th class="text-right">Views</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-left">Source</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-right">Visitors</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-right">Views</th>
       </tr>
     </thead>
     <tbody>
       <tr @for="ref in referrers()" @loading="loading()" @if="!loading()">
-        <td class="name">
+        <td class="cell-name">
           <a @if="isExternalLink(ref.source ? ref.source : 'Direct')"
              :href="getHref(ref.source)"
              target="_blank"
              rel="noopener"
-             class="referrer-link">
+             class="inline-flex items-center gap-1.5 hover:text-accent">
             <img
               :src="getFaviconUrl(ref.source)"
               width="14"
               height="14"
-              class="favicon"
+              class="align-middle rounded-sm"
               @error="e => e.target.style.display = 'none'"
             />
             {{ ref.source ? ref.source : 'Direct' }}
-            <svg class="external-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg class="opacity-50" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
             </svg>
           </a>
           <span @if="!isExternalLink(ref.source ? ref.source : 'Direct')">{{ ref.source ? ref.source : 'Direct' }}</span>
         </td>
-        <td class="value">{{ ref.visitors | fmt }}</td>
-        <td class="value">{{ ref.views | fmt }}</td>
+        <td class="cell-value">{{ ref.visitors | fmt }}</td>
+        <td class="cell-value">{{ ref.views | fmt }}</td>
       </tr>
       <tr @for-loading>
-        <td colspan="3" class="loading-cell">Loading...</td>
+        <td colspan="3" class="text-center text-muted py-4">Loading...</td>
       </tr>
       <tr @for-empty>
-        <td colspan="3" class="empty-cell">No referrer data</td>
+        <td colspan="3" class="text-center text-muted py-4">No referrer data</td>
       </tr>
     </tbody>
   </table>
 </div>
 
-<style>
-.panel {
-  background: var(--bg2);
-  border-radius: 8px;
-  padding: 1.5rem;
-  border: 1px solid var(--border);
-}
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-.panel-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--text);
-}
-.panel-icon {
-  color: var(--muted);
-}
-.view-all {
-  font-size: 0.75rem;
-  color: var(--accent);
-  text-decoration: none;
-}
-.view-all:hover {
-  text-decoration: underline;
-}
-.data-table {
-  width: 100%;
-  font-size: 0.8125rem;
-  border-collapse: collapse;
-}
-.data-table th {
-  padding: 0.5rem 0;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-  border-bottom: 1px solid var(--border);
-}
-.data-table td {
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
-}
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-.name {
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.value {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-.loading-cell,
-.empty-cell {
-  text-align: center;
-  color: var(--muted);
-  padding: 1rem 0;
-}
-.referrer-link {
-  color: inherit;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.referrer-link:hover {
-  color: var(--accent);
-}
-.favicon {
-  vertical-align: middle;
-  border-radius: 2px;
-}
-.external-icon {
-  opacity: 0.5;
-}
-.referrer-link:hover .external-icon {
-  opacity: 1;
-}
-</style>

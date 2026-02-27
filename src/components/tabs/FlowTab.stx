@@ -1,15 +1,34 @@
-<script client>
+<script client lang="ts">
 /**
  * FlowTab Component - User flow visualization
  * Uses STX signals for reactive state management
  */
 
+interface FlowPage {
+  path: string
+  count: number
+}
+
+interface FlowLink {
+  source: string
+  target: string
+  count: number
+}
+
+interface FlowData {
+  entryPages: FlowPage[]
+  flows: FlowLink[]
+  mostVisited: FlowPage[]
+  totalSessions: number
+  uniquePaths: number
+}
+
 import { useSiteApi } from '@composables'
 const { siteId: _siteId, apiUrlWithDates } = useSiteApi()
 
-const flowData = state(null)
-const loading = state(true)
-const error = state(null)
+const flowData = state<FlowData | null>(null)
+const loading = state<boolean>(true)
+const error = state<string | null>(null)
 
 // Computed: entry pages
 const entryPages = derived(() => flowData()?.entryPages || [])
@@ -27,15 +46,15 @@ const summary = derived(() => {
   return `${data.totalSessions || 0} sessions analyzed • ${data.uniquePaths || 0} unique pages visited`
 })
 
-async function fetchFlow() {
+async function fetchFlow(): Promise<void> {
   if (!_siteId()) { loading.set(false); return }
   try {
-    const res = await fetch(apiUrlWithDates('/flow'))
-    const data = await res.json()
+    const res: Response = await fetch(apiUrlWithDates('/flow'))
+    const data: FlowData = await res.json()
     flowData.set(data)
     error.set(null)
-  } catch (e) {
-    error.set(e.message)
+  } catch (e: unknown) {
+    error.set((e as Error).message)
   } finally {
     loading.set(false)
   }

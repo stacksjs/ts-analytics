@@ -42,14 +42,21 @@
 
   <script>
     // Get params from URL and global config
+    /** @type {URLSearchParams} */
     const urlParams = new URLSearchParams(window.location.search)
+    /** @type {string} */
     const API = window.ANALYTICS_API || urlParams.get('api') || window.location.origin
+    /** @type {string} */
     const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || 'test-site'
 
     // Update UI with site ID
     document.getElementById('siteIdDisplay').textContent = 'Site ID: ' + SITE_ID
     document.getElementById('backLink').href = '/dashboard?siteId=' + SITE_ID
 
+    /**
+     * @param {string} message
+     * @param {string} type
+     */
     function log(message, type = 'info') {
       const logEl = document.getElementById('log')
       const entry = document.createElement('div')
@@ -61,26 +68,31 @@
       logEl.scrollTop = logEl.scrollHeight
     }
 
+    /** @returns {void} */
     function testSyntaxError() {
       log('Triggering syntax error...')
       eval('function() {')
     }
 
+    /** @returns {void} */
     function testTypeError() {
       log('Triggering type error...')
       null.toString()
     }
 
+    /** @returns {void} */
     function testReferenceError() {
       log('Triggering reference error...')
       undefinedVariable.doSomething()
     }
 
+    /** @returns {void} */
     function testCustomError() {
       log('Triggering custom error...')
       throw new Error('Test custom error from test page')
     }
 
+    /** @returns {Promise<void>} */
     async function testAsyncError() {
       log('Triggering async error...')
       await Promise.reject(new Error('Test async error'))

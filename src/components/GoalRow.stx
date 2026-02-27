@@ -1,53 +1,48 @@
-<script client>
+<script client lang="ts">
 /**
  * GoalRow Component
  * Displays a goal in the goals table
  */
-const goal = $props.goal || {}
-const onEdit = $props.onEdit
-const onDelete = $props.onDelete
+interface Goal {
+  id?: string
+  name?: string
+  type?: string
+  conversions?: number
+  totalValue?: number
+}
+
+const goal: Goal = $props.goal || {}
+const onEdit: ((id: string | undefined) => void) | undefined = $props.onEdit
+const onDelete: ((id: string | undefined) => void) | undefined = $props.onDelete
 
 const name = derived(() => goal.name || 'Unnamed')
 const type = derived(() => goal.type || 'pageview')
 const conversions = derived(() => goal.conversions || 0)
 const value = derived(() => goal.totalValue ? '$' + goal.totalValue.toFixed(2) : '-')
 
-function handleEdit() {
+function handleEdit(): void {
   if (onEdit) onEdit(goal.id)
 }
 
-function handleDelete() {
+function handleDelete(): void {
   if (onDelete) onDelete(goal.id)
 }
 </script>
 
-<tr class="goal-row">
-  <td class="goal-name">{{ name() }}</td>
+<tr>
+  <td class="font-medium">{{ name() }}</td>
   <td>
-    <span @class="['goal-type-badge', type()]">{{ type() }}</span>
+    <span @class="['text-[0.6875rem] py-0.5 px-1.5 rounded-sm uppercase goal-type-badge', type()]">{{ type() }}</span>
   </td>
-  <td class="goal-conversions text-right">{{ conversions() | fmt }}</td>
-  <td class="goal-value text-right">{{ value() }}</td>
-  <td class="goal-actions">
-    <button class="edit-btn" @click="handleEdit">Edit</button>
-    <button class="delete-btn" @click="handleDelete">Delete</button>
+  <td class="text-right">{{ conversions() | fmt }}</td>
+  <td class="text-right">{{ value() }}</td>
+  <td class="flex gap-2 justify-end">
+    <button class="py-1 px-2 text-xs rounded border-none cursor-pointer bg-bg-3 text-text hover:bg-accent hover:text-white edit-btn" @click="handleEdit">Edit</button>
+    <button class="py-1 px-2 text-xs rounded border-none cursor-pointer bg-transparent text-muted delete-btn" @click="handleDelete">Delete</button>
   </td>
 </tr>
 
 <style>
-.goal-row td {
-  padding: 0.75rem 0.5rem;
-  border-bottom: 1px solid var(--border);
-}
-.goal-name {
-  font-weight: 500;
-}
-.goal-type-badge {
-  font-size: 0.6875rem;
-  padding: 0.125rem 0.375rem;
-  border-radius: 3px;
-  text-transform: uppercase;
-}
 .goal-type-badge.pageview {
   background: rgba(59, 130, 246, 0.1);
   color: #3b82f6;
@@ -59,34 +54,6 @@ function handleDelete() {
 .goal-type-badge.duration {
   background: rgba(168, 85, 247, 0.1);
   color: #a855f7;
-}
-.text-right {
-  text-align: right;
-}
-.goal-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
-.edit-btn,
-.delete-btn {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
-}
-.edit-btn {
-  background: var(--bg3);
-  color: var(--text);
-}
-.edit-btn:hover {
-  background: var(--accent);
-  color: white;
-}
-.delete-btn {
-  background: transparent;
-  color: var(--muted);
 }
 .delete-btn:hover {
   background: rgba(239, 68, 68, 0.1);

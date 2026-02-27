@@ -1,25 +1,19 @@
-<script client>
+<script client lang="ts">
 /**
  * SeverityCard Component
  * Displays a severity count badge
  */
-const severity = $props.severity || 'medium'
-const count = $props.count || 0
-const label = $props.label || ''
+const severity: string = $props.severity || 'medium'
+const count: number = $props.count || 0
+const label: string = $props.label || ''
 </script>
 
-<div @class="['severity-card', severity]">
-  <div class="severity-card-count">{{ count }}</div>
-  <div class="severity-card-label">{{ label }}</div>
+<div @class="['py-3 px-4 rounded-lg text-center min-w-[80px] severity-card', severity]">
+  <div class="text-xl font-semibold text-text">{{ count }}</div>
+  <div class="text-[0.6875rem] text-muted uppercase">{{ label }}</div>
 </div>
 
 <style>
-.severity-card {
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  text-align: center;
-  min-width: 80px;
-}
 .severity-card.critical {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.2);
@@ -35,15 +29,5 @@ const label = $props.label || ''
 .severity-card.low {
   background: rgba(107, 114, 128, 0.1);
   border: 1px solid rgba(107, 114, 128, 0.2);
-}
-.severity-card-count {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text);
-}
-.severity-card-label {
-  font-size: 0.6875rem;
-  color: var(--muted);
-  text-transform: uppercase;
 }
 </style>

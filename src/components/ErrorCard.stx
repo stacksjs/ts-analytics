@@ -1,20 +1,33 @@
-<script client>
+<script client lang="ts">
 /**
  * ErrorCard Component
  * Displays an error with severity, status, and actions
  */
-const error = $props.error || {}
-const errorId = $props.errorId || ''
-const status = $props.status || 'new'
-const siteId = $props.siteId || ''
-const onStatusChange = $props.onStatusChange
+interface ErrorData {
+  severity?: string
+  category?: string
+  count?: number
+  message?: string
+  source?: string
+  line?: number
+  firstSeen?: string
+  lastSeen?: string
+  browsers?: string[]
+  paths?: string[]
+}
 
-const severityLabels = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
-const statusLabels = { new: 'New', resolved: 'Resolved', ignored: 'Ignored', regression: 'Regression' }
+const error: ErrorData = $props.error || {}
+const errorId: string = $props.errorId || ''
+const status: string = $props.status || 'new'
+const siteId: string = $props.siteId || ''
+const onStatusChange: ((errorId: string, action: string) => void) | undefined = $props.onStatusChange
+
+const severityLabels: Record<string, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
+const statusLabels: Record<string, string> = { new: 'New', resolved: 'Resolved', ignored: 'Ignored', regression: 'Regression' }
 
 const severity = derived(() => error.severity || 'medium')
 const classNames = derived(() => {
-  const classes = ['error-card']
+  const classes: string[] = ['error-card']
   if (status === 'resolved') classes.push('resolved')
   if (status === 'ignored') classes.push('ignored')
   return classes.join(' ')
@@ -25,7 +38,7 @@ const source = derived(() => error.source ? error.source.split('/').pop() + ':' 
 const browsersText = derived(() => (error.browsers || []).join(', ') || 'Unknown')
 const pathsCount = derived(() => (error.paths || []).length)
 
-function handleAction(action, e) {
+function handleAction(action: string, e: Event): void {
   e.preventDefault()
   e.stopPropagation()
   if (onStatusChange) onStatusChange(errorId, action)

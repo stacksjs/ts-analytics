@@ -21,84 +21,25 @@ function getBarWidth(count: number, max: number): number {
 
 <div id="events-content">
   @if(loading)
-    <div class="empty-state">Loading...</div>
+    <div class="text-center text-muted p-6 text-[0.8125rem]">Loading...</div>
   @elseif(events.length === 0)
-    <div class="empty-state">No custom events tracked</div>
+    <div class="text-center text-muted p-6 text-[0.8125rem]">No custom events tracked</div>
   @else
-    <div class="events-list">
+    <div class="flex flex-col gap-2">
       @foreach(events as event)
-        <div class="event-bar-item">
-          <div class="event-bar-info">
-            <div class="event-bar-header">
-              <span class="event-bar-name">{{ event.name }}</span>
-              <span class="event-bar-pct">{{ getPercentage((event.count ? event.count : 0), getTotalCount(events)) }}%</span>
+        <div class="flex items-center gap-2 text-[0.8125rem]">
+          <div class="flex-1 min-w-0">
+            <div class="flex justify-between mb-0.5">
+              <span class="font-medium overflow-hidden text-ellipsis whitespace-nowrap text-text">{{ event.name }}</span>
+              <span class="text-muted ml-2 text-xs">{{ getPercentage((event.count ? event.count : 0), getTotalCount(events)) }}%</span>
             </div>
-            <div class="event-bar-track">
-              <div class="event-bar-fill" style="width: {{ getBarWidth((event.count ? event.count : 0), getMaxCount(events)) }}%"></div>
+            <div class="h-1 bg-border rounded-sm overflow-hidden">
+              <div class="h-full bg-accent-2 rounded-sm transition-[width] duration-300" style="width: {{ getBarWidth((event.count ? event.count : 0), getMaxCount(events)) }}%"></div>
             </div>
           </div>
-          <span class="event-bar-count">{{ (event.count ? event.count : 0) | fmt }}</span>
+          <span class="min-w-[50px] text-right font-semibold text-text">{{ (event.count ? event.count : 0) | fmt }}</span>
         </div>
       @endforeach
     </div>
   @endif
 </div>
-
-<style>
-.empty-state {
-  text-align: center;
-  color: var(--muted);
-  padding: 1.5rem;
-  font-size: 0.8125rem;
-}
-.events-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.event-bar-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
-}
-.event-bar-info {
-  flex: 1;
-  min-width: 0;
-}
-.event-bar-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 2px;
-}
-.event-bar-name {
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text);
-}
-.event-bar-pct {
-  color: var(--muted);
-  margin-left: 0.5rem;
-  font-size: 0.75rem;
-}
-.event-bar-track {
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.event-bar-fill {
-  height: 100%;
-  background: var(--accent2);
-  border-radius: 2px;
-  transition: width 0.3s;
-}
-.event-bar-count {
-  min-width: 50px;
-  text-align: right;
-  font-weight: 600;
-  color: var(--text);
-}
-</style>

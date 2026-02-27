@@ -1,6 +1,6 @@
-<script server>
-export const href = props.href || '/dashboard'
-export const text = props.text || 'Back to Dashboard'
+<script server lang="ts">
+export const href: string = props.href || '/dashboard'
+export const text: string = props.text || 'Back to Dashboard'
 </script>
 
 <a href="{{ href }}" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline mb-4">

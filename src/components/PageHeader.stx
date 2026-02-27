@@ -1,7 +1,7 @@
-<script server>
-export const title = props.title || 'Page Title'
-export const iconPath = props.iconPath || ''
-export const subtitle = props.subtitle || ''
+<script server lang="ts">
+export const title: string = props.title || 'Page Title'
+export const iconPath: string = props.iconPath || ''
+export const subtitle: string = props.subtitle || ''
 </script>
 
 <header class="mb-6">

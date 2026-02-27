@@ -1,18 +1,69 @@
-<script client>
+<script client lang="ts">
 /**
  * SettingsTab Component - Site settings management
+ * Uses STX reactive APIs instead of vanilla DOM manipulation
  */
+
+interface ApiKey {
+  name: string
+  key: string
+}
+
+interface Alert {
+  id: string
+  metric: string
+  threshold: number
+  email: string
+}
+
+interface EmailReport {
+  id: string
+  email: string
+  frequency: string
+}
+
+interface UptimeMonitor {
+  id: string
+  url: string
+  interval: number
+  status: string
+}
+
+interface TeamMember {
+  id: string
+  email: string
+  role: string
+}
+
+interface Webhook {
+  id: string
+  url: string
+  events: string[]
+}
+
+interface PerfBudget {
+  id: string
+  metric: string
+  threshold: number
+}
+
+interface SiteSettings {
+  apiKey: ApiKey | null
+  alerts: Alert[]
+  emailReports: EmailReport[]
+  uptimeMonitors: UptimeMonitor[]
+  teamMembers: TeamMember[]
+  webhooks: Webhook[]
+  perfBudgets: PerfBudget[]
+  retentionDays: number
+}
 
 import { useSiteApi, useModal } from '@composables'
 const { siteId, apiUrl } = useSiteApi()
 const Modal = useModal()
 
-// DOM helpers
-const _doc = document
-const _getEl = (id) => _doc.getElementById(id)
-const _addListener = (el, event, fn) => el.addEventListener(event, fn)
-
-let settingsData = {
+// Reactive state
+const settings = state<SiteSettings>({
   apiKey: null,
   alerts: [],
   emailReports: [],
@@ -21,16 +72,19 @@ let settingsData = {
   webhooks: [],
   perfBudgets: [],
   retentionDays: 365
-}
+})
+const loading = state<boolean>(true)
+const error = state<string | null>(null)
+const copied = state<boolean>(false)
 
-async function fetchSettings() {
-  const container = _getEl('settings-container')
-  if (!siteId() || !container) return
-
-  container.innerHTML = '<div class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg"><div class="spinner"></div><span>Loading...</span></div>'
+// Fetch all settings data
+async function fetchSettings(): Promise<void> {
+  if (!siteId()) { loading.set(false); return }
+  loading.set(true)
+  error.set(null)
 
   try {
-    const [keysRes, alertsRes, reportsRes, uptimeRes, teamRes, webhooksRes, budgetsRes, retentionRes] = await Promise.all([
+    const [keysRes, alertsRes, reportsRes, uptimeRes, teamRes, webhooksRes, budgetsRes, retentionRes]: Response[] = await Promise.all([
       fetch(apiUrl('/api-keys')),
       fetch(apiUrl('/alerts')),
       fetch(apiUrl('/email-reports')),
@@ -46,7 +100,7 @@ async function fetchSettings() {
       teamRes.json(), webhooksRes.json(), budgetsRes.json(), retentionRes.json()
     ])
 
-    settingsData = {
+    settings.set({
       apiKey: keysData.apiKey || null,
       alerts: alertsData.alerts || [],
       emailReports: reportsData.reports || [],
@@ -55,248 +109,33 @@ async function fetchSettings() {
       webhooks: webhooksData.webhooks || [],
       perfBudgets: budgetsData.budgets || [],
       retentionDays: retentionData.days || 365
-    }
-
-    renderSettings()
-  } catch (e) {
-    container.innerHTML = `<div class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">${e.message}</div>`
+    })
+  } catch (e: unknown) {
+    error.set((e as Error).message)
+  } finally {
+    loading.set(false)
   }
 }
 
-function renderSettings() {
-  const container = _getEl('settings-container')
-  if (!container) return
-
-  container.innerHTML = `
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="flex flex-col gap-4">
-        ${renderApiKeysPanel()}
-        ${renderAlertsPanel()}
-        ${renderEmailReportsPanel()}
-        ${renderUptimePanel()}
-      </div>
-      <div class="flex flex-col gap-4">
-        ${renderTeamPanel()}
-        ${renderWebhooksPanel()}
-        ${renderPerfBudgetsPanel()}
-        ${renderDataPrivacyPanel()}
-      </div>
-    </div>
-  `
+// Copy API key to clipboard with state-based feedback
+function copyApiKey(): void {
+  const key = settings().apiKey
+  if (key && key.key) {
+    navigator.clipboard.writeText(key.key)
+    copied.set(true)
+    setTimeout(() => copied.set(false), 2000)
+  }
 }
 
-function renderApiKeysPanel() {
-  const key = settingsData.apiKey
-
-  const keyContent = key ? `
-    <div class="flex justify-between items-center p-2 bg-bg rounded">
-      <div class="flex-1 min-w-0">
-        <div class="text-[0.8125rem] font-medium text-text">${key.name}</div>
-        <code class="text-[0.6875rem] text-muted break-all">${key.key}</code>
-      </div>
-      <div class="flex items-center gap-1">
-        <button class="icon-btn" onclick="copyApiKey()" title="Copy key">
-          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" stroke-width="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke-width="2"/></svg>
-        </button>
-      </div>
-    </div>
-  ` : '<p class="text-xs text-muted italic">No API key found.</p>'
-
-  return `
-    <div class="panel">
-      <div class="panel-header">
-        <h4 class="panel-title">API Key</h4>
-        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="regenerateApiKey()">Regenerate</button>
-      </div>
-      <p class="text-xs text-muted mb-3">Use this key for programmatic access to your analytics data.</p>
-      <div class="flex flex-col gap-2">
-        ${keyContent}
-      </div>
-    </div>
-  `
-}
-
-function renderAlertsPanel() {
-  const items = settingsData.alerts.map(alert => `
-    <div class="flex justify-between items-center p-2 bg-bg rounded">
-      <div class="flex-1 min-w-0">
-        <div class="text-[0.8125rem] font-medium text-text">${alert.metric}</div>
-        <div class="text-[0.6875rem] text-muted">Threshold: ${alert.threshold} → ${alert.email}</div>
-      </div>
-      <button class="icon-btn hover:bg-error/15 hover:text-error" onclick="deleteAlert('${alert.id}')" title="Delete">×</button>
-    </div>
-  `).join('')
-
-  return `
-    <div class="panel">
-      <div class="panel-header">
-        <h4 class="panel-title">Alerts</h4>
-        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="showAlertModal()">+ New Alert</button>
-      </div>
-      <p class="text-xs text-muted mb-3">Get notified when metrics exceed thresholds.</p>
-      <div class="flex flex-col gap-2">
-        ${settingsData.alerts.length === 0 ? '<p class="text-xs text-muted italic">No alerts configured.</p>' : items}
-      </div>
-    </div>
-  `
-}
-
-function renderEmailReportsPanel() {
-  const items = settingsData.emailReports.map(report => `
-    <div class="flex justify-between items-center p-2 bg-bg rounded">
-      <div class="flex-1 min-w-0">
-        <div class="text-[0.8125rem] font-medium text-text">${report.email}</div>
-        <div class="text-[0.6875rem] text-muted">${report.frequency}</div>
-      </div>
-      <button class="icon-btn hover:bg-error/15 hover:text-error" onclick="deleteEmailReport('${report.id}')" title="Delete">×</button>
-    </div>
-  `).join('')
-
-  return `
-    <div class="panel">
-      <div class="panel-header">
-        <h4 class="panel-title">Email Reports</h4>
-        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="showEmailReportModal()">+ Add Report</button>
-      </div>
-      <p class="text-xs text-muted mb-3">Schedule automated email reports.</p>
-      <div class="flex flex-col gap-2">
-        ${settingsData.emailReports.length === 0 ? '<p class="text-xs text-muted italic">No email reports scheduled.</p>' : items}
-      </div>
-    </div>
-  `
-}
-
-function renderUptimePanel() {
-  const items = settingsData.uptimeMonitors.map(monitor => `
-    <div class="flex justify-between items-center p-2 bg-bg rounded">
-      <div class="flex-1 min-w-0">
-        <code class="text-[0.6875rem] text-muted break-all">${monitor.url}</code>
-        <div class="text-[0.6875rem] text-muted">Every ${monitor.interval}min • ${monitor.status || 'Pending'}</div>
-      </div>
-      <button class="icon-btn hover:bg-error/15 hover:text-error" onclick="deleteUptimeMonitor('${monitor.id}')" title="Delete">×</button>
-    </div>
-  `).join('')
-
-  return `
-    <div class="panel">
-      <div class="panel-header">
-        <h4 class="panel-title">Uptime Monitoring</h4>
-        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="showUptimeModal()">+ Add Monitor</button>
-      </div>
-      <p class="text-xs text-muted mb-3">Monitor your site availability.</p>
-      <div class="flex flex-col gap-2">
-        ${settingsData.uptimeMonitors.length === 0 ? '<p class="text-xs text-muted italic">No uptime monitors configured.</p>' : items}
-      </div>
-    </div>
-  `
-}
-
-function renderTeamPanel() {
-  const items = settingsData.teamMembers.map(member => `
-    <div class="flex justify-between items-center p-2 bg-bg rounded">
-      <div class="flex-1 min-w-0">
-        <div class="text-[0.8125rem] font-medium text-text">${member.email}</div>
-        <div class="text-[0.6875rem] text-muted">${member.role}</div>
-      </div>
-      <button class="icon-btn hover:bg-error/15 hover:text-error" onclick="removeTeamMember('${member.id}')" title="Remove">×</button>
-    </div>
-  `).join('')
-
-  return `
-    <div class="panel">
-      <div class="panel-header">
-        <h4 class="panel-title">Team Members</h4>
-        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="showTeamModal()">+ Invite</button>
-      </div>
-      <p class="text-xs text-muted mb-3">Manage team access to this site.</p>
-      <div class="flex flex-col gap-2">
-        ${settingsData.teamMembers.length === 0 ? '<p class="text-xs text-muted italic">No team members added.</p>' : items}
-      </div>
-    </div>
-  `
-}
-
-function renderWebhooksPanel() {
-  const items = settingsData.webhooks.map(webhook => `
-    <div class="flex justify-between items-center p-2 bg-bg rounded">
-      <div class="flex-1 min-w-0">
-        <code class="text-[0.6875rem] text-muted break-all">${webhook.url}</code>
-        <div class="text-[0.6875rem] text-muted">${(webhook.events || []).join(', ')}</div>
-      </div>
-      <button class="icon-btn hover:bg-error/15 hover:text-error" onclick="deleteWebhook('${webhook.id}')" title="Delete">×</button>
-    </div>
-  `).join('')
-
-  return `
-    <div class="panel">
-      <div class="panel-header">
-        <h4 class="panel-title">Webhooks</h4>
-        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="showWebhookModal()">+ Add Webhook</button>
-      </div>
-      <p class="text-xs text-muted mb-3">Send real-time data to external services.</p>
-      <div class="flex flex-col gap-2">
-        ${settingsData.webhooks.length === 0 ? '<p class="text-xs text-muted italic">No webhooks configured.</p>' : items}
-      </div>
-    </div>
-  `
-}
-
-function renderPerfBudgetsPanel() {
-  const items = settingsData.perfBudgets.map(budget => `
-    <div class="flex justify-between items-center p-2 bg-bg rounded">
-      <div class="flex-1 min-w-0">
-        <div class="text-[0.8125rem] font-medium text-text">${budget.metric}</div>
-        <div class="text-[0.6875rem] text-muted">Threshold: ${budget.threshold}${budget.metric === 'CLS' ? '' : 'ms'}</div>
-      </div>
-      <button class="icon-btn hover:bg-error/15 hover:text-error" onclick="deletePerfBudget('${budget.id}')" title="Delete">×</button>
-    </div>
-  `).join('')
-
-  return `
-    <div class="panel">
-      <div class="panel-header">
-        <h4 class="panel-title">Performance Budgets</h4>
-        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="showPerfBudgetModal()">+ Add Budget</button>
-      </div>
-      <p class="text-xs text-muted mb-3">Set performance thresholds for alerts.</p>
-      <div class="flex flex-col gap-2">
-        ${settingsData.perfBudgets.length === 0 ? '<p class="text-xs text-muted italic">No performance budgets set.</p>' : items}
-      </div>
-    </div>
-  `
-}
-
-function renderDataPrivacyPanel() {
-  return `
-    <div class="panel">
-      <div class="panel-header">
-        <h4 class="panel-title">Data & Privacy</h4>
-      </div>
-      <div class="flex flex-col gap-3">
-        <div class="flex gap-2 items-center">
-          <div>
-            <div class="text-xs text-muted">Data Retention</div>
-            <div class="text-sm font-medium text-text">${settingsData.retentionDays} days</div>
-          </div>
-        </div>
-        <div class="flex gap-2 items-center">
-          <button class="btn btn-secondary" onclick="gdprExport()">Export Data (GDPR)</button>
-          <button class="btn btn-danger" onclick="gdprDelete()">Delete All Data</button>
-        </div>
-      </div>
-    </div>
-  `
-}
-
-// Modal functions (access via window since script runs in strict-mode IIFE)
-function regenerateApiKey() {
+// Modal functions
+function regenerateApiKey(): void {
   Modal.confirm('Regenerate API key? The current key will stop working immediately.', async () => {
-    const res = await fetch(apiUrl('/api-keys/regenerate'), {
+    const res: Response = await fetch(apiUrl('/api-keys/regenerate'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     })
-    const result = await res.json()
-    const fullKey = result.apiKey && result.apiKey.key
+    const result: { apiKey?: ApiKey } = await res.json()
+    const fullKey: string | undefined = result.apiKey && result.apiKey.key
 
     Modal.open({
       title: 'New API Key',
@@ -319,7 +158,7 @@ function regenerateApiKey() {
   })
 }
 
-function showAlertModal() {
+function showAlertModal(): void {
   Modal.open({
     title: 'Create Alert',
     content: `
@@ -343,7 +182,7 @@ function showAlertModal() {
     `,
     submitText: 'Create Alert',
     onSubmit: async () => {
-      const data = Modal.getFormData()
+      const data: Record<string, string> = Modal.getFormData()
       await fetch(apiUrl('/alerts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -355,7 +194,7 @@ function showAlertModal() {
   })
 }
 
-function showEmailReportModal() {
+function showEmailReportModal(): void {
   Modal.open({
     title: 'Add Email Report',
     content: `
@@ -374,7 +213,7 @@ function showEmailReportModal() {
     `,
     submitText: 'Add Report',
     onSubmit: async () => {
-      const data = Modal.getFormData()
+      const data: Record<string, string> = Modal.getFormData()
       await fetch(apiUrl('/email-reports'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -386,7 +225,7 @@ function showEmailReportModal() {
   })
 }
 
-function showUptimeModal() {
+function showUptimeModal(): void {
   Modal.open({
     title: 'Add Uptime Monitor',
     content: `
@@ -407,7 +246,7 @@ function showUptimeModal() {
     `,
     submitText: 'Add Monitor',
     onSubmit: async () => {
-      const data = Modal.getFormData()
+      const data: Record<string, string> = Modal.getFormData()
       await fetch(apiUrl('/uptime'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -419,7 +258,7 @@ function showUptimeModal() {
   })
 }
 
-function showTeamModal() {
+function showTeamModal(): void {
   Modal.open({
     title: 'Invite Team Member',
     content: `
@@ -438,7 +277,7 @@ function showTeamModal() {
     `,
     submitText: 'Invite',
     onSubmit: async () => {
-      const data = Modal.getFormData()
+      const data: Record<string, string> = Modal.getFormData()
       await fetch(apiUrl('/team'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -450,7 +289,7 @@ function showTeamModal() {
   })
 }
 
-function showWebhookModal() {
+function showWebhookModal(): void {
   Modal.open({
     title: 'Add Webhook',
     content: `
@@ -470,8 +309,8 @@ function showWebhookModal() {
     `,
     submitText: 'Add Webhook',
     onSubmit: async () => {
-      const data = Modal.getFormData()
-      const events = []
+      const data: Record<string, string> = Modal.getFormData()
+      const events: string[] = []
       if (data.event_pageview) events.push('pageview')
       if (data.event_session) events.push('session')
       if (data.event_error) events.push('error')
@@ -487,13 +326,13 @@ function showWebhookModal() {
   })
 }
 
-function showPerfBudgetModal() {
+function showPerfBudgetModal(): void {
   Modal.open({
     title: 'Add Performance Budget',
     content: `
       <div class="mb-4">
         <label class="text-xs font-medium text-muted mb-1 block">Metric</label>
-        <select name="metric" class="form-input" id="perf-metric-select" onchange="updatePerfThresholdLabel()">
+        <select name="metric" class="form-input" id="perf-metric-select" onchange="document.getElementById('perf-threshold-label').textContent = this.value === 'CLS' ? 'Threshold (score)' : 'Threshold (ms)'">
           <option value="LCP">LCP (Largest Contentful Paint)</option>
           <option value="FID">FID (First Input Delay)</option>
           <option value="CLS">CLS (Cumulative Layout Shift)</option>
@@ -508,7 +347,7 @@ function showPerfBudgetModal() {
     `,
     submitText: 'Add Budget',
     onSubmit: async () => {
-      const data = Modal.getFormData()
+      const data: Record<string, string> = Modal.getFormData()
       await fetch(apiUrl('/performance-budgets'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -520,67 +359,43 @@ function showPerfBudgetModal() {
   })
 }
 
-function updatePerfThresholdLabel() {
-  const select = _getEl('perf-metric-select')
-  const label = _getEl('perf-threshold-label')
-  if (select && label) {
-    label.textContent = select.value === 'CLS' ? 'Threshold (score)' : 'Threshold (ms)'
-  }
-}
-
-// Copy API key to clipboard
-function copyApiKey() {
-  const key = settingsData.apiKey
-  if (key && key.key) {
-    navigator.clipboard.writeText(key.key).then(() => {
-      const btn = _doc.querySelector('[onclick="copyApiKey()"]')
-      if (btn) {
-        btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="#22c55e" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
-        setTimeout(() => {
-          btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" stroke-width="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke-width="2"/></svg>'
-        }, 2000)
-      }
-    })
-  }
-}
-
 // Delete functions
-async function deleteAlert(alertId) {
+function deleteAlert(alertId: string): void {
   Modal.confirm('Delete this alert?', async () => {
     await fetch(apiUrl('/alerts/' + alertId), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
-async function deleteEmailReport(reportId) {
+function deleteEmailReport(reportId: string): void {
   Modal.confirm('Delete this email report?', async () => {
     await fetch(apiUrl('/email-reports/' + reportId), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
-async function deleteUptimeMonitor(monitorId) {
+function deleteUptimeMonitor(monitorId: string): void {
   Modal.confirm('Delete this uptime monitor?', async () => {
     await fetch(apiUrl('/uptime/' + monitorId), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
-async function removeTeamMember(memberId) {
+function removeTeamMember(memberId: string): void {
   Modal.confirm('Remove this team member?', async () => {
     await fetch(apiUrl('/team/' + memberId), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
-async function deleteWebhook(webhookId) {
+function deleteWebhook(webhookId: string): void {
   Modal.confirm('Delete this webhook?', async () => {
     await fetch(apiUrl('/webhooks/' + webhookId), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
-async function deletePerfBudget(budgetId) {
+function deletePerfBudget(budgetId: string): void {
   Modal.confirm('Delete this performance budget?', async () => {
     await fetch(apiUrl('/performance-budgets/' + budgetId), { method: 'DELETE' })
     fetchSettings()
@@ -588,49 +403,203 @@ async function deletePerfBudget(budgetId) {
 }
 
 // GDPR functions
-function gdprExport() {
+function gdprExport(): void {
   location.href = apiUrl('/gdpr/export')
 }
 
-function gdprDelete() {
+function gdprDelete(): void {
   Modal.confirm('This will permanently delete ALL analytics data for this site. This action cannot be undone. Are you sure?', async () => {
     await fetch(apiUrl('/gdpr/delete'), { method: 'DELETE' })
     Modal.alert('Success', 'All data has been deleted.')
   })
 }
 
-// Expose functions globally for onclick handlers in dynamic HTML
-window.regenerateApiKey = regenerateApiKey
-window.showAlertModal = showAlertModal
-window.showEmailReportModal = showEmailReportModal
-window.showUptimeModal = showUptimeModal
-window.showTeamModal = showTeamModal
-window.showWebhookModal = showWebhookModal
-window.showPerfBudgetModal = showPerfBudgetModal
-window.updatePerfThresholdLabel = updatePerfThresholdLabel
-window.copyApiKey = copyApiKey
-window.deleteAlert = deleteAlert
-window.deleteEmailReport = deleteEmailReport
-window.deleteUptimeMonitor = deleteUptimeMonitor
-window.removeTeamMember = removeTeamMember
-window.deleteWebhook = deleteWebhook
-window.deletePerfBudget = deletePerfBudget
-window.gdprExport = gdprExport
-window.gdprDelete = gdprDelete
-
-if (_doc.readyState === 'loading') {
-  _addListener(_doc, 'DOMContentLoaded', fetchSettings)
-} else {
+// Fetch on mount
+onMount(() => {
   fetchSettings()
-}
+})
 </script>
 
 <div class="col-span-full">
   <h3 class="text-base font-semibold text-text mb-6">Settings</h3>
-  <div id="settings-container">
-    <div class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
-      <div class="spinner"></div>
-      <span>Loading...</span>
+
+  <!-- Loading state -->
+  <div @if="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
+    <div class="spinner"></div>
+    <span>Loading...</span>
+  </div>
+
+  <!-- Error state -->
+  <div @if="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">
+    {{ error() }}
+  </div>
+
+  <!-- Settings panels -->
+  <div @if="!loading() && !error()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+    <!-- Left column -->
+    <div class="flex flex-col gap-4">
+
+      <!-- API Keys Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <h4 class="panel-title">API Key</h4>
+          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="regenerateApiKey()">Regenerate</button>
+        </div>
+        <p class="text-xs text-muted mb-3">Use this key for programmatic access to your analytics data.</p>
+        <div class="flex flex-col gap-2">
+          <div @if="settings().apiKey" class="flex justify-between items-center p-2 bg-bg rounded">
+            <div class="flex-1 min-w-0">
+              <div class="text-[0.8125rem] font-medium text-text">{{ settings().apiKey.name }}</div>
+              <code class="text-[0.6875rem] text-muted break-all">{{ settings().apiKey.key }}</code>
+            </div>
+            <div class="flex items-center gap-1">
+              <button class="icon-btn" @click="copyApiKey()" title="Copy key">
+                <svg @if="!copied()" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" stroke-width="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke-width="2"/></svg>
+                <svg @if="copied()" width="14" height="14" fill="none" stroke="#22c55e" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              </button>
+            </div>
+          </div>
+          <p @if="!settings().apiKey" class="text-xs text-muted italic">No API key found.</p>
+        </div>
+      </div>
+
+      <!-- Alerts Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Alerts</h4>
+          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showAlertModal()">+ New Alert</button>
+        </div>
+        <p class="text-xs text-muted mb-3">Get notified when metrics exceed thresholds.</p>
+        <div class="flex flex-col gap-2">
+          <p @if="settings().alerts.length === 0" class="text-xs text-muted italic">No alerts configured.</p>
+          <div @for="alert in settings().alerts" class="flex justify-between items-center p-2 bg-bg rounded">
+            <div class="flex-1 min-w-0">
+              <div class="text-[0.8125rem] font-medium text-text">{{ alert.metric }}</div>
+              <div class="text-[0.6875rem] text-muted">Threshold: {{ alert.threshold }} → {{ alert.email }}</div>
+            </div>
+            <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteAlert(alert.id)" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Email Reports Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Email Reports</h4>
+          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showEmailReportModal()">+ Add Report</button>
+        </div>
+        <p class="text-xs text-muted mb-3">Schedule automated email reports.</p>
+        <div class="flex flex-col gap-2">
+          <p @if="settings().emailReports.length === 0" class="text-xs text-muted italic">No email reports scheduled.</p>
+          <div @for="report in settings().emailReports" class="flex justify-between items-center p-2 bg-bg rounded">
+            <div class="flex-1 min-w-0">
+              <div class="text-[0.8125rem] font-medium text-text">{{ report.email }}</div>
+              <div class="text-[0.6875rem] text-muted">{{ report.frequency }}</div>
+            </div>
+            <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteEmailReport(report.id)" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Uptime Monitoring Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Uptime Monitoring</h4>
+          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showUptimeModal()">+ Add Monitor</button>
+        </div>
+        <p class="text-xs text-muted mb-3">Monitor your site availability.</p>
+        <div class="flex flex-col gap-2">
+          <p @if="settings().uptimeMonitors.length === 0" class="text-xs text-muted italic">No uptime monitors configured.</p>
+          <div @for="monitor in settings().uptimeMonitors" class="flex justify-between items-center p-2 bg-bg rounded">
+            <div class="flex-1 min-w-0">
+              <code class="text-[0.6875rem] text-muted break-all">{{ monitor.url }}</code>
+              <div class="text-[0.6875rem] text-muted">Every {{ monitor.interval }}min &bull; {{ monitor.status || 'Pending' }}</div>
+            </div>
+            <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteUptimeMonitor(monitor.id)" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column -->
+    <div class="flex flex-col gap-4">
+
+      <!-- Team Members Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Team Members</h4>
+          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showTeamModal()">+ Invite</button>
+        </div>
+        <p class="text-xs text-muted mb-3">Manage team access to this site.</p>
+        <div class="flex flex-col gap-2">
+          <p @if="settings().teamMembers.length === 0" class="text-xs text-muted italic">No team members added.</p>
+          <div @for="member in settings().teamMembers" class="flex justify-between items-center p-2 bg-bg rounded">
+            <div class="flex-1 min-w-0">
+              <div class="text-[0.8125rem] font-medium text-text">{{ member.email }}</div>
+              <div class="text-[0.6875rem] text-muted">{{ member.role }}</div>
+            </div>
+            <button class="icon-btn hover:bg-error/15 hover:text-error" @click="removeTeamMember(member.id)" title="Remove">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Webhooks Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Webhooks</h4>
+          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showWebhookModal()">+ Add Webhook</button>
+        </div>
+        <p class="text-xs text-muted mb-3">Send real-time data to external services.</p>
+        <div class="flex flex-col gap-2">
+          <p @if="settings().webhooks.length === 0" class="text-xs text-muted italic">No webhooks configured.</p>
+          <div @for="webhook in settings().webhooks" class="flex justify-between items-center p-2 bg-bg rounded">
+            <div class="flex-1 min-w-0">
+              <code class="text-[0.6875rem] text-muted break-all">{{ webhook.url }}</code>
+              <div class="text-[0.6875rem] text-muted">{{ (webhook.events || []).join(', ') }}</div>
+            </div>
+            <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteWebhook(webhook.id)" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Budgets Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Performance Budgets</h4>
+          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showPerfBudgetModal()">+ Add Budget</button>
+        </div>
+        <p class="text-xs text-muted mb-3">Set performance thresholds for alerts.</p>
+        <div class="flex flex-col gap-2">
+          <p @if="settings().perfBudgets.length === 0" class="text-xs text-muted italic">No performance budgets set.</p>
+          <div @for="budget in settings().perfBudgets" class="flex justify-between items-center p-2 bg-bg rounded">
+            <div class="flex-1 min-w-0">
+              <div class="text-[0.8125rem] font-medium text-text">{{ budget.metric }}</div>
+              <div class="text-[0.6875rem] text-muted">Threshold: {{ budget.threshold }}{{ budget.metric === 'CLS' ? '' : 'ms' }}</div>
+            </div>
+            <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deletePerfBudget(budget.id)" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data & Privacy Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Data & Privacy</h4>
+        </div>
+        <div class="flex flex-col gap-3">
+          <div class="flex gap-2 items-center">
+            <div>
+              <div class="text-xs text-muted">Data Retention</div>
+              <div class="text-sm font-medium text-text">{{ settings().retentionDays }} days</div>
+            </div>
+          </div>
+          <div class="flex gap-2 items-center">
+            <button class="btn btn-secondary" @click="gdprExport()">Export Data (GDPR)</button>
+            <button class="btn btn-danger" @click="gdprDelete()">Delete All Data</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

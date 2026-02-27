@@ -1,26 +1,31 @@
-<script client>
+<script client lang="ts">
 /**
  * FiltersBar Component - Data filtering controls
  * Uses STX signals for reactive filter state
  */
 
+interface FilterOption {
+  value: string
+  label: string
+}
+
 // Filter state
-const countryFilter = state('')
-const deviceFilter = state('')
-const browserFilter = state('')
+const countryFilter = state<string>('')
+const deviceFilter = state<string>('')
+const browserFilter = state<string>('')
 
 // Available options (populated dynamically)
-const countries = state([])
-const devices = state([
+const countries = state<FilterOption[]>([])
+const devices = state<FilterOption[]>([
   { value: '', label: 'All Devices' },
   { value: 'desktop', label: 'Desktop' },
   { value: 'mobile', label: 'Mobile' },
   { value: 'tablet', label: 'Tablet' },
 ])
-const browsers = state([])
+const browsers = state<FilterOption[]>([])
 
 // Apply filter and notify dashboard
-function applyFilter(filterType, value) {
+function applyFilter(filterType: string, value: string): void {
   switch (filterType) {
     case 'country':
       countryFilter.set(value)
@@ -45,8 +50,8 @@ function applyFilter(filterType, value) {
 }
 
 // Get current filters as query params
-function getFilterParams() {
-  const params = []
+function getFilterParams(): string {
+  const params: string[] = []
   if (countryFilter()) params.push(`country=${encodeURIComponent(countryFilter())}`)
   if (deviceFilter()) params.push(`device=${encodeURIComponent(deviceFilter())}`)
   if (browserFilter()) params.push(`browser=${encodeURIComponent(browserFilter())}`)
@@ -54,16 +59,16 @@ function getFilterParams() {
 }
 
 // Populate filter options from data
-function setCountries(list) {
-  countries.set([{ value: '', label: 'All Countries' }, ...list.map(c => ({ value: c, label: c }))])
+function setCountries(list: string[]): void {
+  countries.set([{ value: '', label: 'All Countries' }, ...list.map((c: string) => ({ value: c, label: c }))])
 }
 
-function setBrowsers(list) {
-  browsers.set([{ value: '', label: 'All Browsers' }, ...list.map(b => ({ value: b, label: b }))])
+function setBrowsers(list: string[]): void {
+  browsers.set([{ value: '', label: 'All Browsers' }, ...list.map((b: string) => ({ value: b, label: b }))])
 }
 
 // Reset all filters
-function resetFilters() {
+function resetFilters(): void {
   countryFilter.set('')
   deviceFilter.set('')
   browserFilter.set('')

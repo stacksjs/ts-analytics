@@ -17,29 +17,74 @@ function getTypeBadgeClass(type: string): string {
 }
 @endts
 
+<script client lang="ts">
+/**
+ * GoalsSection client-side logic
+ * Uses inject to access goalModal and Modal APIs instead of window globals
+ */
+
+interface GoalModalAPI {
+  openCreate: () => void
+  openEdit: (goalId: string) => void
+  close: () => void
+}
+
+interface ModalAPI {
+  confirm: (message: string, onConfirm: () => Promise<void>) => void
+}
+
+const goalModal: GoalModalAPI | undefined = inject('goalModal')
+const Modal: ModalAPI | undefined = inject('Modal')
+
+function editGoalAction(goalId: string): void {
+  if (goalModal) {
+    goalModal.openEdit(goalId)
+  }
+}
+
+function deleteGoalAction(goalId: string): void {
+  if (Modal) {
+    Modal.confirm('Delete this goal? Conversion data will be preserved.', async () => {
+      try {
+        const res: Response = await fetch(
+          window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/goals/${goalId}`),
+          { method: 'DELETE' }
+        )
+        if (res.ok) {
+          if (window.fetchDashboardData) window.fetchDashboardData()
+          if (window.refreshAllPanels) window.refreshAllPanels()
+        }
+      } catch (err: unknown) {
+        console.error('Delete goal error:', err)
+      }
+    })
+  }
+}
+</script>
+
 <div id="goals-content">
   @if(loading)
-    <div class="goals-empty">Loading...</div>
+    <div class="p-6 text-center text-muted text-[0.8125rem]">Loading...</div>
   @elseif(goals.length === 0)
-    <div class="goals-empty">
+    <div class="p-6 text-center text-muted text-[0.8125rem]">
       <p>No goals configured yet.</p>
-      <p class="goals-hint">Click "+ Add Goal" to create your first conversion goal.</p>
+      <p class="mt-2 text-xs opacity-80">Click "+ Add Goal" to create your first conversion goal.</p>
     </div>
   @else
-    <table class="goals-table">
+    <table class="w-full border-collapse text-[0.8125rem]">
       <thead>
         <tr>
-          <th>Goal</th>
-          <th>Type</th>
-          <th class="text-right">Conversions</th>
-          <th class="text-right">Value</th>
-          <th class="text-right">Actions</th>
+          <th class="text-left py-2 px-2 border-b border-border text-[0.6875rem] font-medium uppercase tracking-wide text-muted">Goal</th>
+          <th class="text-left py-2 px-2 border-b border-border text-[0.6875rem] font-medium uppercase tracking-wide text-muted">Type</th>
+          <th class="text-right py-2 px-2 border-b border-border text-[0.6875rem] font-medium uppercase tracking-wide text-muted">Conversions</th>
+          <th class="text-right py-2 px-2 border-b border-border text-[0.6875rem] font-medium uppercase tracking-wide text-muted">Value</th>
+          <th class="text-right py-2 px-2 border-b border-border text-[0.6875rem] font-medium uppercase tracking-wide text-muted">Actions</th>
         </tr>
       </thead>
       <tbody>
         @foreach(goals as goal)
           <tr class="goal-row" data-goal-id="{{ goal.id }}">
-            <td class="goal-name">{{ goal.name }}</td>
+            <td class="font-medium">{{ goal.name }}</td>
             <td>
               <span class="{{ getTypeBadgeClass(goal.type) }}">{{ goal.type }}</span>
             </td>
@@ -51,14 +96,14 @@ function getTypeBadgeClass(type: string): string {
                 -
               @endif
             </td>
-            <td class="goal-actions text-right">
-              <button class="icon-btn edit-btn" title="Edit" @click="window.showEditGoalModal('{{ goal.id }}')">
+            <td class="text-right whitespace-nowrap">
+              <button class="icon-btn edit-btn" title="Edit" @click="editGoalAction('{{ goal.id }}')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
                   <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
               </button>
-              <button class="icon-btn danger delete-btn" title="Delete" @click="window.confirmDeleteGoal('{{ goal.id }}')">
+              <button class="icon-btn danger delete-btn" title="Delete" @click="deleteGoalAction('{{ goal.id }}')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3,6 5,6 21,6"/>
                   <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -73,40 +118,8 @@ function getTypeBadgeClass(type: string): string {
 </div>
 
 <style>
-.goals-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8125rem;
-}
-.goals-table th {
-  text-align: left;
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-}
-.goals-table td {
-  padding: 0.75rem 0.5rem;
-  border-bottom: 1px solid var(--border);
-  color: var(--text);
-}
-.text-right {
-  text-align: right;
-}
-.goal-name {
-  font-weight: 500;
-}
 .goal-type-badge {
-  display: inline-block;
-  font-size: 0.6875rem;
-  padding: 0.125rem 0.375rem;
-  border-radius: 4px;
-  text-transform: capitalize;
-  background: var(--bg3);
-  color: var(--muted);
+  @apply inline-block text-[0.6875rem] py-0.5 px-1.5 rounded capitalize bg-bg-3 text-muted;
 }
 .goal-type-badge.pageview { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
 .goal-type-badge.event { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
@@ -115,38 +128,8 @@ function getTypeBadgeClass(type: string): string {
 .goal-conversions, .goal-value {
   font-variant-numeric: tabular-nums;
 }
-.goal-actions {
-  white-space: nowrap;
-}
-.icon-btn {
-  background: none;
-  border: none;
-  padding: 0.25rem;
-  cursor: pointer;
-  color: var(--muted);
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-.icon-btn:hover {
-  background: var(--bg3);
-  color: var(--text);
-}
 .icon-btn.danger:hover {
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
-}
-.goals-empty {
-  padding: 1.5rem;
-  text-align: center;
-  color: var(--muted);
-  font-size: 0.8125rem;
-}
-.goals-hint {
-  margin-top: 0.5rem;
-  font-size: 0.75rem;
-  opacity: 0.8;
 }
 </style>
