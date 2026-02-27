@@ -49,58 +49,58 @@ onMount(() => {
 })
 </script>
 
-<div class="tab-panel">
-  <h3 class="tab-title">Insights</h3>
+<div class="col-span-full">
+  <h3 class="text-base font-semibold text-text mb-4">Insights</h3>
 
-  <div @if="loading()" class="loading-state">
+  <div @if="loading()" class="panel flex items-center justify-center gap-2 text-muted">
     <div class="spinner"></div>
     <span>Loading...</span>
   </div>
 
-  <div @if="error()" class="error-state">
+  <div @if="error()" class="panel text-center text-error">
     {{ error() }}
   </div>
 
   <div @if="!loading() && !error()">
     <!-- Stats Cards -->
-    <div @if="comparisonStats()" class="insights-stats">
-      <div class="insights-stat">
-        <div class="insights-stat-value">{{ comparisonStats().thisWeekViews | fmt }}</div>
-        <div class="insights-stat-label">Views This Week</div>
+    <div @if="comparisonStats()" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div class="stat-card text-center">
+        <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().thisWeekViews | fmt }}</div>
+        <div class="text-xs text-muted">Views This Week</div>
         <div @if="comparisonStats().change !== 0"
-             @class="['insights-stat-change', comparisonStats().change > 0 ? 'positive' : 'negative']">
+             @class="['text-xs font-semibold mt-1', comparisonStats().change > 0 ? 'text-success' : 'text-error']">
           {{ comparisonStats().change > 0 ? '+' : '' }}{{ comparisonStats().change }}%
         </div>
       </div>
-      <div class="insights-stat">
-        <div class="insights-stat-value">{{ comparisonStats().lastWeekViews | fmt }}</div>
-        <div class="insights-stat-label">Views Last Week</div>
+      <div class="stat-card text-center">
+        <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().lastWeekViews | fmt }}</div>
+        <div class="text-xs text-muted">Views Last Week</div>
       </div>
-      <div class="insights-stat">
-        <div class="insights-stat-value">{{ comparisonStats().sessions ? comparisonStats().sessions : 0 }}</div>
-        <div class="insights-stat-label">Sessions</div>
+      <div class="stat-card text-center">
+        <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().sessions ? comparisonStats().sessions : 0 }}</div>
+        <div class="text-xs text-muted">Sessions</div>
       </div>
-      <div class="insights-stat">
-        <div class="insights-stat-value">{{ comparisonStats().bounceRate ? comparisonStats().bounceRate : 0 }}%</div>
-        <div class="insights-stat-label">Bounce Rate</div>
+      <div class="stat-card text-center">
+        <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().bounceRate ? comparisonStats().bounceRate : 0 }}%</div>
+        <div class="text-xs text-muted">Bounce Rate</div>
       </div>
     </div>
 
     <!-- Insights List -->
-    <div class="insights-list">
+    <div class="flex flex-col gap-3">
       <div @if="insights().length === 0" class="empty-state">
         No insights available yet. Check back when you have more data.
       </div>
 
-      <div @for="insight in insights()" class="insight-card">
+      <div @for="insight in insights()" class="panel flex gap-4 items-start">
         <div @class="['insight-icon', insight.severity || 'info']">
           <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(insight.type)" />
           </svg>
         </div>
-        <div class="insight-content">
-          <div class="insight-title">{{ insight.title }}</div>
-          <div class="insight-desc">{{ insight.description }}</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold text-text mb-1">{{ insight.title }}</div>
+          <div class="text-[0.8125rem] text-muted leading-normal">{{ insight.description }}</div>
         </div>
       </div>
     </div>
@@ -108,62 +108,16 @@ onMount(() => {
 </div>
 
 <style>
-.tab-panel {
-  grid-column: 1 / -1;
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
-.tab-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0 0 1rem 0;
-}
-.insights-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-.insights-stat {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-  text-align: center;
-}
-.insights-stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 0.25rem;
-}
-.insights-stat-label {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-.insights-stat-change {
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin-top: 0.25rem;
-}
-.insights-stat-change.positive {
-  color: var(--success);
-}
-.insights-stat-change.negative {
-  color: var(--error);
-}
-.insights-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.insight-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
+@keyframes spin {
+  to { transform: rotate(-360deg); }
 }
 .insight-icon {
   width: 40px;
@@ -189,48 +143,5 @@ onMount(() => {
 .insight-icon.error {
   background: rgba(239, 68, 68, 0.1);
   color: var(--error);
-}
-.insight-content {
-  flex: 1;
-  min-width: 0;
-}
-.insight-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 0.25rem;
-}
-.insight-desc {
-  font-size: 0.8125rem;
-  color: var(--muted);
-  line-height: 1.5;
-}
-.empty-state, .loading-state, .error-state {
-  text-align: center;
-  color: var(--muted);
-  padding: 2rem;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-.error-state {
-  color: var(--error);
-}
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(-360deg); }
 }
 </style>

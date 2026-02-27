@@ -27,7 +27,7 @@ async function fetchSettings() {
   const container = _getEl('settings-container')
   if (!siteId() || !container) return
 
-  container.innerHTML = '<div class="loading-state"><div class="spinner"></div><span>Loading...</span></div>'
+  container.innerHTML = '<div class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg"><div class="spinner"></div><span>Loading...</span></div>'
 
   try {
     const [keysRes, alertsRes, reportsRes, uptimeRes, teamRes, webhooksRes, budgetsRes, retentionRes] = await Promise.all([
@@ -59,7 +59,7 @@ async function fetchSettings() {
 
     renderSettings()
   } catch (e) {
-    container.innerHTML = `<div class="error-state">${e.message}</div>`
+    container.innerHTML = `<div class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">${e.message}</div>`
   }
 }
 
@@ -68,14 +68,14 @@ function renderSettings() {
   if (!container) return
 
   container.innerHTML = `
-    <div class="settings-grid">
-      <div class="settings-column">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="flex flex-col gap-4">
         ${renderApiKeysPanel()}
         ${renderAlertsPanel()}
         ${renderEmailReportsPanel()}
         ${renderUptimePanel()}
       </div>
-      <div class="settings-column">
+      <div class="flex flex-col gap-4">
         ${renderTeamPanel()}
         ${renderWebhooksPanel()}
         ${renderPerfBudgetsPanel()}
@@ -89,27 +89,27 @@ function renderApiKeysPanel() {
   const key = settingsData.apiKey
 
   const keyContent = key ? `
-    <div class="list-item">
-      <div class="list-item-content">
-        <div class="list-item-name">${key.name}</div>
-        <code class="list-item-code">${key.key}</code>
+    <div class="flex justify-between items-center p-2 bg-bg rounded">
+      <div class="flex-1 min-w-0">
+        <div class="text-[0.8125rem] font-medium text-text">${key.name}</div>
+        <code class="text-[0.6875rem] text-muted break-all">${key.key}</code>
       </div>
-      <div class="list-item-actions">
-        <button class="btn-icon" onclick="copyApiKey()" title="Copy key">
+      <div class="flex items-center gap-1">
+        <button class="icon-btn" onclick="copyApiKey()" title="Copy key">
           <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" stroke-width="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke-width="2"/></svg>
         </button>
       </div>
     </div>
-  ` : '<p class="panel-empty">No API key found.</p>'
+  ` : '<p class="text-xs text-muted italic">No API key found.</p>'
 
   return `
-    <div class="settings-panel">
+    <div class="panel">
       <div class="panel-header">
         <h4 class="panel-title">API Key</h4>
-        <button class="btn btn-sm" onclick="regenerateApiKey()">Regenerate</button>
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="regenerateApiKey()">Regenerate</button>
       </div>
-      <p class="panel-desc">Use this key for programmatic access to your analytics data.</p>
-      <div class="panel-list">
+      <p class="text-xs text-muted mb-3">Use this key for programmatic access to your analytics data.</p>
+      <div class="flex flex-col gap-2">
         ${keyContent}
       </div>
     </div>
@@ -118,24 +118,24 @@ function renderApiKeysPanel() {
 
 function renderAlertsPanel() {
   const items = settingsData.alerts.map(alert => `
-    <div class="list-item">
-      <div class="list-item-content">
-        <div class="list-item-name">${alert.metric}</div>
-        <div class="list-item-meta">Threshold: ${alert.threshold} → ${alert.email}</div>
+    <div class="flex justify-between items-center p-2 bg-bg rounded">
+      <div class="flex-1 min-w-0">
+        <div class="text-[0.8125rem] font-medium text-text">${alert.metric}</div>
+        <div class="text-[0.6875rem] text-muted">Threshold: ${alert.threshold} → ${alert.email}</div>
       </div>
-      <button class="btn-icon danger" onclick="deleteAlert('${alert.id}')" title="Delete">×</button>
+      <button class="icon-btn hover:bg-error/15 hover:text-error" onclick="deleteAlert('${alert.id}')" title="Delete">×</button>
     </div>
   `).join('')
 
   return `
-    <div class="settings-panel">
+    <div class="panel">
       <div class="panel-header">
         <h4 class="panel-title">Alerts</h4>
-        <button class="btn btn-sm" onclick="showAlertModal()">+ New Alert</button>
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="showAlertModal()">+ New Alert</button>
       </div>
-      <p class="panel-desc">Get notified when metrics exceed thresholds.</p>
-      <div class="panel-list">
-        ${settingsData.alerts.length === 0 ? '<p class="panel-empty">No alerts configured.</p>' : items}
+      <p class="text-xs text-muted mb-3">Get notified when metrics exceed thresholds.</p>
+      <div class="flex flex-col gap-2">
+        ${settingsData.alerts.length === 0 ? '<p class="text-xs text-muted italic">No alerts configured.</p>' : items}
       </div>
     </div>
   `
@@ -143,24 +143,24 @@ function renderAlertsPanel() {
 
 function renderEmailReportsPanel() {
   const items = settingsData.emailReports.map(report => `
-    <div class="list-item">
-      <div class="list-item-content">
-        <div class="list-item-name">${report.email}</div>
-        <div class="list-item-meta">${report.frequency}</div>
+    <div class="flex justify-between items-center p-2 bg-bg rounded">
+      <div class="flex-1 min-w-0">
+        <div class="text-[0.8125rem] font-medium text-text">${report.email}</div>
+        <div class="text-[0.6875rem] text-muted">${report.frequency}</div>
       </div>
-      <button class="btn-icon danger" onclick="deleteEmailReport('${report.id}')" title="Delete">×</button>
+      <button class="icon-btn hover:bg-error/15 hover:text-error" onclick="deleteEmailReport('${report.id}')" title="Delete">×</button>
     </div>
   `).join('')
 
   return `
-    <div class="settings-panel">
+    <div class="panel">
       <div class="panel-header">
         <h4 class="panel-title">Email Reports</h4>
-        <button class="btn btn-sm" onclick="showEmailReportModal()">+ Add Report</button>
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="showEmailReportModal()">+ Add Report</button>
       </div>
-      <p class="panel-desc">Schedule automated email reports.</p>
-      <div class="panel-list">
-        ${settingsData.emailReports.length === 0 ? '<p class="panel-empty">No email reports scheduled.</p>' : items}
+      <p class="text-xs text-muted mb-3">Schedule automated email reports.</p>
+      <div class="flex flex-col gap-2">
+        ${settingsData.emailReports.length === 0 ? '<p class="text-xs text-muted italic">No email reports scheduled.</p>' : items}
       </div>
     </div>
   `
@@ -168,24 +168,24 @@ function renderEmailReportsPanel() {
 
 function renderUptimePanel() {
   const items = settingsData.uptimeMonitors.map(monitor => `
-    <div class="list-item">
-      <div class="list-item-content">
-        <code class="list-item-code">${monitor.url}</code>
-        <div class="list-item-meta">Every ${monitor.interval}min • ${monitor.status || 'Pending'}</div>
+    <div class="flex justify-between items-center p-2 bg-bg rounded">
+      <div class="flex-1 min-w-0">
+        <code class="text-[0.6875rem] text-muted break-all">${monitor.url}</code>
+        <div class="text-[0.6875rem] text-muted">Every ${monitor.interval}min • ${monitor.status || 'Pending'}</div>
       </div>
-      <button class="btn-icon danger" onclick="deleteUptimeMonitor('${monitor.id}')" title="Delete">×</button>
+      <button class="icon-btn hover:bg-error/15 hover:text-error" onclick="deleteUptimeMonitor('${monitor.id}')" title="Delete">×</button>
     </div>
   `).join('')
 
   return `
-    <div class="settings-panel">
+    <div class="panel">
       <div class="panel-header">
         <h4 class="panel-title">Uptime Monitoring</h4>
-        <button class="btn btn-sm" onclick="showUptimeModal()">+ Add Monitor</button>
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="showUptimeModal()">+ Add Monitor</button>
       </div>
-      <p class="panel-desc">Monitor your site availability.</p>
-      <div class="panel-list">
-        ${settingsData.uptimeMonitors.length === 0 ? '<p class="panel-empty">No uptime monitors configured.</p>' : items}
+      <p class="text-xs text-muted mb-3">Monitor your site availability.</p>
+      <div class="flex flex-col gap-2">
+        ${settingsData.uptimeMonitors.length === 0 ? '<p class="text-xs text-muted italic">No uptime monitors configured.</p>' : items}
       </div>
     </div>
   `
@@ -193,24 +193,24 @@ function renderUptimePanel() {
 
 function renderTeamPanel() {
   const items = settingsData.teamMembers.map(member => `
-    <div class="list-item">
-      <div class="list-item-content">
-        <div class="list-item-name">${member.email}</div>
-        <div class="list-item-role">${member.role}</div>
+    <div class="flex justify-between items-center p-2 bg-bg rounded">
+      <div class="flex-1 min-w-0">
+        <div class="text-[0.8125rem] font-medium text-text">${member.email}</div>
+        <div class="text-[0.6875rem] text-muted">${member.role}</div>
       </div>
-      <button class="btn-icon danger" onclick="removeTeamMember('${member.id}')" title="Remove">×</button>
+      <button class="icon-btn hover:bg-error/15 hover:text-error" onclick="removeTeamMember('${member.id}')" title="Remove">×</button>
     </div>
   `).join('')
 
   return `
-    <div class="settings-panel">
+    <div class="panel">
       <div class="panel-header">
         <h4 class="panel-title">Team Members</h4>
-        <button class="btn btn-sm" onclick="showTeamModal()">+ Invite</button>
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="showTeamModal()">+ Invite</button>
       </div>
-      <p class="panel-desc">Manage team access to this site.</p>
-      <div class="panel-list">
-        ${settingsData.teamMembers.length === 0 ? '<p class="panel-empty">No team members added.</p>' : items}
+      <p class="text-xs text-muted mb-3">Manage team access to this site.</p>
+      <div class="flex flex-col gap-2">
+        ${settingsData.teamMembers.length === 0 ? '<p class="text-xs text-muted italic">No team members added.</p>' : items}
       </div>
     </div>
   `
@@ -218,24 +218,24 @@ function renderTeamPanel() {
 
 function renderWebhooksPanel() {
   const items = settingsData.webhooks.map(webhook => `
-    <div class="list-item">
-      <div class="list-item-content">
-        <code class="list-item-code">${webhook.url}</code>
-        <div class="list-item-events">${(webhook.events || []).join(', ')}</div>
+    <div class="flex justify-between items-center p-2 bg-bg rounded">
+      <div class="flex-1 min-w-0">
+        <code class="text-[0.6875rem] text-muted break-all">${webhook.url}</code>
+        <div class="text-[0.6875rem] text-muted">${(webhook.events || []).join(', ')}</div>
       </div>
-      <button class="btn-icon danger" onclick="deleteWebhook('${webhook.id}')" title="Delete">×</button>
+      <button class="icon-btn hover:bg-error/15 hover:text-error" onclick="deleteWebhook('${webhook.id}')" title="Delete">×</button>
     </div>
   `).join('')
 
   return `
-    <div class="settings-panel">
+    <div class="panel">
       <div class="panel-header">
         <h4 class="panel-title">Webhooks</h4>
-        <button class="btn btn-sm" onclick="showWebhookModal()">+ Add Webhook</button>
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="showWebhookModal()">+ Add Webhook</button>
       </div>
-      <p class="panel-desc">Send real-time data to external services.</p>
-      <div class="panel-list">
-        ${settingsData.webhooks.length === 0 ? '<p class="panel-empty">No webhooks configured.</p>' : items}
+      <p class="text-xs text-muted mb-3">Send real-time data to external services.</p>
+      <div class="flex flex-col gap-2">
+        ${settingsData.webhooks.length === 0 ? '<p class="text-xs text-muted italic">No webhooks configured.</p>' : items}
       </div>
     </div>
   `
@@ -243,24 +243,24 @@ function renderWebhooksPanel() {
 
 function renderPerfBudgetsPanel() {
   const items = settingsData.perfBudgets.map(budget => `
-    <div class="list-item">
-      <div class="list-item-content">
-        <div class="list-item-name">${budget.metric}</div>
-        <div class="list-item-meta">Threshold: ${budget.threshold}${budget.metric === 'CLS' ? '' : 'ms'}</div>
+    <div class="flex justify-between items-center p-2 bg-bg rounded">
+      <div class="flex-1 min-w-0">
+        <div class="text-[0.8125rem] font-medium text-text">${budget.metric}</div>
+        <div class="text-[0.6875rem] text-muted">Threshold: ${budget.threshold}${budget.metric === 'CLS' ? '' : 'ms'}</div>
       </div>
-      <button class="btn-icon danger" onclick="deletePerfBudget('${budget.id}')" title="Delete">×</button>
+      <button class="icon-btn hover:bg-error/15 hover:text-error" onclick="deletePerfBudget('${budget.id}')" title="Delete">×</button>
     </div>
   `).join('')
 
   return `
-    <div class="settings-panel">
+    <div class="panel">
       <div class="panel-header">
         <h4 class="panel-title">Performance Budgets</h4>
-        <button class="btn btn-sm" onclick="showPerfBudgetModal()">+ Add Budget</button>
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="showPerfBudgetModal()">+ Add Budget</button>
       </div>
-      <p class="panel-desc">Set performance thresholds for alerts.</p>
-      <div class="panel-list">
-        ${settingsData.perfBudgets.length === 0 ? '<p class="panel-empty">No performance budgets set.</p>' : items}
+      <p class="text-xs text-muted mb-3">Set performance thresholds for alerts.</p>
+      <div class="flex flex-col gap-2">
+        ${settingsData.perfBudgets.length === 0 ? '<p class="text-xs text-muted italic">No performance budgets set.</p>' : items}
       </div>
     </div>
   `
@@ -268,18 +268,18 @@ function renderPerfBudgetsPanel() {
 
 function renderDataPrivacyPanel() {
   return `
-    <div class="settings-panel">
+    <div class="panel">
       <div class="panel-header">
         <h4 class="panel-title">Data & Privacy</h4>
       </div>
-      <div class="data-actions">
-        <div class="data-row">
+      <div class="flex flex-col gap-3">
+        <div class="flex gap-2 items-center">
           <div>
-            <div class="data-label">Data Retention</div>
-            <div class="data-value">${settingsData.retentionDays} days</div>
+            <div class="text-xs text-muted">Data Retention</div>
+            <div class="text-sm font-medium text-text">${settingsData.retentionDays} days</div>
           </div>
         </div>
-        <div class="data-row">
+        <div class="flex gap-2 items-center">
           <button class="btn btn-secondary" onclick="gdprExport()">Export Data (GDPR)</button>
           <button class="btn btn-danger" onclick="gdprDelete()">Delete All Data</button>
         </div>
@@ -301,12 +301,12 @@ function regenerateApiKey() {
     Modal.open({
       title: 'New API Key',
       content: `
-        <p class="panel-desc" style="margin-bottom: 1rem">Your new API key is ready. Copy it now.</p>
-        <div class="form-group">
-          <label class="form-label">Default</label>
-          <div style="display: flex; gap: 0.5rem; align-items: center">
-            <input type="text" class="form-input" value="${fullKey || ''}" readonly style="font-family: monospace; font-size: 0.8125rem" />
-            <button type="button" class="btn btn-sm" onclick="navigator.clipboard.writeText('${fullKey || ''}'); this.textContent='Copied!'">Copy</button>
+        <p class="text-xs text-muted mb-4">Your new API key is ready. Copy it now.</p>
+        <div class="mb-4">
+          <label class="text-xs font-medium text-muted mb-1 block">Default</label>
+          <div class="flex gap-2 items-center">
+            <input type="text" class="form-input font-mono text-[0.8125rem]" value="${fullKey || ''}" readonly />
+            <button type="button" class="btn btn-secondary text-[0.6875rem] py-1 px-2" onclick="navigator.clipboard.writeText('${fullKey || ''}'); this.textContent='Copied!'">Copy</button>
           </div>
         </div>
       `,
@@ -323,21 +323,21 @@ function showAlertModal() {
   Modal.open({
     title: 'Create Alert',
     content: `
-      <div class="form-group">
-        <label class="form-label">Metric</label>
-        <select name="metric" class="form-input form-select">
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Metric</label>
+        <select name="metric" class="form-input">
           <option value="pageviews">Page Views</option>
           <option value="visitors">Visitors</option>
           <option value="bounce_rate">Bounce Rate</option>
           <option value="error_rate">Error Rate</option>
         </select>
       </div>
-      <div class="form-group">
-        <label class="form-label">Threshold</label>
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Threshold</label>
         <input type="number" name="threshold" class="form-input" value="1000" />
       </div>
-      <div class="form-group">
-        <label class="form-label">Email</label>
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Email</label>
         <input type="email" name="email" class="form-input" placeholder="alert@example.com" />
       </div>
     `,
@@ -359,13 +359,13 @@ function showEmailReportModal() {
   Modal.open({
     title: 'Add Email Report',
     content: `
-      <div class="form-group">
-        <label class="form-label">Email</label>
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Email</label>
         <input type="email" name="email" class="form-input" placeholder="report@example.com" />
       </div>
-      <div class="form-group">
-        <label class="form-label">Frequency</label>
-        <select name="frequency" class="form-input form-select">
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Frequency</label>
+        <select name="frequency" class="form-input">
           <option value="daily">Daily</option>
           <option value="weekly" selected>Weekly</option>
           <option value="monthly">Monthly</option>
@@ -390,13 +390,13 @@ function showUptimeModal() {
   Modal.open({
     title: 'Add Uptime Monitor',
     content: `
-      <div class="form-group">
-        <label class="form-label">URL</label>
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">URL</label>
         <input type="url" name="url" class="form-input" placeholder="https://example.com" />
       </div>
-      <div class="form-group">
-        <label class="form-label">Check Interval (minutes)</label>
-        <select name="interval" class="form-input form-select">
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Check Interval (minutes)</label>
+        <select name="interval" class="form-input">
           <option value="1">1 minute</option>
           <option value="5" selected>5 minutes</option>
           <option value="15">15 minutes</option>
@@ -423,13 +423,13 @@ function showTeamModal() {
   Modal.open({
     title: 'Invite Team Member',
     content: `
-      <div class="form-group">
-        <label class="form-label">Email</label>
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Email</label>
         <input type="email" name="email" class="form-input" placeholder="team@example.com" />
       </div>
-      <div class="form-group">
-        <label class="form-label">Role</label>
-        <select name="role" class="form-input form-select">
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Role</label>
+        <select name="role" class="form-input">
           <option value="viewer">Viewer</option>
           <option value="editor">Editor</option>
           <option value="admin">Admin</option>
@@ -454,17 +454,17 @@ function showWebhookModal() {
   Modal.open({
     title: 'Add Webhook',
     content: `
-      <div class="form-group">
-        <label class="form-label">Webhook URL</label>
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Webhook URL</label>
         <input type="url" name="url" class="form-input" placeholder="https://example.com/webhook" />
       </div>
-      <div class="form-group">
-        <label class="form-label">Events</label>
-        <div class="checkbox-group">
-          <label class="checkbox-label"><input type="checkbox" name="event_pageview" checked /> Page View</label>
-          <label class="checkbox-label"><input type="checkbox" name="event_session" /> Session</label>
-          <label class="checkbox-label"><input type="checkbox" name="event_error" /> Error</label>
-          <label class="checkbox-label"><input type="checkbox" name="event_goal" /> Goal Conversion</label>
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Events</label>
+        <div class="flex flex-wrap gap-3 mt-2">
+          <label class="flex items-center gap-1 text-[0.8125rem] text-text cursor-pointer"><input type="checkbox" name="event_pageview" checked /> Page View</label>
+          <label class="flex items-center gap-1 text-[0.8125rem] text-text cursor-pointer"><input type="checkbox" name="event_session" /> Session</label>
+          <label class="flex items-center gap-1 text-[0.8125rem] text-text cursor-pointer"><input type="checkbox" name="event_error" /> Error</label>
+          <label class="flex items-center gap-1 text-[0.8125rem] text-text cursor-pointer"><input type="checkbox" name="event_goal" /> Goal Conversion</label>
         </div>
       </div>
     `,
@@ -491,9 +491,9 @@ function showPerfBudgetModal() {
   Modal.open({
     title: 'Add Performance Budget',
     content: `
-      <div class="form-group">
-        <label class="form-label">Metric</label>
-        <select name="metric" class="form-input form-select" id="perf-metric-select" onchange="updatePerfThresholdLabel()">
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Metric</label>
+        <select name="metric" class="form-input" id="perf-metric-select" onchange="updatePerfThresholdLabel()">
           <option value="LCP">LCP (Largest Contentful Paint)</option>
           <option value="FID">FID (First Input Delay)</option>
           <option value="CLS">CLS (Cumulative Layout Shift)</option>
@@ -501,8 +501,8 @@ function showPerfBudgetModal() {
           <option value="FCP">FCP (First Contentful Paint)</option>
         </select>
       </div>
-      <div class="form-group">
-        <label class="form-label" id="perf-threshold-label">Threshold (ms)</label>
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block" id="perf-threshold-label">Threshold (ms)</label>
         <input type="number" name="threshold" class="form-input" value="2500" />
       </div>
     `,
@@ -625,10 +625,10 @@ if (_doc.readyState === 'loading') {
 }
 </script>
 
-<div class="tab-panel">
-  <h3 class="tab-title">Settings</h3>
+<div class="col-span-full">
+  <h3 class="text-base font-semibold text-text mb-6">Settings</h3>
   <div id="settings-container">
-    <div class="loading-state">
+    <div class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
       <div class="spinner"></div>
       <span>Loading...</span>
     </div>
@@ -636,93 +636,7 @@ if (_doc.readyState === 'loading') {
 </div>
 
 <style>
-.tab-panel { grid-column: 1 / -1; }
-.tab-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 1.5rem; }
-
-.settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
-@media (max-width: 768px) { .settings-grid { grid-template-columns: 1fr; } }
-.settings-column { display: flex; flex-direction: column; gap: 1rem; }
-
-.settings-panel {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-}
-.panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-.panel-title { font-size: 0.875rem; font-weight: 600; color: var(--text); margin: 0; }
-.panel-desc { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem; }
-.panel-list { display: flex; flex-direction: column; gap: 0.5rem; }
-.panel-empty { font-size: 0.75rem; color: var(--muted); font-style: italic; margin: 0; }
-
-.list-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  background: var(--bg);
-  border-radius: 4px;
-}
-.list-item-content { flex: 1; min-width: 0; }
-.list-item-actions { display: flex; align-items: center; gap: 0.25rem; }
-.list-item-name { font-size: 0.8125rem; font-weight: 500; color: var(--text); }
-.list-item-code { font-size: 0.6875rem; color: var(--muted); word-break: break-all; }
-.list-item-meta, .list-item-role, .list-item-events { font-size: 0.6875rem; color: var(--muted); }
-
-.data-actions { display: flex; flex-direction: column; gap: 0.75rem; }
-.data-row { display: flex; gap: 0.5rem; align-items: center; }
-.data-label { font-size: 0.75rem; color: var(--muted); }
-.data-value { font-size: 0.875rem; font-weight: 500; color: var(--text); }
-
-.checkbox-group { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
-.checkbox-label { display: flex; align-items: center; gap: 0.25rem; font-size: 0.8125rem; color: var(--text); cursor: pointer; }
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.375rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--bg3);
-  color: var(--text);
-  transition: all 0.15s ease;
-}
-.btn:hover { background: var(--bg); }
-.btn-sm { padding: 0.25rem 0.5rem; font-size: 0.6875rem; }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
-.btn-primary:hover { background: var(--accent2); }
-.btn-secondary { background: var(--bg3); border-color: var(--border); }
-.btn-danger { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
-.btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
-
-.btn-icon {
-  background: none;
-  border: none;
-  padding: 0.25rem 0.5rem;
-  cursor: pointer;
-  font-size: 1rem;
-  color: var(--muted);
-  border-radius: 4px;
-  transition: all 0.15s ease;
-}
-.btn-icon:hover { background: var(--bg3); color: var(--text); }
-.btn-icon.danger:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
-
-.empty-state, .loading-state, .error-state {
-  text-align: center;
-  color: var(--muted);
-  padding: 2rem;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.loading-state { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
-.error-state { color: var(--error); }
-
+/* Spinner animation */
 .spinner {
   width: 16px;
   height: 16px;

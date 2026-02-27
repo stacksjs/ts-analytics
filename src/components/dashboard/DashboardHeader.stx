@@ -132,30 +132,30 @@ if (_doc.readyState === 'loading') {
 }
 </script>
 
-<header class="header">
-  <div class="header-left">
-    <button class="back-btn" onclick="window.dashboardHeader.goBack()" title="Back to sites">
+<header class="flex items-center justify-between py-3 px-6 bg-bg-2 border-b border-border gap-4">
+  <div class="flex items-center gap-3">
+    <button class="icon-btn" onclick="window.dashboardHeader.goBack()" title="Back to sites">
       <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
     </button>
-    <span id="current-site-name" class="site-name-header">Analytics Dashboard</span>
+    <span id="current-site-name" class="font-semibold text-base text-text">Analytics Dashboard</span>
   </div>
 
-  <nav id="header-nav" class="header-nav">
-    <a class="nav-btn" href="/dashboard" data-tab="dashboard" data-stx-prefetch>Dashboard</a>
-    <a class="nav-btn" href="/dashboard/live" data-tab="live" data-stx-prefetch>Live</a>
-    <a class="nav-btn" href="/dashboard/sessions" data-tab="sessions" data-stx-prefetch>Sessions</a>
-    <a class="nav-btn" href="/dashboard/funnels" data-tab="funnels" data-stx-prefetch>Funnels</a>
-    <a class="nav-btn" href="/dashboard/flow" data-tab="flow" data-stx-prefetch>User Flow</a>
-    <a class="nav-btn" href="/dashboard/vitals" data-tab="vitals" data-stx-prefetch>Web Vitals</a>
-    <a class="nav-btn" href="/dashboard/errors" data-tab="errors" data-stx-prefetch>Errors</a>
-    <a class="nav-btn" href="/dashboard/insights" data-tab="insights" data-stx-prefetch>Insights</a>
-    <a class="nav-btn" href="/dashboard/settings" data-tab="settings" data-stx-prefetch>Settings</a>
+  <nav id="header-nav" class="header-nav flex gap-1 flex-wrap justify-center">
+    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard" data-tab="dashboard" data-stx-prefetch>Dashboard</a>
+    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/live" data-tab="live" data-stx-prefetch>Live</a>
+    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/sessions" data-tab="sessions" data-stx-prefetch>Sessions</a>
+    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/funnels" data-tab="funnels" data-stx-prefetch>Funnels</a>
+    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/flow" data-tab="flow" data-stx-prefetch>User Flow</a>
+    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/vitals" data-tab="vitals" data-stx-prefetch>Web Vitals</a>
+    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/errors" data-tab="errors" data-stx-prefetch>Errors</a>
+    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/insights" data-tab="insights" data-stx-prefetch>Insights</a>
+    <a class="nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text" href="/dashboard/settings" data-tab="settings" data-stx-prefetch>Settings</a>
   </nav>
 
-  <div class="header-right">
-    <button id="theme-toggle" class="theme-toggle" onclick="window.dashboardHeader.toggleTheme()" title="Toggle dark/light mode">
+  <div class="flex items-center gap-2">
+    <button id="theme-toggle" class="icon-btn" onclick="window.dashboardHeader.toggleTheme()" title="Toggle dark/light mode">
       <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
       </svg>
@@ -164,8 +164,8 @@ if (_doc.readyState === 'loading') {
         <path stroke-linecap="round" stroke-width="2" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
       </svg>
     </button>
-    <form method="POST" action="/logout" style="display:inline">
-      <button type="submit" class="logout-btn" title="Logout">
+    <form method="POST" action="/logout" class="inline">
+      <button type="submit" class="icon-btn hover:text-error" title="Logout">
         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
         </svg>
@@ -175,104 +175,15 @@ if (_doc.readyState === 'loading') {
 </header>
 
 <style>
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1.5rem;
-  background: var(--bg2);
-  border-bottom: 1px solid var(--border);
-  gap: 1rem;
-}
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.back-btn {
-  background: none;
-  border: none;
-  color: var(--text2);
-  cursor: pointer;
-  padding: 0.375rem;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.back-btn:hover {
-  background: var(--bg3);
-  color: var(--text);
-}
-.site-name-header {
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--text);
-}
-.header-nav {
-  display: flex;
-  gap: 0.25rem;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-.nav-btn {
-  background: none;
-  border: none;
-  color: var(--text2);
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  transition: all 0.15s;
-  text-decoration: none;
-}
-.nav-btn:hover {
-  background: var(--bg3);
-  color: var(--text);
-}
+/* Active nav state (toggled by JS) */
 .nav-btn.active {
   background: var(--accent);
   color: white;
 }
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.theme-toggle {
-  background: none;
-  border: none;
-  color: var(--text2);
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.theme-toggle:hover {
-  background: var(--bg3);
-  color: var(--text);
-}
-.logout-btn {
-  background: none;
-  border: none;
-  color: var(--text2);
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.logout-btn:hover {
-  background: var(--bg3);
-  color: #f87171;
-}
 
+/* Responsive: nav wraps below header at narrow viewports */
 @media (max-width: 1200px) {
-  .header {
+  header {
     flex-wrap: wrap;
   }
   .header-nav {

@@ -1,5 +1,5 @@
 <!-- Modal Container - fully imperative, no STX reactive bindings needed -->
-<div id="modal-overlay" class="modal-overlay" style="display: none"></div>
+<div id="modal-overlay" class="modal-overlay backdrop-blur-sm" style="display: none"></div>
 
 <script client>
 ;(function() {
@@ -165,204 +165,72 @@
 </script>
 
 <style>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(2px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  width: 100%;
-  max-width: 480px;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-  animation: modalIn 0.15s ease-out;
-}
-
+/* Animation - cannot be expressed as utility classes */
 @keyframes modalIn {
   from { opacity: 0; transform: scale(0.95) translateY(-10px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.modal-sm { max-width: 360px; }
-.modal-lg { max-width: 640px; }
-.modal-xl { max-width: 900px; }
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg2);
+/* Modal content wrapper - JS renders class="modal", no Crosswind shortcut match */
+.modal {
+  @apply bg-bg border border-border rounded-xl w-full max-w-[480px] max-h-[90vh] overflow-hidden flex flex-col shadow-[0_20px_40px_rgba(0,0,0,0.3)];
+  animation: modalIn 0.15s ease-out;
 }
 
-.modal-title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text);
-}
+/* Size variants */
+.modal-sm { @apply max-w-[360px]; }
+.modal-lg { @apply max-w-[640px]; }
+.modal-xl { @apply max-w-[900px]; }
 
+/* Modal header bg override (shortcut doesn't include bg) */
+.modal-header { @apply bg-bg-2; }
+
+/* Modal title */
+.modal-title { @apply text-base font-semibold m-0 text-text; }
+
+/* Close button */
 .modal-close {
-  background: none;
-  border: none;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 0.375rem;
-  margin: -0.375rem -0.375rem -0.375rem 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.15s ease;
+  @apply bg-transparent border-none text-muted cursor-pointer p-1.5 -mr-1.5 -mb-1.5 flex items-center justify-center rounded-md transition-all duration-150;
 }
+.modal-close:hover { @apply bg-bg-3 text-text; }
 
-.modal-close:hover {
-  background: var(--bg3);
-  color: var(--text);
-}
+/* Modal body overflow */
+.modal-body { @apply overflow-y-auto flex-1; }
 
-.modal-body {
-  padding: 1.25rem;
-  overflow-y: auto;
-  flex: 1;
-}
+/* Modal footer bg override (shortcut doesn't include bg) */
+.modal-footer { @apply bg-bg-2; }
 
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  border-top: 1px solid var(--border);
-  background: var(--bg2);
-}
+/* Form elements inside modal */
+.modal .form-group { @apply mb-4 last:mb-0; }
+.modal .form-label { @apply block text-[0.8125rem] font-medium text-text mb-1.5; }
+.modal .form-hint { @apply text-xs text-muted mt-1; }
 
-.modal .form-group { margin-bottom: 1rem; }
-.modal .form-group:last-child { margin-bottom: 0; }
-
-.modal .form-label {
-  display: block;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--text);
-  margin-bottom: 0.375rem;
-}
-
-.modal .form-hint {
-  font-size: 0.75rem;
-  color: var(--muted);
-  margin-top: 0.25rem;
-}
-
-.modal .form-input,
-.modal .form-select {
-  width: 100%;
-  padding: 0.625rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 0.875rem;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
+/* Form input focus ring - complex pseudo-selector */
 .modal .form-input:focus,
 .modal .form-select:focus {
-  outline: none;
-  border-color: var(--accent);
+  @apply outline-none border-accent;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-.modal .form-input::placeholder { color: var(--muted); }
+/* Placeholder color - pseudo-element */
+.modal .form-input::placeholder { @apply text-muted; }
 
-.modal .checkbox-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
+/* Checkbox group */
+.modal .checkbox-group { @apply flex flex-wrap gap-3 mt-2; }
+.modal .checkbox-label { @apply flex items-center gap-2 text-sm text-text cursor-pointer; }
 
-.modal .checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: var(--text);
-  cursor: pointer;
-}
-
+/* Checkbox accent color - cannot use utility */
 .modal .checkbox-label input[type="checkbox"] {
-  width: 1rem;
-  height: 1rem;
+  @apply w-4 h-4;
   accent-color: var(--accent);
 }
 
-.modal .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border: 1px solid transparent;
-  min-width: 80px;
-}
+/* Button disabled state - pseudo-selector */
+.modal .btn:disabled { @apply opacity-60 cursor-not-allowed; }
 
-.modal .btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.modal .btn-primary {
-  background: var(--accent);
-  color: white;
-}
-
-.modal .btn-primary:hover:not(:disabled) {
-  background: var(--accent2);
-}
-
-.modal .btn-secondary {
-  background: var(--bg3);
-  color: var(--text);
-  border-color: var(--border);
-}
-
-.modal .btn-secondary:hover:not(:disabled) {
-  background: var(--bg);
-}
-
-.modal .btn-danger {
-  background: #dc2626;
-  color: white;
-}
-
-.modal .btn-danger:hover:not(:disabled) {
-  background: #b91c1c;
-}
-
+/* Confirm/alert messages */
 .modal .confirm-message,
 .modal .alert-message {
-  margin: 0;
-  font-size: 0.9375rem;
-  color: var(--text);
-  line-height: 1.5;
+  @apply m-0 text-[0.9375rem] text-text leading-relaxed;
 }
 </style>

@@ -38,7 +38,7 @@ async function fetchSessions() {
 
   if (!siteId || !container) return
 
-  container.innerHTML = '<div class="loading-state"><div class="spinner"></div><span>Loading...</span></div>'
+  container.innerHTML = '<div class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg"><div class="spinner"></div><span>Loading...</span></div>'
 
   try {
     const res = await fetch(_apiUrl('/sessions' + _dateParams()))
@@ -54,20 +54,20 @@ async function fetchSessions() {
 
     container.innerHTML = sessions.map(session => `
       <div class="session-card" data-session-id="${session.sessionId || session.id}" onclick="viewSession('${session.sessionId || session.id}')">
-        <div class="session-card-header">
-          <span class="session-path">${session.entryPage || session.entryPath || '/'}</span>
-          <span class="session-time">${timeAgo(session.startTime || session.startedAt)}</span>
+        <div class="flex justify-between items-center mb-2">
+          <span class="font-medium text-text">${session.entryPage || session.entryPath || '/'}</span>
+          <span class="text-xs text-muted">${timeAgo(session.startTime || session.startedAt)}</span>
         </div>
-        <div class="session-card-meta">
-          <span class="session-pages">${session.pageViews || session.pageViewCount || 1} page${(session.pageViews || session.pageViewCount || 1) !== 1 ? 's' : ''}</span>
-          <span class="session-duration ${session.bounced || session.isBounce ? 'bounced' : ''}">${session.bounced || session.isBounce ? 'Bounced' : formatDuration(session.duration)}</span>
-          <span class="session-browser">${session.browser || 'Unknown'}</span>
-          <span class="session-country">${session.country || 'Unknown'}</span>
+        <div class="flex gap-4 text-xs text-muted">
+          <span>${session.pageViews || session.pageViewCount || 1} page${(session.pageViews || session.pageViewCount || 1) !== 1 ? 's' : ''}</span>
+          <span class="${session.bounced || session.isBounce ? 'text-error' : ''}">${session.bounced || session.isBounce ? 'Bounced' : formatDuration(session.duration)}</span>
+          <span>${session.browser || 'Unknown'}</span>
+          <span>${session.country || 'Unknown'}</span>
         </div>
       </div>
     `).join('')
   } catch (e) {
-    container.innerHTML = `<div class="error-state">${e.message}</div>`
+    container.innerHTML = `<div class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">${e.message}</div>`
   }
 }
 
@@ -75,7 +75,7 @@ async function viewSession(sessionId) {
   // Show loading modal
   Modal.open({
     title: `Session ${sessionId.slice(0, 8)}...`,
-    content: '<div class="loading-state"><div class="spinner"></div><span>Loading session...</span></div>',
+    content: '<div class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg"><div class="spinner"></div><span>Loading session...</span></div>',
     showFooter: false,
     size: 'lg'
   })
@@ -85,44 +85,44 @@ async function viewSession(sessionId) {
     const data = await res.json()
 
     const stats = `
-      <div class="session-stats">
-        <div class="session-stat">
-          <div class="session-stat-value">${data.pageViewCount || data.pageViews?.length || 0}</div>
-          <div class="session-stat-label">Pages</div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div class="stat-card text-center">
+          <div class="text-xl font-bold text-text">${data.pageViewCount || data.pageViews?.length || 0}</div>
+          <div class="text-[0.6875rem] text-muted uppercase mt-1">Pages</div>
         </div>
-        <div class="session-stat">
-          <div class="session-stat-value">${formatDuration(data.duration)}</div>
-          <div class="session-stat-label">Duration</div>
+        <div class="stat-card text-center">
+          <div class="text-xl font-bold text-text">${formatDuration(data.duration)}</div>
+          <div class="text-[0.6875rem] text-muted uppercase mt-1">Duration</div>
         </div>
-        <div class="session-stat">
-          <div class="session-stat-value">${data.browser || 'Unknown'}</div>
-          <div class="session-stat-label">Browser</div>
+        <div class="stat-card text-center">
+          <div class="text-xl font-bold text-text">${data.browser || 'Unknown'}</div>
+          <div class="text-[0.6875rem] text-muted uppercase mt-1">Browser</div>
         </div>
-        <div class="session-stat">
-          <div class="session-stat-value">${data.country || 'Unknown'}</div>
-          <div class="session-stat-label">Country</div>
+        <div class="stat-card text-center">
+          <div class="text-xl font-bold text-text">${data.country || 'Unknown'}</div>
+          <div class="text-[0.6875rem] text-muted uppercase mt-1">Country</div>
         </div>
       </div>
     `
 
     const journey = data.pageViews ? `
-      <h4 class="section-title">Session Journey</h4>
-      <div class="session-journey">
+      <h4 class="text-sm font-medium text-muted mb-3">Session Journey</h4>
+      <div class="flex items-center gap-2 flex-wrap">
         ${data.pageViews.map((pv, i) =>
-          `${i > 0 ? '<span class="journey-arrow">→</span>' : ''}<div class="journey-step">${pv.path || '/'}</div>`
+          `${i > 0 ? '<span class="text-accent font-bold">→</span>' : ''}<div class="bg-bg-2 border border-border py-2 px-3 rounded-md text-[0.8125rem] text-text">${pv.path || '/'}</div>`
         ).join('')}
       </div>
     ` : ''
 
     const timeline = data.events ? `
-      <h4 class="section-title">Timeline (${data.events.length} events)</h4>
-      <div class="timeline">
+      <h4 class="text-sm font-medium text-muted mt-6 mb-3">Timeline (${data.events.length} events)</h4>
+      <div class="max-h-[300px] overflow-y-auto flex flex-col gap-2">
         ${data.events.map(e => {
           const type = e.type || 'event'
-          return `<div class="timeline-item">
+          return `<div class="flex items-center gap-3 p-2 bg-bg-2 rounded-md">
             <div class="timeline-type ${type}">${type}</div>
-            <div class="timeline-content">${e.name || e.path || e.message || ''}</div>
-            <div class="timeline-time">${new Date(e.timestamp).toLocaleTimeString()}</div>
+            <div class="flex-1 text-[0.8125rem] text-text truncate">${e.name || e.path || e.message || ''}</div>
+            <div class="text-[0.6875rem] text-muted">${new Date(e.timestamp).toLocaleTimeString()}</div>
           </div>`
         }).join('')}
       </div>
@@ -138,7 +138,7 @@ async function viewSession(sessionId) {
   } catch (e) {
     Modal.open({
       title: 'Error',
-      content: `<p class="error-state">Failed to load session: ${e.message}</p>`,
+      content: `<p class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">Failed to load session: ${e.message}</p>`,
       showFooter: false
     })
   }
@@ -153,10 +153,10 @@ if (_doc.readyState === 'loading') {
 }
 </script>
 
-<div class="tab-panel">
-  <h3 class="tab-title">Sessions (<span id="sessions-count">0</span>)</h3>
-  <div id="sessions-container" class="sessions-list">
-    <div class="loading-state">
+<div class="col-span-full">
+  <h3 class="text-base font-semibold text-text mb-4">Sessions (<span id="sessions-count">0</span>)</h3>
+  <div id="sessions-container" class="flex flex-col gap-3">
+    <div class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
       <div class="spinner"></div>
       <span>Loading...</span>
     </div>
@@ -164,55 +164,29 @@ if (_doc.readyState === 'loading') {
 </div>
 
 <style>
-.tab-panel { grid-column: 1 / -1; }
-.tab-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 1rem; }
-.sessions-list { display: flex; flex-direction: column; gap: 0.75rem; }
-
-.session-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-  cursor: pointer;
-  transition: all 0.15s ease;
+/* Timeline type badges - color-coded by event type */
+.timeline-type {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  min-width: 60px;
+  text-align: center;
 }
-.session-card:hover { border-color: var(--accent); background: var(--bg3); }
-.session-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-.session-path { font-weight: 500; color: var(--text); }
-.session-time { font-size: 0.75rem; color: var(--muted); }
-.session-card-meta { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--muted); }
-.session-card-meta .bounced { color: var(--error); }
-
-/* Session modal styles */
-.session-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-.session-stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
-.session-stat-value { font-size: 1.25rem; font-weight: 700; color: var(--text); }
-.session-stat-label { font-size: 0.6875rem; color: var(--muted); text-transform: uppercase; margin-top: 0.25rem; }
-
-.section-title { font-size: 0.875rem; font-weight: 500; color: var(--muted); margin: 1.5rem 0 0.75rem; }
-.section-title:first-of-type { margin-top: 0; }
-
-.session-journey { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.journey-step { background: var(--bg2); border: 1px solid var(--border); padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8125rem; color: var(--text); }
-.journey-arrow { color: var(--accent); font-weight: bold; }
-
-.timeline { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
-.timeline-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: var(--bg2); border-radius: 6px; }
-.timeline-type { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 0.25rem 0.5rem; border-radius: 4px; min-width: 60px; text-align: center; }
 .timeline-type.pageview { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
 .timeline-type.event { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
 .timeline-type.click { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
 .timeline-type.error { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
-.timeline-content { flex: 1; font-size: 0.8125rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.timeline-time { font-size: 0.6875rem; color: var(--muted); }
 
-.empty-state, .loading-state, .error-state { text-align: center; color: var(--muted); padding: 2rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
-.loading-state { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
-.error-state { color: var(--error); }
-.spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-@media (max-width: 640px) {
-  .session-stats { grid-template-columns: repeat(2, 1fr); }
+/* Spinner animation */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

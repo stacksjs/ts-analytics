@@ -259,9 +259,9 @@ if (_doc.readyState === 'loading') {
 }
 </script>
 
-<div class="tab-panel">
-  <div class="tab-header">
-    <h3 id="funnels-title" class="tab-title">Conversion Funnels</h3>
+<div class="col-span-full">
+  <div class="flex justify-between items-center mb-4">
+    <h3 id="funnels-title" class="text-base font-semibold text-text">Conversion Funnels</h3>
     <button id="funnels-header-btn" class="btn btn-primary" style="display: none" onclick="showCreateFunnelModal()">
       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -278,17 +278,41 @@ if (_doc.readyState === 'loading') {
 </div>
 
 <style>
-.tab-panel { grid-column: 1 / -1; }
-.tab-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-.tab-title { font-size: 1rem; font-weight: 600; color: var(--text); margin: 0; }
+/*
+ * Classes below are referenced by innerHTML in JavaScript.
+ * They cannot be converted to template utilities because the script block must stay unchanged.
+ */
 
-.funnels-list { display: flex; flex-direction: column; gap: 0.75rem; }
+/* Loading / Error / Empty states (used in innerHTML) */
+.loading-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.error-state {
+  text-align: center;
+  color: var(--error);
+  padding: 2rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+.empty-state-hint { font-size: 0.75rem; margin-top: 0.5rem; }
 
+/* Funnel cards (innerHTML) */
 .funnel-card {
   background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0.5rem;
   padding: 1rem;
+  margin-bottom: 0.75rem;
 }
 .funnel-card-header {
   display: flex;
@@ -303,11 +327,28 @@ if (_doc.readyState === 'loading') {
   font-size: 0.6875rem;
   padding: 0.25rem 0.5rem;
   background: var(--bg);
-  border-radius: 4px;
+  border-radius: 0.25rem;
   color: var(--text);
 }
 .funnel-step-arrow { color: var(--accent); }
 
+/* Icon buttons (innerHTML) */
+.btn-icon {
+  background: none;
+  border: none;
+  padding: 0.375rem;
+  cursor: pointer;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  transition: all 0.15s ease;
+}
+.btn-icon:hover { background: var(--bg3); color: var(--text); }
+.btn-icon.danger:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+/* Back link (innerHTML) */
 .back-link {
   background: none;
   border: none;
@@ -318,6 +359,7 @@ if (_doc.readyState === 'loading') {
 }
 .back-link:hover { color: var(--text); }
 
+/* Analysis view (innerHTML) */
 .funnel-analysis-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
 .funnel-analysis-summary { font-size: 0.75rem; color: var(--muted); margin-bottom: 1.5rem; }
 .funnel-steps-analysis { display: flex; gap: 0.5rem; align-items: stretch; flex-wrap: wrap; }
@@ -326,7 +368,7 @@ if (_doc.readyState === 'loading') {
 .analysis-step-card {
   background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0.5rem;
   padding: 1rem;
   margin-bottom: 0.5rem;
 }
@@ -336,53 +378,14 @@ if (_doc.readyState === 'loading') {
 .analysis-step-drop { font-size: 0.6875rem; color: var(--error); margin-top: 0.25rem; }
 .analysis-arrow { color: var(--muted); font-size: 1.5rem; }
 
+/* Modal form elements (innerHTML) */
+.form-group { margin-bottom: 1rem; }
+.form-label { display: block; font-size: 0.8125rem; font-weight: 500; color: var(--text); margin-bottom: 0.375rem; }
 .steps-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem; }
 .step-input-row { display: flex; gap: 0.5rem; }
-
-.empty-state, .loading-state, .error-state {
-  text-align: center;
-  color: var(--muted);
-  padding: 2rem;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.empty-state-hint { font-size: 0.75rem; margin-top: 0.5rem; }
-.loading-state { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
-.error-state { color: var(--error); }
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border: 1px solid transparent;
-}
-.btn-primary { background: var(--accent); color: white; }
-.btn-primary:hover { background: var(--accent2); }
-.btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
 .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
 
-.btn-icon {
-  background: none;
-  border: none;
-  padding: 0.375rem;
-  cursor: pointer;
-  color: var(--muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.15s ease;
-}
-.btn-icon:hover { background: var(--bg3); color: var(--text); }
-.btn-icon.danger:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
-
+/* Spinner animation */
 .spinner {
   width: 16px;
   height: 16px;
@@ -393,6 +396,7 @@ if (_doc.readyState === 'loading') {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Responsive analysis layout */
 @media (max-width: 640px) {
   .funnel-steps-analysis { flex-direction: column; }
   .analysis-step-wrapper { min-width: 100%; }

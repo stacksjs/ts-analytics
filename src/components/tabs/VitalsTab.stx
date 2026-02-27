@@ -52,27 +52,27 @@ onMount(() => {
 })
 </script>
 
-<div class="tab-panel">
-  <h3 class="tab-title">Core Web Vitals</h3>
+<div class="col-span-full">
+  <h3 class="text-base font-semibold text-text mb-4">Core Web Vitals</h3>
 
-  <div @if="loading()" class="loading-state">
+  <div @if="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
     <div class="spinner"></div>
     <span>Loading...</span>
   </div>
 
-  <div @if="error()" class="error-state">
+  <div @if="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">
     {{ error() }}
   </div>
 
   <div @if="!loading() && !error()">
     <!-- Violations Section -->
-    <div @if="violations().length > 0" class="violations-section">
-      <h4 class="violations-title">Performance Budget Violations</h4>
-      <div class="violations-list">
-        <div @for="v in violations()" class="violation-item">
-          <span class="violation-metric">{{ v.metric }}</span>
-          <span class="violation-value">{{ v.currentValue }}{{ v.metric === 'CLS' ? '' : 'ms' }}</span>
-          <span class="violation-exceeded">
+    <div @if="violations().length > 0" class="bg-error/10 border border-error/30 rounded-lg p-4 mb-4">
+      <h4 class="text-sm font-semibold text-error mb-2">Performance Budget Violations</h4>
+      <div class="flex flex-col gap-2">
+        <div @for="v in violations()" class="text-[0.8125rem] flex gap-2 items-center">
+          <span class="font-semibold text-text">{{ v.metric }}</span>
+          <span class="text-error">{{ v.currentValue }}{{ v.metric === 'CLS' ? '' : 'ms' }}</span>
+          <span class="text-muted">
             (exceeds {{ v.threshold }}{{ v.metric === 'CLS' ? '' : 'ms' }} by {{ v.exceededBy }}{{ v.metric === 'CLS' ? '' : 'ms' }})
           </span>
         </div>
@@ -82,12 +82,12 @@ onMount(() => {
     <!-- Vitals Grid -->
     <div class="vitals-grid">
       <div @for="v in vitals()" class="vital-card">
-        <div class="vital-name">{{ v.metric }}</div>
+        <div class="text-xs font-semibold text-muted uppercase tracking-wider mb-1">{{ v.metric }}</div>
         <div @class="['vital-value', getRating(v)]">
           {{ v.samples > 0 ? formatValue(v.metric, v.p75) : '—' }}
         </div>
-        <div class="vital-samples">{{ v.samples }} samples</div>
-        <div @if="v.samples > 0" class="vital-bar">
+        <div class="text-[0.6875rem] text-muted mb-2">{{ v.samples }} samples</div>
+        <div @if="v.samples > 0" class="h-1 rounded-sm flex overflow-hidden bg-bg">
           <div class="good" @style="{ width: v.good + '%' }"></div>
           <div class="needs-improvement" @style="{ width: v.needsImprovement + '%' }"></div>
           <div class="poor" @style="{ width: v.poor + '%' }"></div>
@@ -102,68 +102,14 @@ onMount(() => {
 </div>
 
 <style>
-.tab-panel {
-  grid-column: 1 / -1;
-}
-.tab-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0 0 1rem 0;
-}
-.violations-section {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-}
-.violations-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--error);
-  margin: 0 0 0.5rem 0;
-}
-.violations-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.violation-item {
-  font-size: 0.8125rem;
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-.violation-metric {
-  font-weight: 600;
-  color: var(--text);
-}
-.violation-value {
-  color: var(--error);
-}
-.violation-exceeded {
-  color: var(--muted);
-}
+/* Vitals grid - auto-fit requires CSS (no utility equivalent) */
 .vitals-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
 }
-.vital-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-}
-.vital-name {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.25rem;
-}
+
+/* Vital value with dynamic rating colors */
 .vital-value {
   font-size: 1.5rem;
   font-weight: 700;
@@ -173,38 +119,13 @@ onMount(() => {
 .vital-value.good { color: var(--success); }
 .vital-value.needs-improvement { color: var(--warning); }
 .vital-value.poor { color: var(--error); }
-.vital-samples {
-  font-size: 0.6875rem;
-  color: var(--muted);
-  margin-bottom: 0.5rem;
-}
-.vital-bar {
-  height: 4px;
-  border-radius: 2px;
-  display: flex;
-  overflow: hidden;
-  background: var(--bg);
-}
-.vital-bar .good { background: var(--success); }
-.vital-bar .needs-improvement { background: var(--warning); }
-.vital-bar .poor { background: var(--error); }
-.empty-state, .loading-state, .error-state {
-  text-align: center;
-  color: var(--muted);
-  padding: 2rem;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-.error-state {
-  color: var(--error);
-}
+
+/* Vital bar segment colors */
+.good { background: var(--success); }
+.needs-improvement { background: var(--warning); }
+.poor { background: var(--error); }
+
+/* Spinner animation */
 .spinner {
   width: 16px;
   height: 16px;
@@ -213,7 +134,5 @@ onMount(() => {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
-@keyframes spin {
-  to { transform: rotate(-360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

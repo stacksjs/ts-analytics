@@ -1,8 +1,8 @@
 {{-- Header Component --}}
 {{-- Props: siteName, sites, realtimeCount --}}
-<header class="header">
-  <div class="site-selector">
-    <select id="site-select">
+<header class="flex justify-between items-center py-4 border-b border-border mb-4">
+  <div>
+    <select id="site-select" class="filter-select bg-bg-2 border border-border text-text px-4 py-2 rounded-md text-sm cursor-pointer">
       @foreach(sites as site)
         <option value="{{ site.id }}" @if(site.id === siteId) selected @endif>
           {{ site.name }}
@@ -10,9 +10,9 @@
       @endforeach
     </select>
   </div>
-  <div class="header-actions">
-    <div class="realtime-badge">
-      <span class="pulse-dot"></span>
+  <div class="flex items-center gap-4">
+    <div class="badge flex items-center gap-2 bg-bg-2 px-4 py-2 rounded-full text-sm">
+      <span class="pulse-dot w-2 h-2 bg-success rounded-full"></span>
       <span>{{ realtimeCount }} current visitors</span>
     </div>
     <button class="icon-btn" title="Notifications">
@@ -35,66 +35,12 @@
 </header>
 
 <style>
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 1rem;
-}
-
-.site-selector select {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.realtime-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--bg-secondary);
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  font-size: 0.875rem;
-}
-
 .pulse-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--success);
-  border-radius: 50%;
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
-}
-
-.icon-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 6px;
-  transition: all 0.15s;
-}
-
-.icon-btn:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
 }
 </style>

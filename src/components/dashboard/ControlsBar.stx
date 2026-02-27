@@ -157,29 +157,29 @@ if (_doc.readyState === 'loading') {
 }
 </script>
 
-<div id="controls-bar" class="controls">
-  <div id="date-range-btns" class="date-range">
-    <button class="date-btn" data-range="1h" onclick="setDateRange('1h')">1h</button>
-    <button class="date-btn active" data-range="6h" onclick="setDateRange('6h')">6h</button>
-    <button class="date-btn" data-range="12h" onclick="setDateRange('12h')">12h</button>
-    <button class="date-btn" data-range="24h" onclick="setDateRange('24h')">24h</button>
-    <button class="date-btn" data-range="7d" onclick="setDateRange('7d')">7d</button>
-    <button class="date-btn" data-range="30d" onclick="setDateRange('30d')">30d</button>
-    <button class="date-btn" data-range="90d" onclick="setDateRange('90d')">90d</button>
-    <span class="divider"></span>
-    <button id="compare-btn" class="date-btn compare-btn" onclick="toggleComparison()" title="Compare with previous period">
+<div id="controls-bar" class="flex justify-between items-center py-3 px-6 bg-bg border-b border-border gap-4 flex-wrap max-sm:flex-col max-sm:items-stretch">
+  <div id="date-range-btns" class="flex items-center gap-1 max-sm:justify-center">
+    <button class="date-range-btn" data-range="1h" onclick="setDateRange('1h')">1h</button>
+    <button class="date-range-btn date-range-btn-active" data-range="6h" onclick="setDateRange('6h')">6h</button>
+    <button class="date-range-btn" data-range="12h" onclick="setDateRange('12h')">12h</button>
+    <button class="date-range-btn" data-range="24h" onclick="setDateRange('24h')">24h</button>
+    <button class="date-range-btn" data-range="7d" onclick="setDateRange('7d')">7d</button>
+    <button class="date-range-btn" data-range="30d" onclick="setDateRange('30d')">30d</button>
+    <button class="date-range-btn" data-range="90d" onclick="setDateRange('90d')">90d</button>
+    <span class="border-l border-border h-6 mx-2"></span>
+    <button id="compare-btn" class="date-range-btn flex items-center gap-1 text-[0.6875rem] py-1 px-2" onclick="toggleComparison()" title="Compare with previous period">
       <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
       </svg>
       Compare
     </button>
   </div>
-  <div class="controls-right">
-    <div class="realtime-badge">
+  <div class="flex items-center gap-3 max-sm:justify-between">
+    <div class="flex items-center gap-2 py-1.5 px-3 bg-success/10 rounded-full text-xs font-medium text-success">
       <span class="pulse"></span>
       <span id="realtime-count">0 visitors online</span>
     </div>
-    <span id="last-updated" class="last-updated" style="display:none"></span>
+    <span id="last-updated" class="text-xs text-muted" style="display:none"></span>
     <button id="refresh-btn" class="icon-btn" onclick="window.controlsBar.refresh()" title="Refresh data">
       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -194,77 +194,26 @@ if (_doc.readyState === 'loading') {
 </div>
 
 <style>
-.controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1.5rem;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.date-range {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
+/* Dynamic classes used by renderDateRangeButtons() in script */
 .date-btn {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  color: var(--text2);
-  padding: 0.375rem 0.625rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition: all 0.15s;
+  @apply date-range-btn;
 }
 .date-btn:hover {
-  background: var(--bg3);
-  color: var(--text);
+  @apply bg-bg text-text;
 }
 .date-btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: white;
+  @apply date-range-btn-active;
 }
 .compare-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.6875rem;
-  padding: 0.25rem 0.5rem;
-}
-.compare-btn svg {
-  vertical-align: middle;
+  @apply flex items-center gap-1 text-[0.6875rem] py-1 px-2;
 }
 .divider {
-  border-left: 1px solid var(--border);
-  height: 24px;
-  margin: 0 0.5rem;
+  @apply border-l border-border h-6 mx-2;
 }
-.controls-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.realtime-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.375rem 0.75rem;
-  background: rgba(16, 185, 129, 0.1);
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--success);
-}
+
+/* Animations - cannot be expressed as utilities */
 .pulse {
-  width: 8px;
-  height: 8px;
-  background: var(--success);
-  border-radius: 50%;
+  @apply w-2 h-2 bg-success rounded-full;
   animation: pulse 2s infinite;
 }
 @keyframes pulse {
@@ -272,44 +221,11 @@ if (_doc.readyState === 'loading') {
   50% { opacity: 0.5; transform: scale(1.1); }
   100% { opacity: 1; transform: scale(1); }
 }
-.last-updated {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-.icon-btn {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  color: var(--text2);
-  padding: 0.5rem;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-}
-.icon-btn:hover {
-  background: var(--bg3);
-  color: var(--text);
-}
-.icon-btn.spinning svg {
+.spinning svg {
   animation: spin 0.5s linear infinite;
 }
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(-360deg); }
-}
-
-@media (max-width: 640px) {
-  .controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .controls-right {
-    justify-content: space-between;
-  }
-  .date-range {
-    justify-content: center;
-  }
 }
 </style>

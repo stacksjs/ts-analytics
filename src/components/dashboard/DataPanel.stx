@@ -33,80 +33,33 @@ const { id, title, icon, viewAllLink, columns, bodyId } = withDefaults(
 <div class="panel" id="{{ id }}-panel">
   <div class="panel-header">
     <div class="panel-title">
-      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="inline text-muted" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ icon }}"/>
       </svg>
       {{ title }}
     </div>
     @if (viewAllLink)
-      <a href="#" @click.prevent="window.navigateTo('{{ viewAllLink }}')" class="view-all">View all &rarr;</a>
+      <a href="#" @click.prevent="window.navigateTo('{{ viewAllLink }}')" class="text-xs text-muted no-underline transition-colors duration-150 hover:text-text hover:underline">View all &rarr;</a>
     @endif
   </div>
-  <table class="data-table">
+  <table class="data-table w-full text-[0.8125rem]">
     <thead>
       <tr>
         @foreach (columns as col)
-          <th style="{{ col.align === 'right' ? 'text-align:right' : '' }}">{{ col.label }}</th>
+          <th class="text-left py-2 border-b border-border text-muted font-medium text-xs uppercase tracking-wide {{ col.align === 'right' ? 'text-right' : '' }}">{{ col.label }}</th>
         @endforeach
       </tr>
     </thead>
     <tbody id="{{ bodyId ? bodyId : (id + '-body') }}">
       <tr>
-        <td colspan="{{ columns.length }}" class="empty-cell">Loading...</td>
+        <td colspan="{{ columns.length }}" class="text-center text-muted p-4">Loading...</td>
       </tr>
     </tbody>
   </table>
 </div>
 
 <style>
-.panel {
-  background: var(--bg2);
-  border-radius: 8px;
-  padding: 1.5rem;
-  border: 1px solid var(--border);
-}
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-.panel-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--text);
-}
-.panel-title svg {
-  color: var(--muted);
-}
-.view-all {
-  font-size: 0.75rem;
-  color: var(--muted);
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-.view-all:hover {
-  color: var(--text);
-  text-decoration: underline;
-}
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8125rem;
-}
-.data-table th {
-  text-align: left;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
-  color: var(--muted);
-  font-weight: 500;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-}
+/* Styles for dynamically-populated table rows */
 .data-table td {
   padding: 0.625rem 0;
   border-bottom: 1px solid var(--border);
@@ -125,11 +78,6 @@ const { id, title, icon, viewAllLink, columns, bodyId } = withDefaults(
   color: var(--text2);
   text-align: right;
   white-space: nowrap;
-}
-.empty-cell {
-  text-align: center;
-  color: var(--muted);
-  padding: 1rem;
 }
 .page-link {
   color: var(--text);

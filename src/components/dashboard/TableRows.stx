@@ -30,23 +30,23 @@ function isExternalLink(source: string): boolean {
 {{-- Pages Table Body --}}
 <template id="pages-table-component">
   @if(loading)
-    <tr><td colspan="4" class="empty-cell">Loading...</td></tr>
+    <tr><td colspan="4" class="text-center text-muted p-4">Loading...</td></tr>
   @elseif(pages.length === 0)
-    <tr><td colspan="4" class="empty-cell">No page data</td></tr>
+    <tr><td colspan="4" class="text-center text-muted p-4">No page data</td></tr>
   @else
     @foreach(pages as page)
       <tr>
-        <td class="name" title="{{ page.path }}">
-          <a href="{{ page.path }}" target="_blank" rel="noopener" class="page-link">
+        <td class="font-medium text-text max-w-[200px] truncate" title="{{ page.path }}">
+          <a href="{{ page.path }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 no-underline text-inherit hover:text-accent">
             {{ page.path }}
-            <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="opacity-50" width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
             </svg>
           </a>
         </td>
-        <td class="value">{{ (page.entries ? page.entries : 0) | fmt }}</td>
-        <td class="value">{{ (page.visitors ? page.visitors : 0) | fmt }}</td>
-        <td class="value">{{ (page.views ? page.views : 0) | fmt }}</td>
+        <td class="text-right tabular-nums text-text">{{ (page.entries ? page.entries : 0) | fmt }}</td>
+        <td class="text-right tabular-nums text-text">{{ (page.visitors ? page.visitors : 0) | fmt }}</td>
+        <td class="text-right tabular-nums text-text">{{ (page.views ? page.views : 0) | fmt }}</td>
       </tr>
     @endforeach
   @endif
@@ -55,20 +55,20 @@ function isExternalLink(source: string): boolean {
 {{-- Referrers Table Body --}}
 <template id="referrers-table-component">
   @if(loading)
-    <tr><td colspan="3" class="empty-cell">Loading...</td></tr>
+    <tr><td colspan="3" class="text-center text-muted p-4">Loading...</td></tr>
   @elseif(referrers.length === 0)
-    <tr><td colspan="3" class="empty-cell">No referrer data</td></tr>
+    <tr><td colspan="3" class="text-center text-muted p-4">No referrer data</td></tr>
   @else
     @foreach(referrers as ref)
       <tr>
-        <td class="name">
+        <td class="font-medium text-text max-w-[200px] truncate">
           @if(isExternalLink(ref.source ? ref.source : 'Direct'))
             <a href="{{ ref.source.startsWith('http') ? ref.source : 'https://' + ref.source }}"
-               target="_blank" rel="noopener" class="referrer-link">
+               target="_blank" rel="noopener" class="inline-flex items-center gap-1 no-underline text-inherit hover:text-accent">
               <img src="https://www.google.com/s2/favicons?domain={{ getDomain(ref.source) }}&sz=16"
-                   width="14" height="14" class="favicon" onerror="this.style.display='none'" />
+                   width="14" height="14" class="w-3.5 h-3.5 align-middle rounded-sm" onerror="this.style.display='none'" />
               {{ ref.source ? ref.source : 'Direct' }}
-              <svg class="external-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <svg class="opacity-50" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
               </svg>
             </a>
@@ -76,8 +76,8 @@ function isExternalLink(source: string): boolean {
             {{ ref.source ? ref.source : 'Direct' }}
           @endif
         </td>
-        <td class="value">{{ (ref.visitors ? ref.visitors : 0) | fmt }}</td>
-        <td class="value">{{ (ref.views ? ref.views : 0) | fmt }}</td>
+        <td class="text-right tabular-nums text-text">{{ (ref.visitors ? ref.visitors : 0) | fmt }}</td>
+        <td class="text-right tabular-nums text-text">{{ (ref.views ? ref.views : 0) | fmt }}</td>
       </tr>
     @endforeach
   @endif
@@ -86,14 +86,14 @@ function isExternalLink(source: string): boolean {
 {{-- Devices Table Body --}}
 <template id="devices-table-component">
   @if(loading)
-    <tr><td colspan="3" class="empty-cell">Loading...</td></tr>
+    <tr><td colspan="3" class="text-center text-muted p-4">Loading...</td></tr>
   @elseif(devices.length === 0)
-    <tr><td colspan="3" class="empty-cell">No device data</td></tr>
+    <tr><td colspan="3" class="text-center text-muted p-4">No device data</td></tr>
   @else
     @foreach(devices as device)
       <tr>
-        <td class="name">
-          <svg class="device-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <td class="font-medium text-text max-w-[200px] truncate">
+          <svg class="text-muted flex-shrink-0 mr-1.5 inline" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             @if(device.type?.toLowerCase() === 'mobile')
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
             @elseif(device.type?.toLowerCase() === 'tablet')
@@ -104,8 +104,8 @@ function isExternalLink(source: string): boolean {
           </svg>
           {{ device.type ? device.type : 'Unknown' }}
         </td>
-        <td class="value">{{ (device.visitors ? device.visitors : 0) | fmt }}</td>
-        <td class="value">{{ device.percentage ? device.percentage : 0 }}%</td>
+        <td class="text-right tabular-nums text-text">{{ (device.visitors ? device.visitors : 0) | fmt }}</td>
+        <td class="text-right tabular-nums text-text">{{ device.percentage ? device.percentage : 0 }}%</td>
       </tr>
     @endforeach
   @endif
@@ -114,15 +114,15 @@ function isExternalLink(source: string): boolean {
 {{-- Browsers Table Body --}}
 <template id="browsers-table-component">
   @if(loading)
-    <tr><td colspan="3" class="empty-cell">Loading...</td></tr>
+    <tr><td colspan="3" class="text-center text-muted p-4">Loading...</td></tr>
   @elseif(browsers.length === 0)
-    <tr><td colspan="3" class="empty-cell">No browser data</td></tr>
+    <tr><td colspan="3" class="text-center text-muted p-4">No browser data</td></tr>
   @else
     @foreach(browsers as browser)
       <tr>
-        <td class="name">{{ browser.name ? browser.name : 'Unknown' }}</td>
-        <td class="value">{{ (browser.visitors ? browser.visitors : 0) | fmt }}</td>
-        <td class="value">{{ browser.percentage ? browser.percentage : 0 }}%</td>
+        <td class="font-medium text-text max-w-[200px] truncate">{{ browser.name ? browser.name : 'Unknown' }}</td>
+        <td class="text-right tabular-nums text-text">{{ (browser.visitors ? browser.visitors : 0) | fmt }}</td>
+        <td class="text-right tabular-nums text-text">{{ browser.percentage ? browser.percentage : 0 }}%</td>
       </tr>
     @endforeach
   @endif
@@ -131,17 +131,17 @@ function isExternalLink(source: string): boolean {
 {{-- Countries Table Body --}}
 <template id="countries-table-component">
   @if(loading)
-    <tr><td colspan="2" class="empty-cell">Loading...</td></tr>
+    <tr><td colspan="2" class="text-center text-muted p-4">Loading...</td></tr>
   @elseif(countries.length === 0)
-    <tr><td colspan="2" class="empty-cell">No location data</td></tr>
+    <tr><td colspan="2" class="text-center text-muted p-4">No location data</td></tr>
   @else
     @foreach(countries as country)
       <tr>
-        <td class="name">
-          <span class="country-flag">{{ getFlag(country.name ? country.name : country.code) }}</span>
+        <td class="font-medium text-text max-w-[200px] truncate">
+          <span class="mr-1.5">{{ getFlag(country.name ? country.name : country.code) }}</span>
           {{ country.name ? country.name : (country.code ? country.code : 'Unknown') }}
         </td>
-        <td class="value">{{ (country.visitors ? country.visitors : 0) | fmt }}</td>
+        <td class="text-right tabular-nums text-text">{{ (country.visitors ? country.visitors : 0) | fmt }}</td>
       </tr>
     @endforeach
   @endif
@@ -150,71 +150,21 @@ function isExternalLink(source: string): boolean {
 {{-- Campaigns Table Body --}}
 <template id="campaigns-table-component">
   @if(loading)
-    <tr><td colspan="3" class="empty-cell">Loading...</td></tr>
+    <tr><td colspan="3" class="text-center text-muted p-4">Loading...</td></tr>
   @elseif(campaigns.length === 0)
-    <tr><td colspan="3" class="empty-cell">No campaign data</td></tr>
+    <tr><td colspan="3" class="text-center text-muted p-4">No campaign data</td></tr>
   @else
     @foreach(campaigns as campaign)
       <tr>
-        <td class="name">{{ campaign.name ? campaign.name : (campaign.source ? campaign.source : 'Unknown') }}</td>
-        <td class="value">{{ (campaign.visitors ? campaign.visitors : 0) | fmt }}</td>
-        <td class="value">{{ (campaign.views ? campaign.views : 0) | fmt }}</td>
+        <td class="font-medium text-text max-w-[200px] truncate">{{ campaign.name ? campaign.name : (campaign.source ? campaign.source : 'Unknown') }}</td>
+        <td class="text-right tabular-nums text-text">{{ (campaign.visitors ? campaign.visitors : 0) | fmt }}</td>
+        <td class="text-right tabular-nums text-text">{{ (campaign.views ? campaign.views : 0) | fmt }}</td>
       </tr>
     @endforeach
   @endif
 </template>
 
 <style>
-.name {
-  font-weight: 500;
-  color: var(--text);
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.value {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-.empty-cell {
-  text-align: center;
-  color: var(--muted);
-  padding: 1rem;
-}
-.page-link,
-.referrer-link {
-  color: inherit;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.page-link:hover,
-.referrer-link:hover {
-  color: var(--accent);
-}
-.page-link svg,
-.external-icon {
-  opacity: 0.5;
-}
-.page-link:hover svg,
-.referrer-link:hover .external-icon {
-  opacity: 1;
-}
-.favicon {
-  width: 14px;
-  height: 14px;
-  vertical-align: middle;
-  border-radius: 2px;
-}
-.country-flag {
-  margin-right: 6px;
-}
-.device-icon {
-  color: var(--muted);
-  flex-shrink: 0;
-  margin-right: 6px;
-}
+/* Hover effect on link icons - requires parent hover pseudo-selector */
+a:hover svg { opacity: 1; }
 </style>

@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>@yield('title', 'Dashboard') - Analytics</title>
+  <link rel="stylesheet" href="/assets/crosswind.css">
   <script src="/dashboard/scripts/composables.ts"></script>
   <script src="/dashboard/scripts/dashboard.ts"></script>
   <script>

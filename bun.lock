@@ -1,9 +1,11 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "@stacksjs/ts-analytics",
       "dependencies": {
+        "@cwcss/crosswind": "^0.1.6",
         "@stacksjs/bun-router": "^0.0.2",
         "@stacksjs/stx": "^0.2.5",
         "bun-plugin-stx": "^0.2.4",
@@ -18,6 +20,8 @@
     },
   },
   "packages": {
+    "@cwcss/crosswind": ["@cwcss/crosswind@0.1.6", "", { "dependencies": { "@stacksjs/clapp": "^0.2.0", "bunfig": "^0.15.0" }, "bin": { "crosswind": "./dist/bin/cli.js" } }, "sha512-4NxFRgSSu8YQnLDj21kmUVxmwduCAvsrj3zOn5bKsaKvT/S+pBkHTl5+44d5cradQ872a+QCOOPVoEFmppsdYA=="],
+
     "@iconify-json/heroicons": ["@iconify-json/heroicons@1.2.3", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-n+vmCEgTesRsOpp5AB5ILB6srsgsYK+bieoQBNlafvoEhjVXLq8nIGN4B0v/s4DUfa0dOrjwE/cKJgIKdJXOEg=="],
 
     "@iconify/types": ["@iconify/types@2.0.0", "", {}, "sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg=="],

@@ -31,7 +31,8 @@
   "files": ["bin", "dist", "src"],
   "scripts": {
     "analytics": "bun ./bin/cli.ts",
-    "build": "bun --bun build.ts",
+    "build": "bun run build:css && bun --bun build.ts",
+    "build:css": "bun --config=bunfig.css.toml build-css.ts",
     "dev": "bun --watch ./server/index.ts",
     "server": "bun ./server/index.ts",
     "deploy:db": "bun ./deploy/dynamodb.ts",
@@ -52,6 +53,7 @@
     "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
+    "@cwcss/crosswind": "^0.1.6",
     "@stacksjs/bun-router": "^0.0.2",
     "@stacksjs/stx": "^0.2.5",
     "bun-plugin-stx": "^0.2.4",

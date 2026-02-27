@@ -46,58 +46,58 @@ onMount(() => {
 })
 </script>
 
-<div class="tab-panel">
-  <h3 class="tab-title">User Flow</h3>
+<div class="col-span-full">
+  <h3 class="text-base font-semibold text-text mb-2">User Flow</h3>
 
-  <div @if="loading()" class="loading-state">
+  <div @if="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
     <div class="spinner"></div>
     <span>Loading...</span>
   </div>
 
-  <div @if="error()" class="error-state">
+  <div @if="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">
     {{ error() }}
   </div>
 
   <div @if="!loading() && !error()">
-    <p @if="summary()" class="flow-summary">{{ summary() }}</p>
+    <p @if="summary()" class="text-xs text-muted mb-6">{{ summary() }}</p>
 
     <div @if="entryPages().length === 0 && topFlows().length === 0" class="empty-state">
       No flow data available. Users need to visit multiple pages in a session.
     </div>
 
-    <div @if="entryPages().length > 0 || topFlows().length > 0" class="flow-container">
+    <div @if="entryPages().length > 0 || topFlows().length > 0" class="flex gap-8 overflow-x-auto pb-4">
       <!-- Entry Pages Column -->
-      <div class="flow-column">
-        <h4 class="flow-column-title">Entry Pages</h4>
-        <div class="flow-nodes">
-          <div @for="page in entryPages()" class="flow-node">
-            <div class="flow-node-path">{{ page.path }}</div>
-            <div class="flow-node-count">{{ page.count }} session{{ page.count !== 1 ? 's' : '' }}</div>
+      <div class="min-w-[200px]">
+        <h4 class="text-[0.6875rem] uppercase text-muted mb-3 font-medium tracking-wider">Entry Pages</h4>
+        <div class="flex flex-col gap-2">
+          <div @for="page in entryPages()" class="bg-bg border border-border py-2 px-3 rounded-md">
+            <div class="text-[0.8125rem] text-text truncate">{{ page.path }}</div>
+            <div class="text-[0.6875rem] text-muted">{{ page.count }} session{{ page.count !== 1 ? 's' : '' }}</div>
           </div>
         </div>
       </div>
 
       <!-- Top Flows Column -->
-      <div class="flow-column flow-links">
-        <h4 class="flow-column-title">Top Flows</h4>
-        <div class="flow-connections">
-          <div @for="flow in topFlows()" class="flow-link">
-            <span class="flow-link-source">{{ flow.source }}</span>
-            <span class="flow-link-arrow">→</span>
-            <span class="flow-link-target">{{ flow.target }}</span>
-            <span class="flow-link-count">{{ flow.count }}</span>
+      <div class="min-w-[300px] flex-1">
+        <h4 class="text-[0.6875rem] uppercase text-muted mb-3 font-medium tracking-wider">Top Flows</h4>
+        <div class="flex flex-col gap-2">
+          <div @for="flow in topFlows()" class="flex items-center gap-2 text-xs">
+            <span class="bg-bg py-1 px-2 rounded truncate max-w-[120px] text-text">{{ flow.source }}</span>
+            <span class="text-accent">→</span>
+            <span class="bg-bg py-1 px-2 rounded truncate max-w-[120px] text-text">{{ flow.target }}</span>
+            <span class="text-muted ml-auto">{{ flow.count }}</span>
           </div>
         </div>
       </div>
 
       <!-- Most Visited Column -->
-      <div class="flow-column">
-        <h4 class="flow-column-title">Most Visited</h4>
-        <div class="flow-ranks">
-          <div @for="(page, index) in mostVisited()" class="flow-rank">
+      <div class="min-w-[200px]">
+        <h4 class="text-[0.6875rem] uppercase text-muted mb-3 font-medium tracking-wider">Most Visited</h4>
+        <div class="flex flex-col gap-2">
+          <div @for="(page, index) in mostVisited()" class="flex items-center gap-2">
             <span class="flow-rank-number">{{ index + 1 }}</span>
-            <span class="flow-rank-path">{{ page.path }}</span>
-            <span class="flow-rank-count">{{ page.count }}</span>
+            <span class="text-xs truncate flex-1 text-text">{{ page.path }}</span>
+            <span class="text-[0.6875rem] text-muted">{{ page.count }}</span>
           </div>
         </div>
       </div>
@@ -106,91 +106,7 @@ onMount(() => {
 </div>
 
 <style>
-.tab-panel {
-  grid-column: 1 / -1;
-}
-.tab-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 0.5rem;
-}
-.flow-summary {
-  font-size: 0.75rem;
-  color: var(--muted);
-  margin-bottom: 1.5rem;
-}
-.flow-container {
-  display: flex;
-  gap: 2rem;
-  overflow-x: auto;
-  padding-bottom: 1rem;
-}
-.flow-column {
-  min-width: 200px;
-}
-.flow-column.flow-links {
-  min-width: 300px;
-  flex: 1;
-}
-.flow-column-title {
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-}
-.flow-nodes, .flow-connections, .flow-ranks {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.flow-node {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-}
-.flow-node-path {
-  font-size: 0.8125rem;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.flow-node-count {
-  font-size: 0.6875rem;
-  color: var(--muted);
-}
-.flow-link {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-}
-.flow-link-source, .flow-link-target {
-  background: var(--bg);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 120px;
-  color: var(--text);
-}
-.flow-link-arrow {
-  color: var(--accent);
-}
-.flow-link-count {
-  color: var(--muted);
-  margin-left: auto;
-}
-.flow-rank {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+/* Rank number badge - requires exact sizing + circle that can't be done with pure utilities */
 .flow-rank-number {
   width: 18px;
   height: 18px;
@@ -203,35 +119,8 @@ onMount(() => {
   justify-content: center;
   flex-shrink: 0;
 }
-.flow-rank-path {
-  font-size: 0.75rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  color: var(--text);
-}
-.flow-rank-count {
-  font-size: 0.6875rem;
-  color: var(--muted);
-}
-.empty-state, .loading-state, .error-state {
-  text-align: center;
-  color: var(--muted);
-  padding: 2rem;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-.error-state {
-  color: var(--error);
-}
+
+/* Spinner animation */
 .spinner {
   width: 16px;
   height: 16px;
