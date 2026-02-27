@@ -10,6 +10,7 @@ const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi
 const errors = state([])
 const errorStatuses = state({})
 const statusFilter = state('all')
+const errorDateRange = state('30d')
 const loading = state(true)
 const error = state(null)
 
@@ -62,7 +63,7 @@ async function fetchErrors() {
   if (!_siteId()) { loading.set(false); return }
   try {
     const [errorsRes, statusesRes] = await Promise.all([
-      fetch(_apiUrl('/errors' + _dateParams())),
+      fetch(_apiUrl('/errors' + errorDateParams())),
       fetch(_apiUrl('/errors/statuses'))
     ])
     const errorsData = await errorsRes.json()
@@ -106,6 +107,27 @@ async function bulkIgnore() {
   }
 }
 
+function errorDateParams() {
+  const range = errorDateRange()
+  const now = new Date()
+  const end = now.toISOString()
+  let start
+  switch (range) {
+    case '24h': start = new Date(now.getTime() - 24*60*60*1000); break
+    case '7d': start = new Date(now.getTime() - 7*24*60*60*1000); break
+    case '30d': start = new Date(now.getTime() - 30*24*60*60*1000); break
+    case '90d': start = new Date(now.getTime() - 90*24*60*60*1000); break
+    default: start = new Date(now.getTime() - 30*24*60*60*1000)
+  }
+  return '?startDate=' + start.toISOString() + '&endDate=' + end
+}
+
+function setErrorDateRange(range) {
+  errorDateRange.set(range)
+  loading.set(true)
+  fetchErrors()
+}
+
 function setFilter(f) {
   statusFilter.set(f)
 }
@@ -136,6 +158,15 @@ onMount(() => {
         Ignore All
       </button>
     </div>
+  </div>
+
+  <!-- Date range filter -->
+  <div class="errors-date-bar">
+    <button @for="r in [{id:'24h',label:'24h'},{id:'7d',label:'7d'},{id:'30d',label:'30d'},{id:'90d',label:'90d'}]"
+      @class="['date-btn', errorDateRange() === r.id ? 'active' : '']"
+      :click="setErrorDateRange(r.id)">
+      {{ r.label }}
+    </button>
   </div>
 
   <!-- Loading -->
@@ -283,6 +314,32 @@ onMount(() => {
   background: var(--bg2);
   color: var(--text);
   border-color: var(--muted);
+}
+
+/* Date range bar */
+.errors-date-bar {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+.errors-date-bar .date-btn {
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text2);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.errors-date-bar .date-btn:hover {
+  background: var(--bg3);
+  color: var(--text);
+}
+.errors-date-bar .date-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
 }
 
 /* Severity grid */
