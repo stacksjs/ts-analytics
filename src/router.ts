@@ -98,7 +98,6 @@ export async function createRouter(): Promise<Router> {
   })
 
   // Disable auto file-based routing (all routes are registered explicitly)
-  // @ts-expect-error - internal property to prevent auto-discovery of src/views/
   router._fileRoutesInitialized = true
 
   // Health check
@@ -277,6 +276,30 @@ export async function createRouter(): Promise<Router> {
   }
 
   await router.get('/dashboard/scripts/composables.ts', serveComposablesScript)
+
+  // Serve Crosswind CSS
+  await router.get('/assets/crosswind.css', async () => {
+    const locations = [
+      './src/assets/crosswind.css',
+      '/var/task/assets/crosswind.css',
+      './dist/assets/crosswind.css',
+    ]
+    for (const loc of locations) {
+      try {
+        const file = Bun.file(loc)
+        if (await file.exists()) {
+          return new Response(await file.text(), {
+            headers: { 'Content-Type': 'text/css', 'Cache-Control': 'public, max-age=3600' },
+          })
+        }
+      }
+      catch {}
+    }
+    return new Response('/* crosswind.css not found */', {
+      status: 404,
+      headers: { 'Content-Type': 'text/css' },
+    })
+  })
 
   await router.get('/scripts/dashboard.js', serveDashboardScript)
   await router.get('/dashboard/scripts/dashboard.ts', serveDashboardScript)
