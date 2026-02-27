@@ -27,9 +27,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: node-modules-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            node-modules-
+          key: node-modules-${{ hashFiles('bun.lock') }}
 
       - name: Install Dependencies
         run: bun install
@@ -50,9 +48,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: node-modules-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            node-modules-
+          key: node-modules-${{ hashFiles('bun.lock') }}
 
       - name: Install Dependencies
         run: bun install
@@ -73,9 +69,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: node-modules-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            node-modules-
+          key: node-modules-${{ hashFiles('bun.lock') }}
 
       - name: Install Dependencies
         run: bun install
