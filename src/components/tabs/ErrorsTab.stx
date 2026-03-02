@@ -4,43 +4,7 @@
  * Uses STX signals for reactive state management
  */
 
-interface ErrorItem {
-  errorId: string
-  fingerprint: string
-  message: string
-  count: number
-  severity: string
-  category: string
-  source: string
-  line: number
-  lastSeen: string
-  firstSeen: string
-  browsers: string[]
-}
-
-interface ErrorStatusEntry {
-  status: string
-}
-
-interface ErrorStatuses {
-  [fingerprint: string]: ErrorStatusEntry
-}
-
-interface StatusCounts {
-  new: number
-  resolved: number
-  ignored: number
-  [key: string]: number
-}
-
-interface SeverityCounts {
-  critical: number
-  high: number
-  medium: number
-  low: number
-  [key: string]: number
-}
-
+import type { ErrorItem, ErrorStatuses, StatusCounts, SeverityCounts } from '../../types/analytics'
 import { useSiteApi } from '@composables'
 const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi()
 

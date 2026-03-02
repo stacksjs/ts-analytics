@@ -4,14 +4,7 @@
  * Uses STX signals for reactive state management
  */
 
-interface LiveActivity {
-  path: string
-  country: string
-  device: string
-  browser: string
-  timestamp: string
-}
-
+import type { LiveActivity } from '../../types/analytics'
 import { useSiteApi } from '@composables'
 const { siteId: _siteId, apiUrl: _apiUrl } = useSiteApi()
 

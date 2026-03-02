@@ -3,33 +3,7 @@
  * FunnelsTab Component - Conversion funnels display
  */
 
-interface Funnel {
-  id: string
-  name: string
-  steps: string[]
-}
-
-interface FunnelAnalysisStep {
-  path: string
-  visitors: number
-  rate: number
-  dropoff: number
-}
-
-interface FunnelAnalysis {
-  name: string
-  totalVisitors: number
-  conversionRate: number
-  steps: FunnelAnalysisStep[]
-}
-
-declare global {
-  interface Window {
-    __addFunnelStep: () => void
-    __removeFunnelStep: (index: number) => void
-  }
-}
-
+import type { Funnel, FunnelAnalysisStep, FunnelAnalysis } from '../../types/analytics'
 import { useSiteApi, useModal } from '@composables'
 const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi()
 const Modal = useModal()
@@ -78,88 +52,80 @@ function backToFunnels(): void {
   fetchFunnels()
 }
 
-function showCreateFunnelModal(): void {
-  newFunnelSteps.set(['', ''])
-
-  Modal.open({
-    title: 'Create Funnel',
-    content: renderFunnelModalContent(),
-    submitText: 'Create Funnel',
-    onSubmit: createFunnel
-  })
+// Read current input values from modal DOM before re-rendering
+function syncStepInputValues(): string[] {
+  const overlay = document.getElementById('modal-overlay')
+  if (!overlay) return newFunnelSteps()
+  const inputs = overlay.querySelectorAll<HTMLInputElement>('.funnel-step-input')
+  return newFunnelSteps().map((step: string, i: number) => inputs[i] ? inputs[i].value : step)
 }
 
-function renderFunnelModalContent(): string {
+// Get funnel name from modal input
+function getFunnelNameValue(): string {
+  const overlay = document.getElementById('modal-overlay')
+  if (!overlay) return ''
+  const input = overlay.querySelector<HTMLInputElement>('input[name="funnelName"]')
+  return input ? input.value : ''
+}
+
+function renderStepsHtml(steps: string[]): string {
+  return steps.map((step: string, index: number) => `
+    <div class="step-input-row">
+      <input type="text" class="form-input funnel-step-input" placeholder="/path" value="${step}" data-index="${index}" />
+      ${steps.length > 2 ? `<button type="button" class="btn-icon danger" onclick="window.__removeFunnelStep(${index})">×</button>` : ''}
+    </div>
+  `).join('')
+}
+
+function renderFunnelModalContent(funnelName: string = ''): string {
   const steps = newFunnelSteps()
   return `
     <div class="form-group">
       <label class="form-label">Funnel Name</label>
-      <input type="text" name="funnelName" class="form-input" placeholder="e.g., Checkout Flow" />
+      <input type="text" name="funnelName" class="form-input" placeholder="e.g., Checkout Flow" value="${funnelName}" />
     </div>
     <div class="form-group">
       <label class="form-label">Steps (URL paths)</label>
-      <div id="funnel-steps-list" class="steps-list">
-        ${steps.map((step: string, index: number) => `
-          <div class="step-input-row">
-            <input type="text" class="form-input funnel-step-input" placeholder="/path" value="${step}" data-index="${index}" />
-            ${steps.length > 2 ? `<button type="button" class="btn-icon danger" onclick="window.__removeFunnelStep(${index})">×</button>` : ''}
-          </div>
-        `).join('')}
-      </div>
+      <div class="steps-list">${renderStepsHtml(steps)}</div>
       <button type="button" class="btn btn-secondary btn-sm" onclick="window.__addFunnelStep()">+ Add Step</button>
     </div>
   `
 }
 
+function openFunnelModal(funnelName: string = ''): void {
+  Modal.open({
+    title: 'Create Funnel',
+    content: renderFunnelModalContent(funnelName),
+    submitText: 'Create Funnel',
+    onSubmit: createFunnel
+  })
+}
+
+function showCreateFunnelModal(): void {
+  newFunnelSteps.set(['', ''])
+  openFunnelModal()
+}
+
 function addFunnelStep(): void {
-  // Save current input values before re-rendering
-  const inputs = document.querySelectorAll<HTMLInputElement>('.funnel-step-input')
-  const currentValues = newFunnelSteps()
-  const updated = currentValues.map((step: string, i: number) => inputs[i] ? inputs[i].value : step)
+  const name = getFunnelNameValue()
+  const updated = syncStepInputValues()
   updated.push('')
   newFunnelSteps.set(updated)
-
-  const container = document.getElementById('funnel-steps-list')
-  if (container) {
-    const steps = newFunnelSteps()
-    container.innerHTML = steps.map((step: string, index: number) => `
-      <div class="step-input-row">
-        <input type="text" class="form-input funnel-step-input" placeholder="/path" value="${step}" data-index="${index}" />
-        ${steps.length > 2 ? `<button type="button" class="btn-icon danger" onclick="window.__removeFunnelStep(${index})">×</button>` : ''}
-      </div>
-    `).join('')
-  }
+  openFunnelModal(name)
 }
 
 function removeFunnelStep(index: number): void {
-  // Save current input values before re-rendering
-  const inputs = document.querySelectorAll<HTMLInputElement>('.funnel-step-input')
-  const currentValues = newFunnelSteps()
-  const updated = currentValues.map((step: string, i: number) => inputs[i] ? inputs[i].value : step)
+  const name = getFunnelNameValue()
+  const updated = syncStepInputValues()
   updated.splice(index, 1)
   newFunnelSteps.set(updated)
-
-  const container = document.getElementById('funnel-steps-list')
-  if (container) {
-    const steps = newFunnelSteps()
-    container.innerHTML = steps.map((step: string, i: number) => `
-      <div class="step-input-row">
-        <input type="text" class="form-input funnel-step-input" placeholder="/path" value="${step}" data-index="${i}" />
-        ${steps.length > 2 ? `<button type="button" class="btn-icon danger" onclick="window.__removeFunnelStep(${i})">×</button>` : ''}
-      </div>
-    `).join('')
-  }
+  openFunnelModal(name)
 }
 
 async function createFunnel(): Promise<void> {
-  const data: Record<string, string> = Modal.getFormData()
-  const name = data.funnelName
-
-  // Get steps from inputs
-  const steps: string[] = []
-  document.querySelectorAll<HTMLInputElement>('.funnel-step-input').forEach((input: HTMLInputElement) => {
-    if (input.value.trim()) steps.push(input.value.trim())
-  })
+  const data: Record<string, string | boolean> = Modal.getFormData()
+  const name = String(data.funnelName || '')
+  const steps = syncStepInputValues().filter((s: string) => s.trim())
 
   if (!name || steps.length < 2) {
     alert('Please enter a name and at least 2 steps')
@@ -196,7 +162,7 @@ provide('analyzeFunnel', analyzeFunnel)
 provide('deleteFunnel', deleteFunnel)
 provide('backToFunnels', backToFunnels)
 
-// Window globals for modal innerHTML onclick handlers
+// Window globals needed for modal innerHTML onclick handlers
 window.__addFunnelStep = addFunnelStep
 window.__removeFunnelStep = removeFunnelStep
 

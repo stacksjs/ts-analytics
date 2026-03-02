@@ -4,22 +4,7 @@
  * Uses STX signals for reactive state management
  */
 
-interface Vital {
-  metric: string
-  p75: number
-  samples: number
-  good: number
-  needsImprovement: number
-  poor: number
-}
-
-interface BudgetViolation {
-  metric: string
-  currentValue: number
-  threshold: number
-  exceededBy: number
-}
-
+import type { Vital, BudgetViolation } from '../../types/analytics'
 import { useSiteApi } from '@composables'
 const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi()
 

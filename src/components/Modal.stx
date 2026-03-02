@@ -21,17 +21,7 @@
 </div>
 
 <script client lang="ts">
-interface ModalOptions {
-  title?: string
-  content?: string
-  size?: string
-  className?: string
-  showFooter?: boolean
-  submitText?: string
-  cancelText?: string
-  onSubmit?: (() => Promise<void>) | null
-  onCancel?: (() => void) | null
-}
+import type { ModalOptions } from '../types/dashboard'
 
 const visible = state<boolean>(false)
 const modalOptions = state<ModalOptions | null>(null)

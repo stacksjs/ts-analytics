@@ -4,21 +4,7 @@
  * Uses STX signals for reactive state management
  */
 
-interface Insight {
-  title: string
-  description: string
-  type: string
-  severity: string
-}
-
-interface ComparisonStats {
-  thisWeekViews: number
-  lastWeekViews: number
-  change: number
-  sessions: number
-  bounceRate: number
-}
-
+import type { Insight, ComparisonStats } from '../../types/analytics'
 import { useSiteApi } from '@composables'
 const { siteId: _siteId, apiUrlWithDates } = useSiteApi()
 

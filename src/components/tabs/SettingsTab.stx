@@ -4,60 +4,7 @@
  * Uses STX reactive APIs instead of vanilla DOM manipulation
  */
 
-interface ApiKey {
-  name: string
-  key: string
-}
-
-interface Alert {
-  id: string
-  metric: string
-  threshold: number
-  email: string
-}
-
-interface EmailReport {
-  id: string
-  email: string
-  frequency: string
-}
-
-interface UptimeMonitor {
-  id: string
-  url: string
-  interval: number
-  status: string
-}
-
-interface TeamMember {
-  id: string
-  email: string
-  role: string
-}
-
-interface Webhook {
-  id: string
-  url: string
-  events: string[]
-}
-
-interface PerfBudget {
-  id: string
-  metric: string
-  threshold: number
-}
-
-interface SiteSettings {
-  apiKey: ApiKey | null
-  alerts: Alert[]
-  emailReports: EmailReport[]
-  uptimeMonitors: UptimeMonitor[]
-  teamMembers: TeamMember[]
-  webhooks: Webhook[]
-  perfBudgets: PerfBudget[]
-  retentionDays: number
-}
-
+import type { ApiKey, SiteSettings } from '../../types/analytics'
 import { useSiteApi, useModal } from '@composables'
 const { siteId, apiUrl } = useSiteApi()
 const Modal = useModal()

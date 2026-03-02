@@ -7,7 +7,7 @@
 </head>
 <body class="bg-gray-900 text-gray-200 font-sans antialiased min-h-screen p-8">
   <div class="max-w-3xl mx-auto">
-    <a id="backLink" href="/dashboard" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline mb-4">
+    <a :href="'/dashboard?siteId=' + siteId()" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline mb-4">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
@@ -16,7 +16,7 @@
 
     <header class="mb-6">
       <h1 class="text-2xl font-semibold text-white">Error Tracking Test</h1>
-      <p id="siteIdDisplay" class="text-gray-400 mt-2">Site ID: </p>
+      <p class="text-gray-400 mt-2">Site ID: {{ siteId() }}</p>
     </header>
 
     <div class="bg-gray-800 rounded-lg p-6 mb-6">
@@ -34,105 +34,103 @@
 
     <div class="bg-gray-800 rounded-lg p-6">
       <h2 class="text-lg font-medium mb-4">Event Log</h2>
-      <div id="log" class="bg-gray-900 rounded p-4 font-mono text-sm max-h-48 overflow-y-auto">
-        <div class="py-1 border-b border-gray-700">Ready to capture errors...</div>
+      <div class="bg-gray-900 rounded p-4 font-mono text-sm max-h-48 overflow-y-auto">
+        <div @for="entry in logEntries()" @class="['py-1 border-b border-gray-700 last:border-0', entry.type === 'error' ? 'text-red-400' : '', entry.type === 'success' ? 'text-green-400' : '']">
+          {{ entry.text }}
+        </div>
       </div>
     </div>
   </div>
 
-  <script>
-    // Get params from URL and global config
-    /** @type {URLSearchParams} */
-    const urlParams = new URLSearchParams(window.location.search)
-    /** @type {string} */
-    const API = window.ANALYTICS_API || urlParams.get('api') || window.location.origin
-    /** @type {string} */
-    const SITE_ID = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || 'test-site'
+  <script client lang="ts">
+interface LogEntry {
+  text: string
+  type: string
+}
 
-    // Update UI with site ID
-    document.getElementById('siteIdDisplay').textContent = 'Site ID: ' + SITE_ID
-    document.getElementById('backLink').href = '/dashboard?siteId=' + SITE_ID
+const urlParams: URLSearchParams = new URLSearchParams(window.location.search)
+const API: string = window.ANALYTICS_API || urlParams.get('api') || window.location.origin
+const SITE_ID: string = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || 'test-site'
 
-    /**
-     * @param {string} message
-     * @param {string} type
-     */
-    function log(message, type = 'info') {
-      const logEl = document.getElementById('log')
-      const entry = document.createElement('div')
-      entry.className = 'py-1 border-b border-gray-700 last:border-0'
-      if (type === 'error') entry.classList.add('text-red-400')
-      if (type === 'success') entry.classList.add('text-green-400')
-      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`
-      logEl.appendChild(entry)
-      logEl.scrollTop = logEl.scrollHeight
-    }
+const siteId = state<string>(SITE_ID)
+const logEntries = state<LogEntry[]>([
+  { text: '[' + new Date().toLocaleTimeString() + '] Ready to capture errors...', type: 'info' }
+])
 
-    /** @returns {void} */
-    function testSyntaxError() {
-      log('Triggering syntax error...')
-      eval('function() {')
-    }
+function log(message: string, type: string = 'info'): void {
+  const entry: LogEntry = {
+    text: '[' + new Date().toLocaleTimeString() + '] ' + message,
+    type
+  }
+  logEntries.update((entries: LogEntry[]) => [...entries, entry])
+}
 
-    /** @returns {void} */
-    function testTypeError() {
-      log('Triggering type error...')
-      null.toString()
-    }
+function sendError(payload: Record<string, unknown>): void {
+  fetch(API + '/collect', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(() => log('Error sent to API', 'success'))
+    .catch((err: Error) => log('Failed to send error: ' + err.message, 'error'))
+}
 
-    /** @returns {void} */
-    function testReferenceError() {
-      log('Triggering reference error...')
-      undefinedVariable.doSomething()
-    }
+function testSyntaxError(): void {
+  log('Triggering syntax error...')
+  eval('function() {')
+}
 
-    /** @returns {void} */
-    function testCustomError() {
-      log('Triggering custom error...')
-      throw new Error('Test custom error from test page')
-    }
+function testTypeError(): void {
+  log('Triggering type error...')
+  ;(null as any).toString()
+}
 
-    /** @returns {Promise<void>} */
-    async function testAsyncError() {
-      log('Triggering async error...')
-      await Promise.reject(new Error('Test async error'))
-    }
+function testReferenceError(): void {
+  log('Triggering reference error...')
+  ;(window as any).undefinedVariable.doSomething()
+}
 
-    window.onerror = function(msg, source, line, col, error) {
-      log(`Caught: ${msg}`, 'error')
+function testCustomError(): void {
+  log('Triggering custom error...')
+  throw new Error('Test custom error from test page')
+}
 
-      fetch(API + '/collect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          s: SITE_ID,
-          e: 'error',
-          u: window.location.href,
-          p: { message: msg, source, line, col, stack: error?.stack }
-        })
-      }).then(() => log('Error sent to API', 'success'))
-        .catch(err => log('Failed to send error: ' + err.message, 'error'))
+async function testAsyncError(): Promise<void> {
+  log('Triggering async error...')
+  await Promise.reject(new Error('Test async error'))
+}
 
-      return false
-    }
+onMount(() => {
+  const handleError = (msg: Event | string, source?: string, line?: number, col?: number, error?: Error): boolean => {
+    log('Caught: ' + String(msg), 'error')
+    sendError({
+      s: SITE_ID,
+      e: 'error',
+      u: window.location.href,
+      p: { message: String(msg), source, line, col, stack: error?.stack }
+    })
+    return false
+  }
 
-    window.onunhandledrejection = function(event) {
-      log(`Unhandled rejection: ${event.reason}`, 'error')
+  const handleRejection = (event: PromiseRejectionEvent): void => {
+    log('Unhandled rejection: ' + String(event.reason), 'error')
+    sendError({
+      s: SITE_ID,
+      e: 'error',
+      u: window.location.href,
+      p: { message: String(event.reason), type: 'unhandledrejection', stack: event.reason?.stack }
+    })
+  }
 
-      fetch(API + '/collect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          s: SITE_ID,
-          e: 'error',
-          u: window.location.href,
-          p: { message: String(event.reason), type: 'unhandledrejection', stack: event.reason?.stack }
-        })
-      }).then(() => log('Error sent to API', 'success'))
-        .catch(err => log('Failed to send error: ' + err.message, 'error'))
-    }
+  window.onerror = handleError
+  window.onunhandledrejection = handleRejection
 
-    log('Error handlers initialized', 'success')
+  log('Error handlers initialized', 'success')
+
+  return () => {
+    window.onerror = null
+    window.onunhandledrejection = null
+  }
+})
   </script>
 </body>
 </html>

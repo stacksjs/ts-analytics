@@ -2,21 +2,9 @@
 /**
  * GoalsPanel Component
  * Displays goals with conversion tracking
- * Displays goals with conversion tracking
  */
 
-interface Goal {
-  id: string
-  name: string
-  type: string
-  pattern?: string
-  matchType?: string
-  durationMinutes?: number
-  value?: number
-  isActive: boolean
-  conversions?: number
-  conversionRate?: number
-}
+import type { Goal } from '../../types/analytics'
 
 const goals = state<Goal[]>([])
 const loading = state<boolean>(true)

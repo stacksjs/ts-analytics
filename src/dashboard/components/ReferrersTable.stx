@@ -67,7 +67,7 @@
 </div>
 
 
-<script>
+<script lang="ts">
   document.querySelectorAll('.data-panel').forEach(panel => {
     const tabs = panel.querySelectorAll('.tab-btn')
     const contents = panel.querySelectorAll('.tab-content')

@@ -4,22 +4,7 @@
  * Uses STX reactive APIs: state, effect, onMount, provide
  */
 
-interface DateRange {
-  id: string
-  label: string
-}
-
-interface ControlsBarAPI {
-  activeRange: () => string
-  showComparison: () => boolean
-  realtimeCount: () => number
-  lastUpdated: () => string
-  isRefreshing: () => boolean
-  setRange: (range: string) => void
-  toggleComparison: () => void
-  refresh: () => Promise<void>
-  exportData: (format: string) => void
-}
+import type { DateRange } from '../../types/dashboard'
 
 // Reactive state
 const activeRange = state<string>('6h')

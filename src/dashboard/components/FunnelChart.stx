@@ -1,4 +1,4 @@
-<script server>
+<script server lang="ts">
 /**
  * FunnelChart Component
  *

@@ -4,18 +4,7 @@
  * Displays top referrers with visitors and views
  */
 
-interface Referrer {
-  name: string
-  source?: string
-  visitors: number
-  views?: number
-  favicon?: string
-}
-
-interface ReferrersTableProps {
-  referrers?: Referrer[]
-  loading?: boolean
-}
+import type { Referrer } from '../../types/analytics'
 
 const referrers = state<Referrer[]>($props.referrers || [])
 const loading = state<boolean>($props.loading || false)

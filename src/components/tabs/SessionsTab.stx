@@ -3,43 +3,7 @@
  * SessionsTab Component - User sessions display
  */
 
-interface Session {
-  id: string
-  sessionId: string
-  entryPage: string
-  entryPath: string
-  startTime: string
-  startedAt: string
-  pageViews: number
-  pageViewCount: number
-  duration: number
-  bounced: boolean
-  isBounce: boolean
-  browser: string
-  country: string
-}
-
-interface PageView {
-  path: string
-}
-
-interface SessionEvent {
-  type: string
-  name: string
-  path: string
-  message: string
-  timestamp: string
-}
-
-interface SessionDetail {
-  pageViewCount: number
-  pageViews: PageView[]
-  duration: number
-  browser: string
-  country: string
-  events: SessionEvent[]
-}
-
+import type { Session, PageView, SessionEvent, SessionDetail } from '../../types/analytics'
 import { useSiteApi, useModal } from '@composables'
 const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi()
 const Modal = useModal()

@@ -4,10 +4,7 @@
  * Displays custom events with bar chart visualization
  */
 
-interface AnalyticsEvent {
-  name: string
-  count?: number
-}
+import type { AnalyticsEvent } from '../../types/analytics'
 
 const events = state<AnalyticsEvent[]>([])
 const loading = state<boolean>(true)

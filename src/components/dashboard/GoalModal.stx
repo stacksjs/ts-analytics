@@ -4,36 +4,9 @@
  * Uses STX signals for reactive form state and provide/inject for cross-component communication
  */
 
+import type { Goal, GoalFormData } from '../../types/analytics'
+import type { GoalModalAPI } from '../../types/dashboard'
 import { useSiteApi } from '@composables'
-
-interface Goal {
-  id: string
-  name: string
-  type: string
-  pattern?: string
-  matchType?: string
-  durationMinutes?: number
-  value?: number
-  isActive: boolean
-  conversions?: number
-  conversionRate?: number
-}
-
-interface GoalFormData {
-  name: string
-  type: string
-  pattern: string
-  matchType: string
-  durationMinutes?: number
-  value?: number
-  isActive: boolean
-}
-
-interface GoalModalAPI {
-  openCreate: () => void
-  openEdit: (goal: Goal) => void
-  close: () => void
-}
 
 const { siteId: _siteId, apiUrl: _apiUrl } = useSiteApi()
 

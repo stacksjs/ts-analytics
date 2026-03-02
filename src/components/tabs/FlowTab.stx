@@ -4,25 +4,7 @@
  * Uses STX signals for reactive state management
  */
 
-interface FlowPage {
-  path: string
-  count: number
-}
-
-interface FlowLink {
-  source: string
-  target: string
-  count: number
-}
-
-interface FlowData {
-  entryPages: FlowPage[]
-  flows: FlowLink[]
-  mostVisited: FlowPage[]
-  totalSessions: number
-  uniquePaths: number
-}
-
+import type { FlowData } from '../../types/analytics'
 import { useSiteApi } from '@composables'
 const { siteId: _siteId, apiUrlWithDates } = useSiteApi()
 

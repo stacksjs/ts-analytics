@@ -5,17 +5,7 @@
  * Uses file-based routing with anchor links
  */
 
-interface NavTab {
-  id: string
-  label: string
-  href: string
-}
-
-interface DashboardHeaderAPI {
-  toggleTheme: () => void
-  goBack: () => void
-  isDarkTheme: () => boolean
-}
+import type { NavTab } from '../../types/dashboard'
 
 // Reactive state
 const siteName = state<string>('Analytics Dashboard')

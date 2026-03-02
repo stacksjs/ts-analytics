@@ -1,17 +1,4 @@
-// Extend Window interface for STX loading indicator
-declare global {
-  interface Window {
-    stxLoading?: {
-      start: () => void
-      finish: () => void
-      set: (value: number) => void
-      clear: () => void
-    }
-    ANALYTICS_API_ENDPOINT?: string
-    ANALYTICS_SITE_ID?: string
-    ANALYTICS_STEALTH_MODE?: boolean
-  }
-}
+/// <reference path="../../types/window.d.ts" />
 
 const urlParams = new URLSearchParams(window.location.search)
 const API_ENDPOINT = window.ANALYTICS_API_ENDPOINT || urlParams.get('api') || window.location.origin
@@ -106,8 +93,8 @@ function apiPath(path: string): string {
 }
 
 // Expose to window for STX components
-;(window as any).apiPath = apiPath
-;(window as any).USE_STEALTH = USE_STEALTH
+window.apiPath = apiPath
+window.USE_STEALTH = USE_STEALTH
 
 let siteName = 'Analytics Dashboard'
 let siteId = SITE_ID
@@ -120,8 +107,8 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null
 let previousStats: any = null
 
 // Expose globals for STX panel components
-;(window as any).API_ENDPOINT = API_ENDPOINT
-;(window as any).siteId = siteId
+window.API_ENDPOINT = API_ENDPOINT
+window.siteId = siteId
 
 // Load cached stats from localStorage
 function loadCachedStats() {
@@ -338,7 +325,7 @@ async function createSite(e: Event) {
 
 function selectSite(id: string, name: string) {
   siteId = id
-  ;(window as any).siteId = id
+  window.siteId = id
   siteName = name || 'Analytics Dashboard'
   currentSite = availableSites.find(s => s.id === id)
   document.getElementById('site-selector')!.style.display = 'none'
@@ -366,7 +353,7 @@ function selectSite(id: string, name: string) {
 function goBack() {
   if (refreshInterval) clearInterval(refreshInterval)
   siteId = ''
-  ;(window as any).siteId = ''
+  window.siteId = ''
   currentSite = null
   document.getElementById('site-selector')!.style.display = 'flex'
   document.getElementById('dashboard')!.style.display = 'none'
@@ -378,8 +365,8 @@ function goBack() {
 
 function navigateTo(section: string) {
   const url = '/dashboard/' + section + '?siteId=' + encodeURIComponent(siteId)
-  if ((window as any).stxRouter?.navigate) {
-    (window as any).stxRouter.navigate(url)
+  if (window.stxRouter?.navigate) {
+    window.stxRouter.navigate(url)
   } else {
     window.location.href = url
   }
@@ -412,20 +399,19 @@ function getDateRangeParams(forTimeseries?: boolean) {
   if (forTimeseries) params += `&period=${period}`
   return params
 }
-;(window as any).getDateRangeParams = getDateRangeParams
+window.getDateRangeParams = getDateRangeParams
 
 function refreshAllPanels() {
-  const w = window as any
-  if (w.refreshPagesPanel) w.refreshPagesPanel()
-  if (w.refreshReferrersPanel) w.refreshReferrersPanel()
-  if (w.refreshDevicesPanel) w.refreshDevicesPanel()
-  if (w.refreshBrowsersPanel) w.refreshBrowsersPanel()
-  if (w.refreshCountriesPanel) w.refreshCountriesPanel()
-  if (w.refreshCampaignsPanel) w.refreshCampaignsPanel()
-  if (w.refreshEventsPanel) w.refreshEventsPanel()
-  if (w.refreshGoalsPanel) w.refreshGoalsPanel()
+  if (window.refreshPagesPanel) window.refreshPagesPanel()
+  if (window.refreshReferrersPanel) window.refreshReferrersPanel()
+  if (window.refreshDevicesPanel) window.refreshDevicesPanel()
+  if (window.refreshBrowsersPanel) window.refreshBrowsersPanel()
+  if (window.refreshCountriesPanel) window.refreshCountriesPanel()
+  if (window.refreshCampaignsPanel) window.refreshCampaignsPanel()
+  if (window.refreshEventsPanel) window.refreshEventsPanel()
+  if (window.refreshGoalsPanel) window.refreshGoalsPanel()
 }
-;(window as any).refreshAllPanels = refreshAllPanels
+window.refreshAllPanels = refreshAllPanels
 
 function toggleComparison() {
   showComparison = !showComparison
@@ -775,8 +761,8 @@ async function deleteGoal(goalId: string) {
 }
 
 // Expose goal modal functions for STX GoalsPanel component
-;(window as any).showEditGoalModal = editGoal
-;(window as any).confirmDeleteGoal = deleteGoal
+window.showEditGoalModal = editGoal
+window.confirmDeleteGoal = deleteGoal
 
 // Chart rendering
 function renderChart() {
@@ -1055,7 +1041,7 @@ window.addEventListener('stx:navigate', () => {
 
 // Event handlers
 window.addEventListener('popstate', (event) => {
-  if ((window as any).stxRouter) return // STX router handles popstate and dispatches stx:navigate
+  if (window.stxRouter) return // STX router handles popstate and dispatches stx:navigate
   if (event.state && event.state.tab) {
     switchTab(event.state.tab, false)
   } else if (event.state && event.state.siteId) {
