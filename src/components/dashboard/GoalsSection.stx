@@ -20,31 +20,17 @@ function getTypeBadgeClass(type: string): string {
 <script client lang="ts">
 /**
  * GoalsSection client-side logic
- * Uses inject to access goalModal and Modal APIs instead of window globals
  */
 
-interface GoalModalAPI {
-  openCreate: () => void
-  openEdit: (goalId: string) => void
-  close: () => void
-}
-
-interface ModalAPI {
-  confirm: (message: string, onConfirm: () => Promise<void>) => void
-}
-
-const goalModal: GoalModalAPI | undefined = inject('goalModal')
-const Modal: ModalAPI | undefined = inject('Modal')
-
 function editGoalAction(goalId: string): void {
-  if (goalModal) {
-    goalModal.openEdit(goalId)
+  if (window.goalModal) {
+    window.goalModal.openEdit(goalId)
   }
 }
 
 function deleteGoalAction(goalId: string): void {
-  if (Modal) {
-    Modal.confirm('Delete this goal? Conversion data will be preserved.', async () => {
+  if (window.Modal) {
+    window.Modal.confirm('Delete this goal? Conversion data will be preserved.', async () => {
       try {
         const res: Response = await fetch(
           window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/goals/${goalId}`),

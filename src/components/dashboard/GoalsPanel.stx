@@ -2,7 +2,7 @@
 /**
  * GoalsPanel Component
  * Displays goals with conversion tracking
- * Uses inject to access goalModal and Modal APIs instead of window globals
+ * Displays goals with conversion tracking
  */
 
 interface Goal {
@@ -18,22 +18,8 @@ interface Goal {
   conversionRate?: number
 }
 
-interface GoalModalAPI {
-  openCreate: () => void
-  openEdit: (goal: Goal | string) => void
-  close: () => void
-}
-
-interface ModalAPI {
-  confirm: (message: string, onConfirm: () => Promise<void>) => void
-}
-
 const goals = state<Goal[]>([])
 const loading = state<boolean>(true)
-
-// Inject cross-component APIs
-const goalModal: GoalModalAPI | undefined = inject('goalModal')
-const Modal: ModalAPI | undefined = inject('Modal')
 
 function formatCurrency(n: number): string {
   return '$' + (n || 0).toFixed(2)
@@ -67,14 +53,14 @@ async function fetchGoals(): Promise<void> {
 }
 
 function editGoal(goalId: string): void {
-  if (goalModal) {
-    goalModal.openEdit(goalId)
+  if (window.goalModal) {
+    window.goalModal.openEdit(goalId)
   }
 }
 
 function deleteGoal(goalId: string): void {
-  if (Modal) {
-    Modal.confirm('Delete this goal? Conversion data will be preserved.', async () => {
+  if (window.Modal) {
+    window.Modal.confirm('Delete this goal? Conversion data will be preserved.', async () => {
       try {
         const res: Response = await fetch(
           window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/goals/${goalId}`),
@@ -92,8 +78,8 @@ function deleteGoal(goalId: string): void {
 }
 
 function openCreateGoal(): void {
-  if (goalModal) {
-    goalModal.openCreate()
+  if (window.goalModal) {
+    window.goalModal.openCreate()
   }
 }
 
@@ -101,8 +87,8 @@ onMount(() => {
   if (window.siteId) fetchGoals()
 })
 
-// Provide refresh function for other components
-provide('refreshGoalsPanel', fetchGoals)
+// Expose refresh function for other components
+window.refreshGoalsPanel = fetchGoals
 </script>
 
 <div class="panel">

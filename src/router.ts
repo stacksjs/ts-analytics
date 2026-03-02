@@ -115,7 +115,7 @@ export async function createRouter(): Promise<Router> {
   'use strict';
   var d={container:'main',linkSelector:'a[href]',loadingClass:'stx-navigating',viewTransitions:!0,cache:!0,scrollToTop:!0,prefetch:!0};
   const o=Object.assign({},d,window.STX_ROUTER_OPTIONS||{});
-  const c=new Map(),p=new Set(),n=!1,u=location.href;
+  const c=new Map(),p=new Set();var n=!1,u=location.href;
   function init(){
     document.addEventListener('click',handleClick,!0);
     window.addEventListener('popstate',function(){navigate(location.href,!1)});
