@@ -144,7 +144,7 @@ export async function createRouter(): Promise<Router> {
     }).catch(function(){location.href=url}).finally(function(){n=!1;document.body.classList.remove(o.loadingClass)});
   }
   function handleClick(e){
-    var el=e.target.nodeType===1?e.target:e.target.parentElement;var a=el&&el.closest('a[href]');if(!a)return;
+    const el=e.target.nodeType===1?e.target:e.target.parentElement;var a=el&&el.closest('a[href]');if(!a)return;
     if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button!==0)return;
     if(a.target&&a.target!=='_self')return;if(a.hasAttribute('download'))return;
     var h=a.getAttribute('href');
@@ -154,7 +154,7 @@ export async function createRouter(): Promise<Router> {
     e.preventDefault();e.stopPropagation();navigate(h);
   }
   function handleHover(e){
-    var el=e.target.nodeType===1?e.target:e.target.parentElement;const a=el&&el.closest('a[data-stx-prefetch]');if(!a)return;
+    const el=e.target.nodeType===1?e.target:e.target.parentElement;const a=el&&el.closest('a[data-stx-prefetch]');if(!a)return;
     const h=a.getAttribute('href');if(h&&!c.has(h))fetchPage(new URL(h,location.origin).href).catch(function(){});
   }
   function fetchPage(url){

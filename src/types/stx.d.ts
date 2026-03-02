@@ -18,10 +18,10 @@ declare module '@stacksjs/stx' {
   export const defaultConfig: Record<string, any>
 
   export function createRoute(
-    handler: (request: Request) => Response | Promise<Response>,
+    _handler: (request: Request) => Response | Promise<Response>,
   ): (request: Request) => Response | Promise<Response>
 
-  export function createMiddleware(options?: any): any
+  export function createMiddleware(_options?: any): any
 
-  export function readMarkdownFile(path: string): any
+  export function readMarkdownFile(_path: string): any
 }
