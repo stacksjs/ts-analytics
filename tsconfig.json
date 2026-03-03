@@ -1,17 +1,18 @@
 {
   "compilerOptions": {
     "target": "esnext",
-    "lib": ["esnext", "DOM"],
+    "lib": [
+      "esnext",
+      "DOM"
+    ],
     "moduleDetection": "force",
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "types": ["bun"],
+    "types": [
+      "bun"
+    ],
     "baseUrl": ".",
-    "paths": {
-      "@stacksjs/stx": ["./src/types/stx.d.ts"],
-      "@stacksjs/bun-router": ["./src/types/bun-router.d.ts"]
-    },
     "allowImportingTsExtensions": true,
     "strict": true,
     "strictNullChecks": true,
@@ -26,7 +27,11 @@
     "skipLibCheck": true,
     "preserveSymlinks": true
   },
-  "include": ["src/**/*.ts", "bin", "build.ts"],
+  "include": [
+    "src/**/*.ts",
+    "bin",
+    "build.ts"
+  ],
   "exclude": [
     "node_modules",
     "dist",

@@ -22,12 +22,12 @@ declare global {
     // Dashboard controller functions (set by dashboard.ts)
     fetchDashboardData: (() => Promise<void>) | undefined
     refreshAllPanels: (() => void) | undefined
-    setDateRange: ((range: string) => void) | undefined
+    setDateRange: ((_range: string) => void) | undefined
     toggleComparison: (() => void) | undefined
-    exportData: ((format: string) => void) | undefined
+    exportData: ((_format: string) => void) | undefined
     dateRange: string | undefined
-    navigateTo: ((tab: string) => void) | undefined
-    applyFilter: ((type: string, value: string) => void) | undefined
+    navigateTo: ((_tab: string) => void) | undefined
+    applyFilter: ((_type: string, _value: string) => void) | undefined
 
     // Panel refresh functions (set by individual panels)
     refreshGoalsPanel: (() => void) | undefined
@@ -46,28 +46,28 @@ declare global {
     controlsBar: ControlsBarAPI | undefined
 
     // Header bridge functions
-    headerSetSiteName: ((name: string) => void) | undefined
+    headerSetSiteName: ((_name: string) => void) | undefined
     toggleTheme: (() => void) | undefined
     goBack: (() => void) | undefined
 
     // Controls bar bridge functions
-    updateRealtimeCount: ((count: number) => void) | undefined
-    updateLastUpdated: ((time: string) => void) | undefined
-    controlsSetDateRange: ((range: string) => void) | undefined
+    updateRealtimeCount: ((_count: number) => void) | undefined
+    updateLastUpdated: ((_time: string) => void) | undefined
+    controlsSetDateRange: ((_range: string) => void) | undefined
 
     // Filter bar functions
-    setFilterCountries: ((countries: string[]) => void) | undefined
-    setFilterBrowsers: ((browsers: string[]) => void) | undefined
+    setFilterCountries: ((_countries: string[]) => void) | undefined
+    setFilterBrowsers: ((_browsers: string[]) => void) | undefined
     getFilterParams: (() => string) | undefined
     resetFilters: (() => void) | undefined
 
     // FunnelsTab window globals (for modal innerHTML onclick)
     __addFunnelStep: (() => void) | undefined
-    __removeFunnelStep: ((index: number) => void) | undefined
+    __removeFunnelStep: ((_index: number) => void) | undefined
 
     // Legacy goal modal functions (dashboard.ts)
-    showEditGoalModal: ((goalId: string) => void) | undefined
-    confirmDeleteGoal: ((goalId: string) => void) | undefined
+    showEditGoalModal: ((_goalId: string) => void) | undefined
+    confirmDeleteGoal: ((_goalId: string) => void) | undefined
 
     // Annotation
     addAnnotation: (() => void) | undefined
@@ -96,6 +96,6 @@ declare global {
     }
 
     // Tracking script
-    sa: ((...args: any[]) => void) & { q?: any[][] }
+    sa: ((..._args: any[]) => void) & { q?: any[][] }
   }
 }
