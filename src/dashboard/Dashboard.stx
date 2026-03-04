@@ -855,30 +855,30 @@
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ===== Classes referenced by innerHTML (JS-rendered) - use @apply ===== */
+    /* ===== Classes referenced by innerHTML (JS-rendered) ===== */
 
     /* Site selector states */
     .site-selector-loading,
     .site-selector-error,
     .site-selector-empty {
-      @apply flex flex-col items-center justify-center p-12 text-center gap-4;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; text-align: center; gap: 1rem;
       color: var(--text-muted);
     }
     .site-selector-error button,
     .site-selector-empty button {
-      @apply border-none py-2 px-6 rounded-md cursor-pointer text-sm mt-2;
+      border: none; padding: 0.5rem 1.5rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.875rem; margin-top: 0.5rem;
       background: var(--accent);
       color: white;
     }
     .site-selector-empty h2 {
-      @apply text-lg m-0;
+      font-size: 1.125rem; line-height: 1.75rem; margin: 0;
       color: var(--text-primary);
     }
     .site-selector-grid {
-      @apply flex flex-col gap-3;
+      display: flex; flex-direction: column; gap: 0.75rem;
     }
     .site-card {
-      @apply flex items-center gap-4 py-4 px-5 rounded-lg cursor-pointer transition-all duration-150 text-left w-full;
+      display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-radius: 0.5rem; cursor: pointer; transition: all 150ms; text-align: left; width: 100%;
       background: var(--bg-secondary);
       border: 1px solid var(--border);
     }
@@ -887,19 +887,19 @@
       border-color: var(--accent);
     }
     .site-card-icon {
-      @apply w-10 h-10 flex items-center justify-center rounded-lg;
+      width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 0.5rem;
       background: var(--bg-tertiary);
       color: var(--accent);
     }
     .site-card-info {
-      @apply flex-1 flex flex-col gap-1;
+      flex: 1 1 0%; display: flex; flex-direction: column; gap: 0.25rem;
     }
     .site-card-name {
-      @apply font-medium;
+      font-weight: 500;
       color: var(--text-primary);
     }
     .site-card-domain {
-      @apply text-xs font-mono;
+      font-size: 0.75rem; line-height: 1rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       color: var(--text-muted);
     }
     .site-card-arrow {
@@ -909,24 +909,13 @@
       color: var(--accent);
     }
 
-    /* Spinner */
-    .spinner {
-      @apply w-8 h-8 rounded-full;
-      border: 3px solid var(--border);
-      border-top-color: var(--accent);
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(-360deg); }
-    }
-
     /* Data table (used in innerHTML) */
     .data-table {
-      @apply w-full;
+      width: 100%;
       font-size: 0.8125rem;
     }
     .data-table th {
-      @apply text-left font-medium py-2 uppercase tracking-wider;
+      text-align: left; font-weight: 500; padding: 0.5rem 0; text-transform: uppercase; letter-spacing: 0.05em;
       color: var(--text-muted);
       padding-bottom: 0.5rem;
       border-bottom: 1px solid var(--border);
@@ -940,34 +929,34 @@
       border-bottom: none;
     }
     .data-table .name {
-      @apply truncate;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       color: var(--text-primary);
       max-width: 180px;
     }
     .data-table .value {
-      @apply text-right;
+      text-align: right;
       color: var(--text-secondary);
     }
 
     /* Empty state (used in innerHTML) */
     .empty-state {
-      @apply text-center p-8;
+      text-align: center; padding: 2rem;
       color: var(--text-muted);
     }
     .empty-state p {
-      @apply mb-4;
+      margin-bottom: 1rem;
     }
     .empty-state a {
-      @apply no-underline;
+      text-decoration: none;
       color: var(--accent);
     }
     .empty-state a:hover {
-      @apply underline;
+      text-decoration: underline;
     }
 
     /* Chart tooltip (used in innerHTML) */
     .chart-tooltip {
-      @apply hidden absolute rounded-lg pointer-events-none z-[100];
+      display: none; position: absolute; border-radius: 0.5rem; pointer-events: none; z-index: 100;
       background: var(--bg-tertiary);
       border: 1px solid var(--border);
       padding: 0.75rem 1rem;
@@ -976,20 +965,20 @@
       min-width: 140px;
     }
     .tooltip-date {
-      @apply text-xs mb-2 font-medium;
+      font-size: 0.75rem; line-height: 1rem; margin-bottom: 0.5rem; font-weight: 500;
       color: var(--text-secondary);
     }
     .tooltip-row {
-      @apply flex items-center gap-2;
+      display: flex; align-items: center; gap: 0.5rem;
       color: var(--text-secondary);
       margin: 0.25rem 0;
     }
     .tooltip-row strong {
-      @apply ml-auto;
+      margin-left: auto;
       color: var(--text-primary);
     }
     .tooltip-dot {
-      @apply w-2 h-2 rounded-sm;
+      width: 0.5rem; height: 0.5rem; border-radius: 0.125rem;
     }
     .tooltip-dot.views {
       background: var(--accent);
@@ -1000,139 +989,139 @@
 
     /* Heatmap states (used in innerHTML) */
     .heatmap-loading, .heatmap-empty {
-      @apply flex flex-col items-center justify-center gap-4;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem;
       height: 500px;
       color: var(--text-muted);
     }
     .heatmap-stats {
-      @apply absolute bottom-4 right-4 py-2 px-4 rounded text-xs text-white;
+      position: absolute; bottom: 1rem; right: 1rem; padding: 0.5rem 1rem; border-radius: 0.25rem; font-size: 0.75rem; color: white;
       background: rgba(0,0,0,0.7);
     }
 
     /* Heatmap panel (used in innerHTML) */
     .heatmap-panel {
-      @apply rounded-lg p-4;
+      border-radius: 0.5rem; padding: 1rem;
       background: var(--bg-secondary);
     }
     .heatmap-panel h3 {
-      @apply text-sm font-medium mb-4;
+      font-size: 0.875rem; font-weight: 500; margin-bottom: 1rem;
       color: var(--text-primary);
     }
 
     /* Scroll heatmap (used in innerHTML) */
     .scroll-heatmap {
-      @apply p-4;
+      padding: 1rem;
     }
     .scroll-stats {
-      @apply flex gap-8 mb-6;
+      display: flex; gap: 2rem; margin-bottom: 1.5rem;
     }
     .scroll-stat {
-      @apply flex flex-col;
+      display: flex; flex-direction: column;
     }
     .scroll-stat-value {
-      @apply text-3xl font-semibold;
+      font-size: 1.875rem; line-height: 2.25rem; font-weight: 600;
       color: var(--text-primary);
     }
     .scroll-stat-label {
-      @apply text-xs;
+      font-size: 0.75rem; line-height: 1rem;
       color: var(--text-muted);
     }
     .scroll-bars {
-      @apply flex flex-col gap-2;
+      display: flex; flex-direction: column; gap: 0.5rem;
     }
     .scroll-bar-row {
-      @apply flex items-center gap-3;
+      display: flex; align-items: center; gap: 0.75rem;
     }
     .scroll-depth-label {
-      @apply text-xs text-right;
+      font-size: 0.75rem; text-align: right;
       width: 40px;
       color: var(--text-muted);
     }
     .scroll-bar-track {
-      @apply flex-1 rounded overflow-hidden;
+      flex: 1 1 0%; border-radius: 0.25rem; overflow: hidden;
       height: 24px;
       background: var(--bg-tertiary);
     }
     .scroll-bar-fill {
-      @apply h-full rounded transition-[width] duration-300;
+      height: 100%; border-radius: 0.25rem; transition: width 300ms;
     }
     .scroll-reach-label {
-      @apply text-[0.8125rem] font-medium;
+      font-size: 0.8125rem; font-weight: 500;
       width: 50px;
       color: var(--text-primary);
     }
     .scroll-legend {
-      @apply flex justify-center gap-6 mt-6 pt-4 text-xs;
+      display: flex; justify-content: center; gap: 1.5rem; margin-top: 1.5rem; padding-top: 1rem; font-size: 0.75rem;
       border-top: 1px solid var(--border);
       color: var(--text-muted);
     }
     .legend-dot {
-      @apply inline-block w-2.5 h-2.5 rounded-sm mr-1.5;
+      display: inline-block; width: 0.625rem; height: 0.625rem; border-radius: 0.125rem; margin-right: 0.375rem;
     }
 
     /* Element list (used in innerHTML) */
     .element-list {
-      @apply flex flex-col gap-3;
+      display: flex; flex-direction: column; gap: 0.75rem;
     }
     .element-item {
-      @apply flex flex-col gap-1.5;
+      display: flex; flex-direction: column; gap: 0.375rem;
     }
     .element-info {
-      @apply flex items-center gap-2;
+      display: flex; align-items: center; gap: 0.5rem;
     }
     .element-tag {
-      @apply font-mono rounded;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; border-radius: 0.25rem;
       font-size: 0.6875rem;
       color: var(--accent);
       background: var(--bg-tertiary);
       padding: 0.125rem 0.375rem;
     }
     .element-selector {
-      @apply text-xs truncate;
+      font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       color: var(--text-secondary);
       max-width: 200px;
     }
     .element-stats {
-      @apply flex items-center gap-2;
+      display: flex; align-items: center; gap: 0.5rem;
     }
     .element-bar-track {
-      @apply flex-1 rounded-sm overflow-hidden;
+      flex: 1 1 0%; border-radius: 0.125rem; overflow: hidden;
       height: 6px;
       background: var(--bg-tertiary);
     }
     .element-bar-fill {
-      @apply h-full rounded-sm;
+      height: 100%; border-radius: 0.125rem;
       background: var(--accent);
     }
     .element-clicks {
-      @apply text-xs font-medium text-right;
+      font-size: 0.75rem; font-weight: 500; text-align: right;
       color: var(--text-primary);
       min-width: 40px;
     }
 
     /* Insight list (used in innerHTML) */
     .insight-list {
-      @apply flex flex-col gap-3;
+      display: flex; flex-direction: column; gap: 0.75rem;
     }
     .insight-item {
-      @apply flex justify-between items-center py-2;
+      display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0;
       border-bottom: 1px solid var(--bg-tertiary);
     }
     .insight-item:last-child {
       border-bottom: none;
     }
     .insight-label {
-      @apply text-[0.8125rem];
+      font-size: 0.8125rem;
       color: var(--text-secondary);
     }
     .insight-value {
-      @apply text-sm font-medium;
+      font-size: 0.875rem; font-weight: 500;
       color: var(--text-primary);
     }
 
     /* text-muted helper (used in innerHTML) */
     .text-muted {
-      @apply text-[0.8125rem];
+      font-size: 0.8125rem;
       color: var(--text-muted);
     }
 

@@ -20,46 +20,65 @@
 </div>
 
 <style>
-/* Animation keyframes - cannot be expressed as utility classes */
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
 /* Dynamic classes used by dashboard.ts renderSiteSelector() */
 .site-card {
-  @apply flex items-center gap-4 w-full py-4 px-4 bg-bg-2 border border-border rounded-lg cursor-pointer text-left mb-2 transition-all duration-200 text-text;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem;
+  background-color: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 0.5rem;
+  transition: all 200ms;
+  color: var(--text);
 }
 .site-card:hover {
-  @apply border-accent bg-bg-3;
+  border-color: var(--accent);
+  background-color: var(--bg3);
   transform: translateY(-1px);
 }
 .site-icon {
-  @apply w-10 h-10 bg-bg-3 rounded-lg flex items-center justify-center shrink-0 text-accent;
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: var(--bg3);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent);
 }
 .site-info {
-  @apply flex-1 flex flex-col gap-1 min-w-0;
+  flex: 1 1 0%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
 }
 .site-name {
-  @apply text-base font-semibold text-text;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
 }
 .site-domain {
-  @apply text-xs text-muted;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--muted);
 }
 .arrow {
-  @apply text-muted shrink-0;
+  color: var(--muted);
+  flex-shrink: 0;
 }
 .site-card:hover .arrow {
   color: var(--accent);
 }
 .empty {
-  @apply text-muted p-8;
+  color: var(--muted);
+  padding: 2rem;
 }
 </style>

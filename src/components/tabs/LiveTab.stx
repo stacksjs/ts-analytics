@@ -82,7 +82,10 @@ onMount(() => {
 <style>
 /* Pulse animation for live indicator */
 .live-pulse {
-  @apply w-2 h-2 bg-success rounded-full;
+  width: 0.5rem;
+  height: 0.5rem;
+  background-color: var(--success);
+  border-radius: 9999px;
   animation: pulse 2s infinite;
 }
 @keyframes pulse {
@@ -90,14 +93,4 @@ onMount(() => {
   50% { opacity: 0.5; }
 }
 
-/* Spinner animation */
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(-360deg); } }
 </style>

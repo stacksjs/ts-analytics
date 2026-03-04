@@ -122,7 +122,7 @@ provide('dashboardHeader', {
 
   <nav id="header-nav" class="header-nav flex gap-1 flex-wrap justify-center">
     <a @for="tab in tabs"
-       @class="['nav-btn text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text', currentTab() === tab.id ? 'active' : '']"
+       @class="['text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text no-underline', currentTab() === tab.id ? 'bg-accent text-white' : '']"
        :href="tabHref(tab)"
        :data-tab="tab.id"
        data-stx-prefetch>{{ tab.label }}</a>
@@ -149,12 +149,6 @@ provide('dashboardHeader', {
 </header>
 
 <style>
-/* Active nav state (toggled reactively via @class) */
-.nav-btn.active {
-  background: var(--accent);
-  color: white;
-}
-
 /* Responsive: nav wraps below header at narrow viewports */
 @media (max-width: 1200px) {
   header {

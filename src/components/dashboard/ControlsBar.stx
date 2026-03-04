@@ -137,7 +137,10 @@ provide('controlsBar', {
 <style>
 /* Animations - cannot be expressed as utilities */
 .pulse {
-  @apply w-2 h-2 bg-success rounded-full;
+  width: 0.5rem;
+  height: 0.5rem;
+  background-color: var(--success);
+  border-radius: 9999px;
   animation: pulse 2s infinite;
 }
 @keyframes pulse {

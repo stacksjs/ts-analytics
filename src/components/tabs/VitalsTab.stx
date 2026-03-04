@@ -84,7 +84,7 @@ onMount(() => {
     <div class="vitals-grid">
       <div @for="v in vitals()" class="vital-card">
         <div class="text-xs font-semibold text-muted uppercase tracking-wider mb-1">{{ v.metric }}</div>
-        <div @class="['vital-value', getRating(v)]">
+        <div @class="['text-2xl font-bold text-text mb-1 vital-value', getRating(v)]">
           {{ v.samples > 0 ? formatValue(v.metric, v.p75) : '—' }}
         </div>
         <div class="text-[0.6875rem] text-muted mb-2">{{ v.samples }} samples</div>
@@ -110,13 +110,7 @@ onMount(() => {
   gap: 1rem;
 }
 
-/* Vital value with dynamic rating colors */
-.vital-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 0.25rem;
-}
+/* Rating color overrides */
 .vital-value.good { color: var(--success); }
 .vital-value.needs-improvement { color: var(--warning); }
 .vital-value.poor { color: var(--error); }
@@ -126,14 +120,4 @@ onMount(() => {
 .needs-improvement { background: var(--warning); }
 .poor { background: var(--error); }
 
-/* Spinner animation */
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
 </style>

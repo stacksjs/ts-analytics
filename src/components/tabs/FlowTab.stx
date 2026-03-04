@@ -96,7 +96,7 @@ onMount(() => {
         <h4 class="text-[0.6875rem] uppercase text-muted mb-3 font-medium tracking-wider">Most Visited</h4>
         <div class="flex flex-col gap-2">
           <div @for="(page, index) in mostVisited()" class="flex items-center gap-2">
-            <span class="flow-rank-number">{{ index + 1 }}</span>
+            <span class="w-[18px] h-[18px] bg-accent text-white rounded-full text-[0.6875rem] flex items-center justify-center shrink-0">{{ index + 1 }}</span>
             <span class="text-xs truncate flex-1 text-text">{{ page.path }}</span>
             <span class="text-[0.6875rem] text-muted">{{ page.count }}</span>
           </div>
@@ -106,31 +106,3 @@ onMount(() => {
   </div>
 </div>
 
-<style>
-/* Rank number badge - requires exact sizing + circle that can't be done with pure utilities */
-.flow-rank-number {
-  width: 18px;
-  height: 18px;
-  background: var(--accent);
-  color: white;
-  border-radius: 50%;
-  font-size: 0.6875rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-/* Spinner animation */
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(-360deg); }
-}
-</style>

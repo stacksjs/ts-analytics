@@ -209,16 +209,16 @@ onMount(() => {
         <div class="flex justify-between items-start mb-4 gap-4 flex-wrap">
           <h3 class="text-lg font-medium text-error flex-1 min-w-[200px]">{{ errorData().message ? errorData().message : 'Unknown Error' }}</h3>
           <div class="flex gap-2 flex-wrap">
-            <span @if="errorData().severity" @class="['severity-badge', getSeverityClass(errorData().severity)]">
+            <span @if="errorData().severity" @class="['py-1 px-2 rounded text-xs font-semibold uppercase', getSeverityClass(errorData().severity)]">
               {{ errorData().severity }}
             </span>
-            <span @if="errorData().trend" @class="['trend-badge', 'trend-' + errorData().trend]">
+            <span @if="errorData().trend" @class="['py-1 px-2 rounded text-xs font-semibold capitalize', 'trend-' + errorData().trend]">
               {{ errorData().trend }}
             </span>
             <span @if="errorData().category" class="py-1 px-2 rounded text-xs bg-bg-3 text-muted">
               {{ errorData().category }}
             </span>
-            <span @class="['error-status-badge', getStatusClass(errorData().status)]">
+            <span @class="['py-1 px-2 rounded text-xs font-medium capitalize', getStatusClass(errorData().status)]">
               {{ errorData().status ? errorData().status : 'open' }}
             </span>
           </div>
@@ -228,7 +228,7 @@ onMount(() => {
           <button
             @if="errorData().status !== 'resolved'"
             @click="updateStatus('resolved')"
-            class="btn btn-resolve"
+            class="btn bg-success text-white hover:opacity-90"
           >Mark Resolved</button>
           <button
             @if="errorData().status !== 'ignored'"
@@ -244,36 +244,36 @@ onMount(() => {
       </div>
 
       <!-- Overview Grid -->
-      <div class="error-meta-grid">
-        <div class="meta-card">
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div class="bg-bg-2 border border-border rounded-md p-3">
           <div class="text-xs text-muted mb-1">First Seen</div>
           <div class="text-sm font-medium text-text">{{ formatDate(errorData().firstSeen) }}</div>
         </div>
-        <div class="meta-card">
+        <div class="bg-bg-2 border border-border rounded-md p-3">
           <div class="text-xs text-muted mb-1">Last Seen</div>
           <div class="text-sm font-medium text-text">{{ formatDate(errorData().lastSeen) }}</div>
         </div>
-        <div class="meta-card">
+        <div class="bg-bg-2 border border-border rounded-md p-3">
           <div class="text-xs text-muted mb-1">Occurrences</div>
           <div class="text-sm font-medium text-text">{{ errorData().count ? errorData().count : 1 }}</div>
         </div>
-        <div class="meta-card">
+        <div class="bg-bg-2 border border-border rounded-md p-3">
           <div class="text-xs text-muted mb-1">Affected Visitors</div>
           <div class="text-sm font-medium text-text">{{ errorData().affectedVisitors || errorData().count || 1 }}</div>
         </div>
-        <div class="meta-card">
+        <div class="bg-bg-2 border border-border rounded-md p-3">
           <div class="text-xs text-muted mb-1">Browsers</div>
           <div class="text-sm font-medium text-text">{{ (errorData().browsers ? errorData().browsers : []).length > 0 ? (errorData().browsers ? errorData().browsers : []).join(', ') : 'Unknown' }}</div>
         </div>
-        <div class="meta-card">
+        <div class="bg-bg-2 border border-border rounded-md p-3">
           <div class="text-xs text-muted mb-1">Operating Systems</div>
           <div class="text-sm font-medium text-text">{{ (errorData().operatingSystems || []).join(', ') || errorData().latestOccurrence?.os || 'Unknown' }}</div>
         </div>
-        <div class="meta-card">
+        <div class="bg-bg-2 border border-border rounded-md p-3">
           <div class="text-xs text-muted mb-1">Devices</div>
           <div class="text-sm font-medium text-text">{{ (errorData().devices ? errorData().devices : []).length > 0 ? (errorData().devices ? errorData().devices : []).join(', ') : (errorData().latestOccurrence?.deviceType ? errorData().latestOccurrence.deviceType : 'Unknown') }}</div>
         </div>
-        <div class="meta-card">
+        <div class="bg-bg-2 border border-border rounded-md p-3">
           <div class="text-xs text-muted mb-1">Frameworks</div>
           <div class="text-sm font-medium text-text">{{ (errorData().frameworks ? errorData().frameworks : []).length > 0 ? (errorData().frameworks ? errorData().frameworks : []).join(', ') : (errorData().latestOccurrence?.framework ? errorData().latestOccurrence.framework : 'Unknown') }}</div>
         </div>
@@ -296,28 +296,28 @@ onMount(() => {
       <!-- Latest Occurrence Details -->
       <div @if="errorData().latestOccurrence" class="bg-bg-2 rounded-lg p-6">
         <h4 class="text-base font-semibold text-text mb-4">Latest Occurrence</h4>
-        <div class="error-meta-grid">
-          <div class="meta-card">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div class="bg-bg-2 border border-border rounded-md p-3">
             <div class="text-xs text-muted mb-1">URL</div>
             <div class="text-sm font-medium text-text truncate">{{ errorData().latestOccurrence.url ? errorData().latestOccurrence.url : 'Unknown' }}</div>
           </div>
-          <div class="meta-card">
+          <div class="bg-bg-2 border border-border rounded-md p-3">
             <div class="text-xs text-muted mb-1">Browser</div>
             <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.browser ? errorData().latestOccurrence.browser : '' }} {{ errorData().latestOccurrence.browserVersion ? errorData().latestOccurrence.browserVersion : '' }}</div>
           </div>
-          <div class="meta-card">
+          <div class="bg-bg-2 border border-border rounded-md p-3">
             <div class="text-xs text-muted mb-1">OS</div>
             <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.os ? errorData().latestOccurrence.os : '' }} {{ errorData().latestOccurrence.osVersion ? errorData().latestOccurrence.osVersion : '' }}</div>
           </div>
-          <div @if="errorData().latestOccurrence.environment" class="meta-card">
+          <div @if="errorData().latestOccurrence.environment" class="bg-bg-2 border border-border rounded-md p-3">
             <div class="text-xs text-muted mb-1">Environment</div>
             <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.environment }}</div>
           </div>
-          <div @if="errorData().latestOccurrence.framework" class="meta-card">
+          <div @if="errorData().latestOccurrence.framework" class="bg-bg-2 border border-border rounded-md p-3">
             <div class="text-xs text-muted mb-1">Framework</div>
             <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.framework }}</div>
           </div>
-          <div @if="errorData().latestOccurrence.componentName" class="meta-card">
+          <div @if="errorData().latestOccurrence.componentName" class="bg-bg-2 border border-border rounded-md p-3">
             <div class="text-xs text-muted mb-1">Component</div>
             <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.componentName }}</div>
           </div>
@@ -387,85 +387,48 @@ onMount(() => {
 </html>
 
 <style>
-/* Dynamic badge colors with rgba - can't be expressed as utilities */
-.severity-badge {
-  @apply py-1 px-2 rounded text-xs font-semibold uppercase;
-}
-.severity-critical {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-}
-.severity-high {
-  background: rgba(249, 115, 22, 0.2);
-  color: #fdba74;
-}
-.severity-medium {
-  background: rgba(245, 158, 11, 0.2);
-  color: #fcd34d;
-}
-.severity-low {
-  background: rgba(156, 163, 175, 0.2);
-  color: #d1d5db;
-}
-.trend-badge {
-  @apply py-1 px-2 rounded text-xs font-semibold capitalize;
-}
+/* Badge rgba color variants (can't be expressed as utilities) */
+.severity-critical { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+.severity-high { background: rgba(249, 115, 22, 0.2); color: #fdba74; }
+.severity-medium { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+.severity-low { background: rgba(156, 163, 175, 0.2); color: #d1d5db; }
+
 .trend-new { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
 .trend-increasing { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
 .trend-decreasing { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
 .trend-stable { background: rgba(156, 163, 175, 0.15); color: #d1d5db; }
 
-.error-status-badge {
-  @apply py-1 px-2 rounded text-xs font-medium capitalize;
-}
-.status-open {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-}
-.status-resolved {
-  background: rgba(16, 185, 129, 0.2);
-  color: #6ee7b7;
-}
-.status-ignored {
-  background: rgba(107, 114, 128, 0.2);
-  color: #d1d5db;
-}
-
-.meta-card {
-  @apply bg-bg-2 border border-border rounded-md p-3;
-}
-.error-meta-grid {
-  @apply grid grid-cols-2 gap-3;
-}
-@media (min-width: 768px) {
-  .error-meta-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
+.status-open { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+.status-resolved { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+.status-ignored { background: rgba(107, 114, 128, 0.2); color: #d1d5db; }
 
 /* Occurrence table grid - complex fixed-width columns */
 .occurrence-header {
   display: grid;
   grid-template-columns: 100px 120px 100px 1fr;
-  @apply gap-2 py-2.5 px-3 bg-bg-3 text-xs font-semibold text-muted uppercase;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  background-color: var(--bg3);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
 }
 .occurrence-row {
   display: grid;
   grid-template-columns: 100px 120px 100px 1fr;
-  @apply gap-2 py-2 px-3 text-[0.8125rem] border-t border-border;
-}
-
-/* Resolve button */
-.btn-resolve {
-  @apply bg-success text-white;
-}
-.btn-resolve:hover {
-  background: #059669;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  border-top: 1px solid var(--border);
 }
 
 /* Spinner animation */
 .spinner {
-  @apply w-4 h-4 rounded-full;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
   border: 2px solid var(--border);
   border-top-color: var(--accent);
   animation: spin 0.8s linear infinite;

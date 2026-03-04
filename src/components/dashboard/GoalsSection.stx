@@ -7,13 +7,14 @@ function formatCurrency(n: number): string {
 }
 
 function getTypeBadgeClass(type: string): string {
-  const classes: Record<string, string> = {
-    pageview: 'goal-type-badge pageview',
-    event: 'goal-type-badge event',
-    duration: 'goal-type-badge duration',
-    scroll: 'goal-type-badge scroll'
+  const base = 'inline-block text-[0.6875rem] py-0.5 px-1.5 rounded capitalize bg-bg-3 text-muted'
+  const variants: Record<string, string> = {
+    pageview: 'goal-type-pageview',
+    event: 'goal-type-event',
+    duration: 'goal-type-duration',
+    scroll: 'goal-type-scroll'
   }
-  return classes[type?.toLowerCase()] || 'goal-type-badge'
+  return base + (variants[type?.toLowerCase()] ? ' ' + variants[type?.toLowerCase()] : '')
 }
 @endts
 
@@ -104,18 +105,15 @@ function deleteGoalAction(goalId: string): void {
 </div>
 
 <style>
-.goal-type-badge {
-  @apply inline-block text-[0.6875rem] py-0.5 px-1.5 rounded capitalize bg-bg-3 text-muted;
-}
-.goal-type-badge.pageview { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
-.goal-type-badge.event { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
-.goal-type-badge.duration { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
-.goal-type-badge.scroll { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
-.goal-conversions, .goal-value {
-  font-variant-numeric: tabular-nums;
-}
-.icon-btn.danger:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-}
+/* Color variants (rgba values) */
+.goal-type-pageview { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.goal-type-event { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.goal-type-duration { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.goal-type-scroll { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+
+/* Tabular nums (no utility equivalent) */
+.goal-conversions, .goal-value { font-variant-numeric: tabular-nums; }
+
+/* Danger hover (rgba) */
+.icon-btn.danger:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 </style>

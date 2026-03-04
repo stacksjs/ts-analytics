@@ -45,7 +45,7 @@ function getDomain(source: string): string {
         <td colspan="3" class="text-center text-muted py-4">No referrer data</td>
       </tr>
       <tr @for="ref in referrers()" @if="!loading()">
-        <td class="cell-name">
+        <td class="py-2 text-text">
           <a @if="isExternalLink(ref.source ? ref.source : 'Direct')"
              :href="getHref(ref.source)"
              target="_blank"
@@ -65,8 +65,8 @@ function getDomain(source: string): string {
           </a>
           <span @if="!isExternalLink(ref.source ? ref.source : 'Direct')">{{ ref.source ? ref.source : 'Direct' }}</span>
         </td>
-        <td class="cell-value">{{ (ref.visitors ? ref.visitors : 0) | fmt }}</td>
-        <td class="cell-value">{{ (ref.views ? ref.views : 0) | fmt }}</td>
+        <td class="text-right py-2 tabular-nums">{{ (ref.visitors ? ref.visitors : 0) | fmt }}</td>
+        <td class="text-right py-2 tabular-nums">{{ (ref.views ? ref.views : 0) | fmt }}</td>
       </tr>
     </tbody>
   </table>
