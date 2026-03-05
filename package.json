@@ -13,7 +13,13 @@
   "bugs": {
     "url": "https://github.com/stacksjs/ts-analytics/issues"
   },
-  "keywords": ["analytics", "privacy", "typescript", "bun", "dynamodb"],
+  "keywords": [
+    "analytics",
+    "privacy",
+    "typescript",
+    "bun",
+    "dynamodb"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -28,7 +34,11 @@
   "bin": {
     "analytics": "./bin/cli.ts"
   },
-  "files": ["bin", "dist", "src"],
+  "files": [
+    "bin",
+    "dist",
+    "src"
+  ],
   "scripts": {
     "analytics": "bun ./bin/cli.ts",
     "build": "bun run build:css && bun --bun build.ts",
@@ -41,10 +51,8 @@
     "deploy": "bun run deploy:db && bun run deploy:api",
     "deploy:docs": "bunx bunpress deploy",
     "fresh": "bunx rimraf node_modules/ bun.lock && bun i",
-    "lint": "bunx --bun pickier lint . --max-warnings 9999",
-    "lint:fix": "bunx --bun pickier lint . --fix --max-warnings 9999",
-    "format": "bunx --bun pickier format .",
-    "format:fix": "bunx --bun pickier format . --write",
+    "lint": "bunx --bun pickier .",
+    "lint:fix": "bunx --bun pickier . --fix",
     "changelog": "bunx logsmith --verbose",
     "changelog:generate": "bunx logsmith --output CHANGELOG.md",
     "release": "bun --bun run changelog:generate && bunx --bun bumpx prompt --recursive",
