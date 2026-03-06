@@ -15,7 +15,7 @@
   },
   "peerDependencies": {
     "nuxt": "^4.3.1",
-    "vue": "^3.0.0"
+    "vue": "^3.5.29"
   },
   "peerDependenciesMeta": {
     "nuxt": {
