@@ -2,7 +2,7 @@
 
 ## About
 
-A privacy-first analytics toolkit for web applications.
+A privacy-first analytics toolkit for web applications, powered by DynamoDB single-table design. It provides real-time visitor tracking, goal/conversion tracking, an aggregation pipeline for fast dashboard queries, and ready-to-use Vue 3 dashboard components. The library is framework-agnostic (works with Bun, Express, Hono, AWS Lambda) and includes infrastructure code generators for CloudFormation, CDK, and SAM deployments.
 
 ## Linting
 
