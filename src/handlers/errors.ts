@@ -107,7 +107,8 @@ export async function handleGetErrors(request: Request, siteId: string): Promise
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get errors error:', error)
     return errorResponse('Failed to fetch errors')
   }
@@ -160,7 +161,8 @@ export async function handleGetErrorStatuses(request: Request, siteId: string): 
     }
 
     return jsonResponse({ statuses })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get error statuses error:', error)
     return errorResponse('Failed to fetch error statuses')
   }
@@ -195,7 +197,8 @@ export async function handleUpdateErrorStatus(request: Request, siteId: string):
             }),
           })
           results[id] = true
-        } catch (e) {
+        }
+catch (e) {
           results[id] = false
         }
       }
@@ -225,7 +228,8 @@ export async function handleUpdateErrorStatus(request: Request, siteId: string):
     })
 
     return jsonResponse({ success: true, errorId, status })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Update error status error:', error)
     return errorResponse('Failed to update error status')
   }
@@ -275,7 +279,8 @@ export async function handleCollectError(request: Request, siteId: string, keyId
         col: body.col || 0,
         stack: String(body.stack || '').slice(0, 4000),
         url: body.url || '',
-        path: (() => { try { return body.url ? new URL(body.url).pathname : '' } catch { return body.url || '' } })(),
+        path: (() => { try { return body.url ? new URL(body.url).pathname : '' }
+catch { return body.url || '' } })(),
         browser: body.browser || '',
         browserVersion: body.browserVersion || '',
         os: body.os || '',
@@ -372,7 +377,8 @@ export async function handleCollectError(request: Request, siteId: string, keyId
           ':osSet': { SS: [os] },
         },
       })
-    } catch (e) {
+    }
+catch (e) {
       // Non-critical — don't fail the request if env/browser tracking fails
       console.error('Error tracking group metadata:', e)
     }
@@ -381,7 +387,8 @@ export async function handleCollectError(request: Request, siteId: string, keyId
     evaluateErrorAlertsThrottled(siteId).catch(() => {})
 
     return new Response(null, { status: 204 })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Collect error:', error)
     return errorResponse('Failed to collect error')
   }
@@ -531,7 +538,8 @@ export async function handleGetErrorDetail(_request: Request, siteId: string, er
         })),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get error detail error:', error)
     return errorResponse('Failed to fetch error details')
   }
@@ -588,7 +596,8 @@ export async function handleGetErrorTimeseries(request: Request, siteId: string)
 
       if (interval === 'hour') {
         bucketKey = `${ts.toISOString().slice(0, 13)}:00:00.000Z`
-      } else {
+      }
+else {
         bucketKey = `${ts.toISOString().slice(0, 10)}T00:00:00.000Z`
       }
 
@@ -607,10 +616,12 @@ export async function handleGetErrorTimeseries(request: Request, siteId: string)
         if (firstSeenDate >= startDate && firstSeenDate <= endDate) {
           buckets[bucketKey].new++
           newFingerprints.add(fp)
-        } else {
+        }
+else {
           buckets[bucketKey].recurring++
         }
-      } else {
+      }
+else {
         buckets[bucketKey].new++
         newFingerprints.add(fp)
       }
@@ -626,7 +637,8 @@ export async function handleGetErrorTimeseries(request: Request, siteId: string)
         newErrors: newFingerprints.size,
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get error timeseries error:', error)
     return errorResponse('Failed to fetch error timeseries')
   }
@@ -688,7 +700,8 @@ export async function handleGetErrorComparison(request: Request, siteId: string)
       previous: { total: previousTotal, unique: previousUnique },
       changes: { total: totalChange, unique: uniqueChange },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get error comparison error:', error)
     return errorResponse('Failed to fetch error comparison')
   }
@@ -753,9 +766,11 @@ export async function handleGetErrorGroups(request: Request, siteId: string): Pr
     // Sort
     if (sort === 'lastSeen') {
       enriched.sort((a, b) => (b.lastSeen || '').localeCompare(a.lastSeen || ''))
-    } else if (sort === 'firstSeen') {
+    }
+else if (sort === 'firstSeen') {
       enriched.sort((a, b) => (b.firstSeen || '').localeCompare(a.firstSeen || ''))
-    } else {
+    }
+else {
       enriched.sort((a, b) => b.count - a.count)
     }
 
@@ -782,7 +797,8 @@ export async function handleGetErrorGroups(request: Request, siteId: string): Pr
         environments: envBreakdown,
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get error groups error:', error)
     return errorResponse('Failed to fetch error groups')
   }
@@ -823,7 +839,8 @@ export async function handleGetErrorAlerts(_request: Request, siteId: string): P
     const recentTriggers = (triggerResult.Items || []).map(unmarshall)
 
     return jsonResponse({ alerts: errorAlerts, recentTriggers })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get error alerts error:', error)
     return errorResponse('Failed to fetch error alerts')
   }
@@ -868,7 +885,8 @@ export async function handleCreateErrorAlert(request: Request, siteId: string): 
     })
 
     return jsonResponse({ alert }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Create error alert error:', error)
     return errorResponse('Failed to create error alert')
   }
@@ -882,7 +900,8 @@ export async function handleEvaluateErrorAlerts(_request: Request, siteId: strin
   try {
     const triggered = await evaluateErrorAlerts(siteId)
     return jsonResponse({ triggered })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Evaluate error alerts error:', error)
     return errorResponse('Failed to evaluate error alerts')
   }
@@ -899,7 +918,8 @@ async function evaluateErrorAlertsThrottled(siteId: string): Promise<void> {
 
   try {
     await evaluateErrorAlerts(siteId)
-  } catch (e) {
+  }
+catch (e) {
     console.error('Throttled alert evaluation error:', e)
   }
 }
@@ -962,7 +982,8 @@ async function evaluateErrorAlerts(siteId: string): Promise<any[]> {
       currentValue = prevCount === 0 ? (currentCount > 0 ? 100 : 0)
         : Math.round(((currentCount - prevCount) / prevCount) * 100)
       shouldTrigger = currentValue >= (alert.threshold || 50)
-    } else if (alert.metric === 'new_error_type') {
+    }
+else if (alert.metric === 'new_error_type') {
       // Check if any ERROR_GROUP firstSeen is within window
       const groupResult = await dynamodb.query({
         TableName: TABLE_NAME,
@@ -977,7 +998,8 @@ async function evaluateErrorAlerts(siteId: string): Promise<any[]> {
       const newGroups = groups.filter(g => g.firstSeen && new Date(g.firstSeen) >= windowStart)
       currentValue = newGroups.length
       shouldTrigger = currentValue > 0
-    } else if (alert.metric === 'error_threshold') {
+    }
+else if (alert.metric === 'error_threshold') {
       // Count errors in window
       const countResult = await dynamodb.query({
         TableName: TABLE_NAME,

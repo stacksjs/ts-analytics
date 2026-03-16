@@ -206,7 +206,8 @@ function extractPath(url: string, includeQuery = false): string {
       return path + parsed.search
     }
     return path
-  } catch {
+  }
+catch {
     return '/'
   }
 }
@@ -218,7 +219,8 @@ function extractPathAdvanced(url: string, includeQuery = false, includeHash = fa
     if (includeQuery && parsed.search) path += parsed.search
     if (includeHash && parsed.hash) path += parsed.hash
     return path
-  } catch {
+  }
+catch {
     return '/'
   }
 }
@@ -358,7 +360,8 @@ function parseCookies(cookieString: string): Record<string, string> {
     if (key) {
       try {
         cookies[key] = decodeURIComponent(value)
-      } catch {
+      }
+catch {
         cookies[key] = value
       }
     }

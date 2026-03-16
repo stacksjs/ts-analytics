@@ -12,7 +12,8 @@ export function parseDateRange(query: Record<string, string> | undefined): { sta
 
   if (query?.startDate) {
     startDate = new Date(query.startDate)
-  } else {
+  }
+else {
     // Default to last 30 days
     startDate = new Date(now)
     startDate.setDate(startDate.getDate() - 30)

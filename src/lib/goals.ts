@@ -19,7 +19,8 @@ export async function getGoalsForSite(siteId: string): Promise<Goal[]> {
     const goals = await Goal.forSite(siteId).active().get()
     setCachedGoals(siteId, goals)
     return goals
-  } catch (err) {
+  }
+catch (err) {
     console.error('[Goals] Failed to fetch goals:', err)
     return []
   }
@@ -75,7 +76,8 @@ function matchPattern(pattern: string, value: string, matchType: string): boolea
       try {
         const regex = new RegExp(pattern)
         return regex.test(value)
-      } catch {
+      }
+catch {
         console.warn(`[Goals] Invalid regex pattern: ${pattern}`)
         return false
       }
@@ -136,7 +138,8 @@ export async function checkAndRecordConversions(
         console.log(`[Goals] Conversion recorded: ${goal.name} for session ${sessionId}`)
       }
     }
-  } catch (err) {
+  }
+catch (err) {
     console.error('[Goals] Error checking conversions:', err)
   }
 }

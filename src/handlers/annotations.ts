@@ -39,7 +39,8 @@ export async function handleCreateAnnotation(request: Request, siteId: string): 
     })
 
     return jsonResponse({ annotation }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Create annotation error:', error)
     return errorResponse('Failed to create annotation')
   }
@@ -67,7 +68,8 @@ export async function handleGetAnnotations(request: Request, siteId: string): Pr
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
     return jsonResponse({ annotations })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get annotations error:', error)
     return errorResponse('Failed to fetch annotations')
   }
@@ -106,7 +108,8 @@ export async function handleDeleteAnnotation(request: Request, siteId: string, a
           sk: annotation.sk,
         }),
       })
-    } else {
+    }
+else {
       await dynamodb.deleteItem({
         TableName: TABLE_NAME,
         Key: marshall({
@@ -117,7 +120,8 @@ export async function handleDeleteAnnotation(request: Request, siteId: string, a
     }
 
     return jsonResponse({ success: true })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Delete annotation error:', error)
     return errorResponse('Failed to delete annotation')
   }

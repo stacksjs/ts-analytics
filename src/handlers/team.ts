@@ -42,7 +42,8 @@ export async function handleInviteTeamMember(request: Request, siteId: string): 
     })
 
     return jsonResponse({ member }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Invite team member error:', error)
     return errorResponse('Failed to invite team member')
   }
@@ -65,7 +66,8 @@ export async function handleGetTeamMembers(_request: Request, siteId: string): P
     const members = (result.Items || []).map(unmarshall)
 
     return jsonResponse({ members })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get team members error:', error)
     return errorResponse('Failed to fetch team members')
   }
@@ -85,7 +87,8 @@ export async function handleRemoveTeamMember(_request: Request, siteId: string, 
     })
 
     return jsonResponse({ success: true })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Remove team member error:', error)
     return errorResponse('Failed to remove team member')
   }

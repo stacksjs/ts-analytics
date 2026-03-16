@@ -656,7 +656,8 @@ class EventQueryBuilder {
       if (typeof data.properties === 'string') {
         try {
           data.properties = JSON.parse(data.properties)
-        } catch {}
+        }
+catch {}
       }
       return new CustomEvent(data)
     })
@@ -1144,7 +1145,8 @@ class HeatmapMovementQueryBuilder {
       if (typeof data.points === 'string') {
         try {
           data.points = JSON.parse(data.points)
-        } catch {
+        }
+catch {
           data.points = []
         }
       }
@@ -1364,7 +1366,8 @@ class HeatmapScrollQueryBuilder {
       if (typeof data.scrollDepths === 'string') {
         try {
           data.scrollDepths = JSON.parse(data.scrollDepths)
-        } catch {
+        }
+catch {
           data.scrollDepths = {}
         }
       }

@@ -3149,14 +3149,16 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
         var last=entries[entries.length-1];
         if(last)sendVital('LCP',last.startTime,getRating('LCP',last.startTime));
       }).observe({type:'largest-contentful-paint',buffered:true});
-    }catch(e){}
+    }
+catch (e){}
     // FID - First Input Delay
     try{
       new PerformanceObserver(function(l){
         var entry=l.getEntries()[0];
         if(entry)sendVital('FID',entry.processingStart-entry.startTime,getRating('FID',entry.processingStart-entry.startTime));
       }).observe({type:'first-input',buffered:true});
-    }catch(e){}
+    }
+catch (e){}
     // CLS - Cumulative Layout Shift
     var clsValue=0;
     try{
@@ -3166,7 +3168,8 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
       w.addEventListener('visibilitychange',function(){
         if(d.visibilityState==='hidden')sendVital('CLS',clsValue*1000,getRating('CLS',clsValue));
       });
-    }catch(e){}
+    }
+catch (e){}
     // INP - Interaction to Next Paint
     var inpValue=0;
     try{
@@ -3178,7 +3181,8 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
       w.addEventListener('visibilitychange',function(){
         if(d.visibilityState==='hidden'&&inpValue>0)sendVital('INP',inpValue,getRating('INP',inpValue));
       });
-    }catch(e){}
+    }
+catch (e){}
   }
   // TTFB - Time to First Byte
   w.addEventListener('load',function(){
@@ -3211,7 +3215,9 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
   var d=document,w=window,n=navigator,s=d.currentScript;
   var site=s.dataset.site,api=s.dataset.api;
   ${options.honorDnt ? 'if(n.doNotTrack==="1")return;' : ''}
-  var q=[],sk='_tsa_sid',sid;try{sid=sessionStorage.getItem(sk)}catch(e){}if(!sid){sid=Math.random().toString(36).slice(2);try{sessionStorage.setItem(sk,sid)}catch(e){}}
+  var q=[],sk='_tsa_sid',sid;try{sid=sessionStorage.getItem(sk)}
+catch (e){}if(!sid){sid=Math.random().toString(36).slice(2);try{sessionStorage.setItem(sk,sid)}
+catch (e){}}
   // Client-side browser detection
   var br=s.dataset.browser||'';
   if(!br)try{
@@ -3233,7 +3239,8 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
       else if(/Safari/i.test(ua)&&!/Chrome/i.test(ua))br='Safari';
       else if(/Chrome/i.test(ua))br='Chrome';
     }
-  }catch(e){}
+  }
+catch (e){}
   function t(e,p){
     var x=new XMLHttpRequest();
     x.open('POST',api+'${endpoint}',true);

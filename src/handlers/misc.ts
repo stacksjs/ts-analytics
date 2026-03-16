@@ -107,7 +107,8 @@ export async function handleCreateSite(request: Request, ownerId?: string): Prom
         permissions,
       },
     }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Create site error:', error)
     return errorResponse('Failed to create site')
   }
@@ -156,7 +157,8 @@ export async function ensureSiteExists(siteId: string, hostname?: string, ownerI
       })
       console.log(`[ensureSiteExists] Auto-created site: ${siteId}`)
     }
-  } catch (error) {
+  }
+catch (error) {
     // Log but don't fail - site creation is best-effort
     console.error('[ensureSiteExists] Error:', error)
   }
@@ -179,7 +181,8 @@ export async function handleGetSites(_request: Request, ownerId?: string): Promi
           ':pk': { S: `OWNER#${ownerId}` },
         },
       }) as { Items?: any[] }
-    } else {
+    }
+else {
       // Fallback: return all sites (for unauthenticated API access)
       result = await dynamodb.query({
         TableName: TABLE_NAME,
@@ -203,7 +206,8 @@ export async function handleGetSites(_request: Request, ownerId?: string): Promi
       sites,
       total: sites.length,
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get sites error:', error)
     return errorResponse('Failed to fetch sites')
   }
@@ -271,7 +275,8 @@ export async function handleGetRevenue(request: Request, siteId: string): Promis
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get revenue error:', error)
     return errorResponse('Failed to fetch revenue')
   }

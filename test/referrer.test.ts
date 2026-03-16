@@ -64,7 +64,8 @@ function parseReferrerSource(referrer: string): string {
     if (host.includes('youtube')) return 'YouTube'
 
     return host
-  } catch {
+  }
+catch {
     return 'Unknown'
   }
 }
@@ -157,7 +158,8 @@ function parseReferrerSourceExtended(referrer: string): string {
     if (domain.startsWith('www.')) domain = domain.slice(4)
 
     return domain
-  } catch {
+  }
+catch {
     return 'Unknown'
   }
 }
@@ -234,7 +236,8 @@ function parseUTMParams(url: string): {
       term: params.utm_term,
       content: params.utm_content,
     }
-  } catch {
+  }
+catch {
     return {}
   }
 }

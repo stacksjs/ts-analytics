@@ -58,10 +58,12 @@ function aggregateTimeSeriesData(
 
     if (period === 'hour') {
       key = `${date.toISOString().slice(0, 13)}:00:00`
-    } else if (period === 'minute') {
+    }
+else if (period === 'minute') {
       const mins = Math.floor(date.getMinutes() / 5) * 5
       key = `${date.toISOString().slice(0, 14)}${mins.toString().padStart(2, '0')}:00`
-    } else {
+    }
+else {
       key = date.toISOString().slice(0, 10)
     }
 

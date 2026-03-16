@@ -75,7 +75,8 @@ async function publishBunLayer() {
     console.log(`  Version: ${result.Version}`)
 
     return result
-  } else {
+  }
+else {
     // Direct upload
     const result = await lambda.publishLayerVersion({
       LayerName: LAYER_NAME,

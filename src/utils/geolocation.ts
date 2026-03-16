@@ -87,7 +87,8 @@ export async function getCountryFromIP(ip: string): Promise<string | undefined> 
         console.log(`[GeoIP] Resolved ${ip} to ${country}`)
         return country
       }
-    } catch (err) {
+    }
+catch (err) {
       // Try next service
       console.log(`[GeoIP] Service failed for ${ip}:`, err)
     }
@@ -112,7 +113,8 @@ export function parseReferrerSource(referrer?: string): string {
     if (host.includes('linkedin')) return 'linkedin'
     if (host.includes('github')) return 'github'
     return host
-  } catch {
+  }
+catch {
     return 'unknown'
   }
 }

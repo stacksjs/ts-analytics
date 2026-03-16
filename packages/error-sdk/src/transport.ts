@@ -55,10 +55,12 @@ export class ErrorTransport {
         // sendBeacon doesn't support custom headers, fall back to fetch if available
         try {
           navigator.sendBeacon(url, blob)
-        } catch {
+        }
+catch {
           // Silently fail on unload
         }
-      } else {
+      }
+else {
         fetch(url, {
           method: 'POST',
           headers: {

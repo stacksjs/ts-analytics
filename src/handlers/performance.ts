@@ -104,7 +104,8 @@ export async function handleGetVitals(request: Request, siteId: string): Promise
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get vitals error:', error)
     return errorResponse('Failed to fetch vitals')
   }
@@ -165,7 +166,8 @@ export async function handleGetVitalsTrends(request: Request, siteId: string): P
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get vitals trends error:', error)
     return errorResponse('Failed to fetch vitals trends')
   }
@@ -206,7 +208,8 @@ export async function handleCreatePerformanceBudget(request: Request, siteId: st
     })
 
     return jsonResponse({ budget }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Create performance budget error:', error)
     return errorResponse('Failed to create performance budget')
   }
@@ -229,7 +232,8 @@ export async function handleGetPerformanceBudgets(_request: Request, siteId: str
     const budgets = (result.Items || []).map(unmarshall)
 
     return jsonResponse({ budgets })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get performance budgets error:', error)
     return errorResponse('Failed to fetch performance budgets')
   }
@@ -249,7 +253,8 @@ export async function handleDeletePerformanceBudget(_request: Request, siteId: s
     })
 
     return jsonResponse({ success: true })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Delete performance budget error:', error)
     return errorResponse('Failed to delete performance budget')
   }
@@ -348,7 +353,8 @@ export async function handleCheckPerformanceBudgets(request: Request, siteId: st
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Check performance budgets error:', error)
     return errorResponse('Failed to check performance budgets')
   }

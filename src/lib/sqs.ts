@@ -41,7 +41,8 @@ export async function sendToSQS<T extends Record<string, unknown>>(event: T): Pr
   try {
     await producer.sendEvent(event as any)
     return true
-  } catch (error) {
+  }
+catch (error) {
     console.error('[SQS] Failed to send event:', error)
     return false
   }
@@ -57,7 +58,8 @@ export async function sendBatchToSQS<T extends Record<string, unknown>>(events: 
   try {
     await producer.sendEventsBatch(events as any)
     return true
-  } catch (error) {
+  }
+catch (error) {
     console.error('[SQS] Failed to send batch:', error)
     return false
   }

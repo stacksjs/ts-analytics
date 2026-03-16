@@ -42,7 +42,8 @@ export async function handleCollect(request: Request): Promise<Response> {
     let parsedUrlForSite: URL
     try {
       parsedUrlForSite = new URL(payload.u)
-    } catch {
+    }
+catch {
       return jsonResponse({ error: 'Invalid URL' }, 400)
     }
 
@@ -70,7 +71,8 @@ export async function handleCollect(request: Request): Promise<Response> {
           let parsedUrl: URL
           try {
             parsedUrl = new URL(payload.u)
-          } catch {
+          }
+catch {
             return jsonResponse({ error: 'Invalid URL' }, 400)
           }
 
@@ -115,7 +117,8 @@ export async function handleCollect(request: Request): Promise<Response> {
 
           return new Response(null, { status: 204 })
         }
-      } catch (sqsError) {
+      }
+catch (sqsError) {
         console.error('[Collect] SQS send failed, falling back to direct write:', sqsError)
       }
     }
@@ -128,7 +131,8 @@ export async function handleCollect(request: Request): Promise<Response> {
     let parsedUrl: URL
     try {
       parsedUrl = new URL(payload.u)
-    } catch {
+    }
+catch {
       return jsonResponse({ error: 'Invalid URL' }, 400)
     }
 
@@ -155,7 +159,8 @@ export async function handleCollect(request: Request): Promise<Response> {
           }
           setSession(sessionKey, session)
         }
-      } catch (e) {
+      }
+catch (e) {
         console.log('[Collect] Failed to load session from DB:', e)
       }
     }
@@ -203,7 +208,8 @@ export async function handleCollect(request: Request): Promise<Response> {
         session.isBounce = false
         const startedAt = session.startedAt instanceof Date ? session.startedAt : new Date(session.startedAt)
         session.duration = timestamp.getTime() - startedAt.getTime()
-      } else {
+      }
+else {
         session = {
           id: sessionId,
           siteId: payload.s,
@@ -243,7 +249,8 @@ export async function handleCollect(request: Request): Promise<Response> {
           utmCampaign: parsedUrl.searchParams.get('utm_campaign') || undefined,
         }
       )
-    } else if (payload.e === 'event') {
+    }
+else if (payload.e === 'event') {
       const props = payload.p || {}
       const eventName = props.name || 'unnamed'
       const eventValue = typeof props.value === 'number' ? props.value : undefined
@@ -281,7 +288,8 @@ export async function handleCollect(request: Request): Promise<Response> {
           utmCampaign: session?.utmCampaign,
         }
       )
-    } else if (payload.e === 'outbound') {
+    }
+else if (payload.e === 'outbound') {
       const props = payload.p || {}
 
       await CustomEventModel.record({
@@ -304,7 +312,8 @@ export async function handleCollect(request: Request): Promise<Response> {
         await SessionModel.upsert(session)
         setSession(sessionKey, session)
       }
-    } else if (payload.e === 'hm_click') {
+    }
+else if (payload.e === 'hm_click') {
       const props = payload.p || {}
       const deviceInfo = parseUserAgent(userAgent)
 
@@ -326,7 +335,8 @@ export async function handleCollect(request: Request): Promise<Response> {
         deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
         timestamp,
       })
-    } else if (payload.e === 'hm_move') {
+    }
+else if (payload.e === 'hm_move') {
       const props = payload.p || {}
       const deviceInfo = parseUserAgent(userAgent)
 
@@ -344,7 +354,8 @@ export async function handleCollect(request: Request): Promise<Response> {
           timestamp,
         })
       }
-    } else if (payload.e === 'hm_scroll') {
+    }
+else if (payload.e === 'hm_scroll') {
       const props = payload.p || {}
       const deviceInfo = parseUserAgent(userAgent)
 
@@ -361,7 +372,8 @@ export async function handleCollect(request: Request): Promise<Response> {
         deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
         timestamp,
       })
-    } else if (payload.e === 'vitals') {
+    }
+else if (payload.e === 'vitals') {
       const props = payload.p || {}
       const deviceInfo = parseUserAgent(userAgent)
       const browser = payload.br || deviceInfo.browser
@@ -384,7 +396,8 @@ export async function handleCollect(request: Request): Promise<Response> {
           ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
         }),
       })
-    } else if (payload.e === 'error') {
+    }
+else if (payload.e === 'error') {
       const props = payload.p || {}
       const deviceInfo = parseUserAgent(userAgent)
       const browser = payload.br || deviceInfo.browser
@@ -413,7 +426,8 @@ export async function handleCollect(request: Request): Promise<Response> {
     }
 
     return new Response(null, { status: 204 })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Collect error:', error)
     return errorResponse('Internal server error')
   }

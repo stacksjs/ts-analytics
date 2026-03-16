@@ -120,7 +120,8 @@ function loadCachedStats() {
         return data.stats
       }
     }
-  } catch (e) {}
+  }
+catch (e) {}
   return null
 }
 
@@ -130,7 +131,8 @@ function saveCachedStats(statsData: any) {
       stats: statsData,
       timestamp: Date.now()
     }))
-  } catch (e) {}
+  }
+catch (e) {}
 }
 
 // Animate number transitions
@@ -228,7 +230,8 @@ async function fetchSites() {
     const data = await res.json()
     availableSites = data.sites || []
     renderSiteSelector()
-  } catch (err) {
+  }
+catch (err) {
     container.innerHTML = '<div class="error">Failed to load sites</div>'
   }
 }
@@ -317,7 +320,8 @@ async function createSite(e: Event) {
     if (data.site) {
       selectSite(data.site.id, data.site.name)
     }
-  } catch (err) {
+  }
+catch (err) {
     errorEl.textContent = 'Failed to create site'
     errorEl.style.display = 'block'
   }
@@ -367,7 +371,8 @@ function navigateTo(section: string) {
   const url = '/dashboard/' + section + '?siteId=' + encodeURIComponent(siteId)
   if (window.stxRouter?.navigate) {
     window.stxRouter.navigate(url)
-  } else {
+  }
+else {
     window.location.href = url
   }
 }
@@ -443,7 +448,8 @@ async function addAnnotation() {
       body: JSON.stringify({ type, title, description, date })
     })
     fetchDashboardData()
-  } catch (e) {
+  }
+catch (e) {
     console.error('Failed to add annotation:', e)
     alert('Failed to add annotation')
   }
@@ -506,9 +512,11 @@ async function fetchDashboardData() {
     }
 
     renderDashboard(true)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Failed to fetch:', error)
-  } finally {
+  }
+finally {
     isLoading = false
     if (window.stxLoading) window.stxLoading.finish()
     const spinDuration = Date.now() - spinStartTime
@@ -551,7 +559,8 @@ function updateUrlForTab(tab: string, replace = false) {
 
   if (replace) {
     window.history.replaceState({ tab, siteId }, '', url)
-  } else {
+  }
+else {
     window.history.pushState({ tab, siteId }, '', url)
   }
 }
@@ -590,7 +599,8 @@ function switchTab(tab: string, updateHistory = true) {
     if (chartBox) (chartBox as HTMLElement).style.display = 'block'
     if (dashboardPanels) dashboardPanels.style.display = 'block'
     renderDashboard()
-  } else {
+  }
+else {
     if (statsSection) (statsSection as HTMLElement).style.display = 'none'
     if (chartBox) (chartBox as HTMLElement).style.display = 'none'
     if (dashboardPanels) dashboardPanels.style.display = 'none'
@@ -615,7 +625,8 @@ function renderDashboard(animate = false) {
     animateValue(document.getElementById('stat-bounce'), previousStats.bounceRate, stats.bounceRate, duration, v => v + '%')
     const avgTimeEl = document.getElementById('stat-avgtime')
     if (avgTimeEl) avgTimeEl.textContent = stats.avgTime
-  } else {
+  }
+else {
     const realtimeEl = document.getElementById('stat-realtime')
     if (realtimeEl) realtimeEl.textContent = fmt(stats.realtime)
     const sessionsEl = document.getElementById('stat-sessions')
@@ -736,11 +747,13 @@ async function saveGoal(e: Event) {
       closeGoalModal()
       fetchDashboardData()
       refreshAllPanels()
-    } else {
+    }
+else {
       const err = await res.json()
       alert(err.error || 'Failed to save goal')
     }
-  } catch (err) {
+  }
+catch (err) {
     console.error('Save goal error:', err)
     alert('Failed to save goal')
   }
@@ -755,7 +768,8 @@ async function deleteGoal(goalId: string) {
       fetchDashboardData()
       refreshAllPanels()
     }
-  } catch (err) {
+  }
+catch (err) {
     console.error('Delete goal error:', err)
   }
 }
@@ -823,7 +837,8 @@ function renderChart() {
       const ampm = hr >= 12 ? 'pm' : 'am'
       const h12 = hr % 12 || 12
       return h12 + ':' + (m < 10 ? '0' : '') + m + ampm
-    } else if (dateRange === '24h') {
+    }
+else if (dateRange === '24h') {
       const hr = date.getHours()
       const ampm = hr >= 12 ? 'pm' : 'am'
       const h12 = hr % 12 || 12
@@ -936,11 +951,13 @@ function renderChart() {
 
     if (n === 1) {
       ctx.fillText(fmtDate(timeSeriesData[0].date), pad.left + w / 2, logicalH - 10)
-    } else if (n <= maxLabels) {
+    }
+else if (n <= maxLabels) {
       timeSeriesData.forEach((d, i) => {
         ctx.fillText(fmtDate(d.date), pad.left + i * xS, logicalH - 10)
       })
-    } else {
+    }
+else {
       const step = (n - 1) / (maxLabels - 1)
       for (let j = 0; j < maxLabels; j++) {
         const i = Math.round(j * step)
@@ -1004,7 +1021,8 @@ function renderChart() {
         tooltip.style.top = (p.y - 20) + 'px'
         draw(closest)
         canvas.style.cursor = 'pointer'
-      } else {
+      }
+else {
         tooltip.style.display = 'none'
         draw(-1)
         canvas.style.cursor = 'default'
@@ -1044,10 +1062,12 @@ window.addEventListener('popstate', (event) => {
   if (window.stxRouter) return // STX router handles popstate and dispatches stx:navigate
   if (event.state && event.state.tab) {
     switchTab(event.state.tab, false)
-  } else if (event.state && event.state.siteId) {
+  }
+else if (event.state && event.state.siteId) {
     const tab = getTabFromUrl()
     switchTab(tab, false)
-  } else if (!siteId) {
+  }
+else if (!siteId) {
     goBack()
   }
 })
@@ -1077,7 +1097,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     refreshInterval = setInterval(fetchDashboardData, 30000)
 
     updateUrlForTab(initialTab, true)
-  } else {
+  }
+else {
     document.getElementById('site-selector')!.style.display = 'flex'
     document.getElementById('dashboard')!.style.display = 'none'
     fetchSites()

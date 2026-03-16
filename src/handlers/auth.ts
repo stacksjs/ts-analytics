@@ -211,7 +211,8 @@ export async function handleLoginPage(request: Request): Promise<Response> {
 
     const html = await processDirectives(templateContent, context, templatePath, config, new Set())
     return htmlResponse(html)
-  } catch (e) {
+  }
+catch (e) {
     console.error('[auth] Failed to render login page:', e)
     return htmlResponse(loginFallbackHtml(error))
   }
@@ -276,7 +277,8 @@ export async function handleLogin(request: Request): Promise<Response> {
       const formData = await request.formData()
       email = (formData.get('email') as string || '').trim()
       password = formData.get('password') as string || ''
-    } else {
+    }
+else {
       const body = await request.json() as { email?: string; password?: string }
       email = (body.email || '').trim()
       password = body.password || ''
@@ -315,7 +317,8 @@ export async function handleLogin(request: Request): Promise<Response> {
         'Set-Cookie': `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`,
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('[auth] Login error:', error)
     return new Response(null, {
       status: 302,
@@ -332,7 +335,8 @@ export async function handleLogout(request: Request): Promise<Response> {
   if (token) {
     try {
       await deleteSession(token)
-    } catch (e) {
+    }
+catch (e) {
       console.error('[auth] Logout error:', e)
     }
   }
@@ -391,7 +395,8 @@ export async function assignUnownedSites(): Promise<void> {
         console.log(`[auth] Assigned site ${site.siteId || site.id} to ${adminEmail}`)
       }
     }
-  } catch (error) {
+  }
+catch (error) {
     console.error('[auth] Site assignment error:', error)
   }
 }

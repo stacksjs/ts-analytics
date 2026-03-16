@@ -317,7 +317,8 @@ function trackMovement(event) {
   // Flush if buffer is full
   if (movementBuffer.length >= HEATMAP_CONFIG.maxMovementPoints) {
     flushMovements();
-  } else {
+  }
+else {
     scheduleMovementFlush();
   }
 }
@@ -435,7 +436,8 @@ if (typeof sendBeacon === 'undefined') {
     var payload = JSON.stringify(data);
     if (navigator.sendBeacon) {
       navigator.sendBeacon(CONFIG.endpoint, payload);
-    } else {
+    }
+else {
       var xhr = new XMLHttpRequest();
       xhr.open('POST', CONFIG.endpoint, true);
       xhr.setRequestHeader('Content-Type', 'application/json');

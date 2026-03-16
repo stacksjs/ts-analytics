@@ -83,7 +83,8 @@ function processDirectory(dir: string) {
     const fullPath = path.join(dir, entry.name)
     if (entry.isDirectory()) {
       processDirectory(fullPath)
-    } else if (entry.name.endsWith('.html')) {
+    }
+else if (entry.name.endsWith('.html')) {
       postProcessHtml(fullPath)
     }
   }

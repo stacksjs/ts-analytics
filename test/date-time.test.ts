@@ -140,13 +140,16 @@ function generateTimeBuckets(start: Date, end: Date, period: string): string[] {
       const mins = Math.floor(current.getMinutes() / 5) * 5
       key = `${current.toISOString().slice(0, 14)}${mins.toString().padStart(2, '0')}:00`
       current.setMinutes(current.getMinutes() + 5)
-    } else if (period === 'hour') {
+    }
+else if (period === 'hour') {
       key = `${current.toISOString().slice(0, 13)}:00:00`
       current.setHours(current.getHours() + 1)
-    } else if (period === 'month') {
+    }
+else if (period === 'month') {
       key = current.toISOString().slice(0, 7)
       current.setMonth(current.getMonth() + 1)
-    } else {
+    }
+else {
       key = current.toISOString().slice(0, 10)
       current.setDate(current.getDate() + 1)
     }

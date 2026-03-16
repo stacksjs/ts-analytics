@@ -79,7 +79,8 @@ export async function handleGetSessions(request: Request, siteId: string): Promi
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get sessions error:', error)
     return errorResponse('Failed to fetch sessions')
   }
@@ -192,7 +193,8 @@ export async function handleGetSessionDetail(request: Request, siteId: string, s
       events,
       timeline,
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get session detail error:', error)
     return errorResponse('Failed to fetch session detail')
   }
@@ -273,7 +275,8 @@ export async function handleGetUserFlow(request: Request, siteId: string): Promi
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get user flow error:', error)
     return errorResponse('Failed to fetch user flow')
   }
@@ -340,7 +343,8 @@ export async function handleGetEntryExitPages(request: Request, siteId: string):
       .slice(0, limit)
 
     return jsonResponse({ entryPages, exitPages })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get entry/exit pages error:', error)
     return errorResponse('Failed to fetch entry/exit pages')
   }
@@ -386,7 +390,8 @@ export async function handleGetLiveView(request: Request, siteId: string): Promi
       pageviews: pageviews.length,
       lastUpdated: new Date().toISOString(),
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get live view error:', error)
     return errorResponse('Failed to fetch live view')
   }

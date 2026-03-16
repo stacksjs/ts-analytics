@@ -75,7 +75,8 @@ function matchPattern(pattern: string, value: string, matchType: string): boolea
     case 'regex':
       try {
         return new RegExp(pattern).test(value)
-      } catch {
+      }
+catch {
         return false
       }
     default:

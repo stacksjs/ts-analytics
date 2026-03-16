@@ -66,10 +66,12 @@ function useFetchData<T = unknown>(initialValue: T | null = null): UseFetchDataR
       const json: T = await res.json()
       data.set(json)
       return json
-    } catch (e: unknown) {
+    }
+catch (e: unknown) {
       error.set((e as Error).message)
       throw e
-    } finally {
+    }
+finally {
       loading.set(false)
     }
   }
@@ -106,10 +108,12 @@ function useFetchMultiple(): UseFetchMultipleReturn {
       const out: Record<string, unknown> = {}
       keys.forEach((k: string, i: number) => (out[k] = results[i]))
       return out
-    } catch (e: unknown) {
+    }
+catch (e: unknown) {
       error.set((e as Error).message)
       throw e
-    } finally {
+    }
+finally {
       loading.set(false)
     }
   }

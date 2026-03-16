@@ -46,7 +46,8 @@ export async function handleCreateAlert(request: Request, siteId: string): Promi
     })
 
     return jsonResponse({ alert }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Create alert error:', error)
     return errorResponse('Failed to create alert')
   }
@@ -69,7 +70,8 @@ export async function handleGetAlerts(_request: Request, siteId: string): Promis
     const alerts = (result.Items || []).map(unmarshall)
 
     return jsonResponse({ alerts })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get alerts error:', error)
     return errorResponse('Failed to fetch alerts')
   }
@@ -89,7 +91,8 @@ export async function handleDeleteAlert(_request: Request, siteId: string, alert
     })
 
     return jsonResponse({ success: true })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Delete alert error:', error)
     return errorResponse('Failed to delete alert')
   }
@@ -131,7 +134,8 @@ export async function handleCreateEmailReport(request: Request, siteId: string):
     })
 
     return jsonResponse({ report }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Create email report error:', error)
     return errorResponse('Failed to create email report')
   }
@@ -154,7 +158,8 @@ export async function handleGetEmailReports(_request: Request, siteId: string): 
     const reports = (result.Items || []).map(unmarshall)
 
     return jsonResponse({ reports })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get email reports error:', error)
     return errorResponse('Failed to fetch email reports')
   }
@@ -174,7 +179,8 @@ export async function handleDeleteEmailReport(_request: Request, siteId: string,
     })
 
     return jsonResponse({ success: true })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Delete email report error:', error)
     return errorResponse('Failed to delete email report')
   }

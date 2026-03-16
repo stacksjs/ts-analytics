@@ -29,7 +29,8 @@ async function checkStack() {
         if (reason) console.log(`  Reason: ${reason}\n`)
       }
     }
-  } catch (error) {
+  }
+catch (error) {
     console.error('Error:', error)
   }
 }

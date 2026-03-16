@@ -60,10 +60,12 @@ async function deployLambdaAPI() {
         })
         console.log(`   Certificate issued for ${domain}: ${certResult.certificateArn}`)
         return certResult.certificateArn
-      } else {
+      }
+else {
         console.log(`   Warning: No hosted zone found for ${domain}`)
       }
-    } catch (error) {
+    }
+catch (error) {
       console.log(`   Warning: Could not setup certificate for ${domain}: ${error}`)
     }
     return undefined
@@ -112,7 +114,8 @@ async function deployLambdaAPI() {
   const viewsExist = await Bun.file('./dist/views/dashboard/index.html').exists()
   if (viewsExist && process.env.SKIP_VIEW_BUILD !== 'false') {
     console.log('   Using existing pre-built views from dist/views/')
-  } else {
+  }
+else {
     const buildViewsProc = Bun.spawn(['bun', 'run', './scripts/build-views.ts'], {
       cwd: process.cwd(),
       stdout: 'inherit',
@@ -170,7 +173,8 @@ async function deployLambdaAPI() {
       const destPath = `${destDir}/${entry.name}`
       if (entry.isDirectory()) {
         copyViewsRecursive(srcPath, destPath, count)
-      } else if (entry.name.endsWith('.html') || entry.name.endsWith('.json') || entry.name.endsWith('.js')) {
+      }
+else if (entry.name.endsWith('.html') || entry.name.endsWith('.json') || entry.name.endsWith('.js')) {
         fs.copyFileSync(srcPath, destPath)
         count.files++
       }
@@ -188,7 +192,8 @@ async function deployLambdaAPI() {
   // First delete old zip if exists
   try {
     fs.unlinkSync(zipPath)
-  } catch {
+  }
+catch {
     // Ignore if doesn't exist
   }
 

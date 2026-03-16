@@ -44,7 +44,8 @@ export async function handleCreateExperiment(request: Request, siteId: string): 
     })
 
     return jsonResponse({ experiment }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Create experiment error:', error)
     return errorResponse('Failed to create experiment')
   }
@@ -67,7 +68,8 @@ export async function handleGetExperiments(_request: Request, siteId: string): P
     const experiments = (result.Items || []).map(unmarshall)
 
     return jsonResponse({ experiments })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get experiments error:', error)
     return errorResponse('Failed to fetch experiments')
   }
@@ -108,7 +110,8 @@ export async function handleRecordExperimentEvent(request: Request, siteId: stri
     // Update variant stats
     if (body.eventType === 'view') {
       variant.visitors = (variant.visitors || 0) + 1
-    } else if (body.eventType === 'conversion') {
+    }
+else if (body.eventType === 'conversion') {
       variant.conversions = (variant.conversions || 0) + 1
     }
 
@@ -123,7 +126,8 @@ export async function handleRecordExperimentEvent(request: Request, siteId: stri
     })
 
     return jsonResponse({ success: true })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Record experiment event error:', error)
     return errorResponse('Failed to record experiment event')
   }

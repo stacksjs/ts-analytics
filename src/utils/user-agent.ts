@@ -20,7 +20,8 @@ export function parseUserAgent(ua: string): ParsedUserAgent {
   let deviceType: 'desktop' | 'mobile' | 'tablet' = 'desktop'
   if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) {
     deviceType = 'mobile'
-  } else if (/ipad|tablet|playbook|silk/i.test(ua)) {
+  }
+else if (/ipad|tablet|playbook|silk/i.test(ua)) {
     deviceType = 'tablet'
   }
 

@@ -47,7 +47,8 @@ export async function handleCreateGoal(request: Request, siteId: string): Promis
 
     invalidateGoalCache(siteId)
     return jsonResponse({ goal }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Create goal error:', error)
     return errorResponse('Failed to create goal')
   }
@@ -75,7 +76,8 @@ export async function handleGetGoals(request: Request, siteId: string): Promise<
           .since(startDate)
           .until(endDate)
           .get()
-      } catch (e) {
+      }
+catch (e) {
         console.log('[GetGoals] Conversion query failed:', e)
       }
 
@@ -99,7 +101,8 @@ export async function handleGetGoals(request: Request, siteId: string): Promise<
     }))
 
     return jsonResponse({ goals: goalsWithStats })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get goals error:', error)
     return errorResponse('Failed to fetch goals')
   }
@@ -128,7 +131,8 @@ export async function handleUpdateGoal(request: Request, siteId: string, goalId:
 
     invalidateGoalCache(siteId)
     return jsonResponse({ goal })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Update goal error:', error)
     return errorResponse('Failed to update goal')
   }
@@ -142,7 +146,8 @@ export async function handleDeleteGoal(_request: Request, siteId: string, goalId
     await Goal.delete(siteId, goalId)
     invalidateGoalCache(siteId)
     return jsonResponse({ success: true })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Delete goal error:', error)
     return errorResponse('Failed to delete goal')
   }
@@ -206,7 +211,8 @@ export async function handleGetGoalStats(request: Request, siteId: string): Prom
       },
       dateRange: { start: startDate.toISOString(), end: endDate.toISOString() },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get goal stats error:', error)
     return errorResponse('Failed to fetch goal stats')
   }

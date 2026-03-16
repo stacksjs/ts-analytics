@@ -46,7 +46,8 @@ export async function handleCreateWebhook(request: Request, siteId: string): Pro
     })
 
     return jsonResponse({ webhook }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Create webhook error:', error)
     return errorResponse('Failed to create webhook')
   }
@@ -77,7 +78,8 @@ export async function handleGetWebhooks(_request: Request, siteId: string): Prom
     }))
 
     return jsonResponse({ webhooks })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get webhooks error:', error)
     return errorResponse('Failed to fetch webhooks')
   }
@@ -97,7 +99,8 @@ export async function handleDeleteWebhook(_request: Request, siteId: string, web
     })
 
     return jsonResponse({ success: true })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Delete webhook error:', error)
     return errorResponse('Failed to delete webhook')
   }

@@ -254,7 +254,8 @@ function sendBeacon(data) {
   if (navigator.sendBeacon) {
     navigator.sendBeacon(CONFIG.endpoint, payload);
     log('Sent via beacon:', data);
-  } else {
+  }
+else {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', CONFIG.endpoint, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
@@ -289,13 +290,15 @@ function getOrCreateSession() {
     if (stored) {
       sessionData = JSON.parse(stored);
     }
-  } catch (e) {}
+  }
+catch (e) {}
 
   // Check if session is expired
   if (sessionData && (now - sessionData.lastActivity) < CONFIG.sessionTimeout) {
     sessionData.lastActivity = now;
     sessionData.pageCount++;
-  } else {
+  }
+else {
     // Create new session
     sessionData = {
       id: generateId(),
@@ -309,7 +312,8 @@ function getOrCreateSession() {
 
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
-  } catch (e) {}
+  }
+catch (e) {}
 
   return sessionData;
 }
@@ -318,7 +322,8 @@ function updateSessionActivity() {
   session.lastActivity = Date.now();
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } catch (e) {}
+  }
+catch (e) {}
 }`
 }
 
@@ -583,7 +588,8 @@ function init() {
   // Send initial page view
   if (document.readyState === 'complete') {
     sendInitialPageView();
-  } else {
+  }
+else {
     window.addEventListener('load', sendInitialPageView);
   }
 
@@ -601,7 +607,8 @@ function init() {
 // Wait for DOM ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
-} else {
+}
+else {
   init();
 }`
 }
@@ -752,7 +759,8 @@ document.addEventListener('mousemove', function(event) {
 
   if (movementBuffer.length >= HEATMAP.maxMovementPoints) {
     flushMovements();
-  } else if (!moveFlushTimer) {
+  }
+else if (!moveFlushTimer) {
     moveFlushTimer = setTimeout(function() {
       moveFlushTimer = null;
       flushMovements();
@@ -905,7 +913,8 @@ gtag('config', '${config.siteId}', {
       var item = dataLayer.shift();
       if (typeof item === 'function') {
         item();
-      } else if (item[0] === 'event') {
+      }
+else if (item[0] === 'event') {
         navigator.sendBeacon && navigator.sendBeacon(endpoint, JSON.stringify({
           s: siteId,
           e: 'event',

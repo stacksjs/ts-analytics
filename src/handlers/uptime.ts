@@ -46,7 +46,8 @@ export async function handleCreateUptimeMonitor(request: Request, siteId: string
     })
 
     return jsonResponse({ monitor }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Create uptime monitor error:', error)
     return errorResponse('Failed to create uptime monitor')
   }
@@ -69,7 +70,8 @@ export async function handleGetUptimeMonitors(_request: Request, siteId: string)
     const monitors = (result.Items || []).map(unmarshall)
 
     return jsonResponse({ monitors })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get uptime monitors error:', error)
     return errorResponse('Failed to fetch uptime monitors')
   }
@@ -114,7 +116,8 @@ export async function handleGetUptimeHistory(request: Request, siteId: string, m
       const check = checks[i]
       if (check.status === 'down' && !currentIncident) {
         currentIncident = { start: check.timestamp, status: 'down' }
-      } else if (check.status === 'up' && currentIncident) {
+      }
+else if (check.status === 'up' && currentIncident) {
         incidents.push({
           timestamp: currentIncident.start,
           status: currentIncident.status,
@@ -151,7 +154,8 @@ export async function handleGetUptimeHistory(request: Request, siteId: string, m
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get uptime history error:', error)
     return errorResponse('Failed to fetch uptime history')
   }
@@ -171,7 +175,8 @@ export async function handleDeleteUptimeMonitor(_request: Request, siteId: strin
     })
 
     return jsonResponse({ success: true })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Delete uptime monitor error:', error)
     return errorResponse('Failed to delete uptime monitor')
   }

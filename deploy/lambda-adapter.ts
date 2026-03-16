@@ -158,7 +158,8 @@ export async function handleLambdaEvent(
     const request = eventToRequest(event)
     const response = await router.handleRequest(request)
     return responseToLambda(response)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Lambda handler error:', error)
     return {
       statusCode: 500,

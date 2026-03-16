@@ -99,7 +99,8 @@ export async function handleGetHeatmapClicks(request: Request, siteId: string): 
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Heatmap clicks error:', error)
     return errorResponse('Failed to fetch heatmap clicks')
   }
@@ -176,7 +177,8 @@ export async function handleGetHeatmapScroll(request: Request, siteId: string): 
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Heatmap scroll error:', error)
     return errorResponse('Failed to fetch heatmap scroll data')
   }
@@ -262,7 +264,8 @@ export async function handleGetHeatmapPages(request: Request, siteId: string): P
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Heatmap pages error:', error)
     return errorResponse('Failed to fetch heatmap pages')
   }

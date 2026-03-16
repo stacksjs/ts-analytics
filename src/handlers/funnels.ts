@@ -36,7 +36,8 @@ export async function handleCreateFunnel(request: Request, siteId: string): Prom
     })
 
     return jsonResponse({ funnel }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Create funnel error:', error)
     return errorResponse('Failed to create funnel')
   }
@@ -59,7 +60,8 @@ export async function handleGetFunnels(_request: Request, siteId: string): Promi
     const funnels = (result.Items || []).map(unmarshall)
 
     return jsonResponse({ funnels })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get funnels error:', error)
     return errorResponse('Failed to fetch funnels')
   }
@@ -135,14 +137,16 @@ export async function handleGetFunnelAnalysis(request: Request, siteId: string, 
             }
             return page === step.pattern
           })
-        } else {
+        }
+else {
           matched = events.some((event: any) => event.name === step.pattern)
         }
 
         if (matched) {
           completedSteps = i + 1
           stepResults[i].sessions++
-        } else {
+        }
+else {
           break
         }
       }
@@ -190,7 +194,8 @@ export async function handleGetFunnelAnalysis(request: Request, siteId: string, 
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get funnel analysis error:', error)
     return errorResponse('Failed to fetch funnel analysis')
   }
@@ -210,7 +215,8 @@ export async function handleDeleteFunnel(_request: Request, siteId: string, funn
     })
 
     return jsonResponse({ success: true })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Delete funnel error:', error)
     return errorResponse('Failed to delete funnel')
   }

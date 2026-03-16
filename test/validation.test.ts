@@ -99,7 +99,8 @@ function validateCollectPayload(payload: Record<string, unknown>): { valid: bool
   if (payload.u && typeof payload.u === 'string') {
     try {
       new URL(payload.u)
-    } catch {
+    }
+catch {
       errors.push('Invalid URL format')
     }
   }
@@ -198,7 +199,8 @@ function validateUrl(url: string): boolean {
   try {
     const parsed = new URL(url)
     return ['http:', 'https:'].includes(parsed.protocol)
-  } catch {
+  }
+catch {
     return false
   }
 }
@@ -252,9 +254,11 @@ function validateEventPayload(event: { name: string; properties?: Record<string,
 
   if (!event.name || typeof event.name !== 'string') {
     errors.push('Event name is required')
-  } else if (event.name.length > 255) {
+  }
+else if (event.name.length > 255) {
     errors.push('Event name too long (max 255 characters)')
-  } else if (reservedNames.includes(event.name.toLowerCase())) {
+  }
+else if (reservedNames.includes(event.name.toLowerCase())) {
     errors.push('Event name is reserved')
   }
 

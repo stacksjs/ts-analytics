@@ -66,7 +66,8 @@ export async function handleExport(request: Request, siteId: string): Promise<Re
         end: endDate.toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Export error:', error)
     return errorResponse('Failed to export data')
   }
@@ -93,7 +94,8 @@ export async function handleGetRetentionSettings(_request: Request, siteId: stri
     }
 
     return jsonResponse({ settings })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get retention settings error:', error)
     return errorResponse('Failed to fetch retention settings')
   }
@@ -122,7 +124,8 @@ export async function handleUpdateRetentionSettings(request: Request, siteId: st
     })
 
     return jsonResponse({ settings })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Update retention settings error:', error)
     return errorResponse('Failed to update retention settings')
   }
@@ -181,7 +184,8 @@ export async function handleGdprExport(request: Request, siteId: string): Promis
       },
       exportedAt: new Date().toISOString(),
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('GDPR export error:', error)
     return errorResponse('Failed to export GDPR data')
   }
@@ -223,7 +227,8 @@ export async function handleGdprDelete(request: Request, _siteId: string): Promi
           }),
         })
         deletedCount++
-      } catch (e) {
+      }
+catch (e) {
         console.error('Failed to delete item:', e)
       }
     }
@@ -234,7 +239,8 @@ export async function handleGdprDelete(request: Request, _siteId: string): Promi
       deletedCount,
       deletedAt: new Date().toISOString(),
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('GDPR delete error:', error)
     return errorResponse('Failed to delete GDPR data')
   }
@@ -325,7 +331,8 @@ export async function handleGetInsights(request: Request, siteId: string): Promi
         previousPeriod: { start: previousStartDate.toISOString(), end: previousEndDate.toISOString(), sessions: previousTraffic },
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get insights error:', error)
     return errorResponse('Failed to fetch insights')
   }

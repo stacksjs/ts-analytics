@@ -79,7 +79,8 @@ export async function handleGetStats(request: Request, siteId: string): Promise<
       sessions: totalSessions,
       dateRange: { start: startDateStr, end: endDateStr },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Stats error:', error)
     return errorResponse('Failed to fetch stats')
   }
@@ -129,7 +130,8 @@ export async function handleGetRealtime(request: Request, siteId: string): Promi
       pageViewsLastHour: pageviews.length,
       topActivePages,
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Realtime error:', error)
     return errorResponse('Failed to fetch realtime data')
   }
@@ -182,7 +184,8 @@ export async function handleGetPages(request: Request, siteId: string): Promise<
       .slice(0, limit)
 
     return jsonResponse({ pages, hostname: siteHostname })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Pages error:', error)
     return errorResponse('Failed to fetch pages')
   }
@@ -233,7 +236,8 @@ export async function handleGetReferrers(request: Request, siteId: string): Prom
       .slice(0, limit)
 
     return jsonResponse({ referrers })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Referrers error:', error)
     return errorResponse('Failed to fetch referrers')
   }
@@ -296,7 +300,8 @@ export async function handleGetDevices(request: Request, siteId: string): Promis
       .sort((a, b) => b.visitors - a.visitors)
 
     return jsonResponse({ deviceTypes, operatingSystems })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Devices error:', error)
     return errorResponse('Failed to fetch devices')
   }
@@ -346,7 +351,8 @@ export async function handleGetBrowsers(request: Request, siteId: string): Promi
       .slice(0, limit)
 
     return jsonResponse({ browsers })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Browsers error:', error)
     return errorResponse('Failed to fetch browsers')
   }
@@ -390,7 +396,8 @@ export async function handleGetCountries(request: Request, siteId: string): Prom
       .slice(0, limit)
 
     return jsonResponse({ countries })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Countries error:', error)
     return errorResponse('Failed to fetch countries')
   }
@@ -442,7 +449,8 @@ export async function handleGetRegions(request: Request, siteId: string): Promis
       .slice(0, limit)
 
     return jsonResponse({ regions })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Regions error:', error)
     return errorResponse('Failed to fetch regions')
   }
@@ -497,7 +505,8 @@ export async function handleGetCities(request: Request, siteId: string): Promise
       .slice(0, limit)
 
     return jsonResponse({ cities })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Cities error:', error)
     return errorResponse('Failed to fetch cities')
   }
@@ -536,13 +545,16 @@ export async function handleGetTimeSeries(request: Request, siteId: string): Pro
         const mins = Math.floor(current.getUTCMinutes() / 5) * 5
         key = `${current.toISOString().slice(0, 14)}${mins.toString().padStart(2, '0')}:00.000Z`
         current.setMinutes(current.getMinutes() + 5)
-      } else if (period === 'hour') {
+      }
+else if (period === 'hour') {
         key = `${current.toISOString().slice(0, 13)}:00:00.000Z`
         current.setHours(current.getHours() + 1)
-      } else if (period === 'month') {
+      }
+else if (period === 'month') {
         key = `${current.toISOString().slice(0, 7)}-01T00:00:00.000Z`
         current.setMonth(current.getMonth() + 1)
-      } else {
+      }
+else {
         key = `${current.toISOString().slice(0, 10)}T00:00:00.000Z`
         current.setDate(current.getDate() + 1)
       }
@@ -561,11 +573,14 @@ export async function handleGetTimeSeries(request: Request, siteId: string): Pro
       if (period === 'minute') {
         const mins = Math.floor(timestamp.getUTCMinutes() / 5) * 5
         key = `${timestamp.toISOString().slice(0, 14)}${mins.toString().padStart(2, '0')}:00.000Z`
-      } else if (period === 'hour') {
+      }
+else if (period === 'hour') {
         key = `${timestamp.toISOString().slice(0, 13)}:00:00.000Z`
-      } else if (period === 'month') {
+      }
+else if (period === 'month') {
         key = `${timestamp.toISOString().slice(0, 7)}-01T00:00:00.000Z`
-      } else {
+      }
+else {
         key = `${timestamp.toISOString().slice(0, 10)}T00:00:00.000Z`
       }
       if (bucketMap[key]) {
@@ -581,7 +596,8 @@ export async function handleGetTimeSeries(request: Request, siteId: string): Pro
     }))
 
     return jsonResponse({ timeSeries })
-  } catch (error) {
+  }
+catch (error) {
     console.error('TimeSeries error:', error)
     return errorResponse('Failed to fetch time series')
   }
@@ -630,7 +646,8 @@ export async function handleGetEvents(request: Request, siteId: string): Promise
       .slice(0, limit)
 
     return jsonResponse({ events: eventsList })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Events error:', error)
     return errorResponse('Failed to fetch events')
   }
@@ -683,7 +700,8 @@ export async function handleGetCampaigns(request: Request, siteId: string): Prom
       .slice(0, limit)
 
     return jsonResponse({ campaigns })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Campaigns error:', error)
     return errorResponse('Failed to fetch campaigns')
   }
@@ -772,7 +790,8 @@ export async function handleGetComparison(request: Request, siteId: string): Pro
         previous: { start: comparisonStartDate.toISOString(), end: comparisonEndDate.toISOString() },
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Comparison error:', error)
     return errorResponse('Failed to fetch comparison data')
   }

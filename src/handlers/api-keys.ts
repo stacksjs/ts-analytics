@@ -106,7 +106,8 @@ export async function handleValidateApiKey(
     }).catch((e: unknown) => console.error('Failed to update API key usage:', e))
 
     return result
-  } catch (error) {
+  }
+catch (error) {
     console.error('Validate API key error:', error)
     return { valid: false }
   }
@@ -145,7 +146,8 @@ export async function handleGetApiKey(_request: Request, siteId: string): Promis
         usageCount: active.usageCount,
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get API key error:', error)
     return errorResponse('Failed to fetch API key')
   }
@@ -217,7 +219,8 @@ export async function handleRegenerateApiKey(_request: Request, siteId: string):
         createdAt: new Date().toISOString(),
       },
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Regenerate API key error:', error)
     return errorResponse('Failed to regenerate API key')
   }

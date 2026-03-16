@@ -39,7 +39,8 @@ function findViewsDir(): string {
       if (fs.existsSync(path.join(dir, 'dashboard/index.html'))) {
         return dir
       }
-    } catch {
+    }
+catch {
       // Continue to next candidate
     }
   }
@@ -161,7 +162,8 @@ export async function handleDashboard(request: Request): Promise<Response> {
   let html: string
   if (hasPrebuiltViews) {
     html = await loadPrebuiltView('dashboard/index', { siteId, apiEndpoint })
-  } else {
+  }
+else {
     html = await renderStxDirect('dashboard/index.stx', { siteId, apiEndpoint })
   }
 
@@ -197,7 +199,8 @@ export async function handleDashboardTab(request: Request, tab: string): Promise
   let html: string
   if (hasPrebuiltViews) {
     html = await loadPrebuiltView(`dashboard/${tab}`, { siteId, apiEndpoint })
-  } else {
+  }
+else {
     html = await renderStxDirect(`dashboard/${tab}.stx`, { siteId, apiEndpoint })
   }
 
@@ -219,7 +222,8 @@ export async function handleTestErrors(request: Request): Promise<Response> {
   let html: string
   if (hasPrebuiltViews) {
     html = await loadPrebuiltView('test-errors', { siteId, apiEndpoint })
-  } else {
+  }
+else {
     html = await renderStxDirect('test-errors.stx', { siteId, apiEndpoint })
   }
 
@@ -241,7 +245,8 @@ export async function handleErrorDetailPage(request: Request, errorId: string): 
   let html: string
   if (hasPrebuiltViews) {
     html = await loadPrebuiltView('error-detail', { errorId, siteId, apiEndpoint })
-  } else {
+  }
+else {
     html = await renderStxDirect('error-detail.stx', { errorId, siteId, apiEndpoint })
   }
 
@@ -288,7 +293,8 @@ export async function handleDetailPage(request: Request, section: string): Promi
   let html: string
   if (hasPrebuiltViews) {
     html = await loadPrebuiltView('detail', { section, siteId, apiEndpoint, title, iconPath })
-  } else {
+  }
+else {
     html = await renderStxDirect('detail.stx', { section, siteId, apiEndpoint, title, iconPath })
   }
 

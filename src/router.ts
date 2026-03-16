@@ -228,7 +228,8 @@ export async function createRouter(): Promise<Router> {
             },
           })
         }
-      } catch {
+      }
+catch {
         // Try next location
       }
     }
@@ -264,7 +265,8 @@ export async function createRouter(): Promise<Router> {
             },
           })
         }
-      } catch {
+      }
+catch {
         // Try next location
       }
     }

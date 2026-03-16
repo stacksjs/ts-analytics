@@ -44,11 +44,13 @@ async function viewLogs() {
           const time = event.timestamp ? new Date(event.timestamp).toISOString() : ''
           console.log(`[${time}] ${event.message}`)
         }
-      } else {
+      }
+else {
         console.log('No events in this stream')
       }
     }
-  } catch (error) {
+  }
+catch (error) {
     console.error('Error fetching logs:', error)
   }
 }

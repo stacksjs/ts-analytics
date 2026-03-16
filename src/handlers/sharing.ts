@@ -52,7 +52,8 @@ export async function handleCreateShareLink(request: Request, siteId: string): P
         createdAt: shareLink.createdAt,
       },
     }, 201)
-  } catch (error) {
+  }
+catch (error) {
     console.error('Create share link error:', error)
     return errorResponse('Failed to create share link')
   }
@@ -95,7 +96,8 @@ export async function handleGetSharedDashboard(request: Request, token: string):
       permissions: shareLink.permissions,
       allowedMetrics: shareLink.allowedMetrics,
     })
-  } catch (error) {
+  }
+catch (error) {
     console.error('Get shared dashboard error:', error)
     return errorResponse('Failed to validate share link')
   }

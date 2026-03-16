@@ -98,7 +98,8 @@ function parseUserAgent(ua: string): { browser: string; deviceType: string; os: 
   let deviceType = 'Desktop'
   if (/ipad|tablet|android(?!.*mobile)/.test(uaLower)) {
     deviceType = 'Tablet'
-  } else if (/mobile|android.*mobile|iphone|ipod/.test(uaLower)) {
+  }
+else if (/mobile|android.*mobile|iphone|ipod/.test(uaLower)) {
     deviceType = 'Mobile'
   }
 
@@ -106,15 +107,20 @@ function parseUserAgent(ua: string): { browser: string; deviceType: string; os: 
   let browser = 'Unknown'
   if (uaLower.includes('dia/')) {
     browser = 'Dia'
-  } else if (uaLower.includes('arc/')) {
+  }
+else if (uaLower.includes('arc/')) {
     browser = 'Arc'
-  } else if (uaLower.includes('edg/')) {
+  }
+else if (uaLower.includes('edg/')) {
     browser = 'Edge'
-  } else if (uaLower.includes('firefox/')) {
+  }
+else if (uaLower.includes('firefox/')) {
     browser = 'Firefox'
-  } else if (uaLower.includes('safari/') && !uaLower.includes('chrome/')) {
+  }
+else if (uaLower.includes('safari/') && !uaLower.includes('chrome/')) {
     browser = 'Safari'
-  } else if (uaLower.includes('chrome/')) {
+  }
+else if (uaLower.includes('chrome/')) {
     browser = 'Chrome'
   }
 
@@ -122,13 +128,17 @@ function parseUserAgent(ua: string): { browser: string; deviceType: string; os: 
   let os = 'Unknown'
   if (uaLower.includes('iphone') || uaLower.includes('ipad')) {
     os = 'iOS'
-  } else if (uaLower.includes('android')) {
+  }
+else if (uaLower.includes('android')) {
     os = 'Android'
-  } else if (uaLower.includes('windows')) {
+  }
+else if (uaLower.includes('windows')) {
     os = 'Windows'
-  } else if (uaLower.includes('mac os x') || uaLower.includes('macintosh')) {
+  }
+else if (uaLower.includes('mac os x') || uaLower.includes('macintosh')) {
     os = 'macOS'
-  } else if (uaLower.includes('linux')) {
+  }
+else if (uaLower.includes('linux')) {
     os = 'Linux'
   }
 
@@ -220,9 +230,11 @@ function parseUserAgentExtended(ua: string): { browser: string; deviceType: stri
   let deviceType = 'Desktop'
   if (/ipad|tablet/.test(uaLower)) {
     deviceType = 'Tablet'
-  } else if (/android(?!.*mobile)/.test(uaLower)) {
+  }
+else if (/android(?!.*mobile)/.test(uaLower)) {
     deviceType = 'Tablet'
-  } else if (/mobile|android.*mobile|iphone|ipod|blackberry|iemobile|opera mini/i.test(uaLower)) {
+  }
+else if (/mobile|android.*mobile|iphone|ipod|blackberry|iemobile|opera mini/i.test(uaLower)) {
     deviceType = 'Mobile'
   }
 
