@@ -209,8 +209,8 @@ function generateId() {
 }
 
 function getCookie(name) {
-  var value = '; ' + document.cookie;
-  var parts = value.split('; ' + name + '=');
+  var value = `; ${document.cookie}`;
+  var parts = value.split(`; ${name}=`);
   if (parts.length === 2) return parts.pop().split(';').shift();
   return null;
 }
@@ -220,9 +220,9 @@ function setCookie(name, value, days) {
   if (days) {
     var date = new Date();
     date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-    expires = '; expires=' + date.toUTCString();
+    expires = `; expires=${date.toUTCString()}`;
   }
-  document.cookie = name + '=' + value + expires + '; path=/; SameSite=Lax';
+  document.cookie = `${name}=${value}${expires}; path=/; SameSite=Lax`;
 }
 
 function log() {
@@ -439,7 +439,7 @@ function trackScrollDepth() {
     if (scrollPercent >= depth && !scrollTracked[depth]) {
       scrollTracked[depth] = true;
       trackEvent('scroll_depth', { depth: depth }, 'engagement', depth);
-      log('Scroll depth reached:', depth + '%');
+      log('Scroll depth reached:', `${depth}%`);
     }
   }
 }
@@ -468,7 +468,7 @@ function checkTimeOnPage() {
     if (elapsed >= interval && !timeTracked[interval]) {
       timeTracked[interval] = true;
       trackEvent('time_on_page', { seconds: interval }, 'engagement', interval);
-      log('Time on page reached:', interval + 's');
+      log('Time on page reached:', `${interval}s`);
     }
   }
 }
@@ -646,20 +646,20 @@ function getSelector(el, maxDepth) {
     var selector = el.nodeName.toLowerCase();
 
     if (el.id) {
-      path.unshift('#' + el.id);
+      path.unshift(`#${el.id}`);
       break;
     }
 
     var testId = el.getAttribute('data-testid') || el.getAttribute('data-analytics-id');
     if (testId) {
-      path.unshift('[data-testid="' + testId + '"]');
+      path.unshift(`[data-testid="${testId}"]`);
       break;
     }
 
     var classes = el.className;
     if (typeof classes === 'string' && classes.trim()) {
       var classList = classes.trim().split(/\\s+/).slice(0, 2);
-      selector += '.' + classList.join('.');
+      selector += `.${classList.join('.')}`;
     }
 
     var parent = el.parentNode;
@@ -671,7 +671,7 @@ function getSelector(el, maxDepth) {
         if (siblings[i].nodeName === el.nodeName) index++;
       }
       if (siblings.length > 1) {
-        selector += ':nth-of-type(' + index + ')';
+        selector += `:nth-of-type(${index})`;
       }
     }
 
@@ -826,7 +826,7 @@ window.addEventListener('beforeunload', function() {
       },
       ts: Date.now()
     });
-    hmLog('Scroll data sent:', maxScrollDepth + '%');
+    hmLog('Scroll data sent:', `${maxScrollDepth}%`);
   }
 });`)
   }

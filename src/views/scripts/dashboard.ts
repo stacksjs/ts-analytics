@@ -113,7 +113,7 @@ window.siteId = siteId
 // Load cached stats from localStorage
 function loadCachedStats() {
   try {
-    const cached = localStorage.getItem('ts-analytics-stats-' + siteId)
+    const cached = localStorage.getItem(`ts-analytics-stats-${siteId}`)
     if (cached) {
       const data = JSON.parse(cached)
       if (data.timestamp && Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
@@ -127,7 +127,7 @@ catch (e) {}
 
 function saveCachedStats(statsData: any) {
   try {
-    localStorage.setItem('ts-analytics-stats-' + siteId, JSON.stringify({
+    localStorage.setItem(`ts-analytics-stats-${siteId}`, JSON.stringify({
       stats: statsData,
       timestamp: Date.now()
     }))
@@ -336,7 +336,7 @@ function selectSite(id: string, name: string) {
   document.getElementById('dashboard')!.style.display = 'block'
   document.getElementById('current-site-name')!.textContent = siteName
 
-  const url = new URL(window.location.origin + '/dashboard')
+  const url = new URL(`${window.location.origin}/dashboard`)
   url.searchParams.set('siteId', id)
   window.history.pushState({ tab: 'dashboard', siteId: id }, '', url)
 
@@ -368,7 +368,7 @@ function goBack() {
 }
 
 function navigateTo(section: string) {
-  const url = '/dashboard/' + section + '?siteId=' + encodeURIComponent(siteId)
+  const url = `/dashboard/${section}?siteId=${encodeURIComponent(siteId)}`
   if (window.stxRouter?.navigate) {
     window.stxRouter.navigate(url)
   }
@@ -622,7 +622,7 @@ function renderDashboard(animate = false) {
     animateValue(document.getElementById('stat-sessions'), previousStats.sessions, stats.sessions, duration, fmt)
     animateValue(document.getElementById('stat-people'), previousStats.people, stats.people, duration, fmt)
     animateValue(document.getElementById('stat-views'), previousStats.views, stats.views, duration, fmt)
-    animateValue(document.getElementById('stat-bounce'), previousStats.bounceRate, stats.bounceRate, duration, v => v + '%')
+    animateValue(document.getElementById('stat-bounce'), previousStats.bounceRate, stats.bounceRate, duration, v => `${v}%`)
     const avgTimeEl = document.getElementById('stat-avgtime')
     if (avgTimeEl) avgTimeEl.textContent = stats.avgTime
   }
@@ -636,17 +636,17 @@ else {
     const viewsEl = document.getElementById('stat-views')
     if (viewsEl) viewsEl.textContent = fmt(stats.views)
     const bounceEl = document.getElementById('stat-bounce')
-    if (bounceEl) bounceEl.textContent = stats.bounceRate + '%'
+    if (bounceEl) bounceEl.textContent = `${stats.bounceRate}%`
     const avgTimeEl = document.getElementById('stat-avgtime')
     if (avgTimeEl) avgTimeEl.textContent = stats.avgTime
   }
 
   const realtimeCountEl = document.getElementById('realtime-count')
-  if (realtimeCountEl) realtimeCountEl.textContent = stats.realtime === 1 ? '1 visitor online' : stats.realtime + ' visitors online'
+  if (realtimeCountEl) realtimeCountEl.textContent = stats.realtime === 1 ? '1 visitor online' : `${stats.realtime} visitors online`
 
   if (lastUpdated) {
     const updatedEl = document.getElementById('last-updated')
-    if (updatedEl) updatedEl.textContent = 'Updated ' + lastUpdated.toLocaleTimeString()
+    if (updatedEl) updatedEl.textContent = `Updated ${lastUpdated.toLocaleTimeString()}`
   }
 
   const noDataMsg = document.getElementById('no-data-msg')
@@ -810,8 +810,8 @@ function renderChart() {
   const logicalH = 220
   canvas.width = logicalW * dpr
   canvas.height = logicalH * dpr
-  canvas.style.width = logicalW + 'px'
-  canvas.style.height = logicalH + 'px'
+  canvas.style.width = `${logicalW}px`
+  canvas.style.height = `${logicalH}px`
   ctx.scale(dpr, dpr)
   const pad = { top: 20, right: 20, bottom: 50, left: 50 }
   const w = logicalW - pad.left - pad.right
@@ -836,15 +836,15 @@ function renderChart() {
       const m = date.getMinutes()
       const ampm = hr >= 12 ? 'pm' : 'am'
       const h12 = hr % 12 || 12
-      return h12 + ':' + (m < 10 ? '0' : '') + m + ampm
+      return `${h12}:${m < 10 ? '0' : ''}${m}${ampm}`
     }
 else if (dateRange === '24h') {
       const hr = date.getHours()
       const ampm = hr >= 12 ? 'pm' : 'am'
       const h12 = hr % 12 || 12
-      return h12 + ampm
+      return `${h12}${ampm}`
     }
-    return months[date.getMonth()] + ' ' + date.getDate()
+    return `${months[date.getMonth()]} ${date.getDate()}`
   }
 
   function fmtDateFull(dateStr: string) {
@@ -856,10 +856,10 @@ else if (dateRange === '24h') {
     const m = date.getMinutes()
     const ampm = hr >= 12 ? 'pm' : 'am'
     const h12 = hr % 12 || 12
-    const timeStr = h12 + ':' + (m < 10 ? '0' : '') + m + ampm
-    const dateStr2 = months[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear()
+    const timeStr = `${h12}:${m < 10 ? '0' : ''}${m}${ampm}`
+    const dateStr2 = `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
     if (dateRange === '1h' || dateRange === '6h' || dateRange === '12h' || dateRange === '24h') {
-      return dateStr2 + ' at ' + timeStr
+      return `${dateStr2} at ${timeStr}`
     }
     return dateStr2
   }
@@ -880,7 +880,7 @@ else if (dateRange === '24h') {
     }
 
     ctx.beginPath()
-    ctx.fillStyle = colors.accent2 + '1a'
+    ctx.fillStyle = `${colors.accent2}1a`
     points.forEach((p, i) => {
       i===0 ? (ctx.moveTo(p.x,pad.top+h), ctx.lineTo(p.x,p.y)) : ctx.lineTo(p.x,p.y)
     })
@@ -968,7 +968,7 @@ else {
 
     if (hoverIdx >= 0) {
       ctx.beginPath()
-      ctx.strokeStyle = colors.accent2 + '80'
+      ctx.strokeStyle = `${colors.accent2}80`
       ctx.lineWidth = 1
       ctx.setLineDash([4, 4])
       ctx.moveTo(points[hoverIdx].x, pad.top)
@@ -1017,8 +1017,8 @@ else {
         tooltipVisitors.textContent = fmt(d.visitors || 0)
         tooltip.style.display = 'block'
         let left = p.x + 10; if (left + 150 > logicalW) left = p.x - 160
-        tooltip.style.left = left + 'px'
-        tooltip.style.top = (p.y - 20) + 'px'
+        tooltip.style.left = `${left}px`
+        tooltip.style.top = `${p.y - 20}px`
         draw(closest)
         canvas.style.cursor = 'pointer'
       }

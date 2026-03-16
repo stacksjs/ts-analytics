@@ -109,7 +109,7 @@ function generateTrackerScript(origin: string): string {
     var payload={s:siteId,sid:sid,e:type,u:location.href,r:d.referrer,t:d.title,sw:screen.width,sh:screen.height};
     if(data)Object.assign(payload,data);
     navigator.sendBeacon?navigator.sendBeacon(endpoint,JSON.stringify(payload)):
-    (new Image).src=endpoint+'?d='+encodeURIComponent(JSON.stringify(payload));
+    (new Image).src=`${endpoint}?d=${encodeURIComponent(JSON.stringify(payload))}`;
   }
 
   // Public API

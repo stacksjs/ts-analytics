@@ -132,7 +132,7 @@ export async function handleGetFunnelAnalysis(request: Request, siteId: string, 
         if (step.type === 'pageview') {
           matched = pageSequence.some((page: string) => {
             if (step.pattern.includes('*')) {
-              const regex = new RegExp('^' + step.pattern.replace(/\*/g, '.*') + '$')
+              const regex = new RegExp(`^${step.pattern.replace(/\*/g, '.*')}$`)
               return regex.test(page)
             }
             return page === step.pattern
