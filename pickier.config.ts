@@ -2,7 +2,7 @@ import type { PickierConfig } from 'pickier'
 
 const config: PickierConfig = {
   verbose: false,
-  ignores: ['CLAUDE.md', '*/CHANGELOG.md', 
+  ignores: [
     '**/node_modules/**',
     '**/dist/**',
     '**/build/**',
