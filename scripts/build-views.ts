@@ -67,8 +67,8 @@ function postProcessHtml(filePath: string) {
 
   // Fix script path: /dashboard/scripts/dashboard.ts -> /scripts/dashboard.js
   content = content.replace(
-    /<script src="\/dashboard\/scripts\/dashboard\.ts"><\/script>/g,
-    '<script src="/scripts/dashboard.js"></script>'
+    /<script src='\/dashboard\/scripts\/dashboard\.ts'><\/script>/g,
+    '<script src=\'/scripts/dashboard.js\'></script>'
   )
 
   // Remove empty lines at the start

@@ -249,15 +249,15 @@ function renderSiteSelector() {
   ` : `
     <h3 style="font-size:0.875rem;margin-bottom:0.75rem;color:var(--text2);width:100%;max-width:500px">Your Sites</h3>
     ${availableSites.map(s => `
-      <button class="site-card" data-site-id="${s.id}" data-site-name="${s.name || ''}">
-        <div class="site-icon">
-          <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+      <button class='site-card' data-site-id='${s.id}' data-site-name='${s.name || ''}'>
+        <div class='site-icon'>
+          <svg width='24' height='24' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9'/></svg>
         </div>
-        <div class="site-info">
-          <span class="site-name">${s.name || 'Unnamed'}</span>
-          <span class="site-domain">${s.domains?.[0] || s.id}</span>
+        <div class='site-info'>
+          <span class='site-name'>${s.name || 'Unnamed'}</span>
+          <span class='site-domain'>${s.domains?.[0] || s.id}</span>
         </div>
-        <svg class="arrow" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <svg class='arrow' width='20' height='20' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 5l7 7-7 7'/></svg>
       </button>
     `).join('')}
   `
@@ -493,7 +493,7 @@ async function fetchDashboardData() {
       sessions: statsRes.sessions || 0,
       people: statsRes.people || 0,
       views: statsRes.views || 0,
-      avgTime: statsRes.avgTime || "00:00",
+      avgTime: statsRes.avgTime || '00:00',
       bounceRate: statsRes.bounceRate || 0,
       events: statsRes.events || 0
     }

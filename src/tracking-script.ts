@@ -878,17 +878,21 @@ function minifyScript(script: string): string {
  */
 export function generateMinimalTrackingScript(config: Pick<TrackingScriptConfig, 'siteId' | 'apiEndpoint' | 'honorDnt' | 'stealthMode'>): string {
   const endpoint = config.stealthMode ? '/t' : '/collect'
-  return `(function(){
-var s='${config.siteId}',e='${config.apiEndpoint}${endpoint}';
-${config.honorDnt ? "if(navigator.doNotTrack==='1')return;" : ''}
-var sid=sessionStorage.getItem('sa_s')||Math.random().toString(36).slice(2);
-sessionStorage.setItem('sa_s',sid);
-navigator.sendBeacon(e,JSON.stringify({
-s:s,sid:sid,e:'pageview',
-u:location.href,r:document.referrer,t:document.title,
-sw:screen.width,sh:screen.height
-}));
-})();`
+  const parts: string[] = []
+  parts.push('(function(){')
+  parts.push('var s=\'' + config.siteId + '\',e=\'' + config.apiEndpoint + endpoint + '\';')
+  if (config.honorDnt) {
+    parts.push('if(navigator.doNotTrack===\'1\')return;')
+  }
+  parts.push('var sid=sessionStorage.getItem(\'sa_s\')||Math.random().toString(36).slice(2);')
+  parts.push('sessionStorage.setItem(\'sa_s\',sid);')
+  parts.push('navigator.sendBeacon(e,JSON.stringify({')
+  parts.push('s:s,sid:sid,e:\'pageview\',')
+  parts.push('u:location.href,r:document.referrer,t:document.title,')
+  parts.push('sw:screen.width,sh:screen.height')
+  parts.push('}));')
+  parts.push('})();')
+  return parts.join('\n')
 }
 
 /**
