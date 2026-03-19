@@ -101,14 +101,14 @@ function getSelector(el, maxDepth) {
 
     // Use ID if available (most specific)
     if (el.id) {
-      path.unshift(`#${el.id}`);
+      path.unshift('#' + el.id);
       break;
     }
 
     // Use data-testid or data-analytics-id if available
     var testId = el.getAttribute('data-testid') || el.getAttribute('data-analytics-id');
     if (testId) {
-      path.unshift(`[data-testid="${testId}"]`);
+      path.unshift('[data-testid="' + testId + '"]');
       break;
     }
 
@@ -116,7 +116,7 @@ function getSelector(el, maxDepth) {
     var classes = el.className;
     if (typeof classes === 'string' && classes.trim()) {
       var classList = classes.trim().split(/\\s+/).slice(0, 2);
-      selector += `.${classList.join('.')}`;
+      selector += '.' + classList.join('.');
     }
 
     // Add nth-child for specificity
@@ -129,7 +129,7 @@ function getSelector(el, maxDepth) {
         if (siblings[i].nodeName === el.nodeName) index++;
       }
       if (siblings.length > 1) {
-        selector += `:nth-of-type(${index})`;
+        selector += ':nth-of-type(' + index + ')';
       }
     }
 
@@ -428,7 +428,7 @@ if (typeof CONFIG === 'undefined') {
 }
 
 if (typeof session === 'undefined') {
-  window.session = { id: `hm-${Date.now()}` };
+  window.session = { id: 'hm-' + Date.now() };
 }
 
 if (typeof sendBeacon === 'undefined') {

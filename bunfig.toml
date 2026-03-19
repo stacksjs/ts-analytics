@@ -3,3 +3,4 @@ preload = ["bun-plugin-stx"]
 
 [test]
 preload = ["./test/preload.ts"]
+root = "./test"

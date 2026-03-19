@@ -3243,7 +3243,7 @@ catch (e){}}
 catch (e){}
   function t(e,p){
     var x=new XMLHttpRequest();
-    x.open('POST',`\${api}${endpoint}`,true);
+    x.open('POST',api+'${endpoint}',true);
     x.setRequestHeader('Content-Type','application/json');
     x.send(JSON.stringify({
       s:site,sid:sid,e:e,p:p||{},
