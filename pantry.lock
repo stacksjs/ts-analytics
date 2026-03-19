@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "packages": {
+    "bun-query-builder@0.1.13": {
+      "name": "bun-query-builder",
+      "version": "0.1.13",
+      "resolved": "registry:bun-query-builder@0.1.13",
+      "integrity": "sha256:b27690dc4e28120ae947647393209a1f243ca6aeec481c2c1dfdc9cd1da6d438"
+    },
+    "@cwcss/crosswind@0.1.6": {
+      "name": "@cwcss/crosswind",
+      "version": "0.1.6",
+      "resolved": "registry:@cwcss/crosswind@0.1.6",
+      "integrity": "sha256:b1bafbe7dde40bc5ef709191b5a11c82a699217e7290e24bf7c15d73900df999"
+    },
+    "@stacksjs/bun-router@0.0.2": {
+      "name": "@stacksjs/bun-router",
+      "version": "0.0.2",
+      "resolved": "registry:@stacksjs/bun-router@0.0.2",
+      "integrity": "sha256:ea6b7cfc2282dceadf7ee103854e0b0b83c680a8f7c317b80a6a4bc79f6cdccd"
+    },
+    "bun-plugin-stx@0.2.10": {
+      "name": "bun-plugin-stx",
+      "version": "0.2.10",
+      "resolved": "registry:bun-plugin-stx@0.2.10",
+      "integrity": "sha256:42ef8456f7ce3bac7f1df0f1fb966701901ea9dd967555e3a7379eddf4806f66"
+    },
+    "better-dx@0.2.7": {
+      "name": "better-dx",
+      "version": "0.2.7",
+      "resolved": "registry:better-dx@0.2.7",
+      "integrity": "sha256:c6dccd8ad412d7fa39c203847f4e70f8d45e095259b6b95c3988bac04f56df67"
+    },
+    "dynamodb-tooling@0.3.2": {
+      "name": "dynamodb-tooling",
+      "version": "0.3.2",
+      "resolved": "registry:dynamodb-tooling@0.3.2",
+      "integrity": "sha256:4de9d90e0baa7dff65249d362628949f1ebf297abbb48f81cbb831bc20f9bbdf"
+    }
+  }
+}

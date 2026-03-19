@@ -41,6 +41,6 @@
     "**/useDashboardData.ts",
     "**/dashboard/**",
     "**/components/dashboard/**",
-    "pickier.config.ts"
+    ".config/pickier.ts"
   ]
 }
