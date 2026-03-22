@@ -74,5 +74,13 @@
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.3",
     "better-dx": "^0.2.7"
+  },
+  "git-hooks": {
+    "pre-commit": {
+      "staged-lint": {
+        "*.{js,ts,json,yaml,yml,md}": "bunx --bun pickier lint --fix"
+      }
+    },
+    "commit-msg": "bunx gitlint --edit .git/COMMIT_EDITMSG"
   }
 }
