@@ -2,25 +2,6 @@
 title: Infrastructure
 description: Generate infrastructure code for AWS deployment
 ---
-
-# Infrastructure
-
-ts-analytics can generate infrastructure code for deploying to AWS.
-
-## CloudFormation
-
-Generate CloudFormation templates:
-
-```typescript
-import {
-  generateCloudFormationTemplate,
-  generateCloudFormationJson,
-  generateCloudFormationYaml,
-} from '@stacksjs/ts-analytics'
-
-// Get the template object
-const template = generateCloudFormationTemplate({
-  tableName: 'AnalyticsTable',
   billingMode: 'PAY_PER_REQUEST',
 })
 
@@ -68,8 +49,8 @@ console.log(cdkStack)
 Output:
 
 ```typescript
-import * as cdk from 'aws-cdk-lib'
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
+import _ as cdk from 'aws-cdk-lib'
+import _ as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 
 export class AnalyticsStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
@@ -137,7 +118,9 @@ console.log(commands)
 Output:
 
 ```bash
+
 # Create DynamoDB table
+
 aws dynamodb create-table \
   --table-name AnalyticsTable \
   --attribute-definitions \
@@ -245,18 +228,22 @@ Output:
 === ts-analytics Setup Instructions ===
 
 1. Create DynamoDB Table:
+
    Run: aws dynamodb create-table ...
 
 2. Configure Environment:
+
    AWS_ACCESS_KEY_ID=your-key
    AWS_SECRET_ACCESS_KEY=your-secret
    AWS_REGION=us-east-1
    ANALYTICS_TABLE=AnalyticsTable
 
 3. Initialize the Store:
+
    const store = new AnalyticsStore({ tableName: 'AnalyticsTable' })
 
 4. Add Tracking Script:
+
    <script src="https://your-api.com/sites/your-site/tracker.js"></script>
 ```
 

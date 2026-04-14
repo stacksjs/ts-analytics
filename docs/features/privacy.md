@@ -2,29 +2,11 @@
 title: Privacy First
 description: Privacy-focused analytics without compromising insights
 ---
-
-# Privacy First
-
-ts-analytics is designed with privacy at its core, providing powerful analytics without invasive tracking.
-
-## No Cookies Required
-
-Unlike traditional analytics, ts-analytics works without cookies:
-
-```typescript
-// Session management uses sessionStorage, not cookies
-const sessionData = sessionStorage.getItem('sa_session')
-
-// Visitor identification uses hashed, rotating identifiers
-const visitorId = await AnalyticsStore.hashVisitorId(
-  ip,
-  userAgent,
-  siteId,
-  dailySalt // Rotates every day
 )
 ```
 
 This means:
+
 - No cookie consent banners needed
 - Works with strict browser privacy settings
 - No cross-site tracking possible
@@ -43,6 +25,7 @@ const hash = crypto.subtle.digest('SHA-256', data)
 ```
 
 This approach:
+
 - Provides accurate session tracking
 - Prevents user identification
 - Makes cross-day tracking impossible
@@ -59,6 +42,7 @@ generateFullTrackingScript({
 ```
 
 When enabled:
+
 - Checks `navigator.doNotTrack` header
 - Completely disables tracking if DNT is set
 - No data is sent to the server
@@ -94,6 +78,7 @@ Stored: 192.168.1.0
 ## No Personal Data Collection
 
 ts-analytics never collects:
+
 - Names or emails
 - Full IP addresses
 - Device fingerprints
@@ -101,6 +86,7 @@ ts-analytics never collects:
 - User accounts/logins
 
 What is collected:
+
 - Anonymized session data
 - Page paths (not full URLs with query params)
 - Device type (mobile/desktop/tablet)
@@ -151,6 +137,7 @@ const config = {
 ```
 
 DynamoDB TTL ensures automatic deletion:
+
 - No manual cleanup required
 - Data is permanently deleted after TTL
 - Cannot be recovered once expired
@@ -214,6 +201,7 @@ Add to your privacy policy:
 
 ```
 We use ts-analytics for website analytics. This service:
+
 - Does not use cookies
 - Does not collect personal information
 - Does not track you across websites
@@ -222,10 +210,12 @@ We use ts-analytics for website analytics. This service:
 - Stores all data in our own infrastructure
 
 The anonymized data helps us understand:
+
 - Which pages are popular
 - How visitors find our site
 - What devices and browsers are used
 - General traffic patterns
+
 ```
 
 ## Next Steps

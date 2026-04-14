@@ -2,23 +2,6 @@
 title: Configuration
 description: Configure ts-analytics for your needs
 ---
-
-# Configuration
-
-ts-analytics provides extensive configuration options for customizing your analytics setup.
-
-## Basic Configuration
-
-```typescript
-import { defineConfig } from '@stacksjs/ts-analytics'
-
-export default defineConfig({
-  table: {
-    tableName: 'AnalyticsTable',
-    billingMode: 'PAY_PER_REQUEST',
-  },
-  region: 'us-east-1',
-})
 ```
 
 ## Full Configuration Reference
@@ -50,9 +33,9 @@ const config: AnalyticsConfig = {
 
   // Data Retention Settings
   retention: {
-    rawEventTtl: 30 * 24 * 60 * 60,      // 30 days for raw events
-    hourlyAggregateTtl: 90 * 24 * 60 * 60, // 90 days for hourly stats
-    dailyAggregateTtl: 2 * 365 * 24 * 60 * 60, // 2 years for daily stats
+    rawEventTtl: 30 _ 24 _ 60 _ 60,      // 30 days for raw events
+    hourlyAggregateTtl: 90 _ 24 _ 60 _ 60, // 90 days for hourly stats
+    dailyAggregateTtl: 2 _ 365 _ 24 _ 60 _ 60, // 2 years for daily stats
     monthlyAggregateTtl: 0,              // Forever for monthly stats
   },
 
@@ -76,7 +59,7 @@ const config: AnalyticsConfig = {
   // API Settings
   api: {
     basePath: '/api/analytics',
-    corsOrigins: ['*'],          // Configure for production
+    corsOrigins: ['_'],          // Configure for production
   },
 
   // Aggregation Settings
@@ -104,7 +87,7 @@ const config = defineConfig({
   api: {
     corsOrigins: process.env.NODE_ENV === 'production'
       ? ['https://yourdomain.com']
-      : ['*'],
+      : ['_'],
   },
 })
 
@@ -134,7 +117,7 @@ const script = generateFullTrackingScript({
 
   // Privacy
   honorDnt: true,               // Respect Do Not Track
-  excludePaths: ['/admin/*', '/api/*'], // Exclude paths from tracking
+  excludePaths: ['/admin/_', '/api/_'], // Exclude paths from tracking
   excludeQueryParams: false,    // Strip query params from URLs
 
   // Session
@@ -177,7 +160,7 @@ const api = new AnalyticsAPI({
   tableName: 'AnalyticsTable',
   corsOrigins: ['https://yourdomain.com'],
   useTtl: true,
-  rawEventTtl: 30 * 24 * 60 * 60, // 30 days
+  rawEventTtl: 30 _ 24 _ 60 * 60, // 30 days
   basePath: '/api/analytics',
 })
 ```

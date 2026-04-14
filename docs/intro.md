@@ -3,24 +3,6 @@ title: Why ts-analytics
 description: The motivation behind building a privacy-first analytics toolkit
 ---
 
-# Why ts-analytics?
-
-## The Problem with Traditional Analytics
-
-Most analytics solutions today have significant drawbacks:
-
-1. **Privacy Concerns**: They collect excessive personal data and use tracking cookies
-2. **Third-Party Dependency**: Your data sits on someone else's servers
-3. **Cost at Scale**: Pricing increases dramatically with traffic
-4. **Limited Customization**: Black-box solutions with restricted APIs
-5. **Complex Setup**: Requires significant infrastructure expertise
-
-## Our Solution
-
-ts-analytics was built to address these issues:
-
-### Privacy by Design
-
 ```typescript
 // No cookies needed - visitor IDs are hashed daily
 const visitorId = await AnalyticsStore.hashVisitorId(

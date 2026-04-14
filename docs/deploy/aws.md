@@ -3,29 +3,14 @@ title: AWS Deployment
 description: Deploy ts-analytics to AWS using ts-cloud
 ---
 
-# AWS Deployment
-
-ts-analytics uses [ts-cloud](https://ts-cloud.stacksjs.com) for seamless AWS deployment.
-
-## Prerequisites
-
-1. AWS account with appropriate permissions
-2. AWS credentials configured in your environment
-3. ts-cloud linked to your project
-
-```bash
-# Link ts-cloud to your project
-bun link ts-cloud
-```
-
-## Configuration
-
 ### Environment Variables
 
 Create a `.env` file with your AWS credentials:
 
 ```bash
+
 # .env
+
 AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_DEFAULT_REGION=us-east-1
@@ -110,37 +95,48 @@ export default config
 ### Deploy to Production
 
 ```bash
+
 # Deploy all infrastructure
+
 cloud deploy
 
 # Deploy to specific environment
+
 cloud deploy --env production
 ```
 
 ### Preview Changes
 
 ```bash
+
 # See what will be deployed
+
 cloud diff
 
 # Generate CloudFormation preview
+
 cloud generate:preview
 ```
 
 ### Check Status
 
 ```bash
+
 # View deployment status
+
 cloud deploy:status
 
 # View current configuration
+
 cloud config
 ```
 
 ### Rollback
 
 ```bash
+
 # Rollback to previous deployment
+
 cloud deploy:rollback
 ```
 
@@ -167,6 +163,7 @@ cloud deploy
 ```
 
 ts-cloud will:
+
 1. Create the DynamoDB table with proper indexes
 2. Set up the serverless compute (ECS Fargate or Lambda)
 3. Configure the CDN for the tracking script
@@ -184,6 +181,7 @@ cloud deploy:status
 ### DynamoDB Table
 
 ts-cloud creates the analytics table with:
+
 - Single-table design (pk, sk)
 - GSI1 for site + date queries
 - GSI2 for visitor queries
@@ -193,12 +191,14 @@ ts-cloud creates the analytics table with:
 ### Serverless API
 
 The analytics API runs on:
+
 - ECS Fargate for containerized deployment, or
 - AWS Lambda for serverless functions
 
 ### CDN (CloudFront)
 
 The tracking script is served via CloudFront:
+
 - Global edge caching
 - HTTPS by default
 - Custom domain support
@@ -206,6 +206,7 @@ The tracking script is served via CloudFront:
 ### DNS (Route53)
 
 ts-cloud manages DNS:
+
 - A records for your domain
 - SSL certificates via ACM
 - Automatic validation
@@ -237,6 +238,7 @@ cloud deploy
 ```
 
 ts-cloud automatically:
+
 1. Creates the Route53 hosted zone (if needed)
 2. Requests an ACM certificate
 3. Validates the certificate via DNS
@@ -248,13 +250,17 @@ ts-cloud automatically:
 Manage environment-specific variables:
 
 ```bash
+
 # Set a variable
+
 cloud config:env set ANALYTICS_TABLE AnalyticsTable
 
 # Get a variable
+
 cloud config:env get ANALYTICS_TABLE
 
 # List all variables
+
 cloud config:env list
 ```
 
@@ -263,10 +269,13 @@ cloud config:env list
 Store sensitive values securely:
 
 ```bash
+
 # Store a secret in AWS Secrets Manager
+
 cloud config:secrets set API_KEY my-secret-key
 
 # Reference in your code
+
 process.env.API_KEY
 ```
 
@@ -347,10 +356,13 @@ Estimated monthly costs:
 ### Deployment Failed
 
 ```bash
+
 # Check status
+
 cloud deploy:status
 
 # View detailed logs
+
 cloud logs --verbose
 ```
 
@@ -365,16 +377,16 @@ Ensure your AWS credentials have sufficient permissions:
     {
       "Effect": "Allow",
       "Action": [
-        "cloudformation:*",
-        "dynamodb:*",
-        "ecs:*",
-        "ecr:*",
-        "lambda:*",
-        "cloudfront:*",
-        "route53:*",
-        "acm:*",
-        "iam:*",
-        "logs:*"
+        "cloudformation:_",
+        "dynamodb:_",
+        "ecs:_",
+        "ecr:_",
+        "lambda:_",
+        "cloudfront:_",
+        "route53:_",
+        "acm:_",
+        "iam:_",
+        "logs:_"
       ],
       "Resource": "*"
     }
@@ -385,10 +397,13 @@ Ensure your AWS credentials have sufficient permissions:
 ### DNS Not Resolving
 
 ```bash
+
 # Check DNS propagation
+
 cloud dns:status
 
 # Force DNS refresh
+
 cloud dns:refresh
 ```
 

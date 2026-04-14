@@ -2,23 +2,6 @@
 title: AnalyticsAPI
 description: API reference for AnalyticsAPI HTTP handler
 ---
-
-# AnalyticsAPI
-
-Framework-agnostic HTTP handler for analytics endpoints.
-
-## Constructor
-
-```typescript
-import { AnalyticsAPI } from '@stacksjs/ts-analytics'
-
-const api = new AnalyticsAPI({
-  tableName: 'AnalyticsTable',
-  corsOrigins: ['https://example.com'],
-  useTtl: true,
-  rawEventTtl: 30 * 24 * 60 * 60,
-  basePath: '/api/analytics',
-})
 ```
 
 ### Options

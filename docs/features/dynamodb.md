@@ -2,24 +2,6 @@
 title: DynamoDB Single-Table Design
 description: Efficient data storage with DynamoDB single-table pattern
 ---
-
-# DynamoDB Single-Table Design
-
-ts-analytics uses a single-table design pattern for efficient, scalable storage in DynamoDB.
-
-## Why Single-Table Design?
-
-Benefits:
-- **Reduced latency**: Fewer network round-trips
-- **Lower costs**: One table = one provisioning decision
-- **Simplified operations**: One table to monitor and maintain
-- **Efficient queries**: Data locality for related items
-
-## Table Schema
-
-### Primary Key
-
-| Attribute | Type | Description |
 |-----------|------|-------------|
 | `pk` | String | Partition key |
 | `sk` | String | Sort key |
@@ -208,7 +190,7 @@ const command = {
 const now = new Date()
 const minutes = []
 for (let i = 0; i < 5; i++) {
-  const d = new Date(now.getTime() - i * 60000)
+  const d = new Date(now.getTime() - i _ 60000)
   minutes.push(`REALTIME#${d.toISOString().slice(0, 16)}`)
 }
 
@@ -263,9 +245,9 @@ Automatic data expiration:
 ```typescript
 const config = {
   retention: {
-    rawEventTtl: 30 * 24 * 60 * 60,        // 30 days
-    hourlyAggregateTtl: 90 * 24 * 60 * 60, // 90 days
-    dailyAggregateTtl: 2 * 365 * 24 * 60 * 60, // 2 years
+    rawEventTtl: 30 _ 24 _ 60 _ 60,        // 30 days
+    hourlyAggregateTtl: 90 _ 24 _ 60 _ 60, // 90 days
+    dailyAggregateTtl: 2 _ 365 _ 24 _ 60 _ 60, // 2 years
     monthlyAggregateTtl: 0,                 // Never expire
   },
 }
@@ -342,7 +324,7 @@ For predictable workloads:
 | 100,000 | ~50 | ~30 | ~$50 |
 | 1,000,000 | ~500 | ~300 | ~$500 |
 
-*Estimates based on on-demand pricing, actual costs may vary.*
+_Estimates based on on-demand pricing, actual costs may vary.*
 
 ## Design Documentation
 

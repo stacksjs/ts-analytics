@@ -2,24 +2,6 @@
 title: Dashboard API
 description: API reference for dashboard components and composables
 ---
-
-# Dashboard API
-
-Vue 3 components and composables for building analytics dashboards.
-
-## Components
-
-### AnalyticsDashboard
-
-Main dashboard component.
-
-```vue
-<AnalyticsDashboard
-  :config="{ baseUrl: '/api/analytics', siteId: 'my-site' }"
-  :date-range="{ start: new Date('2024-01-01'), end: new Date() }"
-/>
-```
-
 #### Props
 
 | Prop | Type | Description |

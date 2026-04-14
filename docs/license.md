@@ -3,24 +3,6 @@ title: License
 description: ts-analytics license information
 ---
 
-# License
-
-ts-analytics is open source software licensed under the MIT License.
-
-## MIT License
-
-```
-MIT License
-
-Copyright (c) 2024-present Chris Breuer
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
@@ -36,12 +18,14 @@ SOFTWARE.
 ## What This Means
 
 You are free to:
+
 - Use ts-analytics in personal and commercial projects
 - Modify the source code
 - Distribute your modifications
 - Include ts-analytics in proprietary software
 
 You must:
+
 - Include the original copyright notice
 - Include the license text
 

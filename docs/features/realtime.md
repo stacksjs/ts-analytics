@@ -3,23 +3,6 @@ title: Real-time Analytics
 description: Track visitors and events in real-time
 ---
 
-# Real-time Analytics
-
-ts-analytics provides live visitor tracking and real-time event streaming.
-
-## Overview
-
-Real-time features include:
-- Current visitor count
-- Active page monitoring
-- Live event feed
-- Geographic distribution
-- Instant metric updates
-
-## How It Works
-
-Real-time data uses a sliding window approach:
-
 ```typescript
 // Data stored with 10-minute TTL
 const realtimeCommand = store.updateRealtimeStatsCommand({
@@ -80,6 +63,7 @@ Display live visitor count:
 ```
 
 Features:
+
 - Animated number transitions
 - Pulse animation on updates
 - Configurable poll interval
@@ -99,6 +83,7 @@ Show real-time event stream:
 ```
 
 Events displayed:
+
 - Page views with path
 - Custom events
 - Outbound clicks

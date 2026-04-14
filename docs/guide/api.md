@@ -2,23 +2,6 @@
 title: API Endpoints
 description: Analytics API endpoints reference
 ---
-
-# API Endpoints
-
-ts-analytics provides a complete REST API for collecting and querying analytics data.
-
-## Overview
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/collect` | POST | Receive tracking events |
-| `/sites` | GET | List sites |
-| `/sites` | POST | Create a site |
-| `/sites/:siteId` | GET | Get site details |
-| `/sites/:siteId/stats` | GET | Get dashboard stats |
-| `/sites/:siteId/realtime` | GET | Get realtime stats |
-| `/sites/:siteId/script` | GET | Get tracking script |
-| `/sites/:siteId/goals` | GET | List goals |
 | `/sites/:siteId/goals` | POST | Create a goal |
 | `/sites/:siteId/pages` | GET | Get top pages |
 | `/aggregate` | POST | Trigger aggregation |

@@ -3,26 +3,6 @@ title: Installation
 description: Install ts-analytics in your project
 ---
 
-# Installation
-
-## Package Installation
-
-Install ts-analytics using your preferred package manager:
-
-::: code-group
-
-```bash [bun]
-bun add @stacksjs/ts-analytics
-```
-
-```bash [npm]
-npm install @stacksjs/ts-analytics
-```
-
-```bash [pnpm]
-pnpm add @stacksjs/ts-analytics
-```
-
 ```bash [yarn]
 yarn add @stacksjs/ts-analytics
 ```
@@ -68,7 +48,7 @@ Your AWS user/role needs these permissions:
         "dynamodb:Query",
         "dynamodb:BatchWriteItem"
       ],
-      "Resource": "arn:aws:dynamodb:*:*:table/AnalyticsTable*"
+      "Resource": "arn:aws:dynamodb:_:_:table/AnalyticsTable*"
     }
   ]
 }
@@ -176,7 +156,9 @@ services:
   dynamodb-local:
     image: amazon/dynamodb-local:latest
     ports:
+
       - "8000:8000"
+
     command: ["-jar", "DynamoDBLocal.jar", "-sharedDb"]
 ```
 

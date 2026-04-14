@@ -94,7 +94,7 @@ The `AnalyticsStore` provides DynamoDB operations for all analytics entities:
 const store = new AnalyticsStore({
   tableName: 'analytics',
   useTtl: true,
-  rawEventTtl: 30 * 24 * 60 * 60, // 30 days
+  rawEventTtl: 30 _ 24 _ 60 * 60, // 30 days
 })
 
 // Create a site

@@ -2,24 +2,6 @@
 title: Goal Tracking
 description: Define and track conversion goals
 ---
-
-# Goal Tracking
-
-Track conversions and measure the success of your website with goal tracking.
-
-## Creating Goals
-
-### Via API
-
-```typescript
-// POST /sites/:siteId/goals
-const response = await fetch('/api/analytics/sites/my-site/goals', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    name: 'Newsletter Signup',
-    type: 'pageview',
-    pattern: '/thank-you/newsletter',
     matchType: 'exact',
     value: 5,
   }),

@@ -2,24 +2,6 @@
 title: Tracking Script API
 description: API reference for tracking script generators
 ---
-
-# Tracking Script API
-
-Generate client-side tracking scripts.
-
-## Functions
-
-### generateFullTrackingScript
-
-Generate a complete tracking script with all features.
-
-```typescript
-import { generateFullTrackingScript } from '@stacksjs/ts-analytics'
-
-const script = generateFullTrackingScript({
-  siteId: 'my-site',
-  apiEndpoint: 'https://analytics.example.com/api/analytics',
-  autoPageView: true,
   trackHashChanges: false,
   trackOutboundLinks: true,
   trackScrollDepth: [25, 50, 75, 100],

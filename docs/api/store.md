@@ -2,23 +2,6 @@
 title: AnalyticsStore
 description: API reference for AnalyticsStore
 ---
-
-# AnalyticsStore
-
-The core class for DynamoDB operations.
-
-## Constructor
-
-```typescript
-import { AnalyticsStore } from '@stacksjs/ts-analytics'
-
-const store = new AnalyticsStore({
-  tableName: 'AnalyticsTable',
-  useTtl: true,
-  rawEventTtl: 30 * 24 * 60 * 60, // 30 days
-})
-```
-
 ### Options
 
 | Option | Type | Default | Description |

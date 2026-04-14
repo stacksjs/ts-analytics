@@ -2,24 +2,6 @@
 title: Framework Integrations
 description: Integrate ts-analytics with various frameworks
 ---
-
-# Framework Integrations
-
-ts-analytics works with any JavaScript/TypeScript runtime and framework.
-
-## Bun (Native)
-
-Built-in support for Bun's HTTP server:
-
-```typescript
-import { AnalyticsAPI, createBunRouter } from '@stacksjs/ts-analytics'
-
-const api = new AnalyticsAPI({ tableName: 'AnalyticsTable' })
-const router = createBunRouter(api, executeCommand)
-
-Bun.serve({
-  port: 3000,
-  fetch: router.fetch,
 })
 ```
 

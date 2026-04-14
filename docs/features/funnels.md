@@ -2,24 +2,6 @@
 title: Funnel Analysis
 description: Analyze user journeys and conversion paths
 ---
-
-# Funnel Analysis
-
-Track and analyze multi-step user journeys to identify conversion opportunities and drop-off points.
-
-## Overview
-
-Funnel analysis helps you understand:
-- How users progress through key flows
-- Where users drop off
-- Conversion rates at each step
-- Optimization opportunities
-
-## Creating Funnels
-
-### Define a Funnel
-
-```typescript
 import { createFunnel } from '@stacksjs/ts-analytics'
 
 const checkoutFunnel = createFunnel({

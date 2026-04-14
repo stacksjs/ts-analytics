@@ -2,23 +2,6 @@
 title: ts-analytics
 description: Privacy-first analytics toolkit for web applications
 ---
-
-# ts-analytics
-
-A privacy-first analytics toolkit for web applications, powered by DynamoDB single-table design.
-
-## Why ts-analytics?
-
-- **Privacy-First**: No cookies required, no personal data collection, GDPR-compliant by design
-- **Self-Hosted**: Full control over your analytics data in your own AWS account
-- **Real-time**: Live visitor tracking and dashboard updates
-- **Cost-Effective**: DynamoDB single-table design minimizes AWS costs
-- **Framework Agnostic**: Works with Bun, Express, Hono, AWS Lambda, and more
-- **TypeScript Native**: Built from the ground up with TypeScript
-
-## Quick Example
-
-```typescript
 import { AnalyticsStore, generateTrackingScript } from '@stacksjs/ts-analytics'
 
 // Generate a tracking script for your website

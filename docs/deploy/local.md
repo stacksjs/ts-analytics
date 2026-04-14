@@ -2,31 +2,15 @@
 title: Local Development
 description: Set up ts-analytics for local development
 ---
-
-# Local Development
-
-Set up a local development environment with DynamoDB Local.
-
-## Quick Start
-
-### 1. Generate Docker Compose
-
-```bash
-bunx analytics docker-compose --port 8000
-```
-
-This creates `docker-compose.yml`:
-
-```yaml
-version: '3.8'
-services:
-  dynamodb-local:
     image: amazon/dynamodb-local:latest
     container_name: analytics-dynamodb
     ports:
+
       - "8000:8000"
+
     command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
     volumes:
+
       - dynamodb-data:/home/dynamodblocal/data
 
 volumes:
@@ -126,7 +110,7 @@ Bun.serve({
   },
 })
 
-console.log('Analytics server running at http://localhost:3000')
+console.log('Analytics server running at <http://localhost:300>0')
 ```
 
 Run with:
@@ -170,20 +154,26 @@ for (const item of seedData) {
 The analytics CLI helps with local development:
 
 ```bash
+
 # Print setup instructions
+
 bunx analytics setup
 
 # Generate AWS CLI command for table creation
+
 bunx analytics create-table --table-name AnalyticsTable
 
 # Generate Docker Compose file
+
 bunx analytics docker-compose --port 8000
 
 # Generate seed data
+
 bunx analytics seed --sites 3
 
 # Generate tracking script
-bunx analytics tracking-script --site-id test-site --api-endpoint http://localhost:3000
+
+bunx analytics tracking-script --site-id test-site --api-endpoint <http://localhost:3000>
 ```
 
 ## Environment Configuration
@@ -191,7 +181,9 @@ bunx analytics tracking-script --site-id test-site --api-endpoint http://localho
 Create a `.env.local` file:
 
 ```bash
+
 # .env.local
+
 AWS_ACCESS_KEY_ID=local
 AWS_SECRET_ACCESS_KEY=local
 AWS_REGION=local
@@ -308,10 +300,12 @@ const script = generateTrackingScript({
 Access DynamoDB Local directly:
 
 ```bash
+
 # Install NoSQL Workbench or use AWS CLI
+
 aws dynamodb scan \
   --table-name AnalyticsTable \
-  --endpoint-url http://localhost:8000
+  --endpoint-url <http://localhost:8000>
 ```
 
 ### View Table Contents
@@ -370,20 +364,25 @@ Add to `.vscode/launch.json`:
 ### DynamoDB Local Not Starting
 
 ```bash
+
 # Check if port is in use
+
 lsof -i :8000
 
 # Try different port
+
 docker-compose up -d -e "PORT=8001"
 ```
 
 ### Table Already Exists
 
 ```bash
+
 # Delete and recreate
+
 aws dynamodb delete-table \
   --table-name AnalyticsTable \
-  --endpoint-url http://localhost:8000
+  --endpoint-url <http://localhost:8000>
 ```
 
 ### Permission Errors

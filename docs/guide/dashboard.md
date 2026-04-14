@@ -2,24 +2,6 @@
 title: Dashboard Components
 description: Build analytics dashboards with Vue components
 ---
-
-# Dashboard Components
-
-ts-analytics includes a comprehensive set of Vue 3 components for building analytics dashboards.
-
-## Quick Start
-
-```vue
-<script setup>
-import { AnalyticsDashboard } from '@stacksjs/ts-analytics'
-</script>
-
-<template>
-  <AnalyticsDashboard
-    :config="{
-      baseUrl: '/api/analytics',
-      siteId: 'my-site'
-    }"
   />
 </template>
 ```

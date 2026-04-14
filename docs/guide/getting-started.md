@@ -2,23 +2,6 @@
 title: Quick Start
 description: Get started with ts-analytics in minutes
 ---
-
-# Quick Start
-
-This guide will help you set up ts-analytics in your application in just a few minutes.
-
-## 1. Install the Package
-
-```bash
-bun add @stacksjs/ts-analytics
-```
-
-## 2. Set Up the Analytics Store
-
-```typescript
-import { AnalyticsStore, createAnalyticsTable } from '@stacksjs/ts-analytics'
-import { DynamoDBClient, CreateTableCommand, DescribeTableCommand } from '@aws-sdk/client-dynamodb'
-
 // Create DynamoDB client
 const client = new DynamoDBClient({ region: 'us-east-1' })
 
@@ -109,7 +92,7 @@ Bun.serve({
   fetch: router.fetch,
 })
 
-console.log('Analytics API running on http://localhost:3000')
+console.log('Analytics API running on <http://localhost:300>0')
 ```
 
 ### Using AWS Lambda

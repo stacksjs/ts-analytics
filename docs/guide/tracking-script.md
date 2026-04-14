@@ -2,24 +2,6 @@
 title: Tracking Script
 description: Add analytics tracking to your website
 ---
-
-# Tracking Script
-
-ts-analytics provides multiple ways to add tracking to your website.
-
-## Script Variants
-
-### Full Tracking Script
-
-The complete tracking script with all features:
-
-```typescript
-import { generateFullTrackingScript } from '@stacksjs/ts-analytics'
-
-const script = generateFullTrackingScript({
-  siteId: 'my-site',
-  apiEndpoint: 'https://analytics.example.com/api/analytics',
-
   // Page tracking
   autoPageView: true,
   trackHashChanges: true,      // For hash-based SPAs
@@ -194,7 +176,7 @@ sa('trackPageView', '/custom-path', 'Custom Page Title')
 
 ```javascript
 // Basic event
-sa('event', 'button_click')
+sa('event', 'button*click')
 
 // Event with properties
 sa('event', 'download', { file: 'guide.pdf', size: '2.4MB' })
@@ -234,7 +216,7 @@ Track elements automatically with data attributes:
 
 ```html
 <!-- Basic tracking -->
-<button data-sa-track="signup_click">Sign Up</button>
+<button data-sa-track="signup*click">Sign Up</button>
 
 <!-- With category -->
 <button
@@ -262,7 +244,7 @@ generateFullTrackingScript({
   // ...
 })
 
-// Then use: data-analytics-track="event_name"
+// Then use: data-analytics-track="event*name"
 ```
 
 ## Tracking Features
@@ -277,8 +259,8 @@ generateFullTrackingScript({
 })
 
 // Events fired:
-// { name: 'scroll_depth', properties: { depth: 25 }, category: 'engagement' }
-// { name: 'scroll_depth', properties: { depth: 50 }, category: 'engagement' }
+// { name: 'scroll*depth', properties: { depth: 25 }, category: 'engagement' }
+// { name: 'scroll*depth', properties: { depth: 50 }, category: 'engagement' }
 // ...
 ```
 
@@ -303,7 +285,7 @@ generateFullTrackingScript({
   trackOutboundLinks: true,
 })
 
-// Events: { name: 'outbound_click', properties: { url, text, hostname } }
+// Events: { name: 'outbound*click', properties: { url, text, hostname } }
 ```
 
 ### SPA Navigation
@@ -363,8 +345,8 @@ import { writeFileSync } from 'fs'
 import { generateFullTrackingScript } from '@stacksjs/ts-analytics'
 
 const script = generateFullTrackingScript({
-  siteId: process.env.SITE_ID!,
-  apiEndpoint: process.env.ANALYTICS_ENDPOINT!,
+  siteId: process.env.SITE*ID!,
+  apiEndpoint: process.env.ANALYTICS*ENDPOINT!,
   minify: true,
 })
 
