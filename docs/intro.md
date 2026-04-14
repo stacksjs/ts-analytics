@@ -2,23 +2,6 @@
 title: Why ts-analytics
 description: The motivation behind building a privacy-first analytics toolkit
 ---
-  },
-}
-```
-
-- Pay-per-request pricing
-- Automatic scaling
-- No idle costs
-- Efficient key patterns
-
-### TypeScript Native
-
-Built from the ground up with TypeScript:
-
-```typescript
-import type { PageView, Session, Goal } from '@stacksjs/ts-analytics'
-
-// Full type safety for all analytics operations
 const pageView: PageView = {
   id: 'pv-123',
   siteId: 'site-1',

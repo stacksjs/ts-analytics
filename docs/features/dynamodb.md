@@ -2,21 +2,6 @@
 title: DynamoDB Single-Table Design
 description: Efficient data storage with DynamoDB single-table pattern
 ---
-  pk: 'SITE#my-site',
-  sk: 'METADATA',
-  name: 'My Website',
-  domains: ['example.com'],
-  ownerId: 'user-123',
-  // ...
-}
-```
-
-### Page Views
-
-```
-pk: SITE#{siteId}
-sk: PV#{timestamp}#{id}
-gsi1pk: SITE#{siteId}
 gsi1sk: DATE#{date}
 ```
 

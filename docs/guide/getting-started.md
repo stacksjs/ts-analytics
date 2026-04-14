@@ -2,22 +2,6 @@
 title: Quick Start
 description: Get started with ts-analytics in minutes
 ---
-const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  ${script}
-</head>
-<body>
-  <!-- Your content -->
-</body>
-</html>
-`
-```
-
-Or use the minimal snippet that loads the script asynchronously:
-
-```typescript
 import { generateTrackingSnippet } from '@stacksjs/ts-analytics'
 
 const snippet = generateTrackingSnippet({

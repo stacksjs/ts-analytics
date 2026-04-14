@@ -2,23 +2,6 @@
 title: Framework Integrations
 description: Integrate ts-analytics with various frameworks
 ---
-
-```typescript
-import { analyticsMiddleware } from '@stacksjs/ts-analytics'
-
-app.use('*', analyticsMiddleware({
-  siteId: 'my-site',
-  tableName: 'AnalyticsTable',
-  executeCommand,
-  excludePaths: ['/api', '/admin'],
-}))
-```
-
-## AWS Lambda
-
-Deploy as a Lambda function:
-
-```typescript
 import { AnalyticsAPI, createLambdaHandler } from '@stacksjs/ts-analytics'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 

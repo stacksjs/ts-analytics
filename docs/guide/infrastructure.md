@@ -2,22 +2,6 @@
 title: Infrastructure
 description: Generate infrastructure code for AWS deployment
 ---
-  stackName: 'AnalyticsStack',
-})
-
-// Just the table construct
-const tableCode = generateCdkTableCode({
-  tableName: 'AnalyticsTable',
-})
-
-console.log(cdkStack)
-```
-
-Output:
-
-```typescript
-import _ as cdk from 'aws-cdk-lib'
-import _ as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 
 export class AnalyticsStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {

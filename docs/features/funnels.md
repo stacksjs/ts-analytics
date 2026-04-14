@@ -2,23 +2,6 @@
 title: Funnel Analysis
 description: Analyze user journeys and conversion paths
 ---
-    {
-      name: 'Purchase',
-      type: 'pageview',
-      pattern: '/order/confirmation',
-      matchType: 'startsWith',
-    },
-  ],
-})
-```
-
-## Built-in Funnels
-
-ts-analytics includes pre-built funnels for common use cases:
-
-### E-commerce Checkout
-
-```typescript
 import { ecommerceCheckoutFunnel } from '@stacksjs/ts-analytics'
 
 // Steps: Product View → Add to Cart → Cart → Checkout → Purchase

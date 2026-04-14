@@ -2,21 +2,6 @@
 title: Installation
 description: Install ts-analytics in your project
 ---
-      "Action": [
-        "dynamodb:CreateTable",
-        "dynamodb:DescribeTable",
-        "dynamodb:PutItem",
-        "dynamodb:GetItem",
-        "dynamodb:UpdateItem",
-        "dynamodb:DeleteItem",
-        "dynamodb:Query",
-        "dynamodb:BatchWriteItem"
-      ],
-      "Resource": "arn:aws:dynamodb:_:_:table/AnalyticsTable*"
-    }
-  ]
-}
-```
 
 ## Create the Table
 

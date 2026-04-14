@@ -2,22 +2,6 @@
 title: Dashboard Components
 description: Build analytics dashboards with Vue components
 ---
-/>
-```
-
-### Stat Cards
-
-#### StatCard
-
-Display a single metric:
-
-```vue
-<StatCard
-  title="Page Views"
-  :value="12500"
-  :change="0.15"
-  icon="chart-bar"
-/>
 
 <StatCard
   title="Bounce Rate"

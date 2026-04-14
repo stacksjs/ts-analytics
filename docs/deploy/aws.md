@@ -2,21 +2,6 @@
 title: AWS Deployment
 description: Deploy ts-analytics to AWS using ts-cloud
 ---
-      variables: {
-        NODE_ENV: 'production',
-        ANALYTICS_TABLE: 'AnalyticsTable',
-      },
-    },
-    staging: {
-      type: 'staging',
-      region: 'us-east-1',
-      variables: {
-        NODE_ENV: 'staging',
-        ANALYTICS_TABLE: 'AnalyticsTable-staging',
-      },
-    },
-  },
-
   infrastructure: {
     // DynamoDB for analytics storage
     databases: {

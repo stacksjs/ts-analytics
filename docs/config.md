@@ -2,22 +2,6 @@
 title: Configuration
 description: Configure ts-analytics for your needs
 ---
-    hourlyAggregateTtl: 90 _ 24 _ 60 _ 60, // 90 days for hourly stats
-    dailyAggregateTtl: 2 _ 365 _ 24 _ 60 _ 60, // 2 years for daily stats
-    monthlyAggregateTtl: 0,              // Forever for monthly stats
-  },
-
-  // Privacy Settings
-  privacy: {
-    hashVisitorIds: true,        // Hash visitor IDs for privacy
-    collectGeolocation: false,   // Don't collect geo data by default
-    honorDnt: true,              // Respect Do Not Track
-    ipAnonymization: 'partial',  // 'full', 'partial', or 'none'
-  },
-
-  // Tracking Settings
-  tracking: {
-    trackReferrers: true,
     trackUtmParams: true,
     trackDeviceType: true,
     trackHashChanges: false,     // SPA hash-based routing

@@ -10,9 +10,9 @@ import { buildViews } from '@stacksjs/stx'
 import path from 'node:path'
 import fs from 'node:fs'
 
-const VIEWS_DIR = path.resolve(import.meta.dir, '../src/views')
+const VIEWS_DIR = path.resolve(import.meta.dir, '../pages')
 const OUTPUT_DIR = path.resolve(import.meta.dir, '../dist/views')
-const COMPONENTS_DIR = path.resolve(import.meta.dir, '../src/components')
+const COMPONENTS_DIR = path.resolve(import.meta.dir, '../components')
 
 // Placeholder tokens for runtime replacement
 const PLACEHOLDERS = {
@@ -34,8 +34,8 @@ const result = await buildViews({
   viewsDir: VIEWS_DIR,
   outputDir: OUTPUT_DIR,
   componentsDir: COMPONENTS_DIR,
-  layoutsDir: path.join(VIEWS_DIR, 'layouts'),
-  partialsDir: path.join(VIEWS_DIR, 'partials'),
+  layoutsDir: path.resolve(import.meta.dir, '../layouts'),
+  partialsDir: path.resolve(import.meta.dir, '../partials'),
   placeholders: PLACEHOLDERS,
   debug: false,
   views: [
@@ -94,7 +94,7 @@ processDirectory(OUTPUT_DIR)
 
 // Compile dashboard.ts to dashboard.js
 console.log('Compiling dashboard script...')
-const scriptSrc = path.resolve(import.meta.dir, '../src/views/scripts/dashboard.ts')
+const scriptSrc = path.resolve(import.meta.dir, '../public/dashboard/scripts/dashboard.ts')
 const scriptOut = path.resolve(OUTPUT_DIR, 'scripts')
 
 fs.mkdirSync(scriptOut, { recursive: true })

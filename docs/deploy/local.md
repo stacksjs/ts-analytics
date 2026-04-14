@@ -2,21 +2,6 @@
 title: Local Development
 description: Set up ts-analytics for local development
 ---
-  },
-})
-
-await createAnalyticsTable(client, {
-  tableName: 'AnalyticsTable',
-  billingMode: 'PAY_PER_REQUEST',
-}, { CreateTableCommand, DescribeTableCommand })
-```
-
-### 4. Run the Development Server
-
-```typescript
-// server.ts
-import { AnalyticsAPI, createBunRouter, generateTrackingScript } from '@stacksjs/ts-analytics'
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 
 const client = new DynamoDBClient({
   region: 'local',

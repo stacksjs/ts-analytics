@@ -2,23 +2,6 @@
 title: API Endpoints
 description: Analytics API endpoints reference
 ---
-
-### POST /collect
-
-Receive tracking events from the JavaScript snippet.
-
-**Request Body:**
-
-```json
-{
-  "s": "site-id",
-  "sid": "session-id",
-  "e": "pageview",
-  "u": "https://example.com/page",
-  "r": "https://google.com",
-  "t": "Page Title",
-  "sw": 1920,
-  "sh": 1080,
   "p": {
     "path": "/page",
     "title": "Page Title"

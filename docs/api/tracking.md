@@ -2,23 +2,6 @@
 title: Tracking Script API
 description: API reference for tracking script generators
 ---
-
-```typescript
-import { generateInlineTrackingScript } from '@stacksjs/ts-analytics'
-
-const html = generateInlineTrackingScript({
-  siteId: 'my-site',
-  apiEndpoint: 'https://analytics.example.com/api/analytics',
-})
-```
-
-### generateMinimalTrackingScript
-
-Generate a minimal page view only script.
-
-```typescript
-import { generateMinimalTrackingScript } from '@stacksjs/ts-analytics'
-
 const script = generateMinimalTrackingScript({
   siteId: 'my-site',
   apiEndpoint: 'https://analytics.example.com/api/analytics',

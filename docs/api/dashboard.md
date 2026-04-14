@@ -3,22 +3,6 @@ title: Dashboard API
 description: API reference for dashboard components and composables
 ---
 
-Live visitor counter.
-
-```vue
-<RealtimeCounter
-  :config="config"
-  :poll-interval="5000"
-/>
-```
-
-#### Props
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `config` | AnalyticsApiConfig | required | API configuration |
-| `pollInterval` | number | `5000` | Poll interval (ms) |
-
 ### TimeSeriesChart
 
 Line/area chart for time-based data.

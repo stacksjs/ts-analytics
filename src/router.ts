@@ -205,7 +205,7 @@ export async function createRouter(): Promise<Router> {
   // Serve dashboard script (transpile TS on the fly for dev, serve compiled JS for prod)
   const serveDashboardScript = async () => {
     const locations = [
-      './src/views/scripts/dashboard.ts',   // Local dev (source)
+      './public/dashboard/scripts/dashboard.ts',   // Local dev (source)
       '/var/task/views/scripts/dashboard.js', // Lambda
       './dist/views/scripts/dashboard.js',    // Local dev (compiled)
       './views/scripts/dashboard.js',         // Alternative
@@ -243,7 +243,7 @@ catch {
   // Serve composables script (same pattern as dashboard script)
   const serveComposablesScript = async () => {
     const locations = [
-      './src/views/scripts/composables.ts',     // Local dev (source)
+      './public/dashboard/scripts/composables.ts',     // Local dev (source)
       '/var/task/views/scripts/composables.js',  // Lambda
       './dist/views/scripts/composables.js',     // Local dev (compiled)
       './views/scripts/composables.js',          // Alternative

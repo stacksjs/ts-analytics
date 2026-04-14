@@ -2,21 +2,6 @@
 title: Real-time Analytics
 description: Track visitors and events in real-time
 ---
-  "activePages": [
-    { "path": "/", "visitors": 15 },
-    { "path": "/pricing", "visitors": 8 },
-    { "path": "/docs", "visitors": 12 }
-  ],
-  "recentEvents": [
-    { "type": "pageview", "path": "/signup", "timestamp": "..." },
-    { "type": "event", "name": "button_click", "timestamp": "..." }
-  ]
-}
-```
-
-## Dashboard Components
-
-### RealtimeCounter
 
 Display live visitor count:
 

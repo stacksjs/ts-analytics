@@ -2,24 +2,6 @@
 title: Goal Tracking
 description: Define and track conversion goals
 ---
-
-Track when users visit specific pages:
-
-```typescript
-{
-  type: 'pageview',
-  pattern: '/signup/complete',
-  matchType: 'exact',
-}
-```
-
-### Event Goals
-
-Track custom events:
-
-```typescript
-{
-  type: 'event',
   pattern: 'purchase_completed',
   matchType: 'exact',
 }

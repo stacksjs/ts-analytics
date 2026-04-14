@@ -2,25 +2,6 @@
 title: AnalyticsAPI
 description: API reference for AnalyticsAPI HTTP handler
 ---
-### handleOptions
-
-Handle OPTIONS preflight request.
-
-```typescript
-const response = api.handleOptions(request)
-```
-
-### handleCollect
-
-Handle POST /collect - receive tracking events.
-
-```typescript
-const response = await api.handleCollect(request, ctx)
-```
-
-### handleListSites
-
-Handle GET /sites - list sites for a user.
 
 ```typescript
 const response = await api.handleListSites(request, ctx, ownerId)

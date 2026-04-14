@@ -3,24 +3,6 @@ title: AnalyticsStore
 description: API reference for AnalyticsStore
 ---
 
-Parse user agent string into device info.
-
-```typescript
-const deviceInfo = AnalyticsStore.parseUserAgent(userAgent)
-// { deviceType: 'desktop', browser: 'Chrome', browserVersion: '120', os: 'macOS', osVersion: '14' }
-```
-
-### parseReferrerSource
-
-Parse referrer URL into source category.
-
-```typescript
-const source = AnalyticsStore.parseReferrerSource('https://google.com/search')
-// 'google'
-```
-
-### getPeriodStart
-
 Get the start of an aggregation period.
 
 ```typescript

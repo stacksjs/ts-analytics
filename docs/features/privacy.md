@@ -2,24 +2,6 @@
 title: Privacy First
 description: Privacy-focused analytics without compromising insights
 ---
-generateFullTrackingScript({
-  honorDnt: true, // Default: true
-})
-```
-
-When enabled:
-
-- Checks `navigator.doNotTrack` header
-- Completely disables tracking if DNT is set
-- No data is sent to the server
-
-## IP Anonymization
-
-Multiple levels of IP privacy:
-
-```typescript
-const config = {
-  privacy: {
     ipAnonymization: 'full',    // No IP data stored
     // or: 'partial',           // Last octet zeroed
     // or: 'none',              // Full IP (not recommended)

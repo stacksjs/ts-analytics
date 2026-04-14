@@ -8,7 +8,7 @@ Dashboard
 @section('controls')
 <controls-bar />
 <filters-bar />
-@include('../../components/dashboard/StatsRow.stx')
+@include('components/dashboard/StatsRow.stx')
 
 <script>
   // Immediately populate from cache before any other JS runs
@@ -37,7 +37,7 @@ Dashboard
 @endsection
 
 @section('content')
-@include('../../components/dashboard/ChartSection.stx')
+@include('components/dashboard/ChartSection.stx')
 
 <div id="dashboard-panels">
   <!-- Row 1: Pages & Referrers -->

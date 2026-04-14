@@ -18,7 +18,7 @@
     };
   </script>
   <script src="/stx-router.js"></script>
-  @include('../../components/dashboard/DashboardStyles.stx')
+  @include('components/dashboard/DashboardStyles.stx')
   @yield('head')
 </head>
 <body>
@@ -41,18 +41,18 @@
 
     @yield('controls')
 
-    @include('../../components/dashboard/NoDataMessage.stx')
+    @include('components/dashboard/NoDataMessage.stx')
 
     <div id="main-content" class="flex-1 p-6 max-w-[1400px] mx-auto w-full">
       @yield('content')
     </div>
 
     <goal-modal />
-    @include('../../components/Modal.stx')
-    @include('../../components/SessionModal.stx')
+    @include('components/Modal.stx')
+    @include('components/SessionModal.stx')
   </div>
 
-  @include('../../components/shared/EmptyStates.stx')
+  @include('components/shared/EmptyStates.stx')
   @yield('scripts')
 </body>
 </html>

@@ -2,22 +2,6 @@
 title: Tracking Script
 description: Add analytics tracking to your website
 ---
-  honorDnt: true,
-})
-
-// ~500 bytes minified
-```
-
-### Async Snippet
-
-Load the tracking script asynchronously:
-
-```typescript
-import { generateTrackingSnippet } from '@stacksjs/ts-analytics'
-
-const snippet = generateTrackingSnippet({
-  siteId: 'my-site',
-  apiEndpoint: 'https://analytics.example.com/api/analytics',
 })
 
 // Outputs a loader that fetches /sites/{siteId}/tracker.js

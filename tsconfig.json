@@ -8,11 +8,16 @@
     "moduleDetection": "force",
     "module": "esnext",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "@stacksjs/stx",
     "resolveJsonModule": true,
     "types": [
       "bun"
     ],
     "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
     "allowImportingTsExtensions": true,
     "strict": true,
     "strictNullChecks": true,
@@ -30,11 +35,16 @@
   "include": [
     "src/**/*.ts",
     "bin",
-    "build.ts"
+    "build.ts",
+    "serve.ts",
+    "stx.config.ts",
+    "**/*.stx",
+    "**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
+    ".stx",
     ".storybook",
     "**/*.stories.ts",
     "**/demo/**",
