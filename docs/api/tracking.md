@@ -2,39 +2,6 @@
 title: Tracking Script API
 description: API reference for tracking script generators
 ---
-  trackHashChanges: false,
-  trackOutboundLinks: true,
-  trackScrollDepth: [25, 50, 75, 100],
-  trackTimeOnPage: [30, 60, 120, 300],
-  honorDnt: true,
-  sessionTimeout: 30,
-  debug: false,
-  minify: true,
-})
-```
-
-### generateTrackingSnippet
-
-Generate an async loader snippet.
-
-```typescript
-import { generateTrackingSnippet } from '@stacksjs/ts-analytics'
-
-const snippet = generateTrackingSnippet({
-  siteId: 'my-site',
-  apiEndpoint: 'https://analytics.example.com/api/analytics',
-})
-
-// Output:
-// <script>
-// (function(w,d,s,a){...})(window,document,'script');
-// sa('init','my-site');
-// </script>
-```
-
-### generateInlineTrackingScript
-
-Generate an inline script with `<script>` tags.
 
 ```typescript
 import { generateInlineTrackingScript } from '@stacksjs/ts-analytics'

@@ -2,39 +2,6 @@
 title: AnalyticsStore
 description: API reference for AnalyticsStore
 ---
-### Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `tableName` | string | required | DynamoDB table name |
-| `useTtl` | boolean | `true` | Enable TTL for data expiration |
-| `rawEventTtl` | number | `2592000` | TTL for raw events in seconds |
-
-## Static Methods
-
-### generateId
-
-Generate a unique ID.
-
-```typescript
-const id = AnalyticsStore.generateId()
-// "f47ac10b-58cc-4372-a567-0e02b2c3d479"
-```
-
-### hashVisitorId
-
-Hash visitor identifiers for privacy.
-
-```typescript
-const visitorId = await AnalyticsStore.hashVisitorId(
-  ip,
-  userAgent,
-  siteId,
-  dailySalt
-)
-```
-
-### parseUserAgent
 
 Parse user agent string into device info.
 

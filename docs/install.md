@@ -2,42 +2,6 @@
 title: Installation
 description: Install ts-analytics in your project
 ---
-
-```bash [yarn]
-yarn add @stacksjs/ts-analytics
-```
-
-:::
-
-## AWS Setup
-
-ts-analytics uses DynamoDB for storage. You'll need:
-
-1. An AWS account
-2. AWS credentials with DynamoDB permissions
-3. A DynamoDB table (can be created automatically)
-
-### Environment Variables
-
-Set up your AWS credentials:
-
-```bash
-# .env
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_DEFAULT_REGION=us-east-1
-```
-
-### IAM Permissions
-
-Your AWS user/role needs these permissions:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
       "Action": [
         "dynamodb:CreateTable",
         "dynamodb:DescribeTable",
@@ -59,7 +23,9 @@ Your AWS user/role needs these permissions:
 ### Option 1: Using the CLI
 
 ```bash
+
 # Generate AWS CLI command
+
 bunx analytics create-table --table-name AnalyticsTable --region us-east-1
 ```
 
@@ -144,7 +110,9 @@ console.log('Setup complete!')
 For local development, use DynamoDB Local:
 
 ```bash
+
 # Generate Docker Compose file
+
 bunx analytics docker-compose --port 8000
 ```
 

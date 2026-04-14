@@ -2,36 +2,6 @@
 title: Funnel Analysis
 description: Analyze user journeys and conversion paths
 ---
-import { createFunnel } from '@stacksjs/ts-analytics'
-
-const checkoutFunnel = createFunnel({
-  id: 'checkout',
-  name: 'Checkout Flow',
-  steps: [
-    {
-      name: 'View Product',
-      type: 'pageview',
-      pattern: '/product/*',
-      matchType: 'startsWith',
-    },
-    {
-      name: 'Add to Cart',
-      type: 'event',
-      pattern: 'add_to_cart',
-      matchType: 'exact',
-    },
-    {
-      name: 'View Cart',
-      type: 'pageview',
-      pattern: '/cart',
-      matchType: 'exact',
-    },
-    {
-      name: 'Checkout',
-      type: 'pageview',
-      pattern: '/checkout',
-      matchType: 'startsWith',
-    },
     {
       name: 'Purchase',
       type: 'pageview',

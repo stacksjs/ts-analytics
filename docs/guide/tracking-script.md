@@ -2,38 +2,6 @@
 title: Tracking Script
 description: Add analytics tracking to your website
 ---
-  // Page tracking
-  autoPageView: true,
-  trackHashChanges: true,      // For hash-based SPAs
-
-  // Engagement tracking
-  trackOutboundLinks: true,
-  trackScrollDepth: [25, 50, 75, 100],
-  trackTimeOnPage: [30, 60, 120, 300],
-
-  // Privacy
-  honorDnt: true,
-  excludePaths: ['/admin/*'],
-
-  // Session
-  sessionTimeout: 30,
-
-  // Output
-  debug: false,
-  minify: true,
-})
-```
-
-### Minimal Script
-
-A lightweight script for basic page view tracking:
-
-```typescript
-import { generateMinimalTrackingScript } from '@stacksjs/ts-analytics'
-
-const script = generateMinimalTrackingScript({
-  siteId: 'my-site',
-  apiEndpoint: 'https://analytics.example.com/api/analytics',
   honorDnt: true,
 })
 

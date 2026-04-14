@@ -2,38 +2,6 @@
 title: Configuration
 description: Configure ts-analytics for your needs
 ---
-```
-
-## Full Configuration Reference
-
-```typescript
-import type { AnalyticsConfig } from '@stacksjs/ts-analytics'
-
-const config: AnalyticsConfig = {
-  // DynamoDB Table Configuration
-  table: {
-    tableName: 'AnalyticsTable',
-    billingMode: 'PAY_PER_REQUEST', // or 'PROVISIONED'
-
-    // Single-table design settings
-    singleTable: {
-      pkName: 'pk',
-      skName: 'sk',
-      gsi1Name: 'gsi1',
-      gsi1PkName: 'gsi1pk',
-      gsi1SkName: 'gsi1sk',
-      gsi2Name: 'gsi2',
-      gsi2PkName: 'gsi2pk',
-      gsi2SkName: 'gsi2sk',
-    },
-  },
-
-  // AWS Region
-  region: 'us-east-1',
-
-  // Data Retention Settings
-  retention: {
-    rawEventTtl: 30 _ 24 _ 60 _ 60,      // 30 days for raw events
     hourlyAggregateTtl: 90 _ 24 _ 60 _ 60, // 90 days for hourly stats
     dailyAggregateTtl: 2 _ 365 _ 24 _ 60 _ 60, // 2 years for daily stats
     monthlyAggregateTtl: 0,              // Forever for monthly stats

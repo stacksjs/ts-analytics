@@ -2,39 +2,6 @@
 title: Dashboard API
 description: API reference for dashboard components and composables
 ---
-#### Props
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `config` | AnalyticsApiConfig | API configuration |
-| `dateRange` | DateRange | Date range to display |
-
-### StatCard
-
-Display a single metric.
-
-```vue
-<StatCard
-  title="Page Views"
-  :value="12500"
-  :change="0.15"
-  format="number"
-  icon="chart-bar"
-/>
-```
-
-#### Props
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `title` | string | required | Metric name |
-| `value` | number | required | Metric value |
-| `change` | number | - | Percentage change |
-| `format` | string | `'number'` | `'number'`, `'percentage'`, `'duration'` |
-| `inverse` | boolean | `false` | Invert change color |
-| `icon` | string | - | Icon name |
-
-### RealtimeCounter
 
 Live visitor counter.
 

@@ -2,41 +2,6 @@
 title: Dashboard Components
 description: Build analytics dashboards with Vue components
 ---
-  />
-</template>
-```
-
-## Available Components
-
-### Main Dashboards
-
-#### AnalyticsDashboard
-
-A complete analytics dashboard in one component:
-
-```vue
-<AnalyticsDashboard
-  :config="{
-    baseUrl: '/api/analytics',
-    siteId: 'my-site',
-  }"
-  :date-range="{
-    start: new Date('2024-01-01'),
-    end: new Date(),
-  }"
-/>
-```
-
-#### FullAnalyticsDashboard
-
-Extended dashboard with all features:
-
-```vue
-<FullAnalyticsDashboard
-  :config="config"
-  :show-realtime="true"
-  :show-goals="true"
-  :show-funnels="true"
 />
 ```
 

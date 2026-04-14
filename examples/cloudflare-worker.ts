@@ -187,21 +187,21 @@ sa('init','YOUR_SITE_ID');
   </div>
 
   <div class="endpoint">
-    <span class="method get">GET</span>
+    <span class="get method">GET</span>
     <span class="path">/api/analytics/sites/:siteId/stats</span>
     <p>Get aggregated statistics</p>
     <p>Query params: <code>start</code>, <code>end</code></p>
   </div>
 
   <div class="endpoint">
-    <span class="method get">GET</span>
+    <span class="get method">GET</span>
     <span class="path">/api/analytics/sites/:siteId/realtime</span>
     <p>Get real-time visitor data</p>
     <p>Query params: <code>minutes</code> (default: 5)</p>
   </div>
 
   <div class="endpoint">
-    <span class="method get">GET</span>
+    <span class="get method">GET</span>
     <span class="path">/api/analytics/sites</span>
     <p>List all sites</p>
   </div>
@@ -217,7 +217,7 @@ sa('init','YOUR_SITE_ID');
   </div>
 
   <div class="endpoint">
-    <span class="method get">GET</span>
+    <span class="get method">GET</span>
     <span class="path">/health</span>
     <p>Health check endpoint</p>
   </div>

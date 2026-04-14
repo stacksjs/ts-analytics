@@ -2,40 +2,6 @@
 title: Privacy First
 description: Privacy-focused analytics without compromising insights
 ---
-)
-```
-
-This means:
-
-- No cookie consent banners needed
-- Works with strict browser privacy settings
-- No cross-site tracking possible
-
-## Hashed Visitor IDs
-
-Visitor identification is privacy-preserving:
-
-```typescript
-// IP + User Agent + Site ID + Daily Salt = Hashed ID
-const hash = crypto.subtle.digest('SHA-256', data)
-
-// The hash changes daily, preventing long-term tracking
-// Day 1: visitor-abc123
-// Day 2: visitor-xyz789 (same person, different hash)
-```
-
-This approach:
-
-- Provides accurate session tracking
-- Prevents user identification
-- Makes cross-day tracking impossible
-- No personal data is ever stored
-
-## Do Not Track Support
-
-Respect browser DNT settings:
-
-```typescript
 generateFullTrackingScript({
   honorDnt: true, // Default: true
 })

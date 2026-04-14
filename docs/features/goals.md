@@ -2,39 +2,6 @@
 title: Goal Tracking
 description: Define and track conversion goals
 ---
-    matchType: 'exact',
-    value: 5,
-  }),
-})
-```
-
-### Programmatically
-
-```typescript
-import { AnalyticsStore } from '@stacksjs/ts-analytics'
-
-const store = new AnalyticsStore({ tableName: 'AnalyticsTable' })
-
-const goal = {
-  id: 'goal-123',
-  siteId: 'my-site',
-  name: 'Purchase Complete',
-  type: 'pageview',
-  pattern: '/checkout/complete',
-  matchType: 'exact',
-  value: 99.99, // Optional monetary value
-  isActive: true,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-}
-
-const command = store.createGoalCommand(goal)
-await executeCommand(command)
-```
-
-## Goal Types
-
-### Page View Goals
 
 Track when users visit specific pages:
 

@@ -2,38 +2,6 @@
 title: Framework Integrations
 description: Integrate ts-analytics with various frameworks
 ---
-})
-```
-
-## Hono
-
-Use with the Hono web framework:
-
-```typescript
-import { Hono } from 'hono'
-import { createAnalyticsRoutes, mountAnalyticsRoutes } from '@stacksjs/ts-analytics'
-
-const app = new Hono()
-
-// Option 1: Mount routes
-mountAnalyticsRoutes(app, {
-  tableName: 'AnalyticsTable',
-  basePath: '/api/analytics',
-  executeCommand,
-})
-
-// Option 2: Create routes manually
-const analyticsRoutes = createAnalyticsRoutes({
-  tableName: 'AnalyticsTable',
-  executeCommand,
-})
-
-app.route('/api/analytics', analyticsRoutes)
-
-export default app
-```
-
-### Hono Middleware
 
 ```typescript
 import { analyticsMiddleware } from '@stacksjs/ts-analytics'

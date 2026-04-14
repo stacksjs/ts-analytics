@@ -2,42 +2,6 @@
 title: DynamoDB Single-Table Design
 description: Efficient data storage with DynamoDB single-table pattern
 ---
-|-----------|------|-------------|
-| `pk` | String | Partition key |
-| `sk` | String | Sort key |
-
-### Global Secondary Indexes
-
-#### GSI1 - Site + Date Queries
-
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `gsi1pk` | String | Site-based partition |
-| `gsi1sk` | String | Date-based sort |
-
-Use case: Query all data for a site within a date range.
-
-#### GSI2 - Visitor Queries
-
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `gsi2pk` | String | Visitor-based partition |
-| `gsi2sk` | String | Timestamp sort |
-
-Use case: Query all sessions for a visitor.
-
-## Key Patterns
-
-### Sites
-
-```
-pk: SITE#{siteId}
-sk: METADATA
-```
-
-Example:
-```typescript
-{
   pk: 'SITE#my-site',
   sk: 'METADATA',
   name: 'My Website',

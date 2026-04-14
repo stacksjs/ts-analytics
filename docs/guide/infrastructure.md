@@ -2,39 +2,6 @@
 title: Infrastructure
 description: Generate infrastructure code for AWS deployment
 ---
-  billingMode: 'PAY_PER_REQUEST',
-})
-
-// Or get JSON string
-const json = generateCloudFormationJson({
-  tableName: 'AnalyticsTable',
-})
-
-// Or get YAML string
-const yaml = generateCloudFormationYaml({
-  tableName: 'AnalyticsTable',
-})
-```
-
-Deploy with AWS CLI:
-
-```bash
-aws cloudformation create-stack \
-  --stack-name analytics \
-  --template-body file://template.json \
-  --capabilities CAPABILITY_IAM
-```
-
-## AWS CDK
-
-Generate CDK code:
-
-```typescript
-import { generateCdkCode, generateCdkTableCode } from '@stacksjs/ts-analytics'
-
-// Full CDK stack
-const cdkStack = generateCdkCode({
-  tableName: 'AnalyticsTable',
   stackName: 'AnalyticsStack',
 })
 

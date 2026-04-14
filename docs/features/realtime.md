@@ -2,39 +2,6 @@
 title: Real-time Analytics
 description: Track visitors and events in real-time
 ---
-
-```typescript
-// Data stored with 10-minute TTL
-const realtimeCommand = store.updateRealtimeStatsCommand({
-  siteId: 'my-site',
-  minute: '2024-01-15T10:30',
-  currentVisitors: 42,
-  pageViews: 156,
-  activePages: {
-    '/': 15,
-    '/pricing': 8,
-    '/docs': 12,
-  },
-  ttl: Math.floor(Date.now() / 1000) + 600, // 10 min TTL
-})
-```
-
-Data automatically expires, keeping only recent activity.
-
-## API Endpoint
-
-### GET /sites/:siteId/realtime
-
-```bash
-curl "https://api.example.com/api/analytics/sites/my-site/realtime?minutes=5"
-```
-
-Response:
-
-```json
-{
-  "currentVisitors": 42,
-  "pageViews": 156,
   "activePages": [
     { "path": "/", "visitors": 15 },
     { "path": "/pricing", "visitors": 8 },

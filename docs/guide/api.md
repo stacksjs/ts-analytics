@@ -2,38 +2,6 @@
 title: API Endpoints
 description: Analytics API endpoints reference
 ---
-| `/sites/:siteId/goals` | POST | Create a goal |
-| `/sites/:siteId/pages` | GET | Get top pages |
-| `/aggregate` | POST | Trigger aggregation |
-
-## Setting Up the API
-
-```typescript
-import { AnalyticsAPI, createBunRouter } from '@stacksjs/ts-analytics'
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-
-const client = new DynamoDBClient({ region: 'us-east-1' })
-
-const api = new AnalyticsAPI({
-  tableName: 'AnalyticsTable',
-  corsOrigins: ['https://yourdomain.com'],
-  basePath: '/api/analytics',
-})
-
-async function executeCommand(cmd) {
-  const Command = await import('@aws-sdk/client-dynamodb').then(m => m[cmd.command])
-  return client.send(new Command(cmd.input))
-}
-
-const router = createBunRouter(api, executeCommand)
-
-Bun.serve({
-  port: 3000,
-  fetch: router.fetch,
-})
-```
-
-## Endpoint Details
 
 ### POST /collect
 

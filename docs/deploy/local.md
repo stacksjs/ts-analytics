@@ -2,39 +2,6 @@
 title: Local Development
 description: Set up ts-analytics for local development
 ---
-    image: amazon/dynamodb-local:latest
-    container_name: analytics-dynamodb
-    ports:
-
-      - "8000:8000"
-
-    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
-    volumes:
-
-      - dynamodb-data:/home/dynamodblocal/data
-
-volumes:
-  dynamodb-data:
-```
-
-### 2. Start DynamoDB Local
-
-```bash
-docker-compose up -d
-```
-
-### 3. Create the Table
-
-```typescript
-import { createAnalyticsTable } from '@stacksjs/ts-analytics'
-import { DynamoDBClient, CreateTableCommand, DescribeTableCommand } from '@aws-sdk/client-dynamodb'
-
-const client = new DynamoDBClient({
-  region: 'local',
-  endpoint: 'http://localhost:8000',
-  credentials: {
-    accessKeyId: 'local',
-    secretAccessKey: 'local',
   },
 })
 

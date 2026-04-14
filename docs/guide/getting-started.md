@@ -2,37 +2,6 @@
 title: Quick Start
 description: Get started with ts-analytics in minutes
 ---
-// Create DynamoDB client
-const client = new DynamoDBClient({ region: 'us-east-1' })
-
-// Create the analytics table (one-time setup)
-await createAnalyticsTable(client, {
-  tableName: 'my-analytics',
-  billingMode: 'PAY_PER_REQUEST',
-}, { CreateTableCommand, DescribeTableCommand })
-
-// Initialize the store
-const store = new AnalyticsStore({
-  tableName: 'my-analytics',
-})
-```
-
-## 3. Add the Tracking Script
-
-Add the tracking script to your website's HTML:
-
-```typescript
-import { generateTrackingScript } from '@stacksjs/ts-analytics'
-
-const script = generateTrackingScript({
-  siteId: 'my-site-id',
-  endpoint: 'https://api.example.com/api/analytics',
-  trackPageviews: true,
-  trackOutboundLinks: true,
-  respectDoNotTrack: true,
-})
-
-// Add to your HTML head
 const html = `
 <!DOCTYPE html>
 <html>

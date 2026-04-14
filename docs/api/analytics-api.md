@@ -2,40 +2,6 @@
 title: AnalyticsAPI
 description: API reference for AnalyticsAPI HTTP handler
 ---
-```
-
-### Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `tableName` | string | required | DynamoDB table name |
-| `corsOrigins` | string[] | `['*']` | CORS allowed origins |
-| `useTtl` | boolean | `true` | Enable TTL |
-| `rawEventTtl` | number | `2592000` | Raw event TTL (seconds) |
-| `basePath` | string | `'/api/analytics'` | API base path |
-
-## Methods
-
-### createContext
-
-Create a handler context for request processing.
-
-```typescript
-const ctx = api.createContext(executeCommand, {
-  getGoals: async (siteId) => fetchGoals(siteId),
-  getSite: async (siteId) => fetchSite(siteId),
-  sessionStore: mySessionStore,
-})
-```
-
-### getCorsHeaders
-
-Get CORS headers for a response.
-
-```typescript
-const headers = api.getCorsHeaders(request.headers.origin)
-```
-
 ### handleOptions
 
 Handle OPTIONS preflight request.

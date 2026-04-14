@@ -2,41 +2,6 @@
 title: Why ts-analytics
 description: The motivation behind building a privacy-first analytics toolkit
 ---
-
-```typescript
-// No cookies needed - visitor IDs are hashed daily
-const visitorId = await AnalyticsStore.hashVisitorId(
-  ip,
-  userAgent,
-  siteId,
-  dailySalt // Rotates every day, making tracking impossible
-)
-```
-
-- **No Cookies**: Uses sessionStorage and hashed identifiers
-- **IP Anonymization**: Visitor IDs are one-way hashed
-- **DNT Respect**: Honors Do Not Track browser settings
-- **GDPR Compliant**: No personal data retention
-
-### Self-Hosted Control
-
-Your analytics data stays in your AWS account:
-
-- Full ownership of your data
-- No third-party access
-- Comply with data residency requirements
-- Export and analyze data however you want
-
-### Cost-Effective Architecture
-
-DynamoDB single-table design minimizes costs:
-
-```typescript
-// One table handles all analytics data
-const config = {
-  table: {
-    tableName: 'AnalyticsTable',
-    billingMode: 'PAY_PER_REQUEST', // Only pay for what you use
   },
 }
 ```

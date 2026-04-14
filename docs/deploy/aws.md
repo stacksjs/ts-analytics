@@ -2,42 +2,6 @@
 title: AWS Deployment
 description: Deploy ts-analytics to AWS using ts-cloud
 ---
-
-### Environment Variables
-
-Create a `.env` file with your AWS credentials:
-
-```bash
-
-# .env
-
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_DEFAULT_REGION=us-east-1
-```
-
-ts-cloud automatically reads these credentials from your environment.
-
-### Cloud Configuration
-
-Create a `cloud.config.ts` in your project root:
-
-```typescript
-import type { CloudConfig } from '@ts-cloud/types'
-
-const config: CloudConfig = {
-  project: {
-    name: 'ts-analytics',
-    slug: 'ts-analytics',
-    region: 'us-east-1',
-  },
-
-  mode: 'serverless',
-
-  environments: {
-    production: {
-      type: 'production',
-      region: 'us-east-1',
       variables: {
         NODE_ENV: 'production',
         ANALYTICS_TABLE: 'AnalyticsTable',
