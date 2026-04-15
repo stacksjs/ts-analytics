@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * InsightsTab Component - Analytics insights and trends
  * Uses STX signals for reactive state management

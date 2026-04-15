@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * LiveTab Component - Real-time visitor activity
  * Uses STX signals for reactive state management

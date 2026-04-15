@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * SettingsTab Component - Site settings management
  * Uses STX reactive APIs instead of vanilla DOM manipulation

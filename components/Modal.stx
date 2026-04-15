@@ -20,7 +20,7 @@
   </div>
 </div>
 
-<script client lang="ts">
+<script client>
 import type { ModalOptions } from '../types/dashboard'
 
 const visible = state<boolean>(false)

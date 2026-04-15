@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * GoalRow Component
  * Displays a goal in the goals table

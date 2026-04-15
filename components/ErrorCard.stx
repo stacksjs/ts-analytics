@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * ErrorCard Component
  * Displays an error with severity, status, and actions

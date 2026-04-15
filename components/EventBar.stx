@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * EventBar Component
  * Displays an event with a percentage bar

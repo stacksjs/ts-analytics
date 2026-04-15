@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * PagesPanel Component
  * Displays top pages with reactive data fetching

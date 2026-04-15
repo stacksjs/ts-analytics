@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * DashboardHeader Component - Navigation header
  * Uses STX reactive APIs: state, effect, onMount, provide

@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * Detail Page - Generic data detail view
  * Uses STX signals for reactive state management

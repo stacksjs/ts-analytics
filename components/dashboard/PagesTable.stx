@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * PagesTable Component
  * Displays top pages with entries, visitors, and views

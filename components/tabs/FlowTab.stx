@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * FlowTab Component - User flow visualization
  * Uses STX signals for reactive state management

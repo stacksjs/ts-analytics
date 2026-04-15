@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * TimelineItem Component
  * Displays a single event in a session timeline

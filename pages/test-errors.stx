@@ -42,7 +42,7 @@
     </div>
   </div>
 
-  <script client lang="ts">
+  <script client>
 interface LogEntry {
   text: string
   type: string

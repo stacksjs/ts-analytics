@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * DevicesTable Component
  * Displays device types with visitors and percentage

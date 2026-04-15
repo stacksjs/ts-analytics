@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * ControlsBar Component - Date range and controls
  * Uses STX reactive APIs: state, effect, onMount, provide

@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * SeverityCard Component
  * Displays a severity count badge

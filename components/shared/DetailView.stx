@@ -1,6 +1,6 @@
 {{-- DetailView Component - Reusable data table view --}}
 {{-- Props: section, title, icon --}}
-<script client lang="ts">
+<script client>
 interface DataItem {
   [key: string]: string | number | null
 }

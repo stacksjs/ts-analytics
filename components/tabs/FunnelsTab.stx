@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * FunnelsTab Component - Conversion funnels display
  */

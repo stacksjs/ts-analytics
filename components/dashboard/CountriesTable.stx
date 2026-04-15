@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * CountriesTable Component
  * Displays countries with flag and visitor count

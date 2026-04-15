@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * BrowsersPanel Component
  * Displays browser breakdown with reactive data fetching

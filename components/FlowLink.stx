@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * FlowLink Component
  * Displays a link between two pages in the flow

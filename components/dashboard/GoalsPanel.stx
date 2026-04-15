@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * GoalsPanel Component
  * Displays goals with conversion tracking

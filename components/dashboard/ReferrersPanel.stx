@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * ReferrersPanel Component
  * Displays top referrers with reactive data fetching

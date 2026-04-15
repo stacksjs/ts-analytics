@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * StatCard Component
  * Displays a statistic with optional change indicator

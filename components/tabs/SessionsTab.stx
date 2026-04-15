@@ -1,4 +1,4 @@
-<script client lang="ts">
+<script client>
 /**
  * SessionsTab Component - User sessions display
  */
