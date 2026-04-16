@@ -225,6 +225,7 @@ function selectSite(id: string, name: string) {
   siteId = id
   window.siteId = id
   siteName = name || 'Analytics Dashboard'
+  availableSites = window._availableSites || availableSites
   currentSite = availableSites.find(s => s.id === id)
   document.getElementById('site-selector')!.style.display = 'none'
   document.getElementById('dashboard')!.style.display = 'block'
@@ -258,7 +259,7 @@ function goBack() {
   const url = new URL(window.location.href)
   url.searchParams.delete('siteId')
   window.history.pushState({}, '', url)
-  fetchSites()
+  if (window.fetchSites) window.fetchSites()
 }
 
 function navigateTo(section: string) {
@@ -995,7 +996,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 else {
     document.getElementById('site-selector')!.style.display = 'flex'
     document.getElementById('dashboard')!.style.display = 'none'
-    fetchSites()
+    // SiteSelector component handles fetchSites via onMount
   }
 })
 
