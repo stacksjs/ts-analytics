@@ -1,33 +1,266 @@
 <script client>
-/**
- * SiteSelector Component - Site selection and creation
- * Note: All functionality is handled by dashboard.ts (fetchSites, renderSiteSelector, etc.)
- * This component just provides the HTML structure and styles.
- */
+const loading = state(true)
+const error = state(null)
+const sites = state([])
+const newName = state('')
+const newDomain = state('')
+const createError = state(null)
+const creating = state(false)
+
+const API_ENDPOINT = window.ANALYTICS_API_ENDPOINT || window.location.origin
+const apiPath = window.apiPath || ((u) => u)
+
+async function fetchSites() {
+  loading.set(true)
+  error.set(null)
+  try {
+    const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites`))
+    if (!res.ok) throw new Error('Failed to fetch')
+    const data = await res.json()
+    sites.set(data.sites || [])
+    window._availableSites = data.sites || []
+  } catch (e) {
+    error.set(e.message)
+  } finally {
+    loading.set(false)
+  }
+}
+
+async function handleCreate(e) {
+  e.preventDefault()
+  const name = newName().trim()
+  if (!name) {
+    createError.set('Site name is required')
+    return
+  }
+
+  creating.set(true)
+  createError.set(null)
+  try {
+    const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, domain: newDomain().trim() || undefined })
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      createError.set(data.error || 'Failed to create site')
+      return
+    }
+    newName.set('')
+    newDomain.set('')
+    await fetchSites()
+    if (data.site && window.selectSite) {
+      window.selectSite(data.site.id, data.site.name)
+    }
+  } catch (e) {
+    createError.set('Failed to create site')
+  } finally {
+    creating.set(false)
+  }
+}
+
+function pickSite(id, name) {
+  if (window.selectSite) window.selectSite(id, name)
+}
+
+onMount(() => {
+  fetchSites()
+  window.fetchSites = fetchSites
+})
 </script>
 
-<div id="site-selector" class="flex flex-col items-center justify-center min-h-screen p-8 text-center" style="display:none">
+<div id="site-selector" class="site-selector-wrapper" style="display:none">
   <h1 class="text-3xl font-bold text-text mb-2">Analytics Dashboard</h1>
   <p class="text-text-2 mb-8">Select a site to view analytics</p>
 
-  <div id="site-list" class="flex flex-col items-center gap-4 w-full max-w-[600px]">
-    <!-- Content populated by renderSiteSelector() in dashboard.ts -->
-    <div class="loading-state flex items-center gap-2 text-muted p-8">
-      <div class="spinner"></div>
-      <span>Loading sites...</span>
+  <div class="site-selector-content">
+    <!-- Loading -->
+    <div :if="loading()" class="site-status">
+      <div class="site-spinner"></div>
+      <p>Loading sites...</p>
+    </div>
+
+    <!-- Error -->
+    <div :if="!loading() && error()" class="site-status">
+      <svg width="32" height="32" fill="none" stroke="var(--error)" viewBox="0 0 24 24" style="opacity:0.7;margin-bottom:0.75rem">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      <p>{{ error() }}</p>
+      <button class="retry-btn" @click="fetchSites()">Retry</button>
+    </div>
+
+    <!-- Loaded -->
+    <div :if="!loading() && !error()">
+      <!-- Create form -->
+      <div class="create-form">
+        <h3 class="section-label">Create New Site</h3>
+        <form class="create-form-row" @submit="handleCreate($event)">
+          <input type="text" placeholder="Site name (e.g. My Website)" required
+                 :value="newName()" @input="newName.set($event.target.value)"
+                 class="form-input" />
+          <input type="text" placeholder="Domain (optional)"
+                 :value="newDomain()" @input="newDomain.set($event.target.value)"
+                 class="form-input" />
+          <button type="submit" class="create-btn" :disabled="creating()">
+            {{ creating() ? 'Creating...' : 'Create' }}
+          </button>
+        </form>
+        <p :if="createError()" class="create-error">{{ createError() }}</p>
+      </div>
+
+      <!-- Empty -->
+      <div :if="sites().length === 0" class="site-empty">
+        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        <p>No sites yet</p>
+        <p class="text-xs text-muted mt-2">Create your first site above to start tracking analytics</p>
+      </div>
+
+      <!-- Site list -->
+      <div :if="sites().length > 0" class="site-list-section">
+        <h3 class="section-label">Your Sites</h3>
+        <template :for="site in sites()">
+          <button class="site-card" @click="pickSite(site.id, site.name || '')">
+            <div class="site-icon">
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+              </svg>
+            </div>
+            <div class="site-info">
+              <span class="site-name">{{ site.name || 'Unnamed' }}</span>
+              <span class="site-domain">{{ site.domains?.[0] || site.id }}</span>
+            </div>
+            <svg class="site-arrow" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </template>
+      </div>
     </div>
   </div>
 </div>
 
 <style>
-/* Dynamic classes used by dashboard.ts renderSiteSelector() */
+.site-selector-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  text-align: center;
+}
+.site-selector-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 600px;
+}
+
+/* Loading & Error */
+.site-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 2rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.site-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: site-spin 0.8s linear infinite;
+  margin-bottom: 1rem;
+}
+@keyframes site-spin { to { transform: rotate(360deg); } }
+.retry-btn {
+  padding: 0.375rem 1rem;
+  font-size: 0.8125rem;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 150ms;
+  margin-top: 0.5rem;
+}
+.retry-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg2);
+}
+
+/* Create form */
+.create-form {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+.section-label {
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+  color: var(--text2);
+}
+.create-form-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.form-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text);
+  font-size: 0.875rem;
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.create-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: opacity 150ms;
+}
+.create-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.create-error {
+  color: var(--error);
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Empty */
+.site-empty {
+  color: var(--muted);
+  padding: 2rem;
+}
+
+/* Site list */
+.site-list-section {
+  width: 100%;
+}
 .site-card {
   display: flex;
   align-items: center;
   gap: 1rem;
   width: 100%;
   padding: 1rem;
-  background-color: var(--bg2);
+  background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   cursor: pointer;
@@ -38,13 +271,13 @@
 }
 .site-card:hover {
   border-color: var(--accent);
-  background-color: var(--bg3);
+  background: var(--bg3);
   transform: translateY(-1px);
 }
 .site-icon {
   width: 2.5rem;
   height: 2.5rem;
-  background-color: var(--bg3);
+  background: var(--bg3);
   border-radius: 0.5rem;
   display: flex;
   align-items: center;
@@ -53,7 +286,7 @@
   color: var(--accent);
 }
 .site-info {
-  flex: 1 1 0%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -61,24 +294,19 @@
 }
 .site-name {
   font-size: 1rem;
-  line-height: 1.5rem;
   font-weight: 600;
   color: var(--text);
 }
 .site-domain {
   font-size: 0.75rem;
-  line-height: 1rem;
   color: var(--muted);
 }
-.arrow {
+.site-arrow {
   color: var(--muted);
   flex-shrink: 0;
+  transition: color 150ms;
 }
-.site-card:hover .arrow {
+.site-card:hover .site-arrow {
   color: var(--accent);
-}
-.empty {
-  color: var(--muted);
-  padding: 2rem;
 }
 </style>

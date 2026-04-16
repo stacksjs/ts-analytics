@@ -1,58 +1,40 @@
 {{-- Dashboard Layout - Shared layout for all dashboard pages --}}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>@yield('title', 'Dashboard') - Analytics</title>
-  <link rel="stylesheet" href="/assets/crosswind.css">
-  <script src="/dashboard/scripts/composables.ts"></script>
-  <script src="/dashboard/scripts/dashboard.ts"></script>
-  <script>
-    window.STX_ROUTER_OPTIONS = {
-      container: '#main-content',
-      scrollToTop: true,
-      viewTransitions: true,
-      cache: true,
-      prefetch: true
-    };
-  </script>
-  <script src="/stx-router.js"></script>
-  @include('dashboard/DashboardStyles')
-  @yield('head')
-</head>
-<body>
-  <stx-loading-indicator color="var(--accent)" height="3px" />
-  <site-selector />
+@include('dashboard/DashboardStyles')
 
-  <script>
-    // Show dashboard immediately if siteId is in URL
-    (function() {
-      var params = new URLSearchParams(window.location.search);
-      var siteId = params.get('siteId');
-      if (siteId) {
-        var d = window['document'];
-        d['write']('<style>#dashboard{display:flex!important}#site-selector{display:none!important}</style>');
-      }
-    })();
-  </script>
-  <div id="dashboard" class="min-h-screen flex flex-col" style="display:none">
-    <dashboard-header />
+<stx-loading-indicator color="var(--accent)" height="3px" />
+<site-selector />
 
-    @yield('controls')
+<script>
+  // Show dashboard immediately if siteId is in URL
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var siteId = params.get('siteId');
+    if (siteId) {
+      var d = window['document'];
+      d['write']('<style>#dashboard{display:flex!important}#site-selector{display:none!important}</style>');
+    }
+  })();
+</script>
 
-    @include('dashboard/NoDataMessage')
+<script>window.ANALYTICS_API_ENDPOINT = '{{ $env.STX_PUBLIC_API_ENDPOINT || "" }}';</script>
+<script src="/assets/dashboard/scripts/composables.ts"></script>
+<script src="/assets/dashboard/scripts/dashboard.ts"></script>
 
-    <div id="main-content" class="flex-1 p-6 max-w-[1400px] mx-auto w-full">
-      @yield('content')
-    </div>
+<div id="dashboard" class="min-h-screen flex flex-col" style="display:none">
+  <dashboard-header />
 
-    <goal-modal />
-    @include('Modal')
-    @include('SessionModal')
-  </div>
+  @yield('controls')
 
-  @include('shared/EmptyStates')
-  @yield('scripts')
-</body>
-</html>
+  @include('dashboard/NoDataMessage')
+
+  <main id="main-content" class="flex-1 p-6 max-w-[1400px] mx-auto w-full">
+    @yield('content')
+  </main>
+
+  <goal-modal />
+  @include('Modal')
+  @include('SessionModal')
+</div>
+
+@include('shared/EmptyStates')
+@yield('scripts')

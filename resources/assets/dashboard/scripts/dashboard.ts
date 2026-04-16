@@ -218,114 +218,8 @@ function toggleTheme() {
 
 applyTheme(getPreferredTheme())
 
-// Site management
-async function fetchSites() {
-  const container = document.getElementById('site-list')
-  if (!container) return
-  container.innerHTML = '<div class="loading">Loading sites...</div>'
+// Site management — fetchSites/renderSiteSelector/createSite handled by SiteSelector.stx component
 
-  try {
-    const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites`))
-    if (!res.ok) throw new Error('Failed to fetch')
-    const data = await res.json()
-    availableSites = data.sites || []
-    renderSiteSelector()
-  }
-catch (err) {
-    container.innerHTML = '<div class="error">Failed to load sites</div>'
-  }
-}
-
-function renderSiteSelector() {
-  const container = document.getElementById('site-list')
-  if (!container) return
-
-  const sitesHtml = availableSites.length === 0 ? `
-    <div class="empty" style="margin-top:1rem">
-      <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-      <p>No sites yet</p>
-      <p style="font-size:0.75rem;margin-top:0.5rem;color:var(--muted)">Create your first site above to start tracking analytics</p>
-    </div>
-  ` : `
-    <h3 style="font-size:0.875rem;margin-bottom:0.75rem;color:var(--text2);width:100%;max-width:500px">Your Sites</h3>
-    ${availableSites.map(s => `
-      <button class='site-card' data-site-id='${s.id}' data-site-name='${s.name || ''}'>
-        <div class='site-icon'>
-          <svg width='24' height='24' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9'/></svg>
-        </div>
-        <div class='site-info'>
-          <span class='site-name'>${s.name || 'Unnamed'}</span>
-          <span class='site-domain'>${s.domains?.[0] || s.id}</span>
-        </div>
-        <svg class='arrow' width='20' height='20' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 5l7 7-7 7'/></svg>
-      </button>
-    `).join('')}
-  `
-
-  container.innerHTML = `
-    <div class="create-site-form" style="margin-bottom:1.5rem;width:100%;max-width:500px">
-      <h3 style="font-size:0.875rem;margin-bottom:0.75rem;color:var(--text2)">Create New Site</h3>
-      <form id="create-site-form" style="display:flex;gap:0.5rem">
-        <input type="text" id="new-site-name" placeholder="Site name (e.g. My Website)" required style="flex:1;padding:0.5rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:0.875rem">
-        <input type="text" id="new-site-domain" placeholder="Domain (optional)" style="flex:1;padding:0.5rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:0.875rem">
-        <button type="submit" style="padding:0.5rem 1rem;border-radius:6px;background:var(--accent);color:white;border:none;cursor:pointer;font-weight:500">Create</button>
-      </form>
-      <p id="create-site-error" style="color:var(--error);font-size:0.75rem;margin-top:0.5rem;display:none"></p>
-    </div>
-    ${sitesHtml}
-  `
-
-  document.getElementById('create-site-form')?.addEventListener('submit', createSite)
-  container.querySelectorAll('.site-card').forEach(card => {
-    card.addEventListener('click', () => {
-      selectSite((card as HTMLElement).dataset.siteId!, (card as HTMLElement).dataset.siteName || '')
-    })
-  })
-}
-
-async function createSite(e: Event) {
-  e.preventDefault()
-  const nameInput = document.getElementById('new-site-name') as HTMLInputElement
-  const domainInput = document.getElementById('new-site-domain') as HTMLInputElement
-  const errorEl = document.getElementById('create-site-error')!
-
-  const name = nameInput.value.trim()
-  const domain = domainInput.value.trim()
-
-  if (!name) {
-    errorEl.textContent = 'Site name is required'
-    errorEl.style.display = 'block'
-    return
-  }
-
-  try {
-    const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, domain: domain || undefined })
-    })
-    const data = await res.json()
-
-    if (!res.ok) {
-      errorEl.textContent = data.error || 'Failed to create site'
-      errorEl.style.display = 'block'
-      return
-    }
-
-    errorEl.style.display = 'none'
-    nameInput.value = ''
-    domainInput.value = ''
-
-    await fetchSites()
-    if (data.site) {
-      selectSite(data.site.id, data.site.name)
-    }
-  }
-catch (err) {
-    errorEl.textContent = 'Failed to create site'
-    errorEl.style.display = 'block'
-  }
-}
 
 function selectSite(id: string, name: string) {
   siteId = id
@@ -1110,8 +1004,6 @@ window.addEventListener('resize', () => { if (timeSeriesData.length) renderChart
 // Expose functions to global scope
 Object.assign(window, {
   selectSite,
-  fetchSites,
-  createSite,
   goBack,
   toggleTheme,
   setDateRange,

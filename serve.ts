@@ -15,4 +15,6 @@ const port = portIdx >= 0 && args[portIdx + 1] ? Number(args[portIdx + 1]) : 300
 await serve({
   patterns: ['pages/'],
   port,
+  layoutsDir: 'layouts',
+  partialsDir: 'components',
 })

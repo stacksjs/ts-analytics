@@ -1,7 +1,7 @@
 export default {
   componentsDir: 'components',
   layoutsDir: 'layouts',
-  partialsDir: 'partials',
+  partialsDir: 'components',
   pagesDir: 'pages',
   publicDir: 'public',
   storesDir: 'stores',
