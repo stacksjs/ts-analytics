@@ -13,10 +13,7 @@ export default {
       meta: [
         { name: 'description', content: 'Privacy-first analytics dashboard powered by DynamoDB' },
         { name: 'theme-color', content: '#0f1117' },
-      ],
-      link: [
-        { rel: 'stylesheet', href: '/assets/crosswind.css' },
-      ],
+      ] as const,
       bodyClass: 'bg-bg text-text font-sans antialiased',
     },
   },
