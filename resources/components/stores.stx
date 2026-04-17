@@ -1,0 +1,259 @@
+<script client>
+  // ===== Dashboard Store =====
+  const STEALTH_MAP = {
+    sites: 'projects',
+    stats: 'summary',
+    realtime: 'pulse',
+    pages: 'content',
+    referrers: 'sources',
+    devices: 'clients',
+    browsers: 'agents',
+    countries: 'geo',
+    regions: 'area',
+    cities: 'locale',
+    timeseries: 'series',
+    events: 'actions',
+    campaigns: 'promo',
+    comparison: 'diff',
+    sessions: 'visits',
+    flow: 'journey',
+    'entry-exit': 'endpoints',
+    live: 'now',
+    heatmap: 'touch',
+    errors: 'issues',
+    'errors/statuses': 'issues/states',
+    'errors/status': 'issues/state',
+    vitals: 'metrics',
+    'vitals-trends': 'metrics-trends',
+    'performance-budgets': 'budgets',
+    goals: 'targets',
+    'goals/stats': 'targets/data',
+    funnels: 'pipelines',
+    annotations: 'notes',
+    experiments: 'tests',
+    alerts: 'notifications',
+    'email-reports': 'scheduled',
+    'api-keys': 'tokens',
+    uptime: 'monitors',
+    webhooks: 'hooks',
+    team: 'members',
+    export: 'download',
+    retention: 'storage',
+    'gdpr/export': 'privacy/download',
+    'gdpr/delete': 'privacy/remove',
+    insights: 'intel',
+    revenue: 'income',
+    share: 'link',
+  }
+
+  defineStore('dashboard', () => {
+    const urlParams = new URLSearchParams(window.location.search)
+
+    const siteId = state(urlParams.get('siteId') || '')
+    const apiEndpoint = state(window.ANALYTICS_API_ENDPOINT || window.API_ENDPOINT || window.location.origin)
+    const useStealth = state(window.ANALYTICS_STEALTH_MODE ?? (urlParams.get('stealth') === 'true'))
+    const dateRange = state('6h')
+
+    function apiPath(path) {
+      if (!useStealth()) return path
+      var result = path
+      var sortedKeys = Object.keys(STEALTH_MAP).sort(function(a, b) { return b.length - a.length })
+      for (var i = 0; i < sortedKeys.length; i++) {
+        var key = sortedKeys[i]
+        var regex = new RegExp('/' + key + '(?=/|$|\\?)')
+        result = result.replace(regex, '/' + STEALTH_MAP[key])
+      }
+      return result.replace('/api/sites/', '/api/p/')
+    }
+
+    function apiUrl(path) {
+      return apiPath(apiEndpoint() + '/api/sites/' + siteId() + path)
+    }
+
+    function dateParams() {
+      var range = dateRange()
+      if (!range) return ''
+      var now = new Date()
+      var start
+
+      if (range.endsWith('h')) {
+        start = new Date(now.getTime() - parseInt(range) * 60 * 60 * 1000)
+      } else if (range.endsWith('d')) {
+        start = new Date(now.getTime() - parseInt(range) * 24 * 60 * 60 * 1000)
+      } else {
+        return ''
+      }
+
+      return '?start=' + start.toISOString() + '&end=' + now.toISOString() + '&period=' + range
+    }
+
+    function apiUrlWithDates(path) {
+      return apiUrl(path + dateParams())
+    }
+
+    function navigateTo(section) {
+      var url = '/dashboard/' + section + '?siteId=' + encodeURIComponent(siteId())
+      if (window.stxRouter && window.stxRouter.navigate) {
+        window.stxRouter.navigate(url)
+      } else {
+        navigate(url, true)
+      }
+    }
+
+    return {
+      siteId,
+      apiEndpoint,
+      useStealth,
+      dateRange,
+      apiPath,
+      apiUrl,
+      dateParams,
+      apiUrlWithDates,
+      navigateTo,
+    }
+  })
+
+  // ===== Analytics Store =====
+  defineStore('analytics', () => {
+    const dashboard = useStore('dashboard')
+
+    const loading = state(true)
+
+    const pages = state([])
+    const referrers = state([])
+    const browsers = state([])
+    const devices = state([])
+    const countries = state([])
+    const campaigns = state([])
+    const events = state([])
+    const goals = state([])
+
+    const sites = state([])
+    const sitesLoading = state(true)
+    const sitesError = state(null)
+
+    const sectionMap = {
+      pages: { data: pages, key: 'pages', slice: 10 },
+      referrers: { data: referrers, key: 'referrers', slice: 10 },
+      browsers: { data: browsers, key: 'browsers', slice: 0 },
+      devices: { data: devices, key: 'devices', slice: 0 },
+      countries: { data: countries, key: 'countries', slice: 10 },
+      campaigns: { data: campaigns, key: 'campaigns', slice: 10 },
+      events: { data: events, key: 'events', slice: 10 },
+      goals: { data: goals, key: 'goals', slice: 0 },
+    }
+
+    async function fetchSection(section) {
+      var config = sectionMap[section]
+      if (!config) return []
+      if (!dashboard.siteId()) {
+        loading.set(false)
+        return []
+      }
+
+      loading.set(true)
+      try {
+        var res = await fetch(dashboard.apiUrlWithDates('/' + section))
+        var data = await res.json()
+        var items = data[config.key] || []
+        var sliced = config.slice > 0 ? items.slice(0, config.slice) : items
+        config.data.set(sliced)
+        return sliced
+      } catch (e) {
+        console.error('Failed to fetch ' + section + ':', e)
+        return []
+      } finally {
+        loading.set(false)
+      }
+    }
+
+    async function fetchAll() {
+      if (!dashboard.siteId()) {
+        loading.set(false)
+        return
+      }
+      loading.set(true)
+      try {
+        await Promise.all(
+          Object.keys(sectionMap).map(function(section) { return fetchSection(section) })
+        )
+      } finally {
+        loading.set(false)
+      }
+    }
+
+    async function fetchSites() {
+      sitesLoading.set(true)
+      sitesError.set(null)
+      try {
+        var res = await fetch(dashboard.apiUrl('').replace('/sites/' + dashboard.siteId(), '/sites'))
+        if (!res.ok) throw new Error('Failed to fetch')
+        var data = await res.json()
+        sites.set(data.sites || [])
+        window._availableSites = data.sites || []
+      } catch (e) {
+        sitesError.set(e.message)
+      } finally {
+        sitesLoading.set(false)
+      }
+    }
+
+    return {
+      loading,
+      pages,
+      referrers,
+      browsers,
+      devices,
+      countries,
+      campaigns,
+      events,
+      goals,
+      sites,
+      sitesLoading,
+      sitesError,
+      fetchSection,
+      fetchAll,
+      fetchSites,
+    }
+  })
+
+  // ===== Filters Store =====
+  defineStore('filters', () => {
+    const searchQuery = state('')
+    const sortKey = state(null)
+    const sortOrder = state('desc')
+    const currentPage = state(1)
+
+    function toggleSort(key) {
+      if (sortKey() === key) {
+        sortOrder.set(sortOrder() === 'asc' ? 'desc' : 'asc')
+      } else {
+        sortKey.set(key)
+        sortOrder.set('desc')
+      }
+      currentPage.set(1)
+    }
+
+    function reset() {
+      searchQuery.set('')
+      sortKey.set(null)
+      sortOrder.set('desc')
+      currentPage.set(1)
+    }
+
+    function setSearch(query) {
+      searchQuery.set(query)
+      currentPage.set(1)
+    }
+
+    return {
+      searchQuery,
+      sortKey,
+      sortOrder,
+      currentPage,
+      toggleSort,
+      reset,
+      setSearch,
+    }
+  })
+</script>

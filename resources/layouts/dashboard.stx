@@ -1,4 +1,5 @@
 {{-- Dashboard Layout - Shared layout for all dashboard pages --}}
+@include('stores')
 @include('dashboard/DashboardStyles')
 
 <stx-loading-indicator color="var(--accent)" height="3px" />
