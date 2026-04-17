@@ -1,3 +1,5 @@
+import { defineStore, useStore, state } from '@stacksjs/stx'
+
 /**
  * Dashboard Store — shared reactive state for all dashboard components.
  * Replaces the window.* globals from dashboard.ts.
