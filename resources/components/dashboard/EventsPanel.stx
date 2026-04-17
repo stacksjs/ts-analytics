@@ -47,9 +47,7 @@ onMount(() => {
 <div class="panel">
   <div class="panel-header">
     <div class="panel-title">
-      <svg class="text-muted" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-      </svg>
+      <Icon name="zap" size="16" class="text-muted" />
       Custom Events
     </div>
     <a href="#" @click.prevent="dashboard.navigateTo('events')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>

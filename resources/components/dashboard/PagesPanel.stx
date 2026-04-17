@@ -33,9 +33,7 @@ onMount(() => {
 <div class="panel">
   <div class="panel-header">
     <div class="panel-title">
-      <svg class="text-muted" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-      </svg>
+      <Icon name="file-text" size="16" class="text-muted" />
       Top Pages
     </div>
     <a href="#" @click.prevent="dashboard.navigateTo('pages')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
@@ -54,9 +52,7 @@ onMount(() => {
         <td class="cell-name" :title="page.path">
           <a x-href="page.path" target="_blank" rel="noopener" class="inline-flex items-center gap-1 hover:text-accent">
             {{ page.path }}
-            <svg class="opacity-50" width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-            </svg>
+            <Icon name="external-link" size="10" class="opacity-50" />
           </a>
         </td>
         <td class="cell-value">{{ page.entries | fmt }}</td>

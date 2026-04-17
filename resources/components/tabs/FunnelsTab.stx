@@ -182,9 +182,7 @@ onMount(() => {
       <span @if="!currentAnalysis()">Conversion Funnels</span>
     </h3>
     <button @show="showHeaderBtn() && !currentAnalysis()" class="btn btn-primary" @click="showCreateFunnelModal()">
-      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-      </svg>
+      <Icon name="plus" size="16" />
       New Funnel
     </button>
   </div>
@@ -220,9 +218,7 @@ onMount(() => {
   <div @if="!currentAnalysis() && !loading() && !error()">
     <!-- Empty state -->
     <div @if="funnels().length === 0" class="empty-state">
-      <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="mb-4 opacity-50">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-      </svg>
+      <Icon name="filter" size="48" class="mb-4 opacity-50" />
       <p>No funnels configured yet</p>
       <p class="text-xs mt-2">Create a funnel to track conversion rates through your key user flows.</p>
       <button class="btn btn-primary mt-4" @click="showCreateFunnelModal()">
@@ -239,14 +235,10 @@ onMount(() => {
         <h4 class="text-sm font-semibold text-text m-0">{{ funnel.name }}</h4>
         <div class="flex gap-1">
           <button class="icon-btn" @click="analyzeFunnel(funnel.id)" title="View analysis">
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-            </svg>
+            <Icon name="bar-chart-2" size="16" />
           </button>
           <button class="icon-btn danger" @click="deleteFunnel(funnel.id)" title="Delete">
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-            </svg>
+            <Icon name="trash-2" size="16" />
           </button>
         </div>
       </div>

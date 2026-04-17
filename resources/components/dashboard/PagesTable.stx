@@ -59,9 +59,7 @@ function getPageUrl(path: string): string | null {
              rel="noopener"
              class="inline-flex items-center gap-1 hover:text-accent">
             {{ page.path }}
-            <svg class="opacity-50" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-            </svg>
+            <Icon name="external-link" size="12" class="opacity-50" />
           </a>
           <span @if="!getPageUrl(page.path)">{{ page.path }}</span>
         </td>

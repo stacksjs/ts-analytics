@@ -79,9 +79,7 @@ function getSourceIcon(source?: string): string {
     </div>
   @elseif (!campaigns.length)
     <div class="text-center py-8 text-gray-500">
-      <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-      </svg>
+      <Icon name="pie-chart" size="48" class="mx-auto text-gray-300 mb-3" />
       <p>No campaign data available</p>
     </div>
   @else

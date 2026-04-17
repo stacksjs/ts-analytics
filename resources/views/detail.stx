@@ -175,9 +175,7 @@ effect(() => {
 <body class="font-sans bg-bg text-text min-h-screen p-8 antialiased">
   <div class="max-w-6xl mx-auto">
     <a x-href="'/dashboard?siteId=' + SITE_ID" class="inline-flex items-center gap-1 text-accent no-underline mb-4 text-sm hover:underline">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-      </svg>
+      <Icon name="chevron-left" size="16" />
       Back to Dashboard
     </a>
 

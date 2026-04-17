@@ -22,17 +22,13 @@ function handleClick(): void {
 
 <button class="flex items-center gap-3 w-full max-w-[500px] py-3 px-4 bg-bg-2 border border-border rounded-lg cursor-pointer text-left mb-2 transition-all duration-150 hover:border-accent hover:bg-bg-3 site-card" @click="handleClick">
   <div class="w-10 h-10 flex items-center justify-center bg-bg-3 rounded-lg shrink-0">
-    <svg class="text-accent" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-    </svg>
+    <Icon name="globe" size="24" class="text-accent" />
   </div>
   <div class="flex-1 min-w-0">
     <span class="block font-medium text-sm text-text">{{ name() }}</span>
     <span class="block text-xs text-muted overflow-hidden text-ellipsis whitespace-nowrap">{{ domain() }}</span>
   </div>
-  <svg class="arrow text-muted shrink-0 transition-transform duration-150" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-  </svg>
+  <Icon name="chevron-right" size="20" class="arrow text-muted shrink-0 transition-transform duration-150" />
 </button>
 
 <style>

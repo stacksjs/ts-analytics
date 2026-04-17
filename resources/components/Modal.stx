@@ -4,9 +4,7 @@
     <div class="modal-header">
       <h3 class="modal-title">{{ modalOptions()?.title || '' }}</h3>
       <button class="modal-close" type="button" aria-label="Close" @click="close()">
-        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
+        <Icon name="x" size="20" />
       </button>
     </div>
     <div class="modal-body" @html="modalOptions()?.content || ''"></div>

@@ -5,9 +5,7 @@
     <span class="events-title">Events</span>
     @if(events.length > 0)
       <button class="add-event-btn" type="button">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-        </svg>
+        <Icon name="plus" size="16" />
         Add event
       </button>
     @endif
@@ -46,9 +44,7 @@
   @else
     <div class="empty-state">
       <div class="empty-icon">
-        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-        </svg>
+        <Icon name="zap" size="48" />
       </div>
       <p class="empty-title">You haven't created any events yet.</p>
       <p class="empty-description">

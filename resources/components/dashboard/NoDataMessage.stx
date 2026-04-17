@@ -15,9 +15,7 @@ interface NoDataMessageProps {
 </script>
 
 <div id="no-data-msg" class="bg-bg-2 rounded-lg p-12 text-center border border-border mb-6" style="display:none">
-  <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="text-warning mb-4 mx-auto">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-  </svg>
+  <Icon name="bar-chart-2" size="48" class="text-warning mb-4 mx-auto" />
   <h3 class="mb-2 text-warning">No analytics data yet</h3>
   <p class="text-text-2 mb-4">Add the tracking script to your website to start collecting data.</p>
   <code id="tracking-script" class="block bg-bg p-4 rounded-md text-xs mt-4 text-accent-2 break-all text-left"></code>

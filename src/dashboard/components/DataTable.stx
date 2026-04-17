@@ -207,9 +207,7 @@ const columnsJson = JSON.stringify(columns)
             x-disabled="currentPage() === 1"
             @click="currentPage.set(currentPage() - 1)"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
+            <Icon name="chevron-left" size="20" />
           </button>
           <span class="text-sm text-gray-600">
             Page <span :text="currentPage()"></span> of <span :text="totalPagesComputed()"></span>
@@ -220,9 +218,7 @@ const columnsJson = JSON.stringify(columns)
             x-disabled="currentPage() === totalPagesComputed()"
             @click="currentPage.set(currentPage() + 1)"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
+            <Icon name="chevron-right" size="20" />
           </button>
         </div>
       </div>

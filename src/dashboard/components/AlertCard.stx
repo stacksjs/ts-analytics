@@ -111,9 +111,7 @@ function formatTimestamp(date?: Date): string {
     </div>
   @elseif (!alerts.length)
     <div class="text-center py-8">
-      <svg class="w-12 h-12 mx-auto text-green-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
+      <Icon name="check-circle" size="48" class="mx-auto text-green-300 mb-3" />
       <p class="text-gray-500">All systems normal</p>
       <p class="text-sm text-gray-400 mt-1">No alerts at this time</p>
     </div>
@@ -148,9 +146,7 @@ function formatTimestamp(date?: Date): string {
                     class="flex-shrink-0 p-1 rounded hover:bg-black/5 transition-colors {{ severityConfig[alert.severity].text }}"
                     @click.stop="dismissedAlerts.set([...dismissedAlerts(), '{{ alert.id }}'])"
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <Icon name="x" size="16" />
                   </button>
                 @endif
               </div>

@@ -113,9 +113,7 @@ provide('dashboardHeader', {
 <header class="flex items-center justify-between py-3 px-6 bg-bg-2 border-b border-border gap-4">
   <div class="flex items-center gap-3">
     <button class="icon-btn" @click="goBack()" title="Back to sites">
-      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-      </svg>
+      <Icon name="chevron-left" size="20" />
     </button>
     <span id="current-site-name" class="font-semibold text-base text-text">{{ siteName() }}</span>
   </div>
@@ -130,19 +128,12 @@ provide('dashboardHeader', {
 
   <div class="flex items-center gap-2">
     <button id="theme-toggle" class="icon-btn" @click="toggleTheme()" title="Toggle dark/light mode">
-      <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" @show="isDark()">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-      </svg>
-      <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" @show="!isDark()">
-        <circle cx="12" cy="12" r="5" stroke-width="2"/>
-        <path stroke-linecap="round" stroke-width="2" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-      </svg>
+      <Icon name="moon" size="20" id="moon-icon" @show="isDark()" />
+      <Icon name="sun" size="20" id="sun-icon" @show="!isDark()" />
     </button>
     <form method="POST" action="/logout" class="inline">
       <button type="submit" class="icon-btn hover:text-error" title="Logout">
-        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-        </svg>
+        <Icon name="log-out" size="20" />
       </button>
     </form>
   </div>

@@ -5,63 +5,48 @@
 
   {{-- Sessions Empty State --}}
   <div id="sessions-empty" class="empty-state bg-bg-2 border border-border rounded-lg">
-    <svg class="mb-4 opacity-50 inline-block" width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-    </svg>
+    <Icon name="users" size="48" class="mb-4 opacity-50 inline-block" />
     <p>No sessions found</p>
     <p class="text-xs opacity-80 mt-2">Sessions will appear as visitors browse your site.</p>
   </div>
 
   {{-- Heatmap Empty State --}}
   <div id="heatmap-empty" class="flex flex-col items-center justify-center h-full text-muted p-8">
-    <svg class="mb-4 opacity-50 inline-block" width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
-    </svg>
+    <Icon name="mouse-pointer" size="48" class="mb-4 opacity-50 inline-block" />
     <p>No click data on this page</p>
     <p class="text-xs opacity-80 mt-2">Clicks will be recorded as visitors interact with this page.</p>
   </div>
 
   {{-- Insights Empty State --}}
   <div id="insights-empty" class="empty-state bg-bg-2 border border-border rounded-lg">
-    <svg class="mb-4 opacity-50 inline-block" width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-    </svg>
+    <Icon name="lightbulb" size="48" class="mb-4 opacity-50 inline-block" />
     <p>No insights available yet</p>
     <p class="text-xs opacity-80 mt-2">Check back when you have more data to analyze.</p>
   </div>
 
   {{-- Live Activity Empty State --}}
   <div id="live-empty" class="empty-state bg-bg-2 border border-border rounded-lg">
-    <svg class="mb-4 opacity-50 inline-block" width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-    </svg>
+    <Icon name="eye" size="48" class="mb-4 opacity-50 inline-block" />
     <p>No recent activity</p>
     <p class="text-xs opacity-80 mt-2">Visitors will appear here in real-time as they browse your site.</p>
   </div>
 
   {{-- Funnels Empty State --}}
   <div id="funnels-empty" class="empty-state bg-bg-2 border border-border rounded-lg">
-    <svg class="mb-4 opacity-50 inline-block" width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-    </svg>
+    <Icon name="filter" size="48" class="mb-4 opacity-50 inline-block" />
     <p>No funnels configured yet</p>
     <p class="text-xs opacity-80 mt-2">Create a funnel to track conversion rates through your key user flows.</p>
   </div>
 
   {{-- Events Empty State --}}
   <div id="events-empty" class="text-center text-muted p-6 text-[0.8125rem]">
-    <svg class="mb-2 opacity-50 inline-block" width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-    </svg>
+    <Icon name="zap" size="32" class="mb-2 opacity-50 inline-block" />
     <p>No custom events tracked</p>
   </div>
 
   {{-- Goals Empty State --}}
   <div id="goals-empty" class="p-6 text-center text-muted text-[0.8125rem]">
-    <svg class="mb-2 opacity-50 inline-block" width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-    </svg>
+    <Icon name="check-circle" size="32" class="mb-2 opacity-50 inline-block" />
     <p>No goals configured</p>
     <p class="text-xs opacity-80 mt-2">Click "+ Add Goal" to create your first conversion goal.</p>
   </div>

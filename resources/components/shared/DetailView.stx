@@ -142,9 +142,7 @@ effect(() => {
 
 <div class="p-8 max-w-7xl mx-auto" data-section="{{ section }}">
   <a x-href="'/dashboard?siteId=' + SITE_ID" class="inline-flex items-center gap-1 text-accent text-sm mb-4 hover:underline">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-    </svg>
+    <Icon name="chevron-left" size="16" />
     Back to Dashboard
   </a>
 

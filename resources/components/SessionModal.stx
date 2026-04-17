@@ -11,7 +11,7 @@
     <div class="modal-header">
       <h3 class="text-base font-semibold m-0 text-text">Session: <span id="session-id"></span></h3>
       <button class="icon-btn" @click="window.closeModal()">
-        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        <Icon name="x" size="20" />
       </button>
     </div>
     <div class="modal-body">
