@@ -1213,15 +1213,10 @@
           <span id="realtime-count">0 current visitors</span>
         </div>
         <button class="icon-btn" title="Notifications">
-          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-          </svg>
+          <Icon name="bell" size="20" />
         </button>
         <button class="icon-btn" title="Settings">
-          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-          </svg>
+          <Icon name="settings" size="20" />
         </button>
       </div>
     </header>
@@ -1229,16 +1224,11 @@
     <!-- View Tabs -->
     <div class="flex gap-2 mb-4">
       <button class="view-tab py-2 px-4 rounded-md text-sm cursor-pointer transition-all duration-150 border active" style="background:var(--bg-secondary);border-color:var(--border);color:var(--text-secondary);" data-view="dashboard" onclick="switchView('dashboard')">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="inline align-middle mr-1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-        </svg>
+        <Icon name="bar-chart-3" size="16" class="inline align-middle mr-1.5" />
         Dashboard
       </button>
       <button class="view-tab py-2 px-4 rounded-md text-sm cursor-pointer transition-all duration-150 border" style="background:var(--bg-secondary);border-color:var(--border);color:var(--text-secondary);" data-view="heatmap" onclick="switchView('heatmap')">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="inline align-middle mr-1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"/>
-        </svg>
+        <Icon name="flame" size="16" class="inline align-middle mr-1.5" />
         Heatmaps
       </button>
     </div>
@@ -1470,22 +1460,16 @@
             </select>
             <div class="flex gap-1 p-1 rounded-md" style="background:var(--bg-tertiary);">
               <button class="heatmap-mode-btn py-2 px-4 rounded text-[0.8125rem] cursor-pointer transition-all duration-150 border-none active" style="background:transparent;color:var(--text-secondary);" data-mode="click" onclick="switchHeatmapMode('click')">
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="inline align-middle mr-1">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
-                </svg>
+                <Icon name="mouse-pointer-click" size="14" class="inline align-middle mr-1" />
                 Clicks
               </button>
               <button class="heatmap-mode-btn py-2 px-4 rounded text-[0.8125rem] cursor-pointer transition-all duration-150 border-none" style="background:transparent;color:var(--text-secondary);" data-mode="scroll" onclick="switchHeatmapMode('scroll')">
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="inline align-middle mr-1">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
-                </svg>
+                <Icon name="arrow-down" size="14" class="inline align-middle mr-1" />
                 Scroll
               </button>
             </div>
             <button class="icon-btn" title="Refresh" onclick="fetchHeatmapData()">
-              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
+              <Icon name="refresh-cw" size="18" />
             </button>
           </div>
 
@@ -1493,9 +1477,7 @@
           <div class="rounded-lg p-4 min-h-[540px]" style="background:var(--bg-secondary);">
             <div id="heatmap-viz">
               <div class="heatmap-empty">
-                <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
-                </svg>
+                <Icon name="flame" size="48" />
                 <p>Select a page to view its heatmap</p>
               </div>
             </div>

@@ -222,9 +222,7 @@ onMount(() => {
       <p>No funnels configured yet</p>
       <p class="text-xs mt-2">Create a funnel to track conversion rates through your key user flows.</p>
       <button class="btn btn-primary mt-4" @click="showCreateFunnelModal()">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-        </svg>
+        <Icon name="plus" size="16" />
         Create Your First Funnel
       </button>
     </div>
