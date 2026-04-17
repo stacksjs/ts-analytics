@@ -98,7 +98,7 @@ function handleDateChange(range: { start: Date, end: Date }) {
 </script>
 
 <template>
-  <div class="min-h-screen" :class="isDark ? 'dark bg-gray-900' : 'bg-gray-50'">
+  <div class="min-h-screen" x-class="isDark ? 'dark bg-gray-900' : 'bg-gray-50'">
     <!-- Header -->
     <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -131,7 +131,7 @@ function handleDateChange(range: { start: Date, end: Date }) {
             v-for="section in sections"
             :key="section.id"
             class="px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors"
-            :class="activeSection === section.id
+            x-class="activeSection === section.id
               ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
               : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'"
             @click="activeSection = section.id"
@@ -159,7 +159,7 @@ function handleDateChange(range: { start: Date, end: Date }) {
             v-for="stat in mockData.stats"
             :key="stat.label"
             :label="stat.label"
-            :value="stat.value"
+            x-value="stat.value"
             :change="stat.change"
             :icon="stat.icon"
           />
@@ -174,19 +174,19 @@ function handleDateChange(range: { start: Date, end: Date }) {
           <div class="flex gap-8">
             <div>
               <div class="text-3xl font-bold text-gray-900 dark:text-white">
-                <AnimatedNumber :value="12847" format="compact" />
+                <AnimatedNumber x-value="12847" format="compact" />
               </div>
               <div class="text-sm text-gray-500">Total Users</div>
             </div>
             <div>
               <div class="text-3xl font-bold text-green-600">
-                <AnimatedNumber :value="0.0847" format="percentage" />
+                <AnimatedNumber x-value="0.0847" format="percentage" />
               </div>
               <div class="text-sm text-gray-500">Conversion Rate</div>
             </div>
             <div>
               <div class="text-3xl font-bold text-primary-600">
-                <AnimatedNumber :value="48293" format="currency" />
+                <AnimatedNumber x-value="48293" format="currency" />
               </div>
               <div class="text-sm text-gray-500">Revenue</div>
             </div>
@@ -208,7 +208,7 @@ function handleDateChange(range: { start: Date, end: Date }) {
         <TimeSeriesChart
           :data="mockData.timeSeries"
           title="Visitors Over Time"
-          :height="300"
+          x-height="300"
         />
 
         <!-- Chart Grid -->
@@ -240,7 +240,7 @@ function handleDateChange(range: { start: Date, end: Date }) {
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
             <div v-for="spark in mockData.sparklines" :key="spark.label">
               <div class="text-sm text-gray-500 mb-1">{{ spark.label }}</div>
-              <SparklineChart :data="spark.data" :color="spark.color" :height="40" />
+              <SparklineChart :data="spark.data" :color="spark.color" x-height="40" />
             </div>
           </div>
         </div>
@@ -249,9 +249,9 @@ function handleDateChange(range: { start: Date, end: Date }) {
         <div class="card p-6">
           <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-4">Progress Rings</h3>
           <div class="flex gap-8">
-            <ProgressRing :value="0.75" label="Goal Progress" :size="100" />
-            <ProgressRing :value="0.42" label="Bounce Rate" color="#ef4444" :size="100" />
-            <ProgressRing :value="0.91" label="Uptime" color="#10b981" :size="100" />
+            <ProgressRing x-value="0.75" label="Goal Progress" :size="100" />
+            <ProgressRing x-value="0.42" label="Bounce Rate" color="#ef4444" :size="100" />
+            <ProgressRing x-value="0.91" label="Uptime" color="#10b981" :size="100" />
           </div>
         </div>
       </section>
@@ -334,9 +334,9 @@ function handleDateChange(range: { start: Date, end: Date }) {
         <div class="card p-6">
           <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-4">Trend Indicators</h3>
           <div class="flex gap-8">
-            <TrendIndicator :value="0.15" label="vs last week" />
-            <TrendIndicator :value="-0.08" label="vs last month" />
-            <TrendIndicator :value="0" label="vs yesterday" />
+            <TrendIndicator x-value="0.15" label="vs last week" />
+            <TrendIndicator x-value="-0.08" label="vs last month" />
+            <TrendIndicator x-value="0" label="vs yesterday" />
           </div>
         </div>
 

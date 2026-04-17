@@ -161,16 +161,16 @@ effect(() => {
   <!-- Main heatmap canvas -->
   <canvas
     id="heatmap-canvas"
-    :width="width"
-    :height="height"
+    x-width="width"
+    x-height="height"
     class="heatmap-canvas"
   ></canvas>
 
   <!-- Interaction overlay -->
   <canvas
     id="heatmap-interaction"
-    :width="width"
-    :height="height"
+    x-width="width"
+    x-height="height"
     class="heatmap-interaction"
     @mousemove="handleMouseMove"
     @mouseleave="handleMouseLeave"

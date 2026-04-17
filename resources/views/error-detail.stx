@@ -179,7 +179,7 @@ onMount(() => {
 </head>
 <body class="font-sans bg-bg text-text min-h-screen p-8 antialiased">
   <div class="max-w-6xl mx-auto">
-    <a :href="'/dashboard/errors?siteId=' + SITE_ID" class="inline-flex items-center gap-1 text-accent no-underline mb-4 text-sm hover:underline">
+    <a x-href="'/dashboard/errors?siteId=' + SITE_ID" class="inline-flex items-center gap-1 text-accent no-underline mb-4 text-sm hover:underline">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
@@ -286,7 +286,7 @@ onMount(() => {
           <div @for="env in Object.entries(errorData().environments)" class="flex items-center gap-3">
             <span class="text-[0.8125rem] text-text min-w-[100px] font-medium">{{ env[0] }}</span>
             <div class="flex-1 h-5 bg-bg rounded overflow-hidden">
-              <div class="h-full bg-accent rounded min-w-[4px] transition-[width] duration-300" :style="`width: ${Math.min(100, Math.round((env[1] / (errorData().count || 1)) * 100))}%`"></div>
+              <div class="h-full bg-accent rounded min-w-[4px] transition-[width] duration-300" x-style="`width: ${Math.min(100, Math.round((env[1] / (errorData().count || 1)) * 100))}%`"></div>
             </div>
             <span class="text-[0.8125rem] text-muted min-w-[40px] text-right">{{ env[1] }}</span>
           </div>

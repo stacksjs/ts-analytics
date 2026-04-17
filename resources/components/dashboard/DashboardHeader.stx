@@ -123,8 +123,8 @@ provide('dashboardHeader', {
   <nav id="header-nav" class="header-nav flex gap-1 flex-wrap justify-center">
     <a @for="tab in tabs"
        @class="['text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text no-underline', currentTab() === tab.id ? 'bg-accent text-white' : '']"
-       :href="tabHref(tab)"
-       :data-tab="tab.id"
+       x-href="tabHref(tab)"
+      x-data-tab="tab.id"
        data-stx-prefetch>{{ tab.label }}</a>
   </nav>
 

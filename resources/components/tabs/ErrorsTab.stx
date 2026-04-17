@@ -229,7 +229,7 @@ onMount(() => {
     <!-- Error list -->
     <div class="flex flex-col gap-px bg-border border border-border rounded-lg overflow-hidden mt-2">
       <div @for="e in filteredErrors()">
-        <a :href="`/errors/${encodeURIComponent(e.errorId)}?siteId=${_siteId()}`"
+        <a x-href="`/errors/${encodeURIComponent(e.errorId)}?siteId=${_siteId()}`"
            @class="['error-row group flex items-stretch bg-bg-2 no-underline transition-colors duration-150 relative hover:bg-bg-3', getErrorStatus(e.fingerprint)]">
           <div @class="['severity-bar w-1 shrink-0', e.severity || 'medium']"></div>
           <div class="flex-1 min-w-0 py-3 px-4 flex flex-col gap-1.5">

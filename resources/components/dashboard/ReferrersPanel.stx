@@ -69,12 +69,12 @@ onMount(() => {
       <tr @for="ref in referrers()" @loading="loading()" @if="!loading()">
         <td class="cell-name">
           <a @if="isExternalLink(ref.source ? ref.source : 'Direct')"
-             :href="getHref(ref.source)"
+             x-href="getHref(ref.source)"
              target="_blank"
              rel="noopener"
              class="inline-flex items-center gap-1.5 hover:text-accent">
             <img
-              :src="getFaviconUrl(ref.source)"
+              x-src="getFaviconUrl(ref.source)"
               width="14"
               height="14"
               class="align-middle rounded-sm"

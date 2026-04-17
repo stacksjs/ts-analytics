@@ -54,7 +54,7 @@ function getPageUrl(path: string): string | null {
       <tr @for="page in pages()" @if="!loading()">
         <td class="cell-name" :title="page.path">
           <a @if="getPageUrl(page.path)"
-             :href="getPageUrl(page.path)"
+             x-href="getPageUrl(page.path)"
              target="_blank"
              rel="noopener"
              class="inline-flex items-center gap-1 hover:text-accent">

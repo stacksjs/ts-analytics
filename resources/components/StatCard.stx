@@ -15,7 +15,7 @@ const changeText = derived(() => (isPositive() ? '+' : '') + change + '%')
 </script>
 
 <div class="bg-bg-2 rounded-lg p-4 text-center border border-border">
-  <div class="text-2xl font-semibold text-text mb-1" :id="id">{{ value }}</div>
+  <div class="text-2xl font-semibold text-text mb-1" x-id="id">{{ value }}</div>
   <div class="text-xs text-muted uppercase tracking-wide">{{ label }}</div>
   <div @if="hasChange()" @class="['text-[0.6875rem] mt-1', changeClass()]">
     {{ changeText() }}

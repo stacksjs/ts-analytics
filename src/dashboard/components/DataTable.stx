@@ -153,19 +153,19 @@ const columnsJson = JSON.stringify(columns)
             <div :for="column in tableColumns" :key="column.key">
               <th
                 class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
-                :class="{
+                x-class="{
                   'text-right': column.align === 'right',
                   'text-center': column.align === 'center',
                   'text-left': column.align !== 'right' && column.align !== 'center'
                 }"
                 @click="toggleSort(column.key)"
               >
-                <div class="flex items-center gap-1" :class="{ 'justify-end': column.align === 'right' }">
+                <div class="flex items-center gap-1" x-class="{ 'justify-end': column.align === 'right' }">
                   <span :text="column.label"></span>
                   <svg
                     :show="sortKey() === column.key"
                     class="w-4 h-4"
-                    :class="{ 'rotate-180': sortOrder() === 'asc' }"
+                    x-class="{ 'rotate-180': sortOrder() === 'asc' }"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -183,7 +183,7 @@ const columnsJson = JSON.stringify(columns)
               <div :for="column in tableColumns" :key="column.key">
                 <td
                   class="px-4 py-3 text-sm"
-                  :class="{
+                  x-class="{
                     'text-right': column.align === 'right',
                     'text-center': column.align === 'center',
                     'tabular-nums': column.format === 'number' || column.format === 'currency'
@@ -204,7 +204,7 @@ const columnsJson = JSON.stringify(columns)
           <button
             type="button"
             class="btn-icon"
-            :disabled="currentPage() === 1"
+            x-disabled="currentPage() === 1"
             @click="currentPage.set(currentPage() - 1)"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -217,7 +217,7 @@ const columnsJson = JSON.stringify(columns)
           <button
             type="button"
             class="btn-icon"
-            :disabled="currentPage() === totalPagesComputed()"
+            x-disabled="currentPage() === totalPagesComputed()"
             @click="currentPage.set(currentPage() + 1)"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

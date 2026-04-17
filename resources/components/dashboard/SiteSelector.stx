@@ -98,12 +98,12 @@ onMount(() => {
         <h3 class="section-label">Create New Site</h3>
         <form class="create-form-row" @submit="handleCreate($event)">
           <input type="text" placeholder="Site name (e.g. My Website)" required
-                 :value="newName()" @input="newName.set($event.target.value)"
+                 x-value="newName()" @input="newName.set($event.target.value)"
                  class="form-input" />
           <input type="text" placeholder="Domain (optional)"
-                 :value="newDomain()" @input="newDomain.set($event.target.value)"
+                 x-value="newDomain()" @input="newDomain.set($event.target.value)"
                  class="form-input" />
-          <button type="submit" class="create-btn" :disabled="creating()">
+          <button type="submit" class="create-btn" x-disabled="creating()">
             {{ creating() ? 'Creating...' : 'Create' }}
           </button>
         </form>

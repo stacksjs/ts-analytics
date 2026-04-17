@@ -79,7 +79,7 @@ const formattedValue = `${prefix}${formatNumber(value)}${suffix}`
   <span
     class="animated-number tabular-nums"
     :text="formatNum(current())"
-    :class="{ 'opacity-80': isAnimating() }"
+    x-class="{ 'opacity-80': isAnimating() }"
   >{{ formattedValue }}</span>
 @else
   <span class="animated-number tabular-nums">{{ formattedValue }}</span>

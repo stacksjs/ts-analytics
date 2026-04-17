@@ -119,7 +119,7 @@ const { initialMode, showLabels, persist, storageKey } = withDefaults(
       <button
         type="button"
         class="px-3 py-1.5 text-sm rounded-md transition-colors"
-        :class="mode() === 'light' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700'"
+        x-class="mode() === 'light' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700'"
         @click="setMode('light')"
       >
         <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,7 +131,7 @@ const { initialMode, showLabels, persist, storageKey } = withDefaults(
       <button
         type="button"
         class="px-3 py-1.5 text-sm rounded-md transition-colors"
-        :class="mode() === 'dark' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700'"
+        x-class="mode() === 'dark' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700'"
         @click="setMode('dark')"
       >
         <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,7 +143,7 @@ const { initialMode, showLabels, persist, storageKey } = withDefaults(
       <button
         type="button"
         class="px-3 py-1.5 text-sm rounded-md transition-colors"
-        :class="mode() === 'system' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700'"
+        x-class="mode() === 'system' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700'"
         @click="setMode('system')"
       >
         <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

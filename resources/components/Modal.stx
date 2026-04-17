@@ -13,7 +13,7 @@
     <div @if="modalOptions()?.showFooter !== false" class="modal-footer">
       <button type="button" class="btn btn-secondary modal-cancel" @click="close()">{{ modalOptions()?.cancelText || 'Cancel' }}</button>
       <button @if="modalOptions()?.onSubmit" type="button" class="btn btn-primary modal-submit"
-              @click="handleSubmit()" :disabled="isSubmitting()">
+              @click="handleSubmit()" x-disabled="isSubmitting()">
         {{ isSubmitting() ? 'Saving...' : (modalOptions()?.submitText || 'Save') }}
       </button>
     </div>

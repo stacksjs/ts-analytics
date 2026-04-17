@@ -98,12 +98,12 @@ const {
         type="button"
         class="btn-icon p-2 rounded-lg hover:bg-gray-100"
         title="Refresh"
-        :disabled="isLoading"
+        x-disabled="isLoading"
         @click="refresh()"
       >
         <svg
           class="w-5 h-5"
-          :class="{ 'animate-spin': isLoading() }"
+          x-class="{ 'animate-spin': isLoading() }"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

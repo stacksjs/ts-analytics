@@ -46,7 +46,7 @@ function handleAction(action: string, e: Event): void {
 </script>
 
 <div class="mb-3">
-  <a :href="errorUrl()" :class="classNames()" class="block relative pl-5 overflow-hidden">
+  <a x-href="errorUrl()" x-class="classNames()" class="block relative pl-5 overflow-hidden">
     <div @class="['absolute left-0 top-0 bottom-0 w-1', severity()]"></div>
     <div class="flex gap-2 flex-wrap mb-2">
       <span class="text-[0.6875rem] font-semibold uppercase">{{ severityLabels[severity()] ? severityLabels[severity()] : 'Unknown' }}</span>
