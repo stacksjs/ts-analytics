@@ -3,29 +3,21 @@
  * CampaignsPanel Component
  * Displays campaign breakdown with reactive data fetching
  */
+const dashboard = useStore('dashboard')
 
-interface Campaign {
-  name: string
-  source?: string
-  medium?: string
-  visitors: number
-  views?: number
-}
+const campaigns = state([])
+const loading = state(true)
 
-const campaigns = state<Campaign[]>([])
-const loading = state<boolean>(true)
-
-async function fetchCampaigns(): Promise<void> {
-  const siteId: string | undefined = window.siteId
-  if (!siteId) {
+async function fetchCampaigns() {
+  if (!dashboard.siteId()) {
     loading.set(false)
     return
   }
   try {
-    const res: Response = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/campaigns${window.getDateRangeParams()}`))
-    const data: { campaigns?: Campaign[] } = await res.json()
+    const res = await fetch(dashboard.apiUrlWithDates('/campaigns'))
+    const data = await res.json()
     campaigns.set((data.campaigns || []).slice(0, 10))
-  } catch (e: unknown) {
+  } catch (e) {
     console.error('Failed to fetch campaigns:', e)
   } finally {
     loading.set(false)
@@ -33,10 +25,9 @@ async function fetchCampaigns(): Promise<void> {
 }
 
 onMount(() => {
-  if (window.siteId) fetchCampaigns()
+  if (dashboard.siteId()) fetchCampaigns()
+  window.refreshCampaignsPanel = fetchCampaigns
 })
-
-window.refreshCampaignsPanel = fetchCampaigns
 </script>
 
 <div class="panel">
@@ -48,7 +39,7 @@ window.refreshCampaignsPanel = fetchCampaigns
       </svg>
       Campaigns
     </div>
-    <a href="#" @click.prevent="window.navigateTo('campaigns')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
+    <a href="#" @click.prevent="dashboard.navigateTo('campaigns')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
   </div>
   <table class="w-full text-[0.8125rem]">
     <thead>

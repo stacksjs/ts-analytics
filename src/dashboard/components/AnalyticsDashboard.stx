@@ -58,17 +58,18 @@ const {
 )
 </script>
 
+<script client>
+  const isLoading = state({{ loading ? 'true' : 'false' }})
+  const dateRange = state('7d')
+
+  function refresh() {
+    isLoading.set(true)
+    document.dispatchEvent(new CustomEvent('refresh'))
+  }
+</script>
 <div
   class="analytics-dashboard min-h-screen bg-gray-50 p-6"
   style="max-width: 1400px; margin: 0 auto"
-  x-data="{
-    loading: {{ loading ? 'true' : 'false' }},
-    dateRange: '7d',
-    refresh() {
-      this.loading = true
-      this.$dispatch('refresh')
-    }
-  }"
 >
   <header class="flex items-center justify-between mb-6">
     <div>
@@ -83,8 +84,8 @@ const {
     <div class="flex items-center gap-4">
       <select
         class="bg-white border border-gray-200 text-gray-900 px-4 py-2 rounded-lg text-sm cursor-pointer hover:border-indigo-500"
-        x-model="dateRange"
-        x-on:change="$dispatch('date-change', { range: dateRange })"
+        :model="dateRange"
+        @change="document.dispatchEvent(new CustomEvent('date-change', { detail: { range: dateRange() } }))"
       >
         <option value="today">Today</option>
         <option value="yesterday">Yesterday</option>
@@ -97,12 +98,12 @@ const {
         type="button"
         class="btn-icon p-2 rounded-lg hover:bg-gray-100"
         title="Refresh"
-        x-bind:disabled="loading"
-        x-on:click="refresh()"
+        :disabled="isLoading"
+        @click="refresh()"
       >
         <svg
           class="w-5 h-5"
-          x-bind:class="{ 'animate-spin': loading }"
+          :class="{ 'animate-spin': isLoading() }"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -120,7 +121,7 @@ const {
       <button
         type="button"
         class="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-        x-on:click="refresh()"
+        @click="refresh()"
       >
         Try again
       </button>
@@ -215,53 +216,53 @@ const {
           <p>No data available for selected period</p>
         </div>
       @else
+        <script client>
+          onMount(() => {
+            const canvas = document.getElementById('trafficChart')
+            const ctx = canvas?.getContext('2d')
+            if (!ctx) return
+
+            const chartData = {{ JSON.stringify(timeSeries) }}
+            const labels = chartData.map(d => new Date(d.date).toLocaleDateString())
+
+            new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels,
+                datasets: [
+                  {
+                    label: 'Page Views',
+                    data: chartData.map(d => d.pageViews || d.views || 0),
+                    borderColor: '#6366f1',
+                    backgroundColor: '#6366f120',
+                    fill: true,
+                    tension: 0.3,
+                  },
+                  {
+                    label: 'Unique Visitors',
+                    data: chartData.map(d => d.uniqueVisitors || d.visitors || 0),
+                    borderColor: '#22c55e',
+                    backgroundColor: '#22c55e20',
+                    fill: true,
+                    tension: 0.3,
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: 'top' } },
+                scales: {
+                  y: { beginAtZero: true, grid: { color: '#e5e7eb' } },
+                  x: { grid: { display: false } }
+                }
+              }
+            })
+          })
+        </script>
         <canvas
           id="trafficChart"
           style="height: 320px"
-          x-data="{
-            chart: null,
-            init() {
-              const ctx = this.$el.getContext('2d')
-              if (!ctx) return
-
-              const data = {{ JSON.stringify(timeSeries) }}
-              const labels = data.map(d => new Date(d.date).toLocaleDateString())
-
-              this.chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                  labels,
-                  datasets: [
-                    {
-                      label: 'Page Views',
-                      data: data.map(d => d.pageViews || d.views || 0),
-                      borderColor: '#6366f1',
-                      backgroundColor: '#6366f120',
-                      fill: true,
-                      tension: 0.3,
-                    },
-                    {
-                      label: 'Unique Visitors',
-                      data: data.map(d => d.uniqueVisitors || d.visitors || 0),
-                      borderColor: '#22c55e',
-                      backgroundColor: '#22c55e20',
-                      fill: true,
-                      tension: 0.3,
-                    }
-                  ]
-                },
-                options: {
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: true, position: 'top' } },
-                  scales: {
-                    y: { beginAtZero: true, grid: { color: '#e5e7eb' } },
-                    x: { grid: { display: false } }
-                  }
-                }
-              })
-            }
-          }"
         ></canvas>
       @endif
     </div>

@@ -94,62 +94,63 @@ const columnsJson = JSON.stringify(columns)
       {{ emptyMessage }}
     </div>
   @else
-    <div
-      class="overflow-x-auto"
-      x-data="{
-        rows: {{ rowsJson }},
-        columns: {{ columnsJson }},
-        sortKey: null,
-        sortOrder: 'desc',
-        currentPage: 1,
-        pageSize: {{ pageSize }},
-        get sortedRows() {
-          if (!this.sortKey) return this.rows
-          return [...this.rows].sort((a, b) => {
-            const aVal = a[this.sortKey]
-            const bVal = b[this.sortKey]
-            if (aVal === bVal) return 0
-            if (aVal === null || aVal === undefined) return 1
-            if (bVal === null || bVal === undefined) return -1
-            const comparison = aVal < bVal ? -1 : 1
-            return this.sortOrder === 'asc' ? comparison : -comparison
-          })
-        },
-        get paginatedRows() {
-          const start = (this.currentPage - 1) * this.pageSize
-          return this.sortedRows.slice(start, start + this.pageSize)
-        },
-        get totalPages() {
-          return Math.ceil(this.sortedRows.length / this.pageSize)
-        },
-        toggleSort(key) {
-          if (this.sortKey === key) {
-            this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc'
-          } else {
-            this.sortKey = key
-            this.sortOrder = 'desc'
-          }
-        },
-        formatValue(value, format) {
-          if (value === null || value === undefined) return '-'
-          switch (format) {
-            case 'number': return typeof value === 'number' ? value.toLocaleString() : String(value)
-            case 'percentage': return typeof value === 'number' ? (value * 100).toFixed(1) + '%' : String(value)
-            case 'currency': return typeof value === 'number' ? '$' + value.toLocaleString() : String(value)
-            case 'duration':
-              if (typeof value !== 'number') return String(value)
-              const mins = Math.floor(value / 60)
-              const secs = Math.floor(value % 60)
-              return mins > 0 ? mins + 'm ' + secs + 's' : secs + 's'
-            default: return String(value)
-          }
+    <script client>
+      const tableRows = {{ rowsJson }}
+      const tableColumns = {{ columnsJson }}
+      const sortKey = state(null)
+      const sortOrder = state('desc')
+      const currentPage = state(1)
+      const tablePgSize = {{ pageSize }}
+
+      const sortedRows = derived(() => {
+        if (!sortKey()) return tableRows
+        return [...tableRows].sort((a, b) => {
+          const aVal = a[sortKey()]
+          const bVal = b[sortKey()]
+          if (aVal === bVal) return 0
+          if (aVal === null || aVal === undefined) return 1
+          if (bVal === null || bVal === undefined) return -1
+          const comparison = aVal < bVal ? -1 : 1
+          return sortOrder() === 'asc' ? comparison : -comparison
+        })
+      })
+
+      const paginatedRows = derived(() => {
+        const start = (currentPage() - 1) * tablePgSize
+        return sortedRows().slice(start, start + tablePgSize)
+      })
+
+      const totalPagesComputed = derived(() => Math.ceil(sortedRows().length / tablePgSize))
+
+      function toggleSort(key) {
+        if (sortKey() === key) {
+          sortOrder.set(sortOrder() === 'asc' ? 'desc' : 'asc')
+        } else {
+          sortKey.set(key)
+          sortOrder.set('desc')
         }
-      }"
-    >
+      }
+
+      function formatValueClient(value, format) {
+        if (value === null || value === undefined) return '-'
+        switch (format) {
+          case 'number': return typeof value === 'number' ? value.toLocaleString() : String(value)
+          case 'percentage': return typeof value === 'number' ? (value * 100).toFixed(1) + '%' : String(value)
+          case 'currency': return typeof value === 'number' ? '$' + value.toLocaleString() : String(value)
+          case 'duration':
+            if (typeof value !== 'number') return String(value)
+            const mins = Math.floor(value / 60)
+            const secs = Math.floor(value % 60)
+            return mins >= 1 ? mins + 'm ' + secs + 's' : secs + 's'
+          default: return String(value)
+        }
+      }
+    </script>
+    <div class="overflow-x-auto">
       <table class="w-full">
         <thead>
           <tr class="border-b border-gray-200">
-            <template x-for="column in columns" :key="column.key">
+            <div :for="column in tableColumns" :key="column.key">
               <th
                 class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
                 :class="{
@@ -157,14 +158,14 @@ const columnsJson = JSON.stringify(columns)
                   'text-center': column.align === 'center',
                   'text-left': column.align !== 'right' && column.align !== 'center'
                 }"
-                x-on:click="toggleSort(column.key)"
+                @click="toggleSort(column.key)"
               >
                 <div class="flex items-center gap-1" :class="{ 'justify-end': column.align === 'right' }">
-                  <span x-text="column.label"></span>
+                  <span :text="column.label"></span>
                   <svg
-                    x-show="sortKey === column.key"
+                    :show="sortKey() === column.key"
                     class="w-4 h-4"
-                    :class="{ 'rotate-180': sortOrder === 'asc' }"
+                    :class="{ 'rotate-180': sortOrder() === 'asc' }"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -173,13 +174,13 @@ const columnsJson = JSON.stringify(columns)
                   </svg>
                 </div>
               </th>
-            </template>
+            </div>
           </tr>
         </thead>
         <tbody>
-          <template x-for="(row, index) in paginatedRows" :key="index">
+          <div :for="(row, index) in paginatedRows()" :key="index">
             <tr class="border-b border-gray-100 hover:bg-gray-50">
-              <template x-for="column in columns" :key="column.key">
+              <div :for="column in tableColumns" :key="column.key">
                 <td
                   class="px-4 py-3 text-sm"
                   :class="{
@@ -187,37 +188,37 @@ const columnsJson = JSON.stringify(columns)
                     'text-center': column.align === 'center',
                     'tabular-nums': column.format === 'number' || column.format === 'currency'
                   }"
-                  x-text="formatValue(row[column.key], column.format)"
+                  :text="formatValueClient(row[column.key], column.format)"
                 ></td>
-              </template>
+              </div>
             </tr>
-          </template>
+          </div>
         </tbody>
       </table>
 
-      <div x-show="totalPages > 1" class="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+      <div :show="totalPagesComputed() >= 2" class="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
         <div class="text-sm text-gray-500">
-          Showing <span x-text="(currentPage - 1) * pageSize + 1"></span> to <span x-text="Math.min(currentPage * pageSize, rows.length)"></span> of <span x-text="rows.length"></span>
+          Showing <span :text="(currentPage() - 1) * tablePgSize + 1"></span> to <span :text="Math.min(currentPage() * tablePgSize, tableRows.length)"></span> of <span :text="tableRows.length"></span>
         </div>
         <div class="flex items-center gap-2">
           <button
             type="button"
             class="btn-icon"
-            :disabled="currentPage === 1"
-            x-on:click="currentPage--"
+            :disabled="currentPage() === 1"
+            @click="currentPage.set(currentPage() - 1)"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <span class="text-sm text-gray-600">
-            Page <span x-text="currentPage"></span> of <span x-text="totalPages"></span>
+            Page <span :text="currentPage()"></span> of <span :text="totalPagesComputed()"></span>
           </span>
           <button
             type="button"
             class="btn-icon"
-            :disabled="currentPage === totalPages"
-            x-on:click="currentPage++"
+            :disabled="currentPage() === totalPagesComputed()"
+            @click="currentPage.set(currentPage() + 1)"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />

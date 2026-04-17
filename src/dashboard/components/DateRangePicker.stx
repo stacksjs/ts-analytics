@@ -22,25 +22,26 @@ const { dateRange, comparison, granularity } = withDefaults(
 )
 </script>
 
-<div
-  class="date-bar flex items-center gap-4 py-3 mb-4 flex-wrap"
-  x-data="{
-    dateRange: '{{ dateRange }}',
-    comparison: '{{ comparison }}',
-    granularity: '{{ granularity }}',
-    onChange() {
-      this.$dispatch('date-change', {
-        dateRange: this.dateRange,
-        comparison: this.comparison,
-        granularity: this.granularity
-      })
-    }
-  }"
->
+<script client>
+  const dateRangeVal = state('{{ dateRange }}')
+  const comparisonVal = state('{{ comparison }}')
+  const granularityVal = state('{{ granularity }}')
+
+  function onDateChange() {
+    document.dispatchEvent(new CustomEvent('date-change', {
+      detail: {
+        dateRange: dateRangeVal(),
+        comparison: comparisonVal(),
+        granularity: granularityVal()
+      }
+    }))
+  }
+</script>
+<div class="date-bar flex items-center gap-4 py-3 mb-4 flex-wrap">
   <select
     class="date-select bg-white border border-gray-200 text-gray-900 px-4 py-2 rounded-lg text-sm cursor-pointer hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-    x-model="dateRange"
-    x-on:change="onChange()"
+    :model="dateRangeVal"
+    @change="onDateChange()"
   >
     <option value="today">Today</option>
     <option value="yesterday">Yesterday</option>
@@ -55,8 +56,8 @@ const { dateRange, comparison, granularity } = withDefaults(
 
   <select
     class="date-select bg-white border border-gray-200 text-gray-900 px-4 py-2 rounded-lg text-sm cursor-pointer hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-    x-model="comparison"
-    x-on:change="onChange()"
+    :model="comparisonVal"
+    @change="onDateChange()"
   >
     <option value="none">No comparison</option>
     <option value="previous">Previous period</option>
@@ -65,8 +66,8 @@ const { dateRange, comparison, granularity } = withDefaults(
 
   <select
     class="date-select bg-white border border-gray-200 text-gray-900 px-4 py-2 rounded-lg text-sm cursor-pointer hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-    x-model="granularity"
-    x-on:change="onChange()"
+    :model="granularityVal"
+    @change="onDateChange()"
   >
     <option value="auto">Auto</option>
     <option value="hour">Hourly</option>

@@ -2,10 +2,9 @@ import type { CrosswindOptions } from '@cwcss/crosswind'
 
 export default {
   content: [
-    './pages/**/*.stx',
-    './layouts/**/*.stx',
-    './components/**/*.stx',
-    './partials/**/*.stx',
+    './resources/views/**/*.stx',
+    './resources/layouts/**/*.stx',
+    './resources/components/**/*.stx',
   ],
   output: './public/assets/crosswind.css',
   minify: false,

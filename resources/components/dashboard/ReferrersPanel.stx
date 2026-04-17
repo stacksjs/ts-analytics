@@ -3,46 +3,38 @@
  * ReferrersPanel Component
  * Displays top referrers with reactive data fetching
  */
+const dashboard = useStore('dashboard')
 
-interface Referrer {
-  name: string
-  source?: string
-  visitors: number
-  views?: number
-  favicon?: string
-}
+const referrers = state([])
+const loading = state(true)
 
-const referrers = state<Referrer[]>([])
-const loading = state<boolean>(true)
-
-function getDomain(source: string): string {
+function getDomain(source) {
   return source.replace(/^https?:\/\//, '').split('/')[0]
 }
 
-function isExternalLink(source: string): boolean {
-  const lower: string = (source || '').toLowerCase()
+function isExternalLink(source) {
+  const lower = (source || '').toLowerCase()
   return lower !== 'direct' && !source.includes('(') && source.includes('.')
 }
 
-function getHref(source: string): string {
+function getHref(source) {
   return source.startsWith('http') ? source : 'https://' + source
 }
 
-function getFaviconUrl(source: string): string {
+function getFaviconUrl(source) {
   return 'https://www.google.com/s2/favicons?domain=' + getDomain(source) + '&sz=16'
 }
 
-async function fetchReferrers(): Promise<void> {
-  const siteId: string | undefined = window.siteId
-  if (!siteId) {
+async function fetchReferrers() {
+  if (!dashboard.siteId()) {
     loading.set(false)
     return
   }
   try {
-    const res: Response = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/referrers${window.getDateRangeParams()}`))
-    const data: { referrers?: Referrer[] } = await res.json()
+    const res = await fetch(dashboard.apiUrlWithDates('/referrers'))
+    const data = await res.json()
     referrers.set((data.referrers || []).slice(0, 10))
-  } catch (e: unknown) {
+  } catch (e) {
     console.error('Failed to fetch referrers:', e)
   } finally {
     loading.set(false)
@@ -50,10 +42,9 @@ async function fetchReferrers(): Promise<void> {
 }
 
 onMount(() => {
-  if (window.siteId) fetchReferrers()
+  if (dashboard.siteId()) fetchReferrers()
+  window.refreshReferrersPanel = fetchReferrers
 })
-
-window.refreshReferrersPanel = fetchReferrers
 </script>
 
 <div class="panel">
@@ -64,7 +55,7 @@ window.refreshReferrersPanel = fetchReferrers
       </svg>
       Top Referrers
     </div>
-    <a href="#" @click.prevent="window.navigateTo('referrers')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
+    <a href="#" @click.prevent="dashboard.navigateTo('referrers')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
   </div>
   <table class="w-full text-[0.8125rem]">
     <thead>

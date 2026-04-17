@@ -227,9 +227,12 @@ function selectSite(id: string, name: string) {
   siteName = name || 'Analytics Dashboard'
   availableSites = window._availableSites || availableSites
   currentSite = availableSites.find(s => s.id === id)
-  document.getElementById('site-selector')!.style.display = 'none'
-  document.getElementById('dashboard')!.style.display = 'block'
-  document.getElementById('current-site-name')!.textContent = siteName
+  const sel = document.getElementById('site-selector')
+  const dash = document.getElementById('dashboard')
+  const nameEl = document.getElementById('current-site-name')
+  if (sel) sel.style.display = 'none'
+  if (dash) dash.style.display = 'block'
+  if (nameEl) nameEl.textContent = siteName
 
   const url = new URL(`${window.location.origin}/dashboard`)
   url.searchParams.set('siteId', id)
@@ -254,8 +257,10 @@ function goBack() {
   siteId = ''
   window.siteId = ''
   currentSite = null
-  document.getElementById('site-selector')!.style.display = 'flex'
-  document.getElementById('dashboard')!.style.display = 'none'
+  const sel = document.getElementById('site-selector')
+  const dash = document.getElementById('dashboard')
+  if (sel) sel.style.display = 'flex'
+  if (dash) dash.style.display = 'none'
   const url = new URL(window.location.href)
   url.searchParams.delete('siteId')
   window.history.pushState({}, '', url)
@@ -968,16 +973,19 @@ else if (!siteId) {
 })
 
 document.addEventListener('DOMContentLoaded', async () => {
+  const selectorEl = document.getElementById('site-selector')
+  const dashboardEl = document.getElementById('dashboard')
+
   if (siteId) {
     currentSite = { id: siteId }
-    document.getElementById('site-selector')!.style.display = 'none'
+    if (selectorEl) selectorEl.style.display = 'none'
 
     const initialTab = getTabFromUrl()
 
     // Switch to the correct tab BEFORE showing the dashboard to avoid flash
     switchTab(initialTab, false)
 
-    document.getElementById('dashboard')!.style.display = 'block'
+    if (dashboardEl) dashboardEl.style.display = 'block'
 
     const cached = loadCachedStats()
     if (cached) {
@@ -994,8 +1002,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateUrlForTab(initialTab, true)
   }
 else {
-    document.getElementById('site-selector')!.style.display = 'flex'
-    document.getElementById('dashboard')!.style.display = 'none'
+    if (selectorEl) selectorEl.style.display = 'flex'
+    if (dashboardEl) dashboardEl.style.display = 'none'
     // SiteSelector component handles fetchSites via onMount
   }
 })

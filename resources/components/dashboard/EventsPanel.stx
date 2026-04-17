@@ -3,37 +3,35 @@
  * EventsPanel Component
  * Displays custom events with bar chart visualization
  */
+const dashboard = useStore('dashboard')
 
-import type { AnalyticsEvent } from '../../types/analytics'
-
-const events = state<AnalyticsEvent[]>([])
-const loading = state<boolean>(true)
+const events = state([])
+const loading = state(true)
 
 // Use derived for computed values
-const totalCount = derived(() => events().reduce((sum: number, e: AnalyticsEvent) => sum + (e.count || 0), 0))
-const maxCount = derived(() => Math.max(...events().map((e: AnalyticsEvent) => e.count || 0), 1))
+const totalCount = derived(() => events().reduce((sum, e) => sum + (e.count || 0), 0))
+const maxCount = derived(() => Math.max(...events().map((e) => e.count || 0), 1))
 
-function getPercentage(count: number): number {
-  const total: number = totalCount()
+function getPercentage(count) {
+  const total = totalCount()
   return total > 0 ? Math.round((count / total) * 100) : 0
 }
 
-function getBarWidth(count: number): number {
-  const max: number = maxCount()
+function getBarWidth(count) {
+  const max = maxCount()
   return max > 0 ? Math.round((count / max) * 100) : 0
 }
 
-async function fetchEvents(): Promise<void> {
-  const siteId: string | undefined = window.siteId
-  if (!siteId) {
+async function fetchEvents() {
+  if (!dashboard.siteId()) {
     loading.set(false)
     return
   }
   try {
-    const res: Response = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/events${window.getDateRangeParams()}`))
-    const data: { events?: AnalyticsEvent[] } = await res.json()
+    const res = await fetch(dashboard.apiUrlWithDates('/events'))
+    const data = await res.json()
     events.set((data.events || []).slice(0, 10))
-  } catch (e: unknown) {
+  } catch (e) {
     console.error('Failed to fetch events:', e)
   } finally {
     loading.set(false)
@@ -41,10 +39,9 @@ async function fetchEvents(): Promise<void> {
 }
 
 onMount(() => {
-  if (window.siteId) fetchEvents()
+  if (dashboard.siteId()) fetchEvents()
+  window.refreshEventsPanel = fetchEvents
 })
-
-window.refreshEventsPanel = fetchEvents
 </script>
 
 <div class="panel">
@@ -55,7 +52,7 @@ window.refreshEventsPanel = fetchEvents
       </svg>
       Custom Events
     </div>
-    <a href="#" @click.prevent="window.navigateTo('events')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
+    <a href="#" @click.prevent="dashboard.navigateTo('events')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
   </div>
 
   <div class="flex flex-col gap-3">

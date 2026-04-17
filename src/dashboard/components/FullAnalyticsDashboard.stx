@@ -91,17 +91,16 @@ const avgConversionRate = goals.length ? goals.reduce((sum, g) => sum + g.conver
 const totalRevenue = goals.reduce((sum, g) => sum + g.revenue, 0)
 </script>
 
-<div
-  class="full-analytics-dashboard min-h-screen bg-gray-50"
-  x-data="{
-    activeTab: '{{ defaultTab }}',
-    loading: {{ loading ? 'true' : 'false' }},
-    refresh() {
-      this.loading = true
-      this.$dispatch('refresh')
-    }
-  }"
->
+<script client>
+  const activeTab = state('{{ defaultTab }}')
+  const isLoading = state({{ loading ? 'true' : 'false' }})
+
+  function refresh() {
+    isLoading.set(true)
+    document.dispatchEvent(new CustomEvent('refresh'))
+  }
+</script>
+<div class="full-analytics-dashboard min-h-screen bg-gray-50">
   <header class="bg-white border-b border-gray-200 sticky top-0 z-20">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-16">
@@ -124,7 +123,7 @@ const totalRevenue = goals.reduce((sum, g) => sum + g.revenue, 0)
 
           <select
             class="bg-white border border-gray-200 text-gray-900 px-4 py-2 rounded-lg text-sm cursor-pointer hover:border-indigo-500"
-            x-on:change="$dispatch('date-change', { range: $event.target.value })"
+            @change="document.dispatchEvent(new CustomEvent('date-change', { detail: { range: event.target.value } }))"
           >
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
@@ -135,12 +134,12 @@ const totalRevenue = goals.reduce((sum, g) => sum + g.revenue, 0)
             type="button"
             class="btn-icon p-2 rounded-lg hover:bg-gray-100"
             title="Refresh"
-            x-bind:disabled="loading"
-            x-on:click="refresh()"
+            :disabled="isLoading"
+            @click="refresh()"
           >
             <svg
               class="w-5 h-5"
-              x-bind:class="{ 'animate-spin': loading }"
+              :class="{ 'animate-spin': isLoading() }"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -156,10 +155,10 @@ const totalRevenue = goals.reduce((sum, g) => sum + g.revenue, 0)
           <button
             type="button"
             class="flex items-center gap-2 px-1 py-4 text-sm font-medium border-b-2 transition-colors"
-            x-bind:class="activeTab === '{{ tab.id }}'
+            :class="activeTab() === '{{ tab.id }}'
               ? 'border-indigo-500 text-indigo-600'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-            x-on:click="activeTab = '{{ tab.id }}'"
+            @click="activeTab.set('{{ tab.id }}')"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ tab.icon }}" />
@@ -176,14 +175,14 @@ const totalRevenue = goals.reduce((sum, g) => sum + g.revenue, 0)
       <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
         <p class="font-medium">Error loading analytics</p>
         <p class="text-sm mt-1">{{ error }}</p>
-        <button type="button" class="mt-2 text-sm text-red-600 hover:text-red-800 underline" x-on:click="refresh()">
+        <button type="button" class="mt-2 text-sm text-red-600 hover:text-red-800 underline" @click="refresh()">
           Try again
         </button>
       </div>
     @endif
 
     <!-- Overview Tab -->
-    <div x-show="activeTab === 'overview'" class="space-y-6">
+    <div :show="activeTab() === 'overview'" class="space-y-6">
       <section class="dashboard-grid">
         <div class="stat-card card-hover p-6">
           <h3 class="text-sm font-medium text-gray-500">Page Views</h3>
@@ -226,20 +225,19 @@ const totalRevenue = goals.reduce((sum, g) => sum + g.revenue, 0)
         @elseif (timeSeries.length === 0)
           <div class="flex items-center justify-center h-80 text-gray-400">No data available</div>
         @else
-          <canvas
-            id="overviewChart"
-            style="height: 320px"
-            x-init="
-              const ctx = $el.getContext('2d');
+          <script client>
+            onMount(() => {
+              const canvas = document.getElementById('overviewChart')
+              const ctx = canvas?.getContext('2d')
               if (ctx) {
-                const data = {{ JSON.stringify(timeSeries) }};
+                const chartData = {{ JSON.stringify(timeSeries) }}
                 new Chart(ctx, {
                   type: 'line',
                   data: {
-                    labels: data.map(d => new Date(d.date).toLocaleDateString()),
+                    labels: chartData.map(d => new Date(d.date).toLocaleDateString()),
                     datasets: [{
                       label: 'Page Views',
-                      data: data.map(d => d.pageViews || 0),
+                      data: chartData.map(d => d.pageViews || 0),
                       borderColor: '#6366f1',
                       backgroundColor: '#6366f120',
                       fill: true,
@@ -252,9 +250,13 @@ const totalRevenue = goals.reduce((sum, g) => sum + g.revenue, 0)
                     plugins: { legend: { display: false } },
                     scales: { y: { beginAtZero: true } }
                   }
-                });
+                })
               }
-            "
+            })
+          </script>
+          <canvas
+            id="overviewChart"
+            style="height: 320px"
           ></canvas>
         @endif
       </section>
@@ -309,7 +311,7 @@ const totalRevenue = goals.reduce((sum, g) => sum + g.revenue, 0)
     </div>
 
     <!-- Audience Tab -->
-    <div x-show="activeTab === 'audience'" class="space-y-6">
+    <div :show="activeTab() === 'audience'" class="space-y-6">
       <section class="card-hover p-6">
         <div class="flex items-center gap-3">
           <div class="relative">
@@ -360,7 +362,7 @@ const totalRevenue = goals.reduce((sum, g) => sum + g.revenue, 0)
     </div>
 
     <!-- Behavior Tab -->
-    <div x-show="activeTab === 'behavior'" class="space-y-6">
+    <div :show="activeTab() === 'behavior'" class="space-y-6">
       <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="stat-card card-hover p-6">
           <h3 class="text-sm font-medium text-gray-500">Pages / Session</h3>
@@ -411,7 +413,7 @@ const totalRevenue = goals.reduce((sum, g) => sum + g.revenue, 0)
     </div>
 
     <!-- Conversions Tab -->
-    <div x-show="activeTab === 'conversions'" class="space-y-6">
+    <div :show="activeTab() === 'conversions'" class="space-y-6">
       <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="stat-card card-hover p-6">
           <h3 class="text-sm font-medium text-gray-500">Total Conversions</h3>

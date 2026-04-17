@@ -3,28 +3,21 @@
  * PagesPanel Component
  * Displays top pages with reactive data fetching
  */
+const dashboard = useStore('dashboard')
 
-interface Page {
-  path: string
-  entries?: number
-  visitors: number
-  views: number
-}
+const pages = state([])
+const loading = state(true)
 
-const pages = state<Page[]>([])
-const loading = state<boolean>(true)
-
-async function fetchPages(): Promise<void> {
-  const siteId: string | undefined = window.siteId
-  if (!siteId) {
+async function fetchPages() {
+  if (!dashboard.siteId()) {
     loading.set(false)
     return
   }
   try {
-    const res: Response = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/pages${window.getDateRangeParams()}`))
-    const data: { pages?: Page[] } = await res.json()
+    const res = await fetch(dashboard.apiUrlWithDates('/pages'))
+    const data = await res.json()
     pages.set((data.pages || []).slice(0, 10))
-  } catch (e: unknown) {
+  } catch (e) {
     console.error('Failed to fetch pages:', e)
   } finally {
     loading.set(false)
@@ -32,11 +25,9 @@ async function fetchPages(): Promise<void> {
 }
 
 onMount(() => {
-  if (window.siteId) fetchPages()
+  if (dashboard.siteId()) fetchPages()
+  window.refreshPagesPanel = fetchPages
 })
-
-// Expose refresh method for dashboard to call on date range change
-window.refreshPagesPanel = fetchPages
 </script>
 
 <div class="panel">
@@ -47,7 +38,7 @@ window.refreshPagesPanel = fetchPages
       </svg>
       Top Pages
     </div>
-    <a href="#" @click.prevent="window.navigateTo('pages')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
+    <a href="#" @click.prevent="dashboard.navigateTo('pages')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
   </div>
   <table class="w-full text-[0.8125rem]">
     <thead>
@@ -81,4 +72,3 @@ window.refreshPagesPanel = fetchPages
     </tbody>
   </table>
 </div>
-

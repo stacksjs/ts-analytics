@@ -13,8 +13,8 @@ const portIdx = args.indexOf('--port')
 const port = portIdx >= 0 && args[portIdx + 1] ? Number(args[portIdx + 1]) : 3000
 
 await serve({
-  patterns: ['pages/'],
+  patterns: ['resources/views/'],
   port,
-  layoutsDir: 'layouts',
-  partialsDir: 'components',
+  layoutsDir: 'resources/layouts',
+  partialsDir: 'resources/components',
 })

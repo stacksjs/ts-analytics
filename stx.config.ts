@@ -1,10 +1,10 @@
 export default {
-  componentsDir: 'components',
-  layoutsDir: 'layouts',
-  partialsDir: 'components',
-  pagesDir: 'pages',
+  componentsDir: 'resources/components',
+  layoutsDir: 'resources/layouts',
+  partialsDir: 'resources/components',
+  pagesDir: 'resources/views',
   publicDir: 'public',
-  storesDir: 'stores',
+  storesDir: 'resources/stores',
 
   app: {
     head: {

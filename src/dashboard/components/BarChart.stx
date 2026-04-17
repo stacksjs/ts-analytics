@@ -74,125 +74,134 @@ const chartTheme = JSON.stringify(theme)
       No data available
     </div>
   @else
-    <canvas
-      style="width: 100%; height: {{ height }}px"
-      x-data="{
-        data: {{ chartData }},
-        theme: {{ chartTheme }},
-        maxValue: {{ maxValue }},
-        orientation: '{{ orientation }}',
-        showValues: {{ showValues ? 'true' : 'false' }},
-        showComparison: {{ showComparison ? 'true' : 'false' }},
-        defaultColors: ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'],
-        formatCompact(val) {
-          if (val >= 1e6) return (val / 1e6).toFixed(1).replace(/\.0$/, '') + 'M'
-          if (val >= 1e3) return (val / 1e3).toFixed(1).replace(/\.0$/, '') + 'k'
-          return val.toLocaleString()
-        },
-        draw() {
-          const canvas = this.$el
-          const ctx = canvas.getContext('2d')
-          if (!ctx) return
+    <script client>
+      const barChartData = {{ chartData }}
+      const barChartTheme = {{ chartTheme }}
+      const barChartMaxValue = {{ maxValue }}
+      const barChartOrientation = '{{ orientation }}'
+      const barChartShowValues = {{ showValues ? 'true' : 'false' }}
+      const barChartShowComparison = {{ showComparison ? 'true' : 'false' }}
+      const barChartDefaultColors = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
-          const dpr = window.devicePixelRatio || 1
-          const rect = canvas.getBoundingClientRect()
+      function formatCompactClient(val) {
+        if (val >= 1e6) return (val / 1e6).toFixed(1).replace(/\.0$/, '') + 'M'
+        if (val >= 1e3) return (val / 1e3).toFixed(1).replace(/\.0$/, '') + 'k'
+        return val.toLocaleString()
+      }
 
-          canvas.width = rect.width * dpr
-          canvas.height = rect.height * dpr
-          ctx.scale(dpr, dpr)
+      function drawHorizontalBars(ctx, width, height) {
+        const padding = { left: 100, right: 60, top: 20, bottom: 20 }
+        const chartWidth = width - padding.left - padding.right
+        const barH = barChartShowComparison ? 16 : 24
+        const barGap = barChartShowComparison ? 4 : 0
+        const groupHeight = barH * (barChartShowComparison ? 2 : 1) + barGap
+        const groupGap = 16
 
-          const width = rect.width
-          const height = rect.height
-          ctx.clearRect(0, 0, width, height)
+        barChartData.forEach((item, index) => {
+          const y = padding.top + index * (groupHeight + groupGap)
+          const barWidth = (item.value / barChartMaxValue) * chartWidth
+          const color = item.color || barChartDefaultColors[index % barChartDefaultColors.length]
 
-          if (this.orientation === 'horizontal') {
-            this.drawHorizontalBars(ctx, width, height)
-          } else {
-            this.drawVerticalBars(ctx, width, height)
-          }
-        },
-        drawHorizontalBars(ctx, width, height) {
-          const padding = { left: 100, right: 60, top: 20, bottom: 20 }
-          const chartWidth = width - padding.left - padding.right
-          const barHeight = this.showComparison ? 16 : 24
-          const barGap = this.showComparison ? 4 : 0
-          const groupHeight = barHeight * (this.showComparison ? 2 : 1) + barGap
-          const groupGap = 16
+          ctx.fillStyle = barChartTheme.text
+          ctx.font = '13px system-ui, sans-serif'
+          ctx.textAlign = 'right'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(item.label, padding.left - 12, y + groupHeight / 2)
 
-          this.data.forEach((item, index) => {
-            const y = padding.top + index * (groupHeight + groupGap)
-            const barWidth = (item.value / this.maxValue) * chartWidth
-            const color = item.color || this.defaultColors[index % this.defaultColors.length]
-
-            ctx.fillStyle = this.theme.text
-            ctx.font = '13px system-ui, sans-serif'
-            ctx.textAlign = 'right'
-            ctx.textBaseline = 'middle'
-            ctx.fillText(item.label, padding.left - 12, y + groupHeight / 2)
-
-            ctx.fillStyle = color
-            ctx.beginPath()
-            ctx.roundRect(padding.left, y, barWidth, barHeight, 4)
-            ctx.fill()
-
-            if (this.showComparison && item.previousValue !== undefined) {
-              const prevBarWidth = (item.previousValue / this.maxValue) * chartWidth
-              ctx.fillStyle = color + '60'
-              ctx.beginPath()
-              ctx.roundRect(padding.left, y + barHeight + barGap, prevBarWidth, barHeight, 4)
-              ctx.fill()
-            }
-
-            if (this.showValues) {
-              ctx.fillStyle = this.theme.textSecondary
-              ctx.font = '12px system-ui, sans-serif'
-              ctx.textAlign = 'left'
-              ctx.fillText(this.formatCompact(item.value), padding.left + barWidth + 8, y + barHeight / 2)
-            }
-          })
-        },
-        drawVerticalBars(ctx, width, height) {
-          const padding = { left: 50, right: 20, top: 20, bottom: 60 }
-          const chartWidth = width - padding.left - padding.right
-          const chartHeight = height - padding.top - padding.bottom
-          const barWidth = this.showComparison ? 20 : 32
-          const barGap = this.showComparison ? 4 : 0
-          const groupWidth = barWidth * (this.showComparison ? 2 : 1) + barGap
-          const groupGap = (chartWidth - groupWidth * this.data.length) / (this.data.length + 1)
-
-          ctx.strokeStyle = this.theme.border
-          ctx.lineWidth = 1
+          ctx.fillStyle = color
           ctx.beginPath()
-          ctx.moveTo(padding.left, padding.top)
-          ctx.lineTo(padding.left, height - padding.bottom)
-          ctx.stroke()
+          ctx.roundRect(padding.left, y, barWidth, barH, 4)
+          ctx.fill()
 
-          this.data.forEach((item, index) => {
-            const x = padding.left + groupGap + index * (groupWidth + groupGap)
-            const barHeight = (item.value / this.maxValue) * chartHeight
-            const color = item.color || this.defaultColors[index % this.defaultColors.length]
-
-            ctx.fillStyle = color
+          if (barChartShowComparison && item.previousValue !== undefined) {
+            const prevBarWidth = (item.previousValue / barChartMaxValue) * chartWidth
+            ctx.fillStyle = color + '60'
             ctx.beginPath()
-            ctx.roundRect(x, height - padding.bottom - barHeight, barWidth, barHeight, [4, 4, 0, 0])
+            ctx.roundRect(padding.left, y + barH + barGap, prevBarWidth, barH, 4)
             ctx.fill()
+          }
 
-            ctx.fillStyle = this.theme.textSecondary
+          if (barChartShowValues) {
+            ctx.fillStyle = barChartTheme.textSecondary
             ctx.font = '12px system-ui, sans-serif'
-            ctx.textAlign = 'center'
-            ctx.fillText(item.label, x + groupWidth / 2, height - padding.bottom + 16)
+            ctx.textAlign = 'left'
+            ctx.fillText(formatCompactClient(item.value), padding.left + barWidth + 8, y + barH / 2)
+          }
+        })
+      }
 
-            if (this.showValues) {
-              ctx.fillStyle = this.theme.text
-              ctx.fillText(this.formatCompact(item.value), x + barWidth / 2, height - padding.bottom - barHeight - 8)
-            }
-          })
-        },
-        init() {
-          this.draw()
-          new ResizeObserver(() => this.draw()).observe(this.$el.parentElement)
+      function drawVerticalBars(ctx, width, height) {
+        const padding = { left: 50, right: 20, top: 20, bottom: 60 }
+        const chartWidth = width - padding.left - padding.right
+        const chartHeight = height - padding.top - padding.bottom
+        const barW = barChartShowComparison ? 20 : 32
+        const barGap = barChartShowComparison ? 4 : 0
+        const groupWidth = barW * (barChartShowComparison ? 2 : 1) + barGap
+        const groupGap = (chartWidth - groupWidth * barChartData.length) / (barChartData.length + 1)
+
+        ctx.strokeStyle = barChartTheme.border
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(padding.left, padding.top)
+        ctx.lineTo(padding.left, height - padding.bottom)
+        ctx.stroke()
+
+        barChartData.forEach((item, index) => {
+          const x = padding.left + groupGap + index * (groupWidth + groupGap)
+          const barHeight = (item.value / barChartMaxValue) * chartHeight
+          const color = item.color || barChartDefaultColors[index % barChartDefaultColors.length]
+
+          ctx.fillStyle = color
+          ctx.beginPath()
+          ctx.roundRect(x, height - padding.bottom - barHeight, barW, barHeight, [4, 4, 0, 0])
+          ctx.fill()
+
+          ctx.fillStyle = barChartTheme.textSecondary
+          ctx.font = '12px system-ui, sans-serif'
+          ctx.textAlign = 'center'
+          ctx.fillText(item.label, x + groupWidth / 2, height - padding.bottom + 16)
+
+          if (barChartShowValues) {
+            ctx.fillStyle = barChartTheme.text
+            ctx.fillText(formatCompactClient(item.value), x + barW / 2, height - padding.bottom - barHeight - 8)
+          }
+        })
+      }
+
+      function drawBarChart() {
+        const canvas = document.getElementById('barChartCanvas')
+        const ctx = canvas?.getContext('2d')
+        if (!ctx) return
+
+        const dpr = window.devicePixelRatio || 1
+        const rect = canvas.getBoundingClientRect()
+
+        canvas.width = rect.width * dpr
+        canvas.height = rect.height * dpr
+        ctx.scale(dpr, dpr)
+
+        const width = rect.width
+        const height = rect.height
+        ctx.clearRect(0, 0, width, height)
+
+        if (barChartOrientation === 'horizontal') {
+          drawHorizontalBars(ctx, width, height)
+        } else {
+          drawVerticalBars(ctx, width, height)
         }
-      }"
+      }
+
+      onMount(() => {
+        drawBarChart()
+        const canvas = document.getElementById('barChartCanvas')
+        if (canvas?.parentElement) {
+          new ResizeObserver(() => drawBarChart()).observe(canvas.parentElement)
+        }
+      })
+    </script>
+    <canvas
+      id="barChartCanvas"
+      style="width: 100%; height: {{ height }}px"
     ></canvas>
 
     @if (showComparison && !loading && data.length)

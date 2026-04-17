@@ -86,48 +86,47 @@ const itemsJson = JSON.stringify(itemsWithColors)
   @else
     <div class="flex items-center gap-6">
       <div class="relative" style="width: {{ size }}px; height: {{ size }}px">
-        <canvas
-          style="width: {{ size }}px; height: {{ size }}px"
-          x-data="{
-            items: {{ itemsJson }},
-            size: {{ size }},
-            thickness: {{ thickness }},
-            init() {
-              this.drawChart()
-            },
-            drawChart() {
-              const canvas = this.$el
-              const ctx = canvas.getContext('2d')
-              if (!ctx) return
+        <script client>
+          onMount(() => {
+            const canvas = document.getElementById('donutChartCanvas')
+            const ctx = canvas?.getContext('2d')
+            if (!ctx) return
 
-              const dpr = window.devicePixelRatio || 1
-              canvas.width = this.size * dpr
-              canvas.height = this.size * dpr
-              ctx.scale(dpr, dpr)
-              ctx.clearRect(0, 0, this.size, this.size)
+            const donutItems = {{ itemsJson }}
+            const donutSize = {{ size }}
+            const donutThickness = {{ thickness }}
 
-              const centerX = this.size / 2
-              const centerY = this.size / 2
-              const radius = (this.size - this.thickness) / 2
-              const innerRadius = radius - this.thickness
+            const dpr = window.devicePixelRatio || 1
+            canvas.width = donutSize * dpr
+            canvas.height = donutSize * dpr
+            ctx.scale(dpr, dpr)
+            ctx.clearRect(0, 0, donutSize, donutSize)
 
-              let startAngle = -Math.PI / 2
+            const centerX = donutSize / 2
+            const centerY = donutSize / 2
+            const radius = (donutSize - donutThickness) / 2
+            const innerRadius = radius - donutThickness
 
-              for (const item of this.items) {
-                const sliceAngle = item.percentage * 2 * Math.PI
+            let startAngle = -Math.PI / 2
 
-                ctx.beginPath()
-                ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle)
-                ctx.arc(centerX, centerY, innerRadius, startAngle + sliceAngle, startAngle, true)
-                ctx.closePath()
+            for (const item of donutItems) {
+              const sliceAngle = item.percentage * 2 * Math.PI
 
-                ctx.fillStyle = item.color
-                ctx.fill()
+              ctx.beginPath()
+              ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle)
+              ctx.arc(centerX, centerY, innerRadius, startAngle + sliceAngle, startAngle, true)
+              ctx.closePath()
 
-                startAngle += sliceAngle
-              }
+              ctx.fillStyle = item.color
+              ctx.fill()
+
+              startAngle += sliceAngle
             }
-          }"
+          })
+        </script>
+        <canvas
+          id="donutChartCanvas"
+          style="width: {{ size }}px; height: {{ size }}px"
         ></canvas>
         @if (showTotal)
           <div class="absolute inset-0 flex flex-col items-center justify-center">

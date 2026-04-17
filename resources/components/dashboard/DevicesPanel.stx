@@ -3,37 +3,31 @@
  * DevicesPanel Component
  * Displays device breakdown with reactive data fetching
  */
+const dashboard = useStore('dashboard')
 
-interface Device {
-  type: string
-  visitors: number
-  percentage?: number
-}
+const devices = state([])
+const loading = state(true)
 
-const devices = state<Device[]>([])
-const loading = state<boolean>(true)
-
-const deviceIcons: Record<string, string> = {
+const deviceIcons = {
   desktop: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
   mobile: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
   tablet: 'M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z'
 }
 
-function getIconPath(type: string): string {
+function getIconPath(type) {
   return deviceIcons[type?.toLowerCase()] || deviceIcons.desktop
 }
 
-async function fetchDevices(): Promise<void> {
-  const siteId: string | undefined = window.siteId
-  if (!siteId) {
+async function fetchDevices() {
+  if (!dashboard.siteId()) {
     loading.set(false)
     return
   }
   try {
-    const res: Response = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/devices${window.getDateRangeParams()}`))
-    const data: { devices?: Device[] } = await res.json()
+    const res = await fetch(dashboard.apiUrlWithDates('/devices'))
+    const data = await res.json()
     devices.set(data.devices || [])
-  } catch (e: unknown) {
+  } catch (e) {
     console.error('Failed to fetch devices:', e)
   } finally {
     loading.set(false)
@@ -41,10 +35,9 @@ async function fetchDevices(): Promise<void> {
 }
 
 onMount(() => {
-  if (window.siteId) fetchDevices()
+  if (dashboard.siteId()) fetchDevices()
+  window.refreshDevicesPanel = fetchDevices
 })
-
-window.refreshDevicesPanel = fetchDevices
 </script>
 
 <div class="panel">
@@ -55,7 +48,7 @@ window.refreshDevicesPanel = fetchDevices
       </svg>
       Devices
     </div>
-    <a href="#" @click.prevent="window.navigateTo('devices')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
+    <a href="#" @click.prevent="dashboard.navigateTo('devices')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
   </div>
   <table class="w-full text-[0.8125rem]">
     <thead>

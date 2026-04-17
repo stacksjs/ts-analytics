@@ -30,22 +30,19 @@ const { placeholder, filters, showExport } = withDefaults(
 const filtersJson = JSON.stringify(filters)
 </script>
 
-<div
-  class="filter-bar flex flex-wrap items-center gap-3 p-4 bg-white rounded-lg border border-gray-200"
-  x-data="{
-    searchQuery: '',
-    activeFilters: {},
-    showExportMenu: false,
-    filters: {{ filtersJson }},
-    get hasActiveFilters() {
-      return Object.values(this.activeFilters).some(v => v !== '')
-    },
-    clearFilters() {
-      this.searchQuery = ''
-      this.activeFilters = {}
-    }
-  }"
->
+<script client>
+  const searchQuery = state('')
+  const activeFilters = state({})
+  const showExportMenu = state(false)
+
+  const hasActiveFilters = derived(() => Object.values(activeFilters()).some(v => v !== ''))
+
+  function clearFilters() {
+    searchQuery.set('')
+    activeFilters.set({})
+  }
+</script>
+<div class="filter-bar flex flex-wrap items-center gap-3 p-4 bg-white rounded-lg border border-gray-200">
   <div class="relative flex-1 min-w-48">
     <svg
       class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
@@ -57,7 +54,7 @@ const filtersJson = JSON.stringify(filters)
     </svg>
     <input
       type="text"
-      x-model="searchQuery"
+      :model="searchQuery"
       placeholder="{{ placeholder }}"
       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
     >
@@ -66,7 +63,7 @@ const filtersJson = JSON.stringify(filters)
   @foreach (filters as filter)
     <div class="relative">
       <select
-        x-model="activeFilters['{{ filter.id }}']"
+        :model="activeFilters"
         class="appearance-none pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer"
       >
         <option value="">{{ filter.label }}</option>
@@ -86,10 +83,10 @@ const filtersJson = JSON.stringify(filters)
   @endforeach
 
   <button
-    x-show="hasActiveFilters || searchQuery"
+    :show="hasActiveFilters() || searchQuery()"
     type="button"
     class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-    x-on:click="clearFilters"
+    @click="clearFilters()"
   >
     Clear
   </button>
@@ -99,7 +96,7 @@ const filtersJson = JSON.stringify(filters)
       <button
         type="button"
         class="btn-secondary flex items-center gap-2"
-        x-on:click="showExportMenu = !showExportMenu"
+        @click="showExportMenu.set(!showExportMenu())"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -108,14 +105,7 @@ const filtersJson = JSON.stringify(filters)
       </button>
 
       <div
-        x-show="showExportMenu"
-        x-transition:enter="transition ease-out duration-100"
-        x-transition:enter-start="transform opacity-0 scale-95"
-        x-transition:enter-end="transform opacity-100 scale-100"
-        x-transition:leave="transition ease-in duration-75"
-        x-transition:leave-start="transform opacity-100 scale-100"
-        x-transition:leave-end="transform opacity-0 scale-95"
-        x-on:click.away="showExportMenu = false"
+        :show="showExportMenu"
         class="dropdown w-32 absolute right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10"
       >
         <button type="button" class="dropdown-item w-full text-left px-4 py-2 text-sm hover:bg-gray-50">

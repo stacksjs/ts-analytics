@@ -42,60 +42,60 @@ const { data, metrics, height, loading } = withDefaults(
         </span>
       </div>
     </div>
+    <script client>
+      onMount(() => {
+        const canvas = document.getElementById('timeSeriesChart')
+        const ctx = canvas?.getContext('2d')
+        if (!ctx) return
+
+        const chartData = {{ JSON.stringify(data) }}
+        const labels = chartData.map(d => new Date(d.date).toLocaleDateString())
+
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Page Views',
+                data: chartData.map(d => d.pageViews || d.views || 0),
+                borderColor: '#6366f1',
+                backgroundColor: '#6366f120',
+                fill: true,
+                tension: 0.3,
+              },
+              {
+                label: 'Unique Visitors',
+                data: chartData.map(d => d.uniqueVisitors || d.visitors || 0),
+                borderColor: '#22c55e',
+                backgroundColor: '#22c55e20',
+                fill: true,
+                tension: 0.3,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: { color: '#e5e7eb' }
+              },
+              x: {
+                grid: { display: false }
+              }
+            }
+          }
+        })
+      })
+    </script>
     <canvas
       id="timeSeriesChart"
       style="height: {{ height }}px"
-      x-data="{
-        chart: null,
-        init() {
-          const ctx = this.$el.getContext('2d')
-          if (!ctx) return
-
-          const data = {{ JSON.stringify(data) }}
-          const labels = data.map(d => new Date(d.date).toLocaleDateString())
-
-          this.chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels,
-              datasets: [
-                {
-                  label: 'Page Views',
-                  data: data.map(d => d.pageViews || d.views || 0),
-                  borderColor: '#6366f1',
-                  backgroundColor: '#6366f120',
-                  fill: true,
-                  tension: 0.3,
-                },
-                {
-                  label: 'Unique Visitors',
-                  data: data.map(d => d.uniqueVisitors || d.visitors || 0),
-                  borderColor: '#22c55e',
-                  backgroundColor: '#22c55e20',
-                  fill: true,
-                  tension: 0.3,
-                }
-              ]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { display: false }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  grid: { color: '#e5e7eb' }
-                },
-                x: {
-                  grid: { display: false }
-                }
-              }
-            }
-          })
-        }
-      }"
     ></canvas>
   @else
     <div class="chart-placeholder flex flex-col items-center justify-center text-gray-400 gap-4" style="height: {{ height }}px">

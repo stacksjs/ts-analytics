@@ -7,7 +7,8 @@ const newDomain = state('')
 const createError = state(null)
 const creating = state(false)
 
-const API_ENDPOINT = window.ANALYTICS_API_ENDPOINT || window.location.origin
+// Read from dashboard.ts globals (set before DOMContentLoaded)
+const API_ENDPOINT = window.API_ENDPOINT || window.ANALYTICS_API_ENDPOINT || window.location.origin
 const apiPath = window.apiPath || ((u) => u)
 
 async function fetchSites() {

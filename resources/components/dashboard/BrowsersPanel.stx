@@ -3,27 +3,21 @@
  * BrowsersPanel Component
  * Displays browser breakdown with reactive data fetching
  */
+const dashboard = useStore('dashboard')
 
-interface Browser {
-  name: string
-  visitors: number
-  percentage?: number
-}
+const browsers = state([])
+const loading = state(true)
 
-const browsers = state<Browser[]>([])
-const loading = state<boolean>(true)
-
-async function fetchBrowsers(): Promise<void> {
-  const siteId: string | undefined = window.siteId
-  if (!siteId) {
+async function fetchBrowsers() {
+  if (!dashboard.siteId()) {
     loading.set(false)
     return
   }
   try {
-    const res: Response = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/browsers${window.getDateRangeParams()}`))
-    const data: { browsers?: Browser[] } = await res.json()
+    const res = await fetch(dashboard.apiUrlWithDates('/browsers'))
+    const data = await res.json()
     browsers.set(data.browsers || [])
-  } catch (e: unknown) {
+  } catch (e) {
     console.error('Failed to fetch browsers:', e)
   } finally {
     loading.set(false)
@@ -31,10 +25,9 @@ async function fetchBrowsers(): Promise<void> {
 }
 
 onMount(() => {
-  if (window.siteId) fetchBrowsers()
+  if (dashboard.siteId()) fetchBrowsers()
+  window.refreshBrowsersPanel = fetchBrowsers
 })
-
-window.refreshBrowsersPanel = fetchBrowsers
 </script>
 
 <div class="panel">
@@ -45,7 +38,7 @@ window.refreshBrowsersPanel = fetchBrowsers
       </svg>
       Browsers
     </div>
-    <a href="#" @click.prevent="window.navigateTo('browsers')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
+    <a href="#" @click.prevent="dashboard.navigateTo('browsers')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
   </div>
   <table class="w-full text-[0.8125rem]">
     <thead>

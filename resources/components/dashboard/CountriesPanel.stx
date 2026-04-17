@@ -3,17 +3,12 @@
  * CountriesPanel Component
  * Displays country breakdown with reactive data fetching
  */
+const dashboard = useStore('dashboard')
 
-interface Country {
-  name?: string
-  code?: string
-  visitors: number
-}
+const countries = state([])
+const loading = state(true)
 
-const countries = state<Country[]>([])
-const loading = state<boolean>(true)
-
-const countryFlags: Record<string, string> = {
+const countryFlags = {
   'United States': '🇺🇸', 'United Kingdom': '🇬🇧', 'Germany': '🇩🇪', 'France': '🇫🇷',
   'Canada': '🇨🇦', 'Australia': '🇦🇺', 'Japan': '🇯🇵', 'China': '🇨🇳',
   'India': '🇮🇳', 'Brazil': '🇧🇷', 'Netherlands': '🇳🇱', 'Spain': '🇪🇸',
@@ -26,21 +21,20 @@ const countryFlags: Record<string, string> = {
   'South Africa': '🇿🇦', 'Turkey': '🇹🇷', 'Israel': '🇮🇱', 'UAE': '🇦🇪'
 }
 
-function getFlag(name: string): string {
+function getFlag(name) {
   return countryFlags[name] || '🌍'
 }
 
-async function fetchCountries(): Promise<void> {
-  const siteId: string | undefined = window.siteId
-  if (!siteId) {
+async function fetchCountries() {
+  if (!dashboard.siteId()) {
     loading.set(false)
     return
   }
   try {
-    const res: Response = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/countries${window.getDateRangeParams()}`))
-    const data: { countries?: Country[] } = await res.json()
+    const res = await fetch(dashboard.apiUrlWithDates('/countries'))
+    const data = await res.json()
     countries.set((data.countries || []).slice(0, 10))
-  } catch (e: unknown) {
+  } catch (e) {
     console.error('Failed to fetch countries:', e)
   } finally {
     loading.set(false)
@@ -48,10 +42,9 @@ async function fetchCountries(): Promise<void> {
 }
 
 onMount(() => {
-  if (window.siteId) fetchCountries()
+  if (dashboard.siteId()) fetchCountries()
+  window.refreshCountriesPanel = fetchCountries
 })
-
-window.refreshCountriesPanel = fetchCountries
 </script>
 
 <div class="panel">
@@ -62,7 +55,7 @@ window.refreshCountriesPanel = fetchCountries
       </svg>
       Countries
     </div>
-    <a href="#" @click.prevent="window.navigateTo('countries')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
+    <a href="#" @click.prevent="dashboard.navigateTo('countries')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
   </div>
   <table class="w-full text-[0.8125rem]">
     <thead>
