@@ -1,10 +1,12 @@
 export default {
-  componentsDir: 'resources/components',
-  layoutsDir: 'resources/layouts',
-  partialsDir: 'resources/components',
-  pagesDir: 'resources/views',
+  // Paths relative to root ('resources', auto-detected).
+  // Don't include the 'resources/' prefix — it's already the root.
+  componentsDir: 'components',
+  layoutsDir: 'layouts',
+  partialsDir: 'components',
+  pagesDir: 'views',
   publicDir: 'public',
-  storesDir: 'resources/stores',
+  storesDir: 'stores',
 
   app: {
     head: {
