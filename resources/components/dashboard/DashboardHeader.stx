@@ -51,7 +51,7 @@ function goBack(): void {
   if (window.goBack) {
     window.goBack()
   } else {
-    window.location.href = '/'
+    navigate('/', true)
   }
 }
 

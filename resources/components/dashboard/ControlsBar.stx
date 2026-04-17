@@ -64,7 +64,7 @@ function exportData(format: string): void {
     // Fallback: trigger CSV download
     const siteId: string | undefined = window.siteId
     if (siteId) {
-      window.location.href = window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/export?format=${format}`)
+      navigate(window, true).apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/export?format=${format}`)
     }
   }
 }

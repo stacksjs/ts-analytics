@@ -111,7 +111,7 @@ defineStore('dashboard', () => {
     if (window.stxRouter?.navigate) {
       window.stxRouter.navigate(url)
     } else {
-      window.location.href = url
+      navigate(url, true)
     }
   }
 

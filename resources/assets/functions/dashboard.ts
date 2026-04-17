@@ -273,7 +273,7 @@ function navigateTo(section: string) {
     window.stxRouter.navigate(url)
   }
 else {
-    window.location.href = url
+    navigate(url, true)
   }
 }
 
