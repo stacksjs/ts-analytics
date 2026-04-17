@@ -4,9 +4,7 @@
  * Displays device breakdown with reactive data fetching
  */
 const dashboard = useStore('dashboard')
-
-const devices = state([])
-const loading = state(true)
+const analytics = useStore('analytics')
 
 const deviceIcons = {
   desktop: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
@@ -18,25 +16,9 @@ function getIconPath(type) {
   return deviceIcons[type?.toLowerCase()] || deviceIcons.desktop
 }
 
-async function fetchDevices() {
-  if (!dashboard.siteId()) {
-    loading.set(false)
-    return
-  }
-  try {
-    const res = await fetch(dashboard.apiUrlWithDates('/devices'))
-    const data = await res.json()
-    devices.set(data.devices || [])
-  } catch (e) {
-    console.error('Failed to fetch devices:', e)
-  } finally {
-    loading.set(false)
-  }
-}
-
 onMount(() => {
-  if (dashboard.siteId()) fetchDevices()
-  window.refreshDevicesPanel = fetchDevices
+  if (dashboard.siteId()) analytics.fetchSection('devices')
+  window.refreshDevicesPanel = () => analytics.fetchSection('devices')
 })
 </script>
 
@@ -57,7 +39,7 @@ onMount(() => {
       </tr>
     </thead>
     <tbody>
-      <tr @for="device in devices()" @loading="loading()" @if="!loading()">
+      <tr @for="device in analytics.devices()" @loading="analytics.loading()" @if="!analytics.loading()">
         <td class="cell-name flex items-center gap-1.5">
           <svg class="text-muted shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(device.type)"/>
