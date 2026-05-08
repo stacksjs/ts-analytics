@@ -1,19 +1,11 @@
 <script client>
-/**
- * DashboardHeader Component - Navigation header
- * Uses STX reactive APIs: state, effect, onMount, provide
- * Uses file-based routing with anchor links
- */
-
 import type { NavTab } from '../../types/dashboard'
 
-// Reactive state
 const siteName = state<string>('Analytics Dashboard')
 const isDark = state<boolean>(true)
 const currentTab = state<string>('dashboard')
 const siteId = state<string>('')
 
-// Nav tab definitions
 const tabs: NavTab[] = [
   { id: 'dashboard', label: 'Dashboard', href: '/dashboard' },
   { id: 'live', label: 'Live', href: '/dashboard/live' },
@@ -26,27 +18,23 @@ const tabs: NavTab[] = [
   { id: 'settings', label: 'Settings', href: '/dashboard/settings' },
 ]
 
-// Get current active tab from URL path
 function detectCurrentTab(): string {
   const path: string = window.location.pathname
   if (path === '/dashboard' || path === '/') return 'dashboard'
-  const match: RegExpMatchArray | null = path.match(/\/dashboard\/([^\/]+)/)
+  const match: RegExpMatchArray | null = path.match(/\/dashboard\/([^/]+)/)
   return match ? match[1] : 'dashboard'
 }
 
-// Toggle theme
 function toggleTheme(): void {
   isDark.update((v: boolean) => !v)
   const theme: string = isDark() ? 'dark' : 'light'
   localStorage.setItem('ts-analytics-theme', theme)
 
-  // Notify dashboard.ts for chart re-render
   if (window.toggleTheme) {
     window.toggleTheme()
   }
 }
 
-// Go back to site selector
 function goBack(): void {
   if (window.goBack) {
     window.goBack()
@@ -55,19 +43,21 @@ function goBack(): void {
   }
 }
 
-// Compute href for a tab, appending siteId if present
 function tabHref(tab: NavTab): string {
   const sid: string = siteId()
-  return tab.href + (sid ? '?siteId=' + encodeURIComponent(sid) : '')
+  return tab.href + (sid ? `?siteId=${encodeURIComponent(sid)}` : '')
 }
 
-// Apply theme to document root reactively
+function tabClass(tab: NavTab): string {
+  const base = 'text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text no-underline'
+  return currentTab() === tab.id ? `${base} bg-accent text-white` : base
+}
+
 effect(() => {
   document.documentElement.setAttribute('data-theme', isDark() ? 'dark' : 'light')
 })
 
 onMount(() => {
-  // Initialize theme from localStorage or system preference
   const stored: string | null = localStorage.getItem('ts-analytics-theme')
   if (stored) {
     isDark.set(stored === 'dark')
@@ -75,11 +65,9 @@ onMount(() => {
     isDark.set(!window.matchMedia('(prefers-color-scheme: light)').matches)
   }
 
-  // Initialize siteId and current tab from URL
   siteId.set(new URLSearchParams(window.location.search).get('siteId') || '')
   currentTab.set(detectCurrentTab())
 
-  // Expose for backward compat with dashboard.ts
   window.headerSetSiteName = (name: string) => siteName.set(name || 'Analytics Dashboard')
   window.dashboardHeader = {
     toggleTheme,
@@ -87,7 +75,6 @@ onMount(() => {
     isDarkTheme: () => isDark(),
   }
 
-  // Re-run nav update after SPA content swap
   const onNavigate = (): void => {
     currentTab.set(detectCurrentTab())
     siteId.set(new URLSearchParams(window.location.search).get('siteId') || '')
@@ -99,7 +86,6 @@ onMount(() => {
   }
 })
 
-// Provide cross-component communication
 provide('dashboardHeader', {
   siteName,
   isDark,
@@ -120,9 +106,9 @@ provide('dashboardHeader', {
 
   <nav id="header-nav" class="header-nav flex gap-1 flex-wrap justify-center">
     <a @for="tab in tabs"
-       @class="['text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text no-underline', currentTab() === tab.id ? 'bg-accent text-white' : '']"
+       x-class="tabClass(tab)"
        x-href="tabHref(tab)"
-      x-data-tab="tab.id"
+       x-data-tab="tab.id"
        data-stx-prefetch>{{ tab.label }}</a>
   </nav>
 
@@ -140,7 +126,6 @@ provide('dashboardHeader', {
 </header>
 
 <style>
-/* Responsive: nav wraps below header at narrow viewports */
 @media (max-width: 1200px) {
   header {
     flex-wrap: wrap;

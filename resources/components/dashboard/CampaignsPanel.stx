@@ -47,18 +47,17 @@ onMount(() => {
       </tr>
     </thead>
     <tbody>
-      <tr @if="loading()">
-        <td colspan="3" class="text-center text-muted py-4">Loading...</td>
-      </tr>
-      <tr @if="!loading() && campaigns().length === 0">
-        <td colspan="3" class="text-center text-muted py-4">No campaign data</td>
-      </tr>
-      <tr @for="campaign in campaigns()" @if="!loading()">
+      <tr @for="campaign in campaigns()" @loading="loading()">
         <td class="cell-name">{{ campaign.name ? campaign.name : (campaign.source ? campaign.source : 'Unknown') }}</td>
         <td class="cell-value">{{ (campaign.visitors ? campaign.visitors : 0) | fmt }}</td>
         <td class="cell-value">{{ (campaign.views ? campaign.views : 0) | fmt }}</td>
       </tr>
+      <tr @for-loading>
+        <td colspan="3" class="text-center text-muted py-4">Loading...</td>
+      </tr>
+      <tr @for-empty>
+        <td colspan="3" class="text-center text-muted py-4">No campaign data</td>
+      </tr>
     </tbody>
   </table>
 </div>
-

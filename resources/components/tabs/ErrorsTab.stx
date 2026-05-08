@@ -1,11 +1,7 @@
 <script client>
-/**
- * ErrorsTab Component - Error tracking display
- * Uses STX signals for reactive state management
- */
-
 import type { ErrorItem, ErrorStatuses, StatusCounts, SeverityCounts } from '../../types/analytics'
 import { useSiteApi } from '@composables'
+
 const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi()
 
 const errors = state<ErrorItem[]>([])
@@ -17,6 +13,15 @@ const error = state<string | null>(null)
 
 const severityLabels: Record<string, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
 const statusLabels: Record<string, string> = { new: 'New', resolved: 'Resolved', ignored: 'Ignored', regression: 'Regression' }
+
+const dateRangeOptions = [
+  { id: '24h', label: '24h' },
+  { id: '7d', label: '7d' },
+  { id: '30d', label: '30d' },
+  { id: '90d', label: '90d' },
+]
+
+const severityKeys = ['critical', 'high', 'medium', 'low']
 
 const filteredErrors = derived(() => {
   const filter = statusFilter()
@@ -52,20 +57,35 @@ function timeAgo(ts: string | null): string {
   const diff = Date.now() - new Date(ts).getTime()
   const mins = Math.floor(diff / 60000)
   if (mins < 1) return 'just now'
-  if (mins < 60) return mins + 'm ago'
+  if (mins < 60) return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return hrs + 'h ago'
+  if (hrs < 24) return `${hrs}h ago`
   const days = Math.floor(hrs / 24)
-  if (days < 30) return days + 'd ago'
+  if (days < 30) return `${days}d ago`
   return new Date(ts).toLocaleDateString()
+}
+
+function errorDateParams(): string {
+  const range = errorDateRange()
+  const now = new Date()
+  const end = now.toISOString()
+  let start: Date
+  switch (range) {
+    case '24h': start = new Date(now.getTime() - 24 * 60 * 60 * 1000); break
+    case '7d': start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break
+    case '30d': start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break
+    case '90d': start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); break
+    default: start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  }
+  return `?startDate=${start.toISOString()}&endDate=${end}`
 }
 
 async function fetchErrors(): Promise<void> {
   if (!_siteId()) { loading.set(false); return }
   try {
     const [errorsRes, statusesRes]: [Response, Response] = await Promise.all([
-      fetch(_apiUrl('/errors' + errorDateParams())),
-      fetch(_apiUrl('/errors/statuses'))
+      fetch(_apiUrl(`/errors${errorDateParams()}`)),
+      fetch(_apiUrl('/errors/statuses')),
     ])
     const errorsData: { errors?: ErrorItem[] } = await errorsRes.json()
     const statusesData: { statuses?: ErrorStatuses } = await statusesRes.json()
@@ -84,7 +104,7 @@ async function updateStatus(fingerprint: string, newStatus: string): Promise<voi
     await fetch(_apiUrl('/errors/status'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ errorId: fingerprint, status: newStatus })
+      body: JSON.stringify({ errorId: fingerprint, status: newStatus }),
     })
     errorStatuses.update((s: ErrorStatuses) => ({ ...s, [fingerprint]: { status: newStatus } }))
   } catch (e: unknown) {
@@ -108,21 +128,6 @@ async function bulkIgnore(): Promise<void> {
   }
 }
 
-function errorDateParams(): string {
-  const range = errorDateRange()
-  const now = new Date()
-  const end = now.toISOString()
-  let start: Date
-  switch (range) {
-    case '24h': start = new Date(now.getTime() - 24*60*60*1000); break
-    case '7d': start = new Date(now.getTime() - 7*24*60*60*1000); break
-    case '30d': start = new Date(now.getTime() - 30*24*60*60*1000); break
-    case '90d': start = new Date(now.getTime() - 90*24*60*60*1000); break
-    default: start = new Date(now.getTime() - 30*24*60*60*1000)
-  }
-  return '?startDate=' + start.toISOString() + '&endDate=' + end
-}
-
 function setErrorDateRange(range: string): void {
   errorDateRange.set(range)
   loading.set(true)
@@ -133,13 +138,45 @@ function setFilter(f: string): void {
   statusFilter.set(f)
 }
 
+function rangeBtnClass(rid: string): string {
+  return errorDateRange() === rid ? 'date-range-btn date-range-btn-active' : 'date-range-btn'
+}
+
+function tabBtnClass(filter: string): string {
+  const base = 'tab-btn gap-1.5 text-xs'
+  return statusFilter() === filter ? `${base} tab-btn-active` : base
+}
+
+function sevStatClass(sev: string): string {
+  return `sev-stat bg-bg-2 border border-border rounded-lg py-2.5 px-3 flex items-baseline gap-2 border-l-[3px] border-l-transparent sev-${sev}`
+}
+
+function errorRowClass(e: ErrorItem): string {
+  return `error-row group flex items-stretch bg-bg-2 no-underline transition-colors duration-150 relative hover:bg-bg-3 ${getErrorStatus(e.fingerprint)}`
+}
+
+function severityBarClass(e: ErrorItem): string {
+  return `severity-bar w-1 shrink-0 ${e.severity || 'medium'}`
+}
+
+function badgeSeverityClass(e: ErrorItem): string {
+  return `badge-severity text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide whitespace-nowrap ${e.severity || 'medium'}`
+}
+
+function badgeStatusClass(e: ErrorItem): string {
+  return `badge-status text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide whitespace-nowrap ${getErrorStatus(e.fingerprint)}`
+}
+
+function errorHref(e: ErrorItem): string {
+  return `/errors/${encodeURIComponent(e.errorId)}?siteId=${_siteId()}`
+}
+
 onMount(() => {
   fetchErrors()
 })
 </script>
 
 <div class="col-span-full">
-  <!-- Header -->
   <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
     <div class="flex items-center gap-2">
       <h3 class="panel-title">
@@ -147,93 +184,83 @@ onMount(() => {
         Errors
       </h3>
     </div>
-    <div @if="errors().length > 0" class="flex gap-1.5">
-      <button @if="statusCounts().new > 0" :click="bulkResolve" class="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium py-1.5 px-2.5 rounded-md border border-border bg-transparent text-text-2 cursor-pointer transition-all duration-150 hover:bg-bg-2 hover:text-text hover:border-muted">
+    <div @show="errors().length > 0" class="flex gap-1.5">
+      <button @show="statusCounts().new > 0" @click="bulkResolve" class="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium py-1.5 px-2.5 rounded-md border border-border bg-transparent text-text-2 cursor-pointer transition-all duration-150 hover:bg-bg-2 hover:text-text hover:border-muted">
         <Icon name="check" size="12" />
         Resolve All
       </button>
-      <button @if="statusCounts().new > 0" :click="bulkIgnore" class="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium py-1.5 px-2.5 rounded-md border border-border bg-transparent text-text-2 cursor-pointer transition-all duration-150 hover:bg-bg-2 hover:text-text hover:border-muted">
+      <button @show="statusCounts().new > 0" @click="bulkIgnore" class="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium py-1.5 px-2.5 rounded-md border border-border bg-transparent text-text-2 cursor-pointer transition-all duration-150 hover:bg-bg-2 hover:text-text hover:border-muted">
         <Icon name="slash" size="12" />
         Ignore All
       </button>
     </div>
   </div>
 
-  <!-- Date range filter -->
   <div class="flex gap-1 mb-4">
-    <button @for="r in [{id:'24h',label:'24h'},{id:'7d',label:'7d'},{id:'30d',label:'30d'},{id:'90d',label:'90d'}]"
-      @class="['date-range-btn', errorDateRange() === r.id ? 'date-range-btn-active' : '']"
-      :click="setErrorDateRange(r.id)">
+    <button @for="r in dateRangeOptions"
+      x-class="rangeBtnClass(r.id)"
+      @click="setErrorDateRange(r.id)">
       {{ r.label }}
     </button>
   </div>
 
-  <!-- Loading -->
-  <div @if="loading()" class="text-center text-text-2 py-10 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2">
+  <div @show="loading()" class="text-center text-text-2 py-10 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2">
     <div class="spinner"></div>
     <span>Loading errors...</span>
   </div>
 
-  <!-- Error state -->
-  <div @if="error()" class="text-error bg-error/5 border border-error/15 rounded-lg flex flex-row items-center justify-center gap-2 p-4 text-[0.8125rem]">
+  <div @show="error()" class="text-error bg-error/5 border border-error/15 rounded-lg flex flex-row items-center justify-center gap-2 p-4 text-[0.8125rem]">
     <Icon name="alert-circle" size="20" />
     {{ error() }}
   </div>
 
-  <!-- Empty state -->
-  <div @if="!loading() && !error() && errors().length === 0" class="text-center text-text-2 py-12 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2">
+  <div @show="!loading() && !error() && errors().length === 0" class="text-center text-text-2 py-12 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2">
     <Icon name="check-circle" size="40" style="opacity: 0.4" />
     <p class="font-semibold text-text text-sm">No errors recorded</p>
     <p class="text-xs text-muted">Your application is running smoothly</p>
   </div>
 
-  <!-- Content -->
-  <div @if="!loading() && !error() && errors().length > 0">
-    <!-- Severity stats -->
+  <div @show="!loading() && !error() && errors().length > 0">
     <div class="severity-grid grid grid-cols-4 gap-2 mb-3">
-      <div @for="sev in ['critical', 'high', 'medium', 'low']" @class="['sev-stat bg-bg-2 border border-border rounded-lg py-2.5 px-3 flex items-baseline gap-2 border-l-[3px] border-l-transparent', 'sev-' + sev]">
+      <div @for="sev in severityKeys" x-class="sevStatClass(sev)">
         <span class="text-lg font-bold text-text">{{ severityCounts()[sev] }}</span>
         <span class="text-[0.6875rem] text-muted uppercase tracking-wider">{{ severityLabels[sev] }}</span>
       </div>
     </div>
 
-    <!-- Filter tabs -->
     <div class="flex items-center justify-between mb-2 border-b border-border">
       <div class="flex">
-        <button @class="['tab-btn gap-1.5 text-xs', statusFilter() === 'all' ? 'tab-btn-active' : '']" :click="setFilter('all')">
+        <button x-class="tabBtnClass('all')" @click="setFilter('all')">
           All <span class="tab-count bg-bg-3 text-muted text-[0.625rem] py-px px-1.5 rounded-full font-semibold">{{ errors().length }}</span>
         </button>
-        <button @class="['tab-btn gap-1.5 text-xs', statusFilter() === 'new' ? 'tab-btn-active' : '']" :click="setFilter('new')">
+        <button x-class="tabBtnClass('new')" @click="setFilter('new')">
           <span class="status-dot w-1.5 h-1.5 rounded-full inline-block bg-error"></span> New <span class="tab-count bg-bg-3 text-muted text-[0.625rem] py-px px-1.5 rounded-full font-semibold">{{ statusCounts().new }}</span>
         </button>
-        <button @class="['tab-btn gap-1.5 text-xs', statusFilter() === 'resolved' ? 'tab-btn-active' : '']" :click="setFilter('resolved')">
+        <button x-class="tabBtnClass('resolved')" @click="setFilter('resolved')">
           <span class="status-dot w-1.5 h-1.5 rounded-full inline-block bg-success"></span> Resolved <span class="tab-count bg-bg-3 text-muted text-[0.625rem] py-px px-1.5 rounded-full font-semibold">{{ statusCounts().resolved }}</span>
         </button>
-        <button @class="['tab-btn gap-1.5 text-xs', statusFilter() === 'ignored' ? 'tab-btn-active' : '']" :click="setFilter('ignored')">
+        <button x-class="tabBtnClass('ignored')" @click="setFilter('ignored')">
           <span class="status-dot w-1.5 h-1.5 rounded-full inline-block bg-muted"></span> Ignored <span class="tab-count bg-bg-3 text-muted text-[0.625rem] py-px px-1.5 rounded-full font-semibold">{{ statusCounts().ignored }}</span>
         </button>
       </div>
       <span class="text-[0.6875rem] text-muted">{{ filteredErrors().length }} result{{ filteredErrors().length !== 1 ? 's' : '' }}</span>
     </div>
 
-    <!-- Empty filter state -->
-    <div @if="filteredErrors().length === 0" class="text-center text-text-2 py-10 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2 mt-2">
+    <div @show="filteredErrors().length === 0" class="text-center text-text-2 py-10 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2 mt-2">
       <p class="font-semibold text-text text-sm">No {{ statusFilter() }} errors</p>
       <p class="text-xs text-muted">Try a different filter</p>
     </div>
 
-    <!-- Error list -->
     <div class="flex flex-col gap-px bg-border border border-border rounded-lg overflow-hidden mt-2">
       <div @for="e in filteredErrors()">
-        <a x-href="`/errors/${encodeURIComponent(e.errorId)}?siteId=${_siteId()}`"
-           @class="['error-row group flex items-stretch bg-bg-2 no-underline transition-colors duration-150 relative hover:bg-bg-3', getErrorStatus(e.fingerprint)]">
-          <div @class="['severity-bar w-1 shrink-0', e.severity || 'medium']"></div>
+        <a x-href="errorHref(e)" x-class="errorRowClass(e)">
+          <div x-class="severityBarClass(e)"></div>
           <div class="flex-1 min-w-0 py-3 px-4 flex flex-col gap-1.5">
             <div class="flex items-center justify-between gap-2">
               <div class="flex gap-1.5 items-center flex-wrap">
-                <span @class="['badge-severity text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide whitespace-nowrap', e.severity || 'medium']">{{ severityLabels[e.severity] || 'Unknown' }}</span>
+                <span x-class="badgeSeverityClass(e)">{{ severityLabels[e.severity] || 'Unknown' }}</span>
                 <span class="text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide whitespace-nowrap bg-bg-3 text-text-2">{{ e.category || 'Error' }}</span>
-                <span @class="['badge-status text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide whitespace-nowrap', getErrorStatus(e.fingerprint)]">{{ statusLabels[getErrorStatus(e.fingerprint)] || 'New' }}</span>
+                <span x-class="badgeStatusClass(e)">{{ statusLabels[getErrorStatus(e.fingerprint)] || 'New' }}</span>
               </div>
               <span class="inline-flex items-center gap-1 text-[0.6875rem] font-semibold text-text-2 whitespace-nowrap">
                 <Icon name="zap" size="12" class="text-muted" />
@@ -246,18 +273,18 @@ onMount(() => {
                 <Icon name="clock" size="11" class="opacity-60" />
                 {{ timeAgo(e.lastSeen) }}
               </span>
-              <span @if="e.source" class="inline-flex items-center gap-1 text-[0.6875rem] text-muted font-mono text-text-2">{{ e.source.split('/').pop() }}{{ e.line ? ':' + e.line : '' }}</span>
+              <span @show="e.source" class="inline-flex items-center gap-1 text-[0.6875rem] text-muted font-mono text-text-2">{{ e.source.split('/').pop() }}{{ e.line ? ':' + e.line : '' }}</span>
               <span class="inline-flex items-center gap-1 text-[0.6875rem] text-muted">{{ (e.browsers || []).join(', ') || 'server' }}</span>
             </div>
           </div>
-          <div class="error-actions flex flex-col gap-0.5 py-2 px-2 opacity-0 transition-opacity duration-150 items-center justify-center group-hover:opacity-100" :click.stop>
-            <button @if="getErrorStatus(e.fingerprint) !== 'resolved'" :click.stop="updateStatus(e.fingerprint, 'resolved')" class="action-btn resolve w-7 h-7 rounded-md border-none bg-transparent text-muted cursor-pointer flex items-center justify-center transition-all duration-150" title="Resolve">
+          <div class="error-actions flex flex-col gap-0.5 py-2 px-2 opacity-0 transition-opacity duration-150 items-center justify-center group-hover:opacity-100" @click.stop>
+            <button @show="getErrorStatus(e.fingerprint) !== 'resolved'" @click.stop="updateStatus(e.fingerprint, 'resolved')" class="action-btn resolve w-7 h-7 rounded-md border-none bg-transparent text-muted cursor-pointer flex items-center justify-center transition-all duration-150" title="Resolve">
               <Icon name="check" size="14" />
             </button>
-            <button @if="getErrorStatus(e.fingerprint) !== 'ignored'" :click.stop="updateStatus(e.fingerprint, 'ignored')" class="action-btn ignore w-7 h-7 rounded-md border-none bg-transparent text-muted cursor-pointer flex items-center justify-center transition-all duration-150" title="Ignore">
+            <button @show="getErrorStatus(e.fingerprint) !== 'ignored'" @click.stop="updateStatus(e.fingerprint, 'ignored')" class="action-btn ignore w-7 h-7 rounded-md border-none bg-transparent text-muted cursor-pointer flex items-center justify-center transition-all duration-150" title="Ignore">
               <Icon name="slash" size="14" />
             </button>
-            <button @if="getErrorStatus(e.fingerprint) !== 'new'" :click.stop="updateStatus(e.fingerprint, 'new')" class="action-btn reopen w-7 h-7 rounded-md border-none bg-transparent text-muted cursor-pointer flex items-center justify-center transition-all duration-150" title="Reopen">
+            <button @show="getErrorStatus(e.fingerprint) !== 'new'" @click.stop="updateStatus(e.fingerprint, 'new')" class="action-btn reopen w-7 h-7 rounded-md border-none bg-transparent text-muted cursor-pointer flex items-center justify-center transition-all duration-150" title="Reopen">
               <Icon name="refresh-cw" size="14" />
             </button>
           </div>
@@ -268,30 +295,25 @@ onMount(() => {
 </div>
 
 <style>
-/* Severity stat border-left colors */
 .sev-critical { border-left-color: var(--error); }
 .sev-high { border-left-color: #f97316; }
 .sev-medium { border-left-color: var(--warning); }
 .sev-low { border-left-color: var(--muted); }
 
-/* Severity bar colors */
 .severity-bar.critical { background-color: var(--error); }
 .severity-bar.high { background: #f97316; }
 .severity-bar.medium { background-color: var(--warning); }
 .severity-bar.low { background-color: var(--muted); }
 
-/* Severity badge colors (rgba values for transparency) */
 .badge-severity.critical { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.2); }
 .badge-severity.high { background: rgba(249, 115, 22, 0.12); color: #fdba74; border: 1px solid rgba(249, 115, 22, 0.2); }
 .badge-severity.medium { background: rgba(234, 179, 8, 0.12); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.2); }
 .badge-severity.low { background: rgba(107, 114, 128, 0.12); color: #d1d5db; border: 1px solid rgba(107, 114, 128, 0.2); }
 
-/* Status badge colors (rgba values for transparency) */
 .badge-status.new { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.15); }
 .badge-status.resolved { background: rgba(34, 197, 94, 0.12); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.15); }
 .badge-status.ignored { background: rgba(107, 114, 128, 0.12); color: var(--muted); border: 1px solid rgba(107, 114, 128, 0.15); }
 
-/* Light theme badge adjustments */
 [data-theme="light"] .badge-severity.critical { background: rgba(239, 68, 68, 0.08); color: #dc2626; border-color: rgba(239, 68, 68, 0.2); }
 [data-theme="light"] .badge-severity.high { background: rgba(249, 115, 22, 0.08); color: #ea580c; border-color: rgba(249, 115, 22, 0.2); }
 [data-theme="light"] .badge-severity.medium { background: rgba(234, 179, 8, 0.08); color: #b45309; border-color: rgba(234, 179, 8, 0.2); }
@@ -300,19 +322,15 @@ onMount(() => {
 [data-theme="light"] .badge-status.resolved { background: rgba(34, 197, 94, 0.08); color: #059669; border-color: rgba(34, 197, 94, 0.15); }
 [data-theme="light"] .badge-status.ignored { background: rgba(107, 114, 128, 0.08); color: #6b7280; border-color: rgba(107, 114, 128, 0.15); }
 
-/* Error row opacity for resolved/ignored */
 .error-row.resolved { opacity: 0.55; }
 .error-row.ignored { opacity: 0.4; }
 
-/* Action button hover colors (rgba values for transparency) */
 .action-btn.resolve:hover { background: rgba(34, 197, 94, 0.15); color: var(--success); }
 .action-btn.ignore:hover { background: rgba(107, 114, 128, 0.15); color: var(--muted); }
 .action-btn.reopen:hover { background: rgba(99, 102, 241, 0.15); color: var(--accent); }
 
-/* Fallback for group-hover on error-actions */
 .error-row:hover .error-actions { opacity: 1; }
 
-/* Responsive */
 @media (max-width: 640px) {
   .severity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

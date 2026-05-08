@@ -1,16 +1,11 @@
 <script client>
-/**
- * GoalsPanel Component
- * Displays goals with conversion tracking
- */
-
 import type { Goal } from '../../types/analytics'
 
 const goals = state<Goal[]>([])
 const loading = state<boolean>(true)
 
 function formatCurrency(n: number): string {
-  return '$' + (n || 0).toFixed(2)
+  return `$${(n || 0).toFixed(2)}`
 }
 
 function getTypeBadgeClass(type: string): string {
@@ -18,7 +13,7 @@ function getTypeBadgeClass(type: string): string {
     pageview: 'badge type-badge-pageview',
     event: 'badge type-badge-event',
     duration: 'badge type-badge-duration',
-    scroll: 'badge type-badge-scroll'
+    scroll: 'badge type-badge-scroll',
   }
   return classes[type?.toLowerCase()] || 'badge'
 }
@@ -52,7 +47,7 @@ function deleteGoal(goalId: string): void {
       try {
         const res: Response = await fetch(
           window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/goals/${goalId}`),
-          { method: 'DELETE' }
+          { method: 'DELETE' },
         )
         if (res.ok) {
           fetchGoals()
@@ -75,7 +70,6 @@ onMount(() => {
   if (window.siteId) fetchGoals()
 })
 
-// Expose refresh function for other components
 window.refreshGoalsPanel = fetchGoals
 </script>
 
@@ -88,14 +82,14 @@ window.refreshGoalsPanel = fetchGoals
     <button class="btn btn-primary text-xs py-1.5 px-3" @click="openCreateGoal()">+ Add Goal</button>
   </div>
 
-  <div @if="loading()" class="empty-state text-[0.8125rem]">Loading...</div>
+  <div @show="loading()" class="empty-state text-[0.8125rem]">Loading...</div>
 
-  <div @if="!loading() && goals().length === 0" class="empty-state text-[0.8125rem]">
+  <div @show="!loading() && goals().length === 0" class="empty-state text-[0.8125rem]">
     <p>No goals configured yet.</p>
     <p class="text-xs mt-2 opacity-80">Click "+ Add Goal" to create your first conversion goal.</p>
   </div>
 
-  <table @if="!loading() && goals().length > 0" class="w-full border-collapse text-[0.8125rem]">
+  <table @show="!loading() && goals().length > 0" class="w-full border-collapse text-[0.8125rem]">
     <thead>
       <tr>
         <th class="text-left py-2 px-2 border-b border-border text-[0.6875rem] font-medium uppercase tracking-wide text-muted">Goal</th>
@@ -109,12 +103,12 @@ window.refreshGoalsPanel = fetchGoals
       <tr @for="goal in goals()" class="goal-row">
         <td class="font-medium">{{ goal.name }}</td>
         <td>
-          <span @class="getTypeBadgeClass(goal.type)">{{ goal.type }}</span>
+          <span x-class="getTypeBadgeClass(goal.type)">{{ goal.type }}</span>
         </td>
         <td class="text-right tabular-nums">{{ (goal.conversions ? goal.conversions : 0) | fmt }}</td>
         <td class="text-right tabular-nums">
-          <span @if="goal.value">{{ formatCurrency(goal.value) }}</span>
-          <span @if="!goal.value">-</span>
+          <span @show="goal.value">{{ formatCurrency(goal.value) }}</span>
+          <span @show="!goal.value">-</span>
         </td>
         <td class="text-right whitespace-nowrap">
           <button class="icon-btn" title="Edit" @click="editGoal(goal.id)">

@@ -8,9 +8,8 @@ const dashboard = useStore('dashboard')
 const events = state([])
 const loading = state(true)
 
-// Use derived for computed values
 const totalCount = derived(() => events().reduce((sum, e) => sum + (e.count || 0), 0))
-const maxCount = derived(() => Math.max(...events().map((e) => e.count || 0), 1))
+const maxCount = derived(() => Math.max(...events().map(e => e.count || 0), 1))
 
 function getPercentage(count) {
   const total = totalCount()
@@ -54,7 +53,7 @@ onMount(() => {
   </div>
 
   <div class="flex flex-col gap-3">
-    <div @for="event in events()" @loading="loading()" @if="!loading()" class="flex flex-col gap-1">
+    <div @for="event in events()" @loading="loading()" class="flex flex-col gap-1">
       <div class="flex justify-between items-center">
         <span class="text-[0.8125rem] text-text font-medium truncate">{{ event.name }}</span>
         <span class="text-xs text-muted shrink-0 ml-2">{{ getPercentage(event.count ? event.count : 0) }}%</span>
@@ -68,4 +67,3 @@ onMount(() => {
     <div @for-empty class="text-center text-muted py-4 text-[0.8125rem]">No custom events tracked</div>
   </div>
 </div>
-

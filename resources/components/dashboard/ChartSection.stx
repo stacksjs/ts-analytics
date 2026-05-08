@@ -1,26 +1,21 @@
 <script server lang="ts">
-/**
- * ChartSection Component
- *
- * Time series chart with annotation button.
- * Props: title, showAnnotation, loading (passed from parent)
- */
+import { defineProps, withDefaults } from 'stx'
 
 interface ChartSectionProps {
   title?: string
   showAnnotation?: boolean
-  loading?: boolean
 }
 
-// Use defaults if props not provided
-const chartTitle: string = (props && props.title) || 'Pageviews Over Time'
-const showAnnotationBtn: boolean = props && props.showAnnotation !== undefined ? props.showAnnotation : true
+const { title, showAnnotation } = withDefaults(defineProps<ChartSectionProps>(), {
+  title: 'Pageviews Over Time',
+  showAnnotation: true,
+})
 </script>
 
 <div class="panel relative mb-6">
   <div class="flex justify-between items-center mb-4">
-    <div class="font-semibold text-sm text-text">{{ chartTitle }}</div>
-    @if (showAnnotationBtn)
+    <div class="font-semibold text-sm text-text">{{ title }}</div>
+    @if (showAnnotation)
       <button @click="window.addAnnotation()" class="bg-bg-3 border border-border text-text-2 py-1 px-2 rounded flex items-center text-[0.6875rem] transition-all duration-150 cursor-pointer hover:bg-bg hover:text-text" title="Mark an event on the chart">
         <Icon name="plus" size="12" class="mr-1 inline-block align-middle" />
         Annotation
@@ -36,13 +31,11 @@ const showAnnotationBtn: boolean = props && props.showAnnotation !== undefined ?
 </div>
 
 <style>
-/* Canvas sizing - cannot be expressed as utilities */
 #chart {
   width: 100%;
   height: 200px;
 }
 
-/* Chart tooltip - JS-controlled positioning and visibility, custom shadow */
 .tooltip {
   position: absolute;
   display: none;
@@ -50,7 +43,6 @@ const showAnnotationBtn: boolean = props && props.showAnnotation !== undefined ?
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Chart-specific empty state height to match canvas */
 .empty-state {
   height: 200px;
 }

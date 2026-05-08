@@ -1,8 +1,5 @@
 <script client>
-/**
- * PagesTable Component
- * Displays top pages with entries, visitors, and views
- */
+import { defineProps, withDefaults } from 'stx'
 
 interface Page {
   path: string
@@ -17,15 +14,20 @@ interface PagesTableProps {
   loading?: boolean
 }
 
-const pages = state<Page[]>($props.pages || [])
-const siteHostname = state<string | null>($props.siteHostname || null)
-const loading = state<boolean>($props.loading || false)
+const props = withDefaults(defineProps<PagesTableProps>(), {
+  pages: () => [],
+  siteHostname: null,
+  loading: false,
+})
 
-// Watch for prop changes
+const pages = state<Page[]>(props.pages)
+const siteHostname = state<string | null>(props.siteHostname)
+const loading = state<boolean>(props.loading)
+
 effect(() => {
-  if ($props.pages) pages.set($props.pages)
-  if ($props.siteHostname !== undefined) siteHostname.set($props.siteHostname)
-  if ($props.loading !== undefined) loading.set($props.loading)
+  if (props.pages) pages.set(props.pages)
+  if (props.siteHostname !== undefined) siteHostname.set(props.siteHostname)
+  if (props.loading !== undefined) loading.set(props.loading)
 })
 
 function getPageUrl(path: string): string | null {
@@ -45,15 +47,9 @@ function getPageUrl(path: string): string | null {
       </tr>
     </thead>
     <tbody>
-      <tr @if="loading()">
-        <td colspan="4" class="text-center text-muted py-4">Loading...</td>
-      </tr>
-      <tr @if="!loading() && pages().length === 0">
-        <td colspan="4" class="text-center text-muted py-4">No page data</td>
-      </tr>
-      <tr @for="page in pages()" @if="!loading()">
+      <tr @for="page in pages()" @loading="loading()">
         <td class="cell-name" :title="page.path">
-          <a @if="getPageUrl(page.path)"
+          <a @show="getPageUrl(page.path)"
              x-href="getPageUrl(page.path)"
              target="_blank"
              rel="noopener"
@@ -61,11 +57,17 @@ function getPageUrl(path: string): string | null {
             {{ page.path }}
             <Icon name="external-link" size="12" class="opacity-50" />
           </a>
-          <span @if="!getPageUrl(page.path)">{{ page.path }}</span>
+          <span @show="!getPageUrl(page.path)">{{ page.path }}</span>
         </td>
         <td class="cell-value">{{ (page.entries ? page.entries : 0) | fmt }}</td>
         <td class="cell-value">{{ (page.visitors ? page.visitors : 0) | fmt }}</td>
         <td class="cell-value">{{ (page.views ? page.views : 0) | fmt }}</td>
+      </tr>
+      <tr @for-loading>
+        <td colspan="4" class="text-center text-muted py-4">Loading...</td>
+      </tr>
+      <tr @for-empty>
+        <td colspan="4" class="text-center text-muted py-4">No page data</td>
       </tr>
     </tbody>
   </table>

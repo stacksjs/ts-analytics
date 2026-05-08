@@ -1,19 +1,12 @@
 <script client>
-/**
- * ControlsBar Component - Date range and controls
- * Uses STX reactive APIs: state, effect, onMount, provide
- */
-
 import type { DateRange } from '../../types/dashboard'
 
-// Reactive state
 const activeRange = state<string>('6h')
 const showComparison = state<boolean>(false)
 const realtimeCount = state<number>(0)
 const lastUpdated = state<string>('')
 const isRefreshing = state<boolean>(false)
 
-// Date range options
 const ranges: DateRange[] = [
   { id: '1h', label: '1h' },
   { id: '6h', label: '6h' },
@@ -24,16 +17,13 @@ const ranges: DateRange[] = [
   { id: '90d', label: '90d' },
 ]
 
-// Set date range
 function setRange(range: string): void {
   activeRange.set(range)
-  // Notify dashboard.ts
   if (window.setDateRange) {
     window.setDateRange(range)
   }
 }
 
-// Toggle comparison mode
 function toggleComparison(): void {
   showComparison.update((v: boolean) => !v)
   if (window.toggleComparison) {
@@ -41,7 +31,6 @@ function toggleComparison(): void {
   }
 }
 
-// Refresh data
 async function refresh(): Promise<void> {
   if (isRefreshing()) return
   isRefreshing.set(true)
@@ -50,18 +39,15 @@ async function refresh(): Promise<void> {
     await window.fetchDashboardData()
   }
 
-  // Ensure spinner completes at least one rotation
   setTimeout(() => {
     isRefreshing.set(false)
   }, 500)
 }
 
-// Export data
 function exportData(format: string): void {
   if (window.exportData) {
     window.exportData(format)
   } else {
-    // Fallback: trigger CSV download
     const siteId: string | undefined = window.siteId
     if (siteId) {
       navigate(window, true).apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/export?format=${format}`)
@@ -69,8 +55,20 @@ function exportData(format: string): void {
   }
 }
 
+function rangeBtnClass(range: DateRange): string {
+  return activeRange() === range.id ? 'date-range-btn date-range-btn-active' : 'date-range-btn'
+}
+
+function compareBtnClass(): string {
+  const base = 'date-range-btn flex items-center gap-1 text-[0.6875rem] py-1 px-2'
+  return showComparison() ? `${base} date-range-btn-active` : base
+}
+
+function refreshBtnClass(): string {
+  return isRefreshing() ? 'icon-btn spinning' : 'icon-btn'
+}
+
 onMount(() => {
-  // Expose state setters for backward compat with dashboard.ts
   window.updateRealtimeCount = (count: number) => realtimeCount.set(count)
   window.updateLastUpdated = (time: string) => lastUpdated.set(time)
   window.controlsSetDateRange = (range: string) => activeRange.set(range)
@@ -84,13 +82,11 @@ onMount(() => {
     isRefreshing: () => isRefreshing(),
   }
 
-  // Sync with any existing dashboard state
   if (window.dateRange) {
     activeRange.set(window.dateRange)
   }
 })
 
-// Provide cross-component communication
 provide('controlsBar', {
   activeRange,
   showComparison,
@@ -106,9 +102,9 @@ provide('controlsBar', {
 
 <div id="controls-bar" class="flex justify-between items-center py-3 px-6 bg-bg border-b border-border gap-4 flex-wrap max-sm:flex-col max-sm:items-stretch">
   <div class="flex items-center gap-1 max-sm:justify-center">
-    <button @for="range in ranges" @class="['date-range-btn', activeRange() === range.id ? 'date-range-btn-active' : '']" @click="setRange(range.id)">{{ range.label }}</button>
+    <button @for="range in ranges" x-class="rangeBtnClass(range)" @click="setRange(range.id)">{{ range.label }}</button>
     <span class="border-l border-border h-6 mx-2"></span>
-    <button id="compare-btn" @class="['date-range-btn flex items-center gap-1 text-[0.6875rem] py-1 px-2', showComparison() ? 'date-range-btn-active' : '']" @click="toggleComparison()" title="Compare with previous period">
+    <button id="compare-btn" x-class="compareBtnClass()" @click="toggleComparison()" title="Compare with previous period">
       <Icon name="bar-chart-2" size="14" />
       Compare
     </button>
@@ -119,7 +115,7 @@ provide('controlsBar', {
       <span id="realtime-count">{{ realtimeCount() }} visitors online</span>
     </div>
     <span id="last-updated" class="text-xs text-muted" @show="lastUpdated()">{{ lastUpdated() }}</span>
-    <button id="refresh-btn" @class="['icon-btn', isRefreshing() ? 'spinning' : '']" @click="refresh()" title="Refresh data">
+    <button id="refresh-btn" x-class="refreshBtnClass()" @click="refresh()" title="Refresh data">
       <Icon name="refresh-cw" size="16" />
     </button>
     <button class="icon-btn" @click="exportData('csv')" title="Export CSV">
@@ -129,7 +125,6 @@ provide('controlsBar', {
 </div>
 
 <style>
-/* Animations - cannot be expressed as utilities */
 .pulse {
   width: 0.5rem;
   height: 0.5rem;

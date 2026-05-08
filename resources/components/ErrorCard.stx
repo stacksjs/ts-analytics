@@ -1,8 +1,6 @@
-<script client>
-/**
- * ErrorCard Component
- * Displays an error with severity, status, and actions
- */
+<script server lang="ts">
+import { defineProps, withDefaults } from 'stx'
+
 interface ErrorData {
   severity?: string
   category?: string
@@ -16,72 +14,89 @@ interface ErrorData {
   paths?: string[]
 }
 
-const error: ErrorData = $props.error || {}
-const errorId: string = $props.errorId || ''
-const status: string = $props.status || 'new'
-const siteId: string = $props.siteId || ''
-const onStatusChange: ((errorId: string, action: string) => void) | undefined = $props.onStatusChange
+interface ErrorCardProps {
+  error?: ErrorData
+  errorId?: string
+  status?: string
+  siteId?: string
+}
+
+const { error, errorId, status, siteId } = withDefaults(defineProps<ErrorCardProps>(), {
+  error: () => ({}),
+  errorId: '',
+  status: 'new',
+  siteId: '',
+})
 
 const severityLabels: Record<string, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
 const statusLabels: Record<string, string> = { new: 'New', resolved: 'Resolved', ignored: 'Ignored', regression: 'Regression' }
 
-const severity = derived(() => error.severity || 'medium')
-const classNames = derived(() => {
-  const classes: string[] = ['error-card']
-  if (status === 'resolved') classes.push('resolved')
-  if (status === 'ignored') classes.push('ignored')
-  return classes.join(' ')
-})
+const severity = error.severity || 'medium'
+const cardStateClass = status === 'resolved' ? 'resolved' : status === 'ignored' ? 'ignored' : ''
+const errorUrl = `/errors/${encodeURIComponent(errorId)}?siteId=${siteId}`
+const sourceText = error.source ? `${error.source.split('/').pop()}:${error.line}` : 'Unknown source'
+const browsersText = (error.browsers || []).join(', ') || 'Unknown'
+const pathsCount = (error.paths || []).length
+const severityLabel = severityLabels[severity] || 'Unknown'
+const statusLabel = statusLabels[status] || 'New'
+const categoryLabel = error.category || 'Error'
+const messageText = error.message || 'Unknown error'
+const firstSeenText = error.firstSeen ? new Date(error.firstSeen).toLocaleDateString() : 'N/A'
+const lastSeenText = error.lastSeen ? new Date(error.lastSeen).toLocaleString() : 'N/A'
+const eventCount = error.count ?? 0
+const eventSuffix = eventCount === 1 ? '' : 's'
+const pageSuffix = pathsCount === 1 ? '' : 's'
+</script>
 
-const errorUrl = derived(() => `/errors/${encodeURIComponent(errorId)}?siteId=${siteId}`)
-const source = derived(() => error.source ? error.source.split('/').pop() + ':' + error.line : 'Unknown source')
-const browsersText = derived(() => (error.browsers || []).join(', ') || 'Unknown')
-const pathsCount = derived(() => (error.paths || []).length)
-
-function handleAction(action: string, e: Event): void {
+<script client>
+function dispatchAction(action, e) {
   e.preventDefault()
   e.stopPropagation()
-  if (onStatusChange) onStatusChange(errorId, action)
+  const errorId = e.currentTarget.getAttribute('data-error-id') || ''
+  window.dispatchEvent(new CustomEvent('error-action', { detail: { errorId, action } }))
 }
 </script>
 
 <div class="mb-3">
-  <a x-href="errorUrl()" x-class="classNames()" class="block relative pl-5 overflow-hidden">
-    <div @class="['absolute left-0 top-0 bottom-0 w-1', severity()]"></div>
+  <a href="{{ errorUrl }}" class="error-card {{ cardStateClass }} block relative pl-5 overflow-hidden">
+    <div class="absolute left-0 top-0 bottom-0 w-1 {{ severity }}"></div>
     <div class="flex gap-2 flex-wrap mb-2">
-      <span class="text-[0.6875rem] font-semibold uppercase">{{ severityLabels[severity()] ? severityLabels[severity()] : 'Unknown' }}</span>
-      <span class="text-[0.6875rem] text-muted">{{ error.category ? error.category : 'Error' }}</span>
-      <span @class="['text-[0.6875rem]', 'error-status', status]">{{ statusLabels[status] ? statusLabels[status] : 'New' }}</span>
-      <span class="text-[0.6875rem] text-muted">{{ error.count }} event{{ error.count !== 1 ? 's' : '' }}</span>
+      <span class="text-[0.6875rem] font-semibold uppercase">{{ severityLabel }}</span>
+      <span class="text-[0.6875rem] text-muted">{{ categoryLabel }}</span>
+      <span class="text-[0.6875rem] error-status {{ status }}">{{ statusLabel }}</span>
+      <span class="text-[0.6875rem] text-muted">{{ eventCount }} event{{ eventSuffix }}</span>
     </div>
-    <div class="text-xs text-muted font-mono mb-1">{{ source() }}</div>
-    <div class="text-sm text-text mb-2 break-words">{{ error.message ? error.message : 'Unknown error' }}</div>
+    <div class="text-xs text-muted font-mono mb-1">{{ sourceText }}</div>
+    <div class="text-sm text-text mb-2 break-words">{{ messageText }}</div>
     <div class="flex gap-4 flex-wrap text-[0.6875rem] text-muted mb-2">
-      <span>First: {{ error.firstSeen ? new Date(error.firstSeen).toLocaleDateString() : 'N/A' }}</span>
-      <span>Last: {{ new Date(error.lastSeen).toLocaleString() }}</span>
-      <span>{{ browsersText() }}</span>
-      <span>{{ pathsCount() }} page{{ pathsCount() !== 1 ? 's' : '' }}</span>
+      <span>First: {{ firstSeenText }}</span>
+      <span>Last: {{ lastSeenText }}</span>
+      <span>{{ browsersText }}</span>
+      <span>{{ pathsCount }} page{{ pageSuffix }}</span>
     </div>
     <div class="flex gap-2" @click.stop>
-      <button @if="status !== 'resolved'" class="btn py-1 px-2 text-[0.6875rem] btn-primary" @click="(e) => handleAction('resolved', e)">✓ Resolve</button>
-      <button @if="status !== 'ignored'" class="btn py-1 px-2 text-[0.6875rem] btn-secondary" @click="(e) => handleAction('ignored', e)">Ignore</button>
-      <button @if="status !== 'new'" class="btn py-1 px-2 text-[0.6875rem] btn-secondary" @click="(e) => handleAction('new', e)">Reopen</button>
+      @if (status !== 'resolved')
+        <button class="btn py-1 px-2 text-[0.6875rem] btn-primary" data-error-id="{{ errorId }}" @click="(e) => dispatchAction('resolved', e)">✓ Resolve</button>
+      @endif
+      @if (status !== 'ignored')
+        <button class="btn py-1 px-2 text-[0.6875rem] btn-secondary" data-error-id="{{ errorId }}" @click="(e) => dispatchAction('ignored', e)">Ignore</button>
+      @endif
+      @if (status !== 'new')
+        <button class="btn py-1 px-2 text-[0.6875rem] btn-secondary" data-error-id="{{ errorId }}" @click="(e) => dispatchAction('new', e)">Reopen</button>
+      @endif
     </div>
   </a>
 </div>
 
 <style>
-/* Conditional opacity states - cannot be pure utilities due to dynamic class binding */
 .error-card.resolved { opacity: 0.6; }
 .error-card.ignored { opacity: 0.5; }
 
-/* Severity gradient colors on the left stripe */
 .critical { background: #ef4444; }
 .high { background: #f97316; }
 .medium { background: #eab308; }
 .low { background: #6b7280; }
 
-/* Status text colors - applied via dynamic class binding */
 .error-status.new { color: #ef4444; }
 .error-status.resolved { color: #22c55e; }
 .error-status.ignored { color: #6b7280; }

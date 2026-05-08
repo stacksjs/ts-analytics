@@ -1,11 +1,7 @@
 <script client>
-/**
- * InsightsTab Component - Analytics insights and trends
- * Uses STX signals for reactive state management
- */
-
 import type { Insight, ComparisonStats } from '../../types/analytics'
 import { useSiteApi } from '@composables'
+
 const { siteId: _siteId, apiUrlWithDates } = useSiteApi()
 
 const insights = state<Insight[]>([])
@@ -18,11 +14,19 @@ const iconTypes: Record<string, string> = {
   referrer: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101',
   page: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
   device: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
-  engagement: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'
+  engagement: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
 }
 
 function getIconPath(type: string): string {
   return iconTypes[type] || iconTypes.traffic
+}
+
+function changeClass(stats: ComparisonStats): string {
+  return stats.change > 0 ? 'text-xs font-semibold mt-1 text-success' : 'text-xs font-semibold mt-1 text-error'
+}
+
+function insightIconClass(insight: Insight): string {
+  return `w-10 h-10 rounded-lg flex items-center justify-center shrink-0 insight-icon ${insight.severity || 'info'}`
 }
 
 async function fetchInsights(): Promise<void> {
@@ -30,7 +34,7 @@ async function fetchInsights(): Promise<void> {
   try {
     const [insightsRes, comparisonRes]: [Response, Response] = await Promise.all([
       fetch(apiUrlWithDates('/insights')),
-      fetch(apiUrlWithDates('/comparison'))
+      fetch(apiUrlWithDates('/comparison')),
     ])
     const insightsData: { insights?: Insight[] } = await insightsRes.json()
     const comparisonData: ComparisonStats = await comparisonRes.json()
@@ -53,23 +57,21 @@ onMount(() => {
 <div class="col-span-full">
   <h3 class="text-base font-semibold text-text mb-4">Insights</h3>
 
-  <div @if="loading()" class="panel flex items-center justify-center gap-2 text-muted">
+  <div @show="loading()" class="panel flex items-center justify-center gap-2 text-muted">
     <div class="spinner"></div>
     <span>Loading...</span>
   </div>
 
-  <div @if="error()" class="panel text-center text-error">
+  <div @show="error()" class="panel text-center text-error">
     {{ error() }}
   </div>
 
-  <div @if="!loading() && !error()">
-    <!-- Stats Cards -->
-    <div @if="comparisonStats()" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+  <div @show="!loading() && !error()">
+    <div @show="comparisonStats()" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
       <div class="stat-card text-center">
         <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().thisWeekViews | fmt }}</div>
         <div class="text-xs text-muted">Views This Week</div>
-        <div @if="comparisonStats().change !== 0"
-             @class="['text-xs font-semibold mt-1', comparisonStats().change > 0 ? 'text-success' : 'text-error']">
+        <div @show="comparisonStats().change !== 0" x-class="changeClass(comparisonStats())">
           {{ comparisonStats().change > 0 ? '+' : '' }}{{ comparisonStats().change }}%
         </div>
       </div>
@@ -87,14 +89,13 @@ onMount(() => {
       </div>
     </div>
 
-    <!-- Insights List -->
     <div class="flex flex-col gap-3">
-      <div @if="insights().length === 0" class="empty-state">
+      <div @show="insights().length === 0" class="empty-state">
         No insights available yet. Check back when you have more data.
       </div>
 
       <div @for="insight in insights()" class="panel flex gap-4 items-start">
-        <div @class="['w-10 h-10 rounded-lg flex items-center justify-center shrink-0 insight-icon', insight.severity || 'info']">
+        <div x-class="insightIconClass(insight)">
           <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(insight.type)" />
           </svg>
@@ -109,7 +110,6 @@ onMount(() => {
 </div>
 
 <style>
-/* Insight icon color variants (rgba values) */
 .insight-icon.info { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
 .insight-icon.success { background: rgba(34, 197, 94, 0.1); color: var(--success); }
 .insight-icon.warning { background: rgba(234, 179, 8, 0.1); color: var(--warning); }

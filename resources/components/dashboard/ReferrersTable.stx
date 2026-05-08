@@ -1,17 +1,23 @@
 <script client>
-/**
- * ReferrersTable Component
- * Displays top referrers with visitors and views
- */
-
+import { defineProps, withDefaults } from 'stx'
 import type { Referrer } from '../../types/analytics'
 
-const referrers = state<Referrer[]>($props.referrers || [])
-const loading = state<boolean>($props.loading || false)
+interface ReferrersTableProps {
+  referrers?: Referrer[]
+  loading?: boolean
+}
+
+const props = withDefaults(defineProps<ReferrersTableProps>(), {
+  referrers: () => [],
+  loading: false,
+})
+
+const referrers = state<Referrer[]>(props.referrers)
+const loading = state<boolean>(props.loading)
 
 effect(() => {
-  if ($props.referrers) referrers.set($props.referrers)
-  if ($props.loading !== undefined) loading.set($props.loading)
+  if (props.referrers) referrers.set(props.referrers)
+  if (props.loading !== undefined) loading.set(props.loading)
 })
 
 function isExternalLink(source: string): boolean {
@@ -20,7 +26,7 @@ function isExternalLink(source: string): boolean {
 }
 
 function getHref(source: string): string {
-  return source.startsWith('http') ? source : 'https://' + source
+  return source.startsWith('http') ? source : `https://${source}`
 }
 
 function getDomain(source: string): string {
@@ -38,15 +44,9 @@ function getDomain(source: string): string {
       </tr>
     </thead>
     <tbody>
-      <tr @if="loading()">
-        <td colspan="3" class="text-center text-muted py-4">Loading...</td>
-      </tr>
-      <tr @if="!loading() && referrers().length === 0">
-        <td colspan="3" class="text-center text-muted py-4">No referrer data</td>
-      </tr>
-      <tr @for="ref in referrers()" @if="!loading()">
+      <tr @for="ref in referrers()" @loading="loading()">
         <td class="py-2 text-text">
-          <a @if="isExternalLink(ref.source ? ref.source : 'Direct')"
+          <a @show="isExternalLink(ref.source ? ref.source : 'Direct')"
              x-href="getHref(ref.source)"
              target="_blank"
              rel="noopener"
@@ -61,10 +61,16 @@ function getDomain(source: string): string {
             {{ ref.source ? ref.source : 'Direct' }}
             <Icon name="external-link" size="12" class="opacity-50" />
           </a>
-          <span @if="!isExternalLink(ref.source ? ref.source : 'Direct')">{{ ref.source ? ref.source : 'Direct' }}</span>
+          <span @show="!isExternalLink(ref.source ? ref.source : 'Direct')">{{ ref.source ? ref.source : 'Direct' }}</span>
         </td>
         <td class="text-right py-2 tabular-nums">{{ (ref.visitors ? ref.visitors : 0) | fmt }}</td>
         <td class="text-right py-2 tabular-nums">{{ (ref.views ? ref.views : 0) | fmt }}</td>
+      </tr>
+      <tr @for-loading>
+        <td colspan="3" class="text-center text-muted py-4">Loading...</td>
+      </tr>
+      <tr @for-empty>
+        <td colspan="3" class="text-center text-muted py-4">No referrer data</td>
       </tr>
     </tbody>
   </table>

@@ -1,18 +1,13 @@
 <script client>
-/**
- * LiveTab Component - Real-time visitor activity
- * Uses STX signals for reactive state management
- */
-
 import type { LiveActivity } from '../../types/analytics'
 import { useSiteApi } from '@composables'
+
 const { siteId: _siteId, apiUrl: _apiUrl } = useSiteApi()
 
 const activities = state<LiveActivity[]>([])
 const loading = state<boolean>(true)
 const error = state<string | null>(null)
 
-// Fetch live data
 async function fetchLive(): Promise<void> {
   if (!_siteId()) { loading.set(false); return }
   try {
@@ -31,13 +26,12 @@ function timeAgo(ts: string | null): string {
   if (!ts) return ''
   const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000)
   if (diff < 5) return 'just now'
-  if (diff < 60) return diff + 's ago'
-  if (diff < 3600) return Math.floor(diff / 60) + 'm ago'
-  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago'
-  return Math.floor(diff / 86400) + 'd ago'
+  if (diff < 60) return `${diff}s ago`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
 }
 
-// Auto-refresh every 5 seconds
 onMount(() => {
   fetchLive()
   const interval = setInterval(fetchLive, 5000)
@@ -54,12 +48,12 @@ onMount(() => {
     <span class="text-xs text-muted">Auto-refreshing every 5s</span>
   </div>
 
-  <div @if="error()" class="panel text-center text-error">
+  <div @show="error()" class="panel text-center text-error">
     {{ error() }}
   </div>
 
-  <div class="flex flex-col gap-2" @if="!error()">
-    <div @for="activity in activities()" @loading="loading()" @if="!loading()" class="panel flex items-center gap-4 py-3 px-4">
+  <div class="flex flex-col gap-2" @show="!error()">
+    <div @for="activity in activities()" @loading="loading()" class="panel flex items-center gap-4 py-3 px-4">
       <div class="w-2 h-2 bg-success rounded-full flex-shrink-0"></div>
       <div class="flex-1 min-w-0">
         <div class="text-sm text-text truncate">{{ activity.path ? activity.path : '/' }}</div>
@@ -80,7 +74,6 @@ onMount(() => {
 </div>
 
 <style>
-/* Pulse animation for live indicator */
 .live-pulse {
   width: 0.5rem;
   height: 0.5rem;
@@ -92,5 +85,4 @@ onMount(() => {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
-
 </style>

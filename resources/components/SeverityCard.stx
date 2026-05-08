@@ -1,14 +1,20 @@
-<script client>
-/**
- * SeverityCard Component
- * Displays a severity count badge
- */
-const severity: string = $props.severity || 'medium'
-const count: number = $props.count || 0
-const label: string = $props.label || ''
+<script server lang="ts">
+import { defineProps, withDefaults } from 'stx'
+
+interface SeverityCardProps {
+  severity?: string
+  count?: number
+  label?: string
+}
+
+const { severity, count, label } = withDefaults(defineProps<SeverityCardProps>(), {
+  severity: 'medium',
+  count: 0,
+  label: '',
+})
 </script>
 
-<div @class="['py-3 px-4 rounded-lg text-center min-w-[80px] severity-card', severity]">
+<div class="py-3 px-4 rounded-lg text-center min-w-[80px] severity-card {{ severity }}">
   <div class="text-xl font-semibold text-text">{{ count }}</div>
   <div class="text-[0.6875rem] text-muted uppercase">{{ label }}</div>
 </div>

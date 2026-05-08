@@ -1,6 +1,15 @@
 <script server lang="ts">
-export const href: string = props.href || '/dashboard'
-export const text: string = props.text || 'Back to Dashboard'
+import { defineProps, withDefaults } from 'stx'
+
+interface BackLinkProps {
+  href?: string
+  text?: string
+}
+
+const { href, text } = withDefaults(defineProps<BackLinkProps>(), {
+  href: '/dashboard',
+  text: 'Back to Dashboard',
+})
 </script>
 
 <a href="{{ href }}" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline mb-4">

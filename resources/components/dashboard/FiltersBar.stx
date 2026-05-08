@@ -1,20 +1,13 @@
 <script client>
-/**
- * FiltersBar Component - Data filtering controls
- * Uses STX signals for reactive filter state
- */
-
 interface FilterOption {
   value: string
   label: string
 }
 
-// Filter state
 const countryFilter = state<string>('')
 const deviceFilter = state<string>('')
 const browserFilter = state<string>('')
 
-// Available options (populated dynamically)
 const countries = state<FilterOption[]>([])
 const devices = state<FilterOption[]>([
   { value: '', label: 'All Devices' },
@@ -24,7 +17,6 @@ const devices = state<FilterOption[]>([
 ])
 const browsers = state<FilterOption[]>([])
 
-// Apply filter and notify dashboard
 function applyFilter(filterType: string, value: string): void {
   switch (filterType) {
     case 'country':
@@ -38,27 +30,23 @@ function applyFilter(filterType: string, value: string): void {
       break
   }
 
-  // Notify dashboard.ts
   if (window.applyFilter) {
     window.applyFilter(filterType, value)
   }
 
-  // Refresh panels with filter
   if (window.refreshAllPanels) {
     window.refreshAllPanels()
   }
 }
 
-// Get current filters as query params
 function getFilterParams(): string {
   const params: string[] = []
   if (countryFilter()) params.push(`country=${encodeURIComponent(countryFilter())}`)
   if (deviceFilter()) params.push(`device=${encodeURIComponent(deviceFilter())}`)
   if (browserFilter()) params.push(`browser=${encodeURIComponent(browserFilter())}`)
-  return params.length > 0 ? '&' + params.join('&') : ''
+  return params.length > 0 ? `&${params.join('&')}` : ''
 }
 
-// Populate filter options from data
 function setCountries(list: string[]): void {
   countries.set([{ value: '', label: 'All Countries' }, ...list.map((c: string) => ({ value: c, label: c }))])
 }
@@ -67,14 +55,12 @@ function setBrowsers(list: string[]): void {
   browsers.set([{ value: '', label: 'All Browsers' }, ...list.map((b: string) => ({ value: b, label: b }))])
 }
 
-// Reset all filters
 function resetFilters(): void {
   countryFilter.set('')
   deviceFilter.set('')
   browserFilter.set('')
 }
 
-// Expose functions
 onMount(() => {
   window.setFilterCountries = setCountries
   window.setFilterBrowsers = setBrowsers
@@ -91,7 +77,7 @@ onMount(() => {
     @change="applyFilter('country', countryFilter())"
   >
     <option @for="country in countries()" x-value="country.value">{{ country.label }}</option>
-    <option @if="countries().length === 0" value="">All Countries</option>
+    <option @show="countries().length === 0" value="">All Countries</option>
   </select>
 
   <select
@@ -110,10 +96,6 @@ onMount(() => {
     @change="applyFilter('browser', browserFilter())"
   >
     <option @for="browser in browsers()" x-value="browser.value">{{ browser.label }}</option>
-    <option @if="browsers().length === 0" value="">All Browsers</option>
+    <option @show="browsers().length === 0" value="">All Browsers</option>
   </select>
 </div>
-
-<style>
-/* No remaining vanilla CSS needed - all styles expressed as utility classes and Crosswind shortcuts */
-</style>

@@ -1,23 +1,30 @@
-<script client>
-/**
- * StatCard Component
- * Displays a statistic with optional change indicator
- */
-const value: string = $props.value || '0'
-const label: string = $props.label || ''
-const change: number | undefined = $props.change
-const id: string = $props.id || ''
+<script server lang="ts">
+import { defineProps, withDefaults } from 'stx'
 
-const hasChange = derived(() => change !== undefined && change !== null)
-const isPositive = derived(() => change >= 0)
-const changeClass = derived(() => isPositive() ? 'text-success' : 'text-error')
-const changeText = derived(() => (isPositive() ? '+' : '') + change + '%')
+interface StatCardProps {
+  value?: string
+  label?: string
+  change?: number
+  id?: string
+}
+
+const { value, label, change, id } = withDefaults(defineProps<StatCardProps>(), {
+  value: '0',
+  label: '',
+  change: undefined,
+  id: '',
+})
+
+const hasChange = change !== undefined && change !== null
+const isPositive = (change ?? 0) >= 0
+const changeClass = isPositive ? 'text-success' : 'text-error'
+const changeText = `${isPositive ? '+' : ''}${change}%`
 </script>
 
 <div class="bg-bg-2 rounded-lg p-4 text-center border border-border">
-  <div class="text-2xl font-semibold text-text mb-1" x-id="id">{{ value }}</div>
+  <div class="text-2xl font-semibold text-text mb-1" id="{{ id }}">{{ value }}</div>
   <div class="text-xs text-muted uppercase tracking-wide">{{ label }}</div>
-  <div @if="hasChange()" @class="['text-[0.6875rem] mt-1', changeClass()]">
-    {{ changeText() }}
-  </div>
+  @if (hasChange)
+    <div class="text-[0.6875rem] mt-1 {{ changeClass }}">{{ changeText }}</div>
+  @endif
 </div>

@@ -1,15 +1,10 @@
 <script client>
-/**
- * SettingsTab Component - Site settings management
- * Uses STX reactive APIs instead of vanilla DOM manipulation
- */
-
 import type { ApiKey, SiteSettings } from '../../types/analytics'
 import { useSiteApi, useModal } from '@composables'
+
 const { siteId, apiUrl } = useSiteApi()
 const Modal = useModal()
 
-// Reactive state
 const settings = state<SiteSettings>({
   apiKey: null,
   alerts: [],
@@ -18,13 +13,12 @@ const settings = state<SiteSettings>({
   teamMembers: [],
   webhooks: [],
   perfBudgets: [],
-  retentionDays: 365
+  retentionDays: 365,
 })
 const loading = state<boolean>(true)
 const error = state<string | null>(null)
 const copied = state<boolean>(false)
 
-// Fetch all settings data
 async function fetchSettings(): Promise<void> {
   if (!siteId()) { loading.set(false); return }
   loading.set(true)
@@ -39,12 +33,12 @@ async function fetchSettings(): Promise<void> {
       fetch(apiUrl('/team')),
       fetch(apiUrl('/webhooks')),
       fetch(apiUrl('/performance-budgets')),
-      fetch(apiUrl('/retention'))
+      fetch(apiUrl('/retention')),
     ])
 
     const [keysData, alertsData, reportsData, uptimeData, teamData, webhooksData, budgetsData, retentionData] = await Promise.all([
       keysRes.json(), alertsRes.json(), reportsRes.json(), uptimeRes.json(),
-      teamRes.json(), webhooksRes.json(), budgetsRes.json(), retentionRes.json()
+      teamRes.json(), webhooksRes.json(), budgetsRes.json(), retentionRes.json(),
     ])
 
     settings.set({
@@ -55,7 +49,7 @@ async function fetchSettings(): Promise<void> {
       teamMembers: teamData.members || [],
       webhooks: webhooksData.webhooks || [],
       perfBudgets: budgetsData.budgets || [],
-      retentionDays: retentionData.days || 365
+      retentionDays: retentionData.days || 365,
     })
   } catch (e: unknown) {
     error.set((e as Error).message)
@@ -64,7 +58,6 @@ async function fetchSettings(): Promise<void> {
   }
 }
 
-// Copy API key to clipboard with state-based feedback
 function copyApiKey(): void {
   const key = settings().apiKey
   if (key && key.key) {
@@ -74,12 +67,11 @@ function copyApiKey(): void {
   }
 }
 
-// Modal functions
 function regenerateApiKey(): void {
   Modal.confirm('Regenerate API key? The current key will stop working immediately.', async () => {
     const res: Response = await fetch(apiUrl('/api-keys/regenerate'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     })
     const result: { apiKey?: ApiKey } = await res.json()
     const fullKey: string | undefined = result.apiKey && result.apiKey.key
@@ -100,7 +92,7 @@ function regenerateApiKey(): void {
       onSubmit: () => {
         Modal.close()
         fetchSettings()
-      }
+      },
     })
   })
 }
@@ -133,11 +125,11 @@ function showAlertModal(): void {
       await fetch(apiUrl('/alerts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ metric: data.metric, threshold: parseInt(data.threshold), email: data.email })
+        body: JSON.stringify({ metric: data.metric, threshold: parseInt(data.threshold), email: data.email }),
       })
       Modal.close()
       fetchSettings()
-    }
+    },
   })
 }
 
@@ -164,11 +156,11 @@ function showEmailReportModal(): void {
       await fetch(apiUrl('/email-reports'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email, frequency: data.frequency })
+        body: JSON.stringify({ email: data.email, frequency: data.frequency }),
       })
       Modal.close()
       fetchSettings()
-    }
+    },
   })
 }
 
@@ -197,11 +189,11 @@ function showUptimeModal(): void {
       await fetch(apiUrl('/uptime'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: data.url, interval: parseInt(data.interval) })
+        body: JSON.stringify({ url: data.url, interval: parseInt(data.interval) }),
       })
       Modal.close()
       fetchSettings()
-    }
+    },
   })
 }
 
@@ -228,11 +220,11 @@ function showTeamModal(): void {
       await fetch(apiUrl('/team'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email, role: data.role })
+        body: JSON.stringify({ email: data.email, role: data.role }),
       })
       Modal.close()
       fetchSettings()
-    }
+    },
   })
 }
 
@@ -265,11 +257,11 @@ function showWebhookModal(): void {
       await fetch(apiUrl('/webhooks'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: data.url, events })
+        body: JSON.stringify({ url: data.url, events }),
       })
       Modal.close()
       fetchSettings()
-    }
+    },
   })
 }
 
@@ -298,58 +290,56 @@ function showPerfBudgetModal(): void {
       await fetch(apiUrl('/performance-budgets'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ metric: data.metric, threshold: parseFloat(data.threshold) })
+        body: JSON.stringify({ metric: data.metric, threshold: parseFloat(data.threshold) }),
       })
       Modal.close()
       fetchSettings()
-    }
+    },
   })
 }
 
-// Delete functions
 function deleteAlert(alertId: string): void {
   Modal.confirm('Delete this alert?', async () => {
-    await fetch(apiUrl('/alerts/' + alertId), { method: 'DELETE' })
+    await fetch(apiUrl(`/alerts/${alertId}`), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
 function deleteEmailReport(reportId: string): void {
   Modal.confirm('Delete this email report?', async () => {
-    await fetch(apiUrl('/email-reports/' + reportId), { method: 'DELETE' })
+    await fetch(apiUrl(`/email-reports/${reportId}`), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
 function deleteUptimeMonitor(monitorId: string): void {
   Modal.confirm('Delete this uptime monitor?', async () => {
-    await fetch(apiUrl('/uptime/' + monitorId), { method: 'DELETE' })
+    await fetch(apiUrl(`/uptime/${monitorId}`), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
 function removeTeamMember(memberId: string): void {
   Modal.confirm('Remove this team member?', async () => {
-    await fetch(apiUrl('/team/' + memberId), { method: 'DELETE' })
+    await fetch(apiUrl(`/team/${memberId}`), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
 function deleteWebhook(webhookId: string): void {
   Modal.confirm('Delete this webhook?', async () => {
-    await fetch(apiUrl('/webhooks/' + webhookId), { method: 'DELETE' })
+    await fetch(apiUrl(`/webhooks/${webhookId}`), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
 function deletePerfBudget(budgetId: string): void {
   Modal.confirm('Delete this performance budget?', async () => {
-    await fetch(apiUrl('/performance-budgets/' + budgetId), { method: 'DELETE' })
+    await fetch(apiUrl(`/performance-budgets/${budgetId}`), { method: 'DELETE' })
     fetchSettings()
   })
 }
 
-// GDPR functions
 function gdprExport(): void {
   location.href = apiUrl('/gdpr/export')
 }
@@ -361,7 +351,6 @@ function gdprDelete(): void {
   })
 }
 
-// Fetch on mount
 onMount(() => {
   fetchSettings()
 })
@@ -370,24 +359,18 @@ onMount(() => {
 <div class="col-span-full">
   <h3 class="text-base font-semibold text-text mb-6">Settings</h3>
 
-  <!-- Loading state -->
-  <div @if="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
+  <div @show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
     <div class="spinner"></div>
     <span>Loading...</span>
   </div>
 
-  <!-- Error state -->
-  <div @if="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">
+  <div @show="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">
     {{ error() }}
   </div>
 
-  <!-- Settings panels -->
-  <div @if="!loading() && !error()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-    <!-- Left column -->
+  <div @show="!loading() && !error()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div class="flex flex-col gap-4">
 
-      <!-- API Keys Panel -->
       <div class="panel">
         <div class="panel-header">
           <h4 class="panel-title">API Key</h4>
@@ -395,23 +378,22 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Use this key for programmatic access to your analytics data.</p>
         <div class="flex flex-col gap-2">
-          <div @if="settings().apiKey" class="flex justify-between items-center p-2 bg-bg rounded">
+          <div @show="settings().apiKey" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ settings().apiKey.name }}</div>
               <code class="text-[0.6875rem] text-muted break-all">{{ settings().apiKey.key }}</code>
             </div>
             <div class="flex items-center gap-1">
               <button class="icon-btn" @click="copyApiKey()" title="Copy key">
-                <Icon @if="!copied()" name="copy" size="14" />
-                <Icon @if="copied()" name="check" size="14" class="text-success" />
+                <Icon @show="!copied()" name="copy" size="14" />
+                <Icon @show="copied()" name="check" size="14" class="text-success" />
               </button>
             </div>
           </div>
-          <p @if="!settings().apiKey" class="text-xs text-muted italic">No API key found.</p>
+          <p @show="!settings().apiKey" class="text-xs text-muted italic">No API key found.</p>
         </div>
       </div>
 
-      <!-- Alerts Panel -->
       <div class="panel">
         <div class="panel-header">
           <h4 class="panel-title">Alerts</h4>
@@ -419,7 +401,7 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Get notified when metrics exceed thresholds.</p>
         <div class="flex flex-col gap-2">
-          <p @if="settings().alerts.length === 0" class="text-xs text-muted italic">No alerts configured.</p>
+          <p @show="settings().alerts.length === 0" class="text-xs text-muted italic">No alerts configured.</p>
           <div @for="alert in settings().alerts" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ alert.metric }}</div>
@@ -430,7 +412,6 @@ onMount(() => {
         </div>
       </div>
 
-      <!-- Email Reports Panel -->
       <div class="panel">
         <div class="panel-header">
           <h4 class="panel-title">Email Reports</h4>
@@ -438,7 +419,7 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Schedule automated email reports.</p>
         <div class="flex flex-col gap-2">
-          <p @if="settings().emailReports.length === 0" class="text-xs text-muted italic">No email reports scheduled.</p>
+          <p @show="settings().emailReports.length === 0" class="text-xs text-muted italic">No email reports scheduled.</p>
           <div @for="report in settings().emailReports" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ report.email }}</div>
@@ -449,7 +430,6 @@ onMount(() => {
         </div>
       </div>
 
-      <!-- Uptime Monitoring Panel -->
       <div class="panel">
         <div class="panel-header">
           <h4 class="panel-title">Uptime Monitoring</h4>
@@ -457,7 +437,7 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Monitor your site availability.</p>
         <div class="flex flex-col gap-2">
-          <p @if="settings().uptimeMonitors.length === 0" class="text-xs text-muted italic">No uptime monitors configured.</p>
+          <p @show="settings().uptimeMonitors.length === 0" class="text-xs text-muted italic">No uptime monitors configured.</p>
           <div @for="monitor in settings().uptimeMonitors" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <code class="text-[0.6875rem] text-muted break-all">{{ monitor.url }}</code>
@@ -469,10 +449,8 @@ onMount(() => {
       </div>
     </div>
 
-    <!-- Right column -->
     <div class="flex flex-col gap-4">
 
-      <!-- Team Members Panel -->
       <div class="panel">
         <div class="panel-header">
           <h4 class="panel-title">Team Members</h4>
@@ -480,7 +458,7 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Manage team access to this site.</p>
         <div class="flex flex-col gap-2">
-          <p @if="settings().teamMembers.length === 0" class="text-xs text-muted italic">No team members added.</p>
+          <p @show="settings().teamMembers.length === 0" class="text-xs text-muted italic">No team members added.</p>
           <div @for="member in settings().teamMembers" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ member.email }}</div>
@@ -491,7 +469,6 @@ onMount(() => {
         </div>
       </div>
 
-      <!-- Webhooks Panel -->
       <div class="panel">
         <div class="panel-header">
           <h4 class="panel-title">Webhooks</h4>
@@ -499,7 +476,7 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Send real-time data to external services.</p>
         <div class="flex flex-col gap-2">
-          <p @if="settings().webhooks.length === 0" class="text-xs text-muted italic">No webhooks configured.</p>
+          <p @show="settings().webhooks.length === 0" class="text-xs text-muted italic">No webhooks configured.</p>
           <div @for="webhook in settings().webhooks" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <code class="text-[0.6875rem] text-muted break-all">{{ webhook.url }}</code>
@@ -510,7 +487,6 @@ onMount(() => {
         </div>
       </div>
 
-      <!-- Performance Budgets Panel -->
       <div class="panel">
         <div class="panel-header">
           <h4 class="panel-title">Performance Budgets</h4>
@@ -518,7 +494,7 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Set performance thresholds for alerts.</p>
         <div class="flex flex-col gap-2">
-          <p @if="settings().perfBudgets.length === 0" class="text-xs text-muted italic">No performance budgets set.</p>
+          <p @show="settings().perfBudgets.length === 0" class="text-xs text-muted italic">No performance budgets set.</p>
           <div @for="budget in settings().perfBudgets" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ budget.metric }}</div>
@@ -529,7 +505,6 @@ onMount(() => {
         </div>
       </div>
 
-      <!-- Data & Privacy Panel -->
       <div class="panel">
         <div class="panel-header">
           <h4 class="panel-title">Data & Privacy</h4>
@@ -550,4 +525,3 @@ onMount(() => {
     </div>
   </div>
 </div>
-

@@ -1,27 +1,17 @@
 <script client>
-/**
- * FlowTab Component - User flow visualization
- * Uses STX signals for reactive state management
- */
-
 import type { FlowData } from '../../types/analytics'
 import { useSiteApi } from '@composables'
+
 const { siteId: _siteId, apiUrlWithDates } = useSiteApi()
 
 const flowData = state<FlowData | null>(null)
 const loading = state<boolean>(true)
 const error = state<string | null>(null)
 
-// Computed: entry pages
 const entryPages = derived(() => flowData()?.entryPages || [])
-
-// Computed: top flows/links
 const topFlows = derived(() => flowData()?.flows || [])
-
-// Computed: most visited pages
 const mostVisited = derived(() => flowData()?.mostVisited || [])
 
-// Computed: summary text
 const summary = derived(() => {
   const data = flowData()
   if (!data) return ''
@@ -50,24 +40,23 @@ onMount(() => {
 <div class="col-span-full">
   <h3 class="text-base font-semibold text-text mb-2">User Flow</h3>
 
-  <div @if="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
+  <div @show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
     <div class="spinner"></div>
     <span>Loading...</span>
   </div>
 
-  <div @if="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">
+  <div @show="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">
     {{ error() }}
   </div>
 
-  <div @if="!loading() && !error()">
-    <p @if="summary()" class="text-xs text-muted mb-6">{{ summary() }}</p>
+  <div @show="!loading() && !error()">
+    <p @show="summary()" class="text-xs text-muted mb-6">{{ summary() }}</p>
 
-    <div @if="entryPages().length === 0 && topFlows().length === 0" class="empty-state">
+    <div @show="entryPages().length === 0 && topFlows().length === 0" class="empty-state">
       No flow data available. Users need to visit multiple pages in a session.
     </div>
 
-    <div @if="entryPages().length > 0 || topFlows().length > 0" class="flex gap-8 overflow-x-auto pb-4">
-      <!-- Entry Pages Column -->
+    <div @show="entryPages().length > 0 || topFlows().length > 0" class="flex gap-8 overflow-x-auto pb-4">
       <div class="min-w-[200px]">
         <h4 class="text-[0.6875rem] uppercase text-muted mb-3 font-medium tracking-wider">Entry Pages</h4>
         <div class="flex flex-col gap-2">
@@ -78,7 +67,6 @@ onMount(() => {
         </div>
       </div>
 
-      <!-- Top Flows Column -->
       <div class="min-w-[300px] flex-1">
         <h4 class="text-[0.6875rem] uppercase text-muted mb-3 font-medium tracking-wider">Top Flows</h4>
         <div class="flex flex-col gap-2">
@@ -91,7 +79,6 @@ onMount(() => {
         </div>
       </div>
 
-      <!-- Most Visited Column -->
       <div class="min-w-[200px]">
         <h4 class="text-[0.6875rem] uppercase text-muted mb-3 font-medium tracking-wider">Most Visited</h4>
         <div class="flex flex-col gap-2">
@@ -105,4 +92,3 @@ onMount(() => {
     </div>
   </div>
 </div>
-

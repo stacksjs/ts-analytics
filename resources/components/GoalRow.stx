@@ -1,8 +1,6 @@
-<script client>
-/**
- * GoalRow Component
- * Displays a goal in the goals table
- */
+<script server lang="ts">
+import { defineProps, withDefaults } from 'stx'
+
 interface Goal {
   id?: string
   name?: string
@@ -11,34 +9,38 @@ interface Goal {
   totalValue?: number
 }
 
-const goal: Goal = $props.goal || {}
-const onEdit: ((id: string | undefined) => void) | undefined = $props.onEdit
-const onDelete: ((id: string | undefined) => void) | undefined = $props.onDelete
-
-const name = derived(() => goal.name || 'Unnamed')
-const type = derived(() => goal.type || 'pageview')
-const conversions = derived(() => goal.conversions || 0)
-const value = derived(() => goal.totalValue ? '$' + goal.totalValue.toFixed(2) : '-')
-
-function handleEdit(): void {
-  if (onEdit) onEdit(goal.id)
+interface GoalRowProps {
+  goal?: Goal
 }
 
-function handleDelete(): void {
-  if (onDelete) onDelete(goal.id)
+const { goal } = withDefaults(defineProps<GoalRowProps>(), {
+  goal: () => ({}),
+})
+
+const goalId = goal.id || ''
+const name = goal.name || 'Unnamed'
+const type = goal.type || 'pageview'
+const conversions = goal.conversions || 0
+const value = goal.totalValue ? `$${goal.totalValue.toFixed(2)}` : '-'
+</script>
+
+<script client>
+function dispatchGoal(action, e) {
+  const id = e.currentTarget.getAttribute('data-goal-id') || ''
+  window.dispatchEvent(new CustomEvent('goal-action', { detail: { id, action } }))
 }
 </script>
 
 <tr>
-  <td class="font-medium">{{ name() }}</td>
+  <td class="font-medium">{{ name }}</td>
   <td>
-    <span @class="['text-[0.6875rem] py-0.5 px-1.5 rounded-sm uppercase goal-type-badge', type()]">{{ type() }}</span>
+    <span class="text-[0.6875rem] py-0.5 px-1.5 rounded-sm uppercase goal-type-badge {{ type }}">{{ type }}</span>
   </td>
-  <td class="text-right">{{ conversions() | fmt }}</td>
-  <td class="text-right">{{ value() }}</td>
+  <td class="text-right">{{ conversions | fmt }}</td>
+  <td class="text-right">{{ value }}</td>
   <td class="flex gap-2 justify-end">
-    <button class="py-1 px-2 text-xs rounded border-none cursor-pointer bg-bg-3 text-text hover:bg-accent hover:text-white edit-btn" @click="handleEdit">Edit</button>
-    <button class="py-1 px-2 text-xs rounded border-none cursor-pointer bg-transparent text-muted delete-btn" @click="handleDelete">Delete</button>
+    <button class="py-1 px-2 text-xs rounded border-none cursor-pointer bg-bg-3 text-text hover:bg-accent hover:text-white edit-btn" data-goal-id="{{ goalId }}" @click="(e) => dispatchGoal('edit', e)">Edit</button>
+    <button class="py-1 px-2 text-xs rounded border-none cursor-pointer bg-transparent text-muted delete-btn" data-goal-id="{{ goalId }}" @click="(e) => dispatchGoal('delete', e)">Delete</button>
   </td>
 </tr>
 

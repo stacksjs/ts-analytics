@@ -1,16 +1,10 @@
 <script client>
-/**
- * GoalModal Component - Goal creation/editing modal
- * Uses STX signals for reactive form state and provide/inject for cross-component communication
- */
-
 import type { Goal, GoalFormData } from '../../types/analytics'
 import type { GoalModalAPI } from '../../types/dashboard'
 import { useSiteApi } from '@composables'
 
 const { siteId: _siteId, apiUrl: _apiUrl } = useSiteApi()
 
-// Form state signals
 const showModal = state<boolean>(false)
 const isEditing = state<boolean>(false)
 const editingGoalId = state<string | null>(null)
@@ -23,12 +17,10 @@ const goalValue = state<string>('')
 const saving = state<boolean>(false)
 const error = state<string | null>(null)
 
-// Derived state for showing/hiding form sections
 const showPatternGroup = derived(() => goalType() !== 'duration')
 const showDurationGroup = derived(() => goalType() === 'duration')
 const modalTitle = derived(() => isEditing() ? 'Edit Goal' : 'Create Goal')
 
-// Reset form to defaults
 function resetForm(): void {
   goalName.set('')
   goalType.set('pageview')
@@ -41,13 +33,11 @@ function resetForm(): void {
   editingGoalId.set(null)
 }
 
-// Open modal for creating new goal
 function openCreateModal(): void {
   resetForm()
   showModal.set(true)
 }
 
-// Open modal for editing existing goal
 function openEditModal(goal: Goal): void {
   isEditing.set(true)
   editingGoalId.set(goal.id)
@@ -61,13 +51,11 @@ function openEditModal(goal: Goal): void {
   showModal.set(true)
 }
 
-// Close modal
 function closeModal(): void {
   showModal.set(false)
   resetForm()
 }
 
-// Handle form submission
 async function handleSubmit(e: Event): Promise<void> {
   e.preventDefault()
   if (saving()) return
@@ -84,7 +72,7 @@ async function handleSubmit(e: Event): Promise<void> {
     matchType: goalType() !== 'duration' ? goalMatchType() : 'exact',
     durationMinutes: goalType() === 'duration' ? Number(goalDuration()) : undefined,
     value: goalValue() ? Number(goalValue()) : undefined,
-    isActive: true
+    isActive: true,
   }
 
   if (!data.name) {
@@ -104,12 +92,11 @@ async function handleSubmit(e: Event): Promise<void> {
     const res: Response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     })
 
     if (res.ok) {
       closeModal()
-      // Trigger dashboard refresh via window globals (shared with dashboard.ts)
       if (window.fetchDashboardData) window.fetchDashboardData()
       if (window.refreshAllPanels) window.refreshAllPanels()
     } else {
@@ -124,14 +111,12 @@ async function handleSubmit(e: Event): Promise<void> {
   }
 }
 
-// Provide goal modal API for other components via inject
 provide('goalModal', {
   openCreate: openCreateModal,
   openEdit: openEditModal,
-  close: closeModal
+  close: closeModal,
 })
 
-// Handle ESC key to close modal
 onMount(() => {
   const handleEsc = (e: KeyboardEvent): void => {
     if (e.key === 'Escape' && showModal()) closeModal()
@@ -141,12 +126,12 @@ onMount(() => {
 })
 </script>
 
-<div @if="showModal()" class="modal-overlay" @click.self="closeModal">
+<div @show="showModal()" class="modal-overlay" @click.self="closeModal">
   <div class="modal-content bg-bg-2 max-w-[420px] p-6">
     <h3 class="text-lg font-semibold text-text mb-6">{{ modalTitle() }}</h3>
 
     <form @submit="handleSubmit">
-      <div @if="error()" class="error-message">{{ error() }}</div>
+      <div @show="error()" class="error-message">{{ error() }}</div>
 
       <label class="block mb-4 text-[0.8125rem] text-text-2">
         Name
@@ -168,7 +153,7 @@ onMount(() => {
         </select>
       </label>
 
-      <div @if="showPatternGroup()">
+      <div @show="showPatternGroup()">
         <label class="block mb-4 text-[0.8125rem] text-text-2">
           Pattern
           <input
@@ -188,7 +173,7 @@ onMount(() => {
         </label>
       </div>
 
-      <div @if="showDurationGroup()">
+      <div @show="showDurationGroup()">
         <label class="block mb-4 text-[0.8125rem] text-text-2">
           Minutes on Site
           <input

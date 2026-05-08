@@ -1,24 +1,25 @@
-<script client>
-/**
- * TimelineItem Component
- * Displays a single event in a session timeline
- */
+<script server lang="ts">
+import { defineProps, withDefaults } from 'stx'
+
 interface TimelineItemData {
   type?: string
   timestamp?: string | number
   data?: Record<string, any>
 }
 
-const item: TimelineItemData = $props.item || {}
-const type = derived(() => item.type || 'event')
-const data = derived(() => item.data || {})
-const timestamp = derived(() => item.timestamp)
-const timeStr = derived(() => timestamp() ? new Date(timestamp()).toLocaleTimeString() : '')
+interface TimelineItemProps {
+  item?: TimelineItemData
+}
 
-// Build content based on type
-const content = derived((): string => {
-  const t = type()
-  const d = data()
+const { item } = withDefaults(defineProps<TimelineItemProps>(), {
+  item: () => ({}),
+})
+
+const type = item.type || 'event'
+const data = item.data || {}
+const timeStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : ''
+
+function buildContent(t: string, d: Record<string, any>): string {
   switch (t) {
     case 'pageview': return d.path || '/'
     case 'event': return d.name || 'Event'
@@ -27,13 +28,15 @@ const content = derived((): string => {
     case 'error': return (d.message || 'Error').slice(0, 100)
     default: return ''
   }
-})
+}
+
+const content = buildContent(type, data)
 </script>
 
 <div class="flex items-start gap-3 py-2 border-b border-border timeline-item">
-  <span @class="['text-[0.6875rem] font-medium uppercase py-0.5 px-1.5 rounded-sm shrink-0 timeline-type', type()]">{{ type() }}</span>
-  <div class="flex-1 text-[0.8125rem] text-text break-words">{{ content() }}</div>
-  <span class="text-[0.6875rem] text-muted shrink-0">{{ timeStr() }}</span>
+  <span class="text-[0.6875rem] font-medium uppercase py-0.5 px-1.5 rounded-sm shrink-0 timeline-type {{ type }}">{{ type }}</span>
+  <div class="flex-1 text-[0.8125rem] text-text break-words">{{ content }}</div>
+  <span class="text-[0.6875rem] text-muted shrink-0">{{ timeStr }}</span>
 </div>
 
 <style>

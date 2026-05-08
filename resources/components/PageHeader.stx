@@ -1,7 +1,17 @@
 <script server lang="ts">
-export const title: string = props.title || 'Page Title'
-export const iconPath: string = props.iconPath || ''
-export const subtitle: string = props.subtitle || ''
+import { defineProps, withDefaults } from 'stx'
+
+interface PageHeaderProps {
+  title?: string
+  iconPath?: string
+  subtitle?: string
+}
+
+const { title, iconPath, subtitle } = withDefaults(defineProps<PageHeaderProps>(), {
+  title: 'Page Title',
+  iconPath: '',
+  subtitle: '',
+})
 </script>
 
 <header class="mb-6">

@@ -1,28 +1,43 @@
-<script client>
-/**
- * VitalCard Component
- * Displays a Core Web Vital metric with rating bar
- */
-const metric: string = $props.metric || ''
-const value: string = $props.value || '—'
-const samples: number = $props.samples || 0
-const rating: string = $props.rating || ''
-const goodPct: number = $props.goodPct || 0
-const needsImprovementPct: number = $props.needsImprovementPct || 0
-const poorPct: number = $props.poorPct || 0
+<script server lang="ts">
+import { defineProps, withDefaults } from 'stx'
 
-const showBar = derived(() => samples > 0)
+interface VitalCardProps {
+  metric?: string
+  value?: string
+  samples?: number
+  rating?: string
+  goodPct?: number
+  needsImprovementPct?: number
+  poorPct?: number
+}
+
+const { metric, value, samples, rating, goodPct, needsImprovementPct, poorPct } = withDefaults(
+  defineProps<VitalCardProps>(),
+  {
+    metric: '',
+    value: '—',
+    samples: 0,
+    rating: '',
+    goodPct: 0,
+    needsImprovementPct: 0,
+    poorPct: 0,
+  },
+)
+
+const showBar = samples > 0
 </script>
 
 <div class="vital-card">
   <div class="text-xs text-muted uppercase tracking-wide mb-1">{{ metric }}</div>
-  <div @class="['text-2xl font-semibold text-text mb-1 vital-value', rating]">{{ value }}</div>
+  <div class="text-2xl font-semibold text-text mb-1 vital-value {{ rating }}">{{ value }}</div>
   <div class="text-[0.6875rem] text-muted mb-2">{{ samples }} samples</div>
-  <div @if="showBar()" class="flex h-1.5 rounded-sm overflow-hidden bg-bg-3 vital-bar">
-    <div class="good" @style="{ width: goodPct + '%' }"></div>
-    <div class="needs-improvement" @style="{ width: needsImprovementPct + '%' }"></div>
-    <div class="poor" @style="{ width: poorPct + '%' }"></div>
-  </div>
+  @if (showBar)
+    <div class="flex h-1.5 rounded-sm overflow-hidden bg-bg-3 vital-bar">
+      <div class="good" style="width: {{ goodPct }}%"></div>
+      <div class="needs-improvement" style="width: {{ needsImprovementPct }}%"></div>
+      <div class="poor" style="width: {{ poorPct }}%"></div>
+    </div>
+  @endif
 </div>
 
 <style>

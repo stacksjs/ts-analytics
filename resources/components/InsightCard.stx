@@ -1,26 +1,33 @@
-<script client>
-/**
- * InsightCard Component
- * Displays an individual insight with icon and description
- */
-const type: string = $props.type || 'info'
-const title: string = $props.title || ''
-const description: string = $props.description || ''
-const severity: string = $props.severity || 'info'
+<script server lang="ts">
+import { defineProps, withDefaults } from 'stx'
+
+interface InsightCardProps {
+  type?: string
+  title?: string
+  description?: string
+  severity?: string
+}
+
+const { type, title, description, severity } = withDefaults(defineProps<InsightCardProps>(), {
+  type: 'info',
+  title: '',
+  description: '',
+  severity: 'info',
+})
 
 const iconMap: Record<string, string> = {
   growth: '📈',
   decline: '📉',
   warning: '⚠️',
   success: '✅',
-  info: 'ℹ️'
+  info: 'ℹ️',
 }
 
-const icon = derived(() => iconMap[type] || iconMap.info)
+const icon = iconMap[type] || iconMap.info
 </script>
 
 <div class="flex gap-3 p-3 bg-bg-2 rounded-lg border border-border">
-  <div @class="['w-8 h-8 flex items-center justify-center rounded-md text-base insight-icon', severity]">{{ icon() }}</div>
+  <div class="w-8 h-8 flex items-center justify-center rounded-md text-base insight-icon {{ severity }}">{{ icon }}</div>
   <div class="flex-1 min-w-0">
     <div class="font-medium text-sm text-text mb-1">{{ title }}</div>
     <div class="text-xs text-muted leading-relaxed">{{ description }}</div>

@@ -7,9 +7,8 @@ const newDomain = state('')
 const createError = state(null)
 const creating = state(false)
 
-// Read from dashboard.ts globals (set before DOMContentLoaded)
 const API_ENDPOINT = window.API_ENDPOINT || window.ANALYTICS_API_ENDPOINT || window.location.origin
-const apiPath = window.apiPath || ((u) => u)
+const apiPath = window.apiPath || (u => u)
 
 async function fetchSites() {
   loading.set(true)
@@ -41,7 +40,7 @@ async function handleCreate(e) {
     const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, domain: newDomain().trim() || undefined })
+      body: JSON.stringify({ name, domain: newDomain().trim() || undefined }),
     })
     const data = await res.json()
     if (!res.ok) {
@@ -61,8 +60,8 @@ async function handleCreate(e) {
   }
 }
 
-function pickSite(id, name) {
-  if (window.selectSite) window.selectSite(id, name)
+function pickSite(id, label) {
+  if (window.selectSite) window.selectSite(id, label)
 }
 
 onMount(() => {
@@ -76,22 +75,18 @@ onMount(() => {
   <p class="text-text-2 mb-8">Select a site to view analytics</p>
 
   <div class="site-selector-content">
-    <!-- Loading -->
-    <div :if="loading()" class="site-status">
+    <div @show="loading()" class="site-status">
       <div class="site-spinner"></div>
       <p>Loading sites...</p>
     </div>
 
-    <!-- Error -->
-    <div :if="!loading() && error()" class="site-status">
+    <div @show="!loading() && error()" class="site-status">
       <Icon name="alert-triangle" size="32" class="text-error" style="opacity:0.7;margin-bottom:0.75rem" />
       <p>{{ error() }}</p>
       <button class="retry-btn" @click="fetchSites()">Retry</button>
     </div>
 
-    <!-- Loaded -->
-    <div :if="!loading() && !error()">
-      <!-- Create form -->
+    <div @show="!loading() && !error()">
       <div class="create-form">
         <h3 class="section-label">Create New Site</h3>
         <form class="create-form-row" @submit="handleCreate($event)">
@@ -105,31 +100,27 @@ onMount(() => {
             {{ creating() ? 'Creating...' : 'Create' }}
           </button>
         </form>
-        <p :if="createError()" class="create-error">{{ createError() }}</p>
+        <p @show="createError()" class="create-error">{{ createError() }}</p>
       </div>
 
-      <!-- Empty -->
-      <div :if="sites().length === 0" class="site-empty">
+      <div @show="sites().length === 0" class="site-empty">
         <Icon name="bar-chart-2" size="48" />
         <p>No sites yet</p>
         <p class="text-xs text-muted mt-2">Create your first site above to start tracking analytics</p>
       </div>
 
-      <!-- Site list -->
-      <div :if="sites().length > 0" class="site-list-section">
+      <div @show="sites().length > 0" class="site-list-section">
         <h3 class="section-label">Your Sites</h3>
-        <template :for="site in sites()">
-          <button class="site-card" @click="pickSite(site.id, site.name || '')">
-            <div class="site-icon">
-              <Icon name="globe" size="24" />
-            </div>
-            <div class="site-info">
-              <span class="site-name">{{ site.name || 'Unnamed' }}</span>
-              <span class="site-domain">{{ site.domains?.[0] || site.id }}</span>
-            </div>
-            <Icon name="chevron-right" size="20" class="site-arrow" />
-          </button>
-        </template>
+        <button @for="site in sites()" class="site-card" @click="pickSite(site.id, site.name || '')">
+          <div class="site-icon">
+            <Icon name="globe" size="24" />
+          </div>
+          <div class="site-info">
+            <span class="site-name">{{ site.name || 'Unnamed' }}</span>
+            <span class="site-domain">{{ site.domains?.[0] || site.id }}</span>
+          </div>
+          <Icon name="chevron-right" size="20" class="site-arrow" />
+        </button>
       </div>
     </div>
   </div>
@@ -154,7 +145,6 @@ onMount(() => {
   max-width: 600px;
 }
 
-/* Loading & Error */
 .site-status {
   display: flex;
   flex-direction: column;
@@ -189,7 +179,6 @@ onMount(() => {
   background: var(--bg2);
 }
 
-/* Create form */
 .create-form {
   width: 100%;
   margin-bottom: 1.5rem;
@@ -237,13 +226,11 @@ onMount(() => {
   margin-top: 0.5rem;
 }
 
-/* Empty */
 .site-empty {
   color: var(--muted);
   padding: 2rem;
 }
 
-/* Site list */
 .site-list-section {
   width: 100%;
 }

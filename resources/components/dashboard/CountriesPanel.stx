@@ -16,7 +16,7 @@ const countryFlags = {
   'Denmark': '🇩🇰', 'Finland': '🇫🇮', 'Ireland': '🇮🇪', 'New Zealand': '🇳🇿',
   'Portugal': '🇵🇹', 'Singapore': '🇸🇬', 'Hong Kong': '🇭🇰', 'Taiwan': '🇹🇼',
   'Thailand': '🇹🇭', 'Vietnam': '🇻🇳', 'Malaysia': '🇲🇾', 'Philippines': '🇵🇭',
-  'South Africa': '🇿🇦', 'Turkey': '🇹🇷', 'Israel': '🇮🇱', 'UAE': '🇦🇪'
+  'South Africa': '🇿🇦', 'Turkey': '🇹🇷', 'Israel': '🇮🇱', 'UAE': '🇦🇪',
 }
 
 function getFlag(name) {
@@ -45,7 +45,7 @@ onMount(() => {
       </tr>
     </thead>
     <tbody>
-      <tr @for="country in analytics.countries()" @loading="analytics.loading()" @if="!analytics.loading()">
+      <tr @for="country in analytics.countries()" @loading="analytics.loading()">
         <td class="cell-name flex items-center gap-1.5">
           <span class="text-base">{{ getFlag(country.name ? country.name : country.code) }}</span>
           {{ country.name ? country.name : (country.code ? country.code : 'Unknown') }}
@@ -61,4 +61,3 @@ onMount(() => {
     </tbody>
   </table>
 </div>
-

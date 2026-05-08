@@ -18,11 +18,11 @@ function isExternalLink(source) {
 }
 
 function getHref(source) {
-  return source.startsWith('http') ? source : 'https://' + source
+  return source.startsWith('http') ? source : `https://${source}`
 }
 
 function getFaviconUrl(source) {
-  return 'https://www.google.com/s2/favicons?domain=' + getDomain(source) + '&sz=16'
+  return `https://www.google.com/s2/favicons?domain=${getDomain(source)}&sz=16`
 }
 
 async function fetchReferrers() {
@@ -64,9 +64,9 @@ onMount(() => {
       </tr>
     </thead>
     <tbody>
-      <tr @for="ref in referrers()" @loading="loading()" @if="!loading()">
+      <tr @for="ref in referrers()" @loading="loading()">
         <td class="cell-name">
-          <a @if="isExternalLink(ref.source ? ref.source : 'Direct')"
+          <a @show="isExternalLink(ref.source ? ref.source : 'Direct')"
              x-href="getHref(ref.source)"
              target="_blank"
              rel="noopener"
@@ -81,7 +81,7 @@ onMount(() => {
             {{ ref.source ? ref.source : 'Direct' }}
             <Icon name="external-link" size="10" class="opacity-50" />
           </a>
-          <span @if="!isExternalLink(ref.source ? ref.source : 'Direct')">{{ ref.source ? ref.source : 'Direct' }}</span>
+          <span @show="!isExternalLink(ref.source ? ref.source : 'Direct')">{{ ref.source ? ref.source : 'Direct' }}</span>
         </td>
         <td class="cell-value">{{ ref.visitors | fmt }}</td>
         <td class="cell-value">{{ ref.views | fmt }}</td>
@@ -95,4 +95,3 @@ onMount(() => {
     </tbody>
   </table>
 </div>
-

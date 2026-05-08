@@ -1,32 +1,41 @@
-<script client>
-/**
- * SiteCard Component
- * Displays a site in the site selector
- */
+<script server lang="ts">
+import { defineProps, withDefaults } from 'stx'
+
 interface Site {
   id?: string
   name?: string
   domains?: string[]
 }
 
-const site: Site = $props.site || {}
-const onClick: ((id: string | undefined, name: string) => void) | undefined = $props.onClick
+interface SiteCardProps {
+  site?: Site
+}
 
-const name = derived(() => site.name || 'Unnamed')
-const domain = derived(() => site.domains?.[0] || site.id || '')
+const { site } = withDefaults(defineProps<SiteCardProps>(), {
+  site: () => ({}),
+})
 
-function handleClick(): void {
-  if (onClick) onClick(site.id, site.name || '')
+const name = site.name || 'Unnamed'
+const domain = site.domains?.[0] || site.id || ''
+const siteId = site.id || ''
+</script>
+
+<script client>
+function selectSite(id, label) {
+  window.dispatchEvent(new CustomEvent('site-select', { detail: { id, name: label } }))
 }
 </script>
 
-<button class="flex items-center gap-3 w-full max-w-[500px] py-3 px-4 bg-bg-2 border border-border rounded-lg cursor-pointer text-left mb-2 transition-all duration-150 hover:border-accent hover:bg-bg-3 site-card" @click="handleClick">
+<button
+  class="flex items-center gap-3 w-full max-w-[500px] py-3 px-4 bg-bg-2 border border-border rounded-lg cursor-pointer text-left mb-2 transition-all duration-150 hover:border-accent hover:bg-bg-3 site-card"
+  @click="selectSite('{{ siteId }}', '{{ name }}')"
+>
   <div class="w-10 h-10 flex items-center justify-center bg-bg-3 rounded-lg shrink-0">
     <Icon name="globe" size="24" class="text-accent" />
   </div>
   <div class="flex-1 min-w-0">
-    <span class="block font-medium text-sm text-text">{{ name() }}</span>
-    <span class="block text-xs text-muted overflow-hidden text-ellipsis whitespace-nowrap">{{ domain() }}</span>
+    <span class="block font-medium text-sm text-text">{{ name }}</span>
+    <span class="block text-xs text-muted overflow-hidden text-ellipsis whitespace-nowrap">{{ domain }}</span>
   </div>
   <Icon name="chevron-right" size="20" class="arrow text-muted shrink-0 transition-transform duration-150" />
 </button>

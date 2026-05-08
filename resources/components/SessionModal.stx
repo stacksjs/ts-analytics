@@ -2,7 +2,8 @@
 /**
  * SessionModal Component
  *
- * Displays detailed session information with heatmap and timeline.
+ * Provides hidden DOM templates used by client-side code to render session
+ * detail modals (heatmap, journey, timeline). Takes no props.
  */
 </script>
 
@@ -75,7 +76,6 @@
 </div>
 
 <style>
-/* Heatmap container - needs relative positioning + fixed height */
 .heatmap-container {
   position: relative;
   width: 100%;
@@ -87,7 +87,6 @@
   margin-bottom: 1.5rem;
 }
 
-/* Timeline type badges - dynamically applied color variants */
 .timeline-type {
   font-size: 0.6875rem;
   font-weight: 500;
@@ -105,7 +104,6 @@
 .timeline-type.vital { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
 .timeline-type.error { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 
-/* Journey arrow - referenced by JS */
 .journey-arrow {
   color: var(--muted);
 }

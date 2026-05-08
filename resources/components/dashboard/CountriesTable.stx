@@ -1,8 +1,5 @@
 <script client>
-/**
- * CountriesTable Component
- * Displays countries with flag and visitor count
- */
+import { defineProps, withDefaults } from 'stx'
 
 interface Country {
   name?: string
@@ -15,23 +12,28 @@ interface CountriesTableProps {
   loading?: boolean
 }
 
-const countries = state<Country[]>($props.countries || [])
-const loading = state<boolean>($props.loading || false)
-
-effect(() => {
-  if ($props.countries) countries.set($props.countries)
-  if ($props.loading !== undefined) loading.set($props.loading)
+const props = withDefaults(defineProps<CountriesTableProps>(), {
+  countries: () => [],
+  loading: false,
 })
 
-// Simple country code to flag emoji converter
+const countries = state<Country[]>(props.countries)
+const loading = state<boolean>(props.loading)
+
+effect(() => {
+  if (props.countries) countries.set(props.countries)
+  if (props.loading !== undefined) loading.set(props.loading)
+})
+
+const countryFlags: Record<string, string> = {
+  'United States': '🇺🇸', 'United Kingdom': '🇬🇧', 'Germany': '🇩🇪', 'France': '🇫🇷',
+  'Canada': '🇨🇦', 'Australia': '🇦🇺', 'Japan': '🇯🇵', 'China': '🇨🇳',
+  'India': '🇮🇳', 'Brazil': '🇧🇷', 'Netherlands': '🇳🇱', 'Spain': '🇪🇸',
+  'Italy': '🇮🇹', 'Russia': '🇷🇺', 'South Korea': '🇰🇷', 'Mexico': '🇲🇽',
+  'Indonesia': '🇮🇩', 'Poland': '🇵🇱', 'Sweden': '🇸🇪', 'Switzerland': '🇨🇭',
+}
+
 function getFlag(name: string): string {
-  const countryFlags: Record<string, string> = {
-    'United States': '🇺🇸', 'United Kingdom': '🇬🇧', 'Germany': '🇩🇪', 'France': '🇫🇷',
-    'Canada': '🇨🇦', 'Australia': '🇦🇺', 'Japan': '🇯🇵', 'China': '🇨🇳',
-    'India': '🇮🇳', 'Brazil': '🇧🇷', 'Netherlands': '🇳🇱', 'Spain': '🇪🇸',
-    'Italy': '🇮🇹', 'Russia': '🇷🇺', 'South Korea': '🇰🇷', 'Mexico': '🇲🇽',
-    'Indonesia': '🇮🇩', 'Poland': '🇵🇱', 'Sweden': '🇸🇪', 'Switzerland': '🇨🇭'
-  }
   return countryFlags[name] || '🌍'
 }
 </script>
@@ -45,18 +47,18 @@ function getFlag(name: string): string {
       </tr>
     </thead>
     <tbody>
-      <tr @if="loading()">
-        <td colspan="2" class="text-center text-muted py-4">Loading...</td>
-      </tr>
-      <tr @if="!loading() && countries().length === 0">
-        <td colspan="2" class="text-center text-muted py-4">No location data</td>
-      </tr>
-      <tr @for="country in countries()" @if="!loading()">
+      <tr @for="country in countries()" @loading="loading()">
         <td class="cell-name flex items-center gap-1.5">
           <span class="text-base">{{ getFlag(country.name ? country.name : country.code) }}</span>
           {{ country.name ? country.name : (country.code ? country.code : 'Unknown') }}
         </td>
         <td class="cell-value">{{ (country.visitors ? country.visitors : 0) | fmt }}</td>
+      </tr>
+      <tr @for-loading>
+        <td colspan="2" class="text-center text-muted py-4">Loading...</td>
+      </tr>
+      <tr @for-empty>
+        <td colspan="2" class="text-center text-muted py-4">No location data</td>
       </tr>
     </tbody>
   </table>

@@ -1,10 +1,15 @@
-<script client>
-/**
- * FlowNode Component
- * Displays a node in the user flow visualization
- */
-const path: string = $props.path || '/'
-const count: number = $props.count || 0
+<script server lang="ts">
+import { defineProps, withDefaults } from 'stx'
+
+interface FlowNodeProps {
+  path?: string
+  count?: number
+}
+
+const { path, count } = withDefaults(defineProps<FlowNodeProps>(), {
+  path: '/',
+  count: 0,
+})
 </script>
 
 <div class="bg-bg-2 border border-border rounded-md py-2 px-3 mb-2">
