@@ -74,7 +74,7 @@
   },
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.3",
-    "better-dx": "^0.2.7"
+    "better-dx": "^0.2.15"
   },
   "git-hooks": {
     "pre-commit": {
