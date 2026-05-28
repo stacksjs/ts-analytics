@@ -2,10 +2,9 @@
 /**
  * StatsRow Component
  *
- * Displays the main stats cards (realtime, sessions, visitors, etc.)
+ * Static card layout (realtime, sessions, visitors, ...). The card values are
+ * bound reactively to the shared analytics store rather than poked by id.
  */
-import { defineProps, withDefaults } from 'stx'
-
 interface Stat {
   id: string
   label: string
@@ -13,11 +12,7 @@ interface Stat {
   highlight?: boolean
 }
 
-interface StatsRowProps {
-  stats?: Stat[]
-}
-
-const defaultStats: Stat[] = [
+const stats: Stat[] = [
   {
     id: 'realtime',
     label: 'Realtime',
@@ -50,13 +45,30 @@ const defaultStats: Stat[] = [
     icon: 'M13 17h8m0 0V9m0 8l-8-8-4 4-6-6',
   },
 ]
+</script>
 
-const { stats } = withDefaults(
-  defineProps<StatsRowProps>(),
-  {
-    stats: () => defaultStats,
-  }
-)
+<script client>
+const analytics = useStore('analytics')
+
+function fmtCompact(n) {
+  const num = typeof n === 'number' ? n : Number(n) || 0
+  return num >= 1000 ? `${(num / 1000).toFixed(1)}k` : String(num)
+}
+
+function statValue(id) {
+  const s = analytics.stats()
+  if (!s) return '—'
+  if (id === 'avgtime') return s.avgTime || '—'
+  if (id === 'bounce') return `${s.bounceRate ?? 0}%`
+  return fmtCompact(s[id] ?? 0)
+}
+
+onMount(() => {
+  analytics.hydrateStatsFromCache()
+  analytics.fetchStats()
+  const poll = setInterval(() => analytics.fetchStats(), 15000)
+  return () => clearInterval(poll)
+})
 </script>
 
 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 p-6">
@@ -68,7 +80,7 @@ const { stats } = withDefaults(
         @endif
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ stat.icon }}"/>
       </svg>
-      <div class="text-2xl font-bold text-text leading-tight" id="stat-{{ stat.id }}">—</div>
+      <div class="text-2xl font-bold text-text leading-tight" x-text="statValue('{{ stat.id }}')">—</div>
       <div class="text-xs text-text-2 mt-1 uppercase tracking-wide">{{ stat.label }}</div>
     </div>
   @endforeach

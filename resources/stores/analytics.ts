@@ -20,6 +20,9 @@ defineStore('analytics', () => {
   // Shared loading state (replaces per-panel `const loading = state(true)`)
   const loading = state(true)
 
+  // Summary stats (realtime/sessions/visitors/views/avg-time/bounce-rate)
+  const stats = state(null)
+
   // Section data arrays (replaces scattered `const pages = state([])`, etc.)
   const pages = state([])
   const referrers = state([])
@@ -94,6 +97,57 @@ defineStore('analytics', () => {
   }
 
   /**
+   * Seed stats synchronously from the localStorage cache (instant paint on
+   * load/SPA-nav, before the network fetch resolves). Mirrors the cache the
+   * legacy inline script used.
+   */
+  function hydrateStatsFromCache() {
+    try {
+      const cached = localStorage.getItem(`ts-analytics-stats-${dashboard.siteId()}`)
+      if (!cached) return
+      const data = JSON.parse(cached)
+      if (data.timestamp && Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
+        stats.set(data.stats)
+      }
+    } catch (e) {
+      // ignore malformed cache
+    }
+  }
+
+  /**
+   * Fetch the summary stats. Realtime visitor count comes from /realtime,
+   * the rest from /stats; merged into one object and written back to cache.
+   */
+  async function fetchStats() {
+    if (!dashboard.siteId()) return null
+    try {
+      const [statsRes, realtimeRes] = await Promise.all([
+        fetch(dashboard.apiUrlWithDates('/stats')).then(r => r.json()).catch(() => ({})),
+        fetch(dashboard.apiUrl('/realtime')).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
+      ])
+      const summary = {
+        realtime: realtimeRes.currentVisitors || 0,
+        sessions: statsRes.sessions || 0,
+        people: statsRes.people || 0,
+        views: statsRes.views || 0,
+        avgTime: statsRes.avgTime || '00:00',
+        bounceRate: statsRes.bounceRate || 0,
+        events: statsRes.events || 0,
+      }
+      stats.set(summary)
+      try {
+        localStorage.setItem(`ts-analytics-stats-${dashboard.siteId()}`, JSON.stringify({ stats: summary, timestamp: Date.now() }))
+      } catch (e) {
+        // ignore quota/serialization errors
+      }
+      return summary
+    } catch (e) {
+      console.error('Failed to fetch stats:', e)
+      return null
+    }
+  }
+
+  /**
    * Fetch available sites list.
    */
   async function fetchSites() {
@@ -114,6 +168,9 @@ defineStore('analytics', () => {
 
   return {
     loading,
+    stats,
+    hydrateStatsFromCache,
+    fetchStats,
     pages,
     referrers,
     browsers,

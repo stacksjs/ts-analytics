@@ -135,33 +135,6 @@ function saveCachedStats(statsData: any) {
 catch (e) {}
 }
 
-// Animate number transitions
-function animateValue(element: HTMLElement | null, start: number, end: number, duration: number, formatter?: (n: number) => string) {
-  if (!element) return
-  const startNum = typeof start === 'number' ? start : (parseFloat(String(start)) || 0)
-  const endNum = typeof end === 'number' ? end : (parseFloat(String(end)) || 0)
-
-  if (startNum === endNum) {
-    element.textContent = formatter ? formatter(endNum) : String(endNum)
-    return
-  }
-
-  const startTime = performance.now()
-
-  function update(currentTime: number) {
-    const elapsed = currentTime - startTime
-    const progress = Math.min(elapsed / duration, 1)
-    const easeProgress = 1 - Math.pow(1 - progress, 3)
-    const current = Math.round(startNum + (endNum - startNum) * easeProgress)
-    element!.textContent = formatter ? formatter(current) : String(current)
-
-    if (progress < 1) {
-      requestAnimationFrame(update)
-    }
-  }
-  requestAnimationFrame(update)
-}
-
 const cachedStats = loadCachedStats()
 let stats = cachedStats || { realtime: 0, sessions: 0, people: 0, views: 0, avgTime: '00:00', bounceRate: 0, events: 0 }
 let timeSeriesData: any[] = []
@@ -514,33 +487,10 @@ function hasAnyData() {
   return stats.views > 0 || stats.sessions > 0 || stats.people > 0
 }
 
-function renderDashboard(animate = false) {
-  const duration = 600
-
-  if (animate && previousStats) {
-    animateValue(document.getElementById('stat-realtime'), previousStats.realtime, stats.realtime, duration, fmt)
-    animateValue(document.getElementById('stat-sessions'), previousStats.sessions, stats.sessions, duration, fmt)
-    animateValue(document.getElementById('stat-people'), previousStats.people, stats.people, duration, fmt)
-    animateValue(document.getElementById('stat-views'), previousStats.views, stats.views, duration, fmt)
-    animateValue(document.getElementById('stat-bounce'), previousStats.bounceRate, stats.bounceRate, duration, v => `${v}%`)
-    const avgTimeEl = document.getElementById('stat-avgtime')
-    if (avgTimeEl) avgTimeEl.textContent = stats.avgTime
-  }
-else {
-    const realtimeEl = document.getElementById('stat-realtime')
-    if (realtimeEl) realtimeEl.textContent = fmt(stats.realtime)
-    const sessionsEl = document.getElementById('stat-sessions')
-    if (sessionsEl) sessionsEl.textContent = fmt(stats.sessions)
-    const peopleEl = document.getElementById('stat-people')
-    if (peopleEl) peopleEl.textContent = fmt(stats.people)
-    const viewsEl = document.getElementById('stat-views')
-    if (viewsEl) viewsEl.textContent = fmt(stats.views)
-    const bounceEl = document.getElementById('stat-bounce')
-    if (bounceEl) bounceEl.textContent = `${stats.bounceRate}%`
-    const avgTimeEl = document.getElementById('stat-avgtime')
-    if (avgTimeEl) avgTimeEl.textContent = stats.avgTime
-  }
-
+function renderDashboard(_animate = false) {
+  // Stat cards are rendered reactively by the StatsRow component (bound to the
+  // analytics store). This controller only maintains the realtime-count
+  // indicator, last-updated label, and empty-state handling below.
   const realtimeCountEl = document.getElementById('realtime-count')
   if (realtimeCountEl) realtimeCountEl.textContent = stats.realtime === 1 ? '1 visitor online' : `${stats.realtime} visitors online`
 
