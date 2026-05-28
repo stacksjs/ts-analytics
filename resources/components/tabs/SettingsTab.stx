@@ -359,16 +359,16 @@ onMount(() => {
 <div class="col-span-full">
   <h3 class="text-base font-semibold text-text mb-6">Settings</h3>
 
-  <div @show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
+  <div x-show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
     <Spinner size="sm" color="primary" />
     <span>Loading...</span>
   </div>
 
-  <div @show="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">
+  <div x-show="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">
     {{ error() }}
   </div>
 
-  <div @show="!loading() && !error()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div x-show="!loading() && !error()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div class="flex flex-col gap-4">
 
       <div class="panel">
@@ -378,19 +378,19 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Use this key for programmatic access to your analytics data.</p>
         <div class="flex flex-col gap-2">
-          <div @show="settings().apiKey" class="flex justify-between items-center p-2 bg-bg rounded">
+          <div x-show="settings().apiKey" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ settings().apiKey.name }}</div>
               <code class="text-[0.6875rem] text-muted break-all">{{ settings().apiKey.key }}</code>
             </div>
             <div class="flex items-center gap-1">
               <button class="icon-btn" @click="copyApiKey()" title="Copy key">
-                <Icon @show="!copied()" name="copy" size="14" />
-                <Icon @show="copied()" name="check" size="14" class="text-success" />
+                <Icon x-show="!copied()" name="copy" size="14" />
+                <Icon x-show="copied()" name="check" size="14" class="text-success" />
               </button>
             </div>
           </div>
-          <p @show="!settings().apiKey" class="text-xs text-muted italic">No API key found.</p>
+          <p x-show="!settings().apiKey" class="text-xs text-muted italic">No API key found.</p>
         </div>
       </div>
 
@@ -401,8 +401,8 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Get notified when metrics exceed thresholds.</p>
         <div class="flex flex-col gap-2">
-          <p @show="settings().alerts.length === 0" class="text-xs text-muted italic">No alerts configured.</p>
-          <div @for="alert in settings().alerts" class="flex justify-between items-center p-2 bg-bg rounded">
+          <p x-show="settings().alerts.length === 0" class="text-xs text-muted italic">No alerts configured.</p>
+          <div x-for="alert in settings().alerts" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ alert.metric }}</div>
               <div class="text-[0.6875rem] text-muted">Threshold: {{ alert.threshold }} → {{ alert.email }}</div>
@@ -419,8 +419,8 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Schedule automated email reports.</p>
         <div class="flex flex-col gap-2">
-          <p @show="settings().emailReports.length === 0" class="text-xs text-muted italic">No email reports scheduled.</p>
-          <div @for="report in settings().emailReports" class="flex justify-between items-center p-2 bg-bg rounded">
+          <p x-show="settings().emailReports.length === 0" class="text-xs text-muted italic">No email reports scheduled.</p>
+          <div x-for="report in settings().emailReports" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ report.email }}</div>
               <div class="text-[0.6875rem] text-muted">{{ report.frequency }}</div>
@@ -437,8 +437,8 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Monitor your site availability.</p>
         <div class="flex flex-col gap-2">
-          <p @show="settings().uptimeMonitors.length === 0" class="text-xs text-muted italic">No uptime monitors configured.</p>
-          <div @for="monitor in settings().uptimeMonitors" class="flex justify-between items-center p-2 bg-bg rounded">
+          <p x-show="settings().uptimeMonitors.length === 0" class="text-xs text-muted italic">No uptime monitors configured.</p>
+          <div x-for="monitor in settings().uptimeMonitors" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <code class="text-[0.6875rem] text-muted break-all">{{ monitor.url }}</code>
               <div class="text-[0.6875rem] text-muted">Every {{ monitor.interval }}min &bull; {{ monitor.status || 'Pending' }}</div>
@@ -458,8 +458,8 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Manage team access to this site.</p>
         <div class="flex flex-col gap-2">
-          <p @show="settings().teamMembers.length === 0" class="text-xs text-muted italic">No team members added.</p>
-          <div @for="member in settings().teamMembers" class="flex justify-between items-center p-2 bg-bg rounded">
+          <p x-show="settings().teamMembers.length === 0" class="text-xs text-muted italic">No team members added.</p>
+          <div x-for="member in settings().teamMembers" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ member.email }}</div>
               <div class="text-[0.6875rem] text-muted">{{ member.role }}</div>
@@ -476,8 +476,8 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Send real-time data to external services.</p>
         <div class="flex flex-col gap-2">
-          <p @show="settings().webhooks.length === 0" class="text-xs text-muted italic">No webhooks configured.</p>
-          <div @for="webhook in settings().webhooks" class="flex justify-between items-center p-2 bg-bg rounded">
+          <p x-show="settings().webhooks.length === 0" class="text-xs text-muted italic">No webhooks configured.</p>
+          <div x-for="webhook in settings().webhooks" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <code class="text-[0.6875rem] text-muted break-all">{{ webhook.url }}</code>
               <div class="text-[0.6875rem] text-muted">{{ (webhook.events || []).join(', ') }}</div>
@@ -494,8 +494,8 @@ onMount(() => {
         </div>
         <p class="text-xs text-muted mb-3">Set performance thresholds for alerts.</p>
         <div class="flex flex-col gap-2">
-          <p @show="settings().perfBudgets.length === 0" class="text-xs text-muted italic">No performance budgets set.</p>
-          <div @for="budget in settings().perfBudgets" class="flex justify-between items-center p-2 bg-bg rounded">
+          <p x-show="settings().perfBudgets.length === 0" class="text-xs text-muted italic">No performance budgets set.</p>
+          <div x-for="budget in settings().perfBudgets" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ budget.metric }}</div>
               <div class="text-[0.6875rem] text-muted">Threshold: {{ budget.threshold }}{{ budget.metric === 'CLS' ? '' : 'ms' }}</div>

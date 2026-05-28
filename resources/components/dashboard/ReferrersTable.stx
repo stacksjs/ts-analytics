@@ -44,9 +44,9 @@ function getDomain(source: string): string {
       </tr>
     </thead>
     <tbody>
-      <tr @for="ref in referrers()" @loading="loading()">
+      <tr x-for="ref in referrers()" @loading="loading()">
         <td class="py-2 text-text">
-          <a @show="isExternalLink(ref.source ? ref.source : 'Direct')"
+          <a x-show="isExternalLink(ref.source ? ref.source : 'Direct')"
              x-href="getHref(ref.source)"
              target="_blank"
              rel="noopener"
@@ -61,7 +61,7 @@ function getDomain(source: string): string {
             {{ ref.source ? ref.source : 'Direct' }}
             <Icon name="external-link" size="12" class="opacity-50" />
           </a>
-          <span @show="!isExternalLink(ref.source ? ref.source : 'Direct')">{{ ref.source ? ref.source : 'Direct' }}</span>
+          <span x-show="!isExternalLink(ref.source ? ref.source : 'Direct')">{{ ref.source ? ref.source : 'Direct' }}</span>
         </td>
         <td class="text-right py-2 tabular-nums">{{ (ref.visitors ? ref.visitors : 0) | fmt }}</td>
         <td class="text-right py-2 tabular-nums">{{ (ref.views ? ref.views : 0) | fmt }}</td>

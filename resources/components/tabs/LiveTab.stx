@@ -48,12 +48,12 @@ onMount(() => {
     <span class="text-xs text-muted">Auto-refreshing every 5s</span>
   </div>
 
-  <div @show="error()" class="panel text-center text-error">
+  <div x-show="error()" class="panel text-center text-error">
     {{ error() }}
   </div>
 
-  <div class="flex flex-col gap-2" @show="!error()">
-    <div @for="activity in activities()" @loading="loading()" class="panel flex items-center gap-4 py-3 px-4">
+  <div class="flex flex-col gap-2" x-show="!error()">
+    <div x-for="activity in activities()" @loading="loading()" class="panel flex items-center gap-4 py-3 px-4">
       <div class="w-2 h-2 bg-success rounded-full flex-shrink-0"></div>
       <div class="flex-1 min-w-0">
         <div class="text-sm text-text truncate">{{ activity.path ? activity.path : '/' }}</div>

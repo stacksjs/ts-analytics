@@ -184,12 +184,12 @@ onMount(() => {
         Errors
       </h3>
     </div>
-    <div @show="errors().length > 0" class="flex gap-1.5">
-      <button @show="statusCounts().new > 0" @click="bulkResolve" class="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium py-1.5 px-2.5 rounded-md border border-border bg-transparent text-text-2 cursor-pointer transition-all duration-150 hover:bg-bg-2 hover:text-text hover:border-muted">
+    <div x-show="errors().length > 0" class="flex gap-1.5">
+      <button x-show="statusCounts().new > 0" @click="bulkResolve" class="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium py-1.5 px-2.5 rounded-md border border-border bg-transparent text-text-2 cursor-pointer transition-all duration-150 hover:bg-bg-2 hover:text-text hover:border-muted">
         <Icon name="check" size="12" />
         Resolve All
       </button>
-      <button @show="statusCounts().new > 0" @click="bulkIgnore" class="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium py-1.5 px-2.5 rounded-md border border-border bg-transparent text-text-2 cursor-pointer transition-all duration-150 hover:bg-bg-2 hover:text-text hover:border-muted">
+      <button x-show="statusCounts().new > 0" @click="bulkIgnore" class="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium py-1.5 px-2.5 rounded-md border border-border bg-transparent text-text-2 cursor-pointer transition-all duration-150 hover:bg-bg-2 hover:text-text hover:border-muted">
         <Icon name="slash" size="12" />
         Ignore All
       </button>
@@ -197,32 +197,32 @@ onMount(() => {
   </div>
 
   <div class="flex gap-1 mb-4">
-    <button @for="r in dateRangeOptions"
+    <button x-for="r in dateRangeOptions"
       x-class="rangeBtnClass(r.id)"
       @click="setErrorDateRange(r.id)">
       {{ r.label }}
     </button>
   </div>
 
-  <div @show="loading()" class="text-center text-text-2 py-10 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2">
+  <div x-show="loading()" class="text-center text-text-2 py-10 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2">
     <Spinner size="sm" color="primary" />
     <span>Loading errors...</span>
   </div>
 
-  <div @show="error()" class="text-error bg-error/5 border border-error/15 rounded-lg flex flex-row items-center justify-center gap-2 p-4 text-[0.8125rem]">
+  <div x-show="error()" class="text-error bg-error/5 border border-error/15 rounded-lg flex flex-row items-center justify-center gap-2 p-4 text-[0.8125rem]">
     <Icon name="alert-circle" size="20" />
     {{ error() }}
   </div>
 
-  <div @show="!loading() && !error() && errors().length === 0" class="text-center text-text-2 py-12 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2">
+  <div x-show="!loading() && !error() && errors().length === 0" class="text-center text-text-2 py-12 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2">
     <Icon name="check-circle" size="40" style="opacity: 0.4" />
     <p class="font-semibold text-text text-sm">No errors recorded</p>
     <p class="text-xs text-muted">Your application is running smoothly</p>
   </div>
 
-  <div @show="!loading() && !error() && errors().length > 0">
+  <div x-show="!loading() && !error() && errors().length > 0">
     <div class="severity-grid grid grid-cols-4 gap-2 mb-3">
-      <div @for="sev in severityKeys" x-class="sevStatClass(sev)">
+      <div x-for="sev in severityKeys" x-class="sevStatClass(sev)">
         <span class="text-lg font-bold text-text">{{ severityCounts()[sev] }}</span>
         <span class="text-[0.6875rem] text-muted uppercase tracking-wider">{{ severityLabels[sev] }}</span>
       </div>
@@ -246,13 +246,13 @@ onMount(() => {
       <span class="text-[0.6875rem] text-muted">{{ filteredErrors().length }} result{{ filteredErrors().length !== 1 ? 's' : '' }}</span>
     </div>
 
-    <div @show="filteredErrors().length === 0" class="text-center text-text-2 py-10 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2 mt-2">
+    <div x-show="filteredErrors().length === 0" class="text-center text-text-2 py-10 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2 mt-2">
       <p class="font-semibold text-text text-sm">No {{ statusFilter() }} errors</p>
       <p class="text-xs text-muted">Try a different filter</p>
     </div>
 
     <div class="flex flex-col gap-px bg-border border border-border rounded-lg overflow-hidden mt-2">
-      <div @for="e in filteredErrors()">
+      <div x-for="e in filteredErrors()">
         <a x-href="errorHref(e)" x-class="errorRowClass(e)">
           <div x-class="severityBarClass(e)"></div>
           <div class="flex-1 min-w-0 py-3 px-4 flex flex-col gap-1.5">
@@ -273,18 +273,18 @@ onMount(() => {
                 <Icon name="clock" size="11" class="opacity-60" />
                 {{ timeAgo(e.lastSeen) }}
               </span>
-              <span @show="e.source" class="inline-flex items-center gap-1 text-[0.6875rem] text-muted font-mono text-text-2">{{ e.source.split('/').pop() }}{{ e.line ? ':' + e.line : '' }}</span>
+              <span x-show="e.source" class="inline-flex items-center gap-1 text-[0.6875rem] text-muted font-mono text-text-2">{{ e.source.split('/').pop() }}{{ e.line ? ':' + e.line : '' }}</span>
               <span class="inline-flex items-center gap-1 text-[0.6875rem] text-muted">{{ (e.browsers || []).join(', ') || 'server' }}</span>
             </div>
           </div>
           <div class="error-actions flex flex-col gap-0.5 py-2 px-2 opacity-0 transition-opacity duration-150 items-center justify-center group-hover:opacity-100" @click.stop>
-            <button @show="getErrorStatus(e.fingerprint) !== 'resolved'" @click.stop="updateStatus(e.fingerprint, 'resolved')" class="action-btn resolve w-7 h-7 rounded-md border-none bg-transparent text-muted cursor-pointer flex items-center justify-center transition-all duration-150" title="Resolve">
+            <button x-show="getErrorStatus(e.fingerprint) !== 'resolved'" @click.stop="updateStatus(e.fingerprint, 'resolved')" class="action-btn resolve w-7 h-7 rounded-md border-none bg-transparent text-muted cursor-pointer flex items-center justify-center transition-all duration-150" title="Resolve">
               <Icon name="check" size="14" />
             </button>
-            <button @show="getErrorStatus(e.fingerprint) !== 'ignored'" @click.stop="updateStatus(e.fingerprint, 'ignored')" class="action-btn ignore w-7 h-7 rounded-md border-none bg-transparent text-muted cursor-pointer flex items-center justify-center transition-all duration-150" title="Ignore">
+            <button x-show="getErrorStatus(e.fingerprint) !== 'ignored'" @click.stop="updateStatus(e.fingerprint, 'ignored')" class="action-btn ignore w-7 h-7 rounded-md border-none bg-transparent text-muted cursor-pointer flex items-center justify-center transition-all duration-150" title="Ignore">
               <Icon name="slash" size="14" />
             </button>
-            <button @show="getErrorStatus(e.fingerprint) !== 'new'" @click.stop="updateStatus(e.fingerprint, 'new')" class="action-btn reopen w-7 h-7 rounded-md border-none bg-transparent text-muted cursor-pointer flex items-center justify-center transition-all duration-150" title="Reopen">
+            <button x-show="getErrorStatus(e.fingerprint) !== 'new'" @click.stop="updateStatus(e.fingerprint, 'new')" class="action-btn reopen w-7 h-7 rounded-md border-none bg-transparent text-muted cursor-pointer flex items-center justify-center transition-all duration-150" title="Reopen">
               <Icon name="refresh-cw" size="14" />
             </button>
           </div>

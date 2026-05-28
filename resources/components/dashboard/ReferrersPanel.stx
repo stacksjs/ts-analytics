@@ -64,9 +64,9 @@ onMount(() => {
       </tr>
     </thead>
     <tbody>
-      <tr @for="ref in referrers()" @loading="loading()">
+      <tr x-for="ref in referrers()" @loading="loading()">
         <td class="cell-name">
-          <a @show="isExternalLink(ref.source ? ref.source : 'Direct')"
+          <a x-show="isExternalLink(ref.source ? ref.source : 'Direct')"
              x-href="getHref(ref.source)"
              target="_blank"
              rel="noopener"
@@ -81,7 +81,7 @@ onMount(() => {
             {{ ref.source ? ref.source : 'Direct' }}
             <Icon name="external-link" size="10" class="opacity-50" />
           </a>
-          <span @show="!isExternalLink(ref.source ? ref.source : 'Direct')">{{ ref.source ? ref.source : 'Direct' }}</span>
+          <span x-show="!isExternalLink(ref.source ? ref.source : 'Direct')">{{ ref.source ? ref.source : 'Direct' }}</span>
         </td>
         <td class="cell-value">{{ ref.visitors | fmt }}</td>
         <td class="cell-value">{{ ref.views | fmt }}</td>

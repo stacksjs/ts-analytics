@@ -39,7 +39,7 @@ onMount(() => {
       </tr>
     </thead>
     <tbody>
-      <tr @for="device in analytics.devices()" @loading="analytics.loading()">
+      <tr x-for="device in analytics.devices()" @loading="analytics.loading()">
         <td class="cell-name flex items-center gap-1.5">
           <svg class="text-muted shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(device.type)"/>

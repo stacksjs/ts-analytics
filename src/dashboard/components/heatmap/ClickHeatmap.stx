@@ -153,7 +153,7 @@ effect(() => {
 
 <div class="click-heatmap" @style="{ width: width + 'px', height: height + 'px', position: 'relative', overflow: 'hidden' }">
   <!-- Loading overlay -->
-  <div @if="loading()" class="heatmap-loading-overlay">
+  <div x-if="loading()" class="heatmap-loading-overlay">
     <div class="heatmap-spinner"></div>
     <span>Loading heatmap data...</span>
   </div>
@@ -179,13 +179,13 @@ effect(() => {
 
   <!-- Tooltip -->
   <div
-    @if="hoveredPoint()"
+    x-if="hoveredPoint()"
     class="heatmap-tooltip"
     @style="{ left: tooltipX() + 'px', top: tooltipY() + 'px' }"
   >
     <div class="heatmap-tooltip-content">
       <strong class="heatmap-tooltip-count">{{ hoveredPoint().count }}</strong> clicks
-      <div @if="hoveredPoint().topElement" class="heatmap-tooltip-selector">
+      <div x-if="hoveredPoint().topElement" class="heatmap-tooltip-selector">
         {{ hoveredPoint().topElement.selector }}
       </div>
     </div>

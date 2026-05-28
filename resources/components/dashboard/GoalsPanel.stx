@@ -82,14 +82,14 @@ window.refreshGoalsPanel = fetchGoals
     <button class="btn btn-primary text-xs py-1.5 px-3" @click="openCreateGoal()">+ Add Goal</button>
   </div>
 
-  <div @show="loading()" class="empty-state text-[0.8125rem]">Loading...</div>
+  <div x-show="loading()" class="empty-state text-[0.8125rem]">Loading...</div>
 
-  <div @show="!loading() && goals().length === 0" class="empty-state text-[0.8125rem]">
+  <div x-show="!loading() && goals().length === 0" class="empty-state text-[0.8125rem]">
     <p>No goals configured yet.</p>
     <p class="text-xs mt-2 opacity-80">Click "+ Add Goal" to create your first conversion goal.</p>
   </div>
 
-  <table @show="!loading() && goals().length > 0" class="w-full border-collapse text-[0.8125rem]">
+  <table x-show="!loading() && goals().length > 0" class="w-full border-collapse text-[0.8125rem]">
     <thead>
       <tr>
         <th class="text-left py-2 px-2 border-b border-border text-[0.6875rem] font-medium uppercase tracking-wide text-muted">Goal</th>
@@ -100,15 +100,15 @@ window.refreshGoalsPanel = fetchGoals
       </tr>
     </thead>
     <tbody>
-      <tr @for="goal in goals()" class="goal-row">
+      <tr x-for="goal in goals()" class="goal-row">
         <td class="font-medium">{{ goal.name }}</td>
         <td>
           <span x-class="getTypeBadgeClass(goal.type)">{{ goal.type }}</span>
         </td>
         <td class="text-right tabular-nums">{{ (goal.conversions ? goal.conversions : 0) | fmt }}</td>
         <td class="text-right tabular-nums">
-          <span @show="goal.value">{{ formatCurrency(goal.value) }}</span>
-          <span @show="!goal.value">-</span>
+          <span x-show="goal.value">{{ formatCurrency(goal.value) }}</span>
+          <span x-show="!goal.value">-</span>
         </td>
         <td class="text-right whitespace-nowrap">
           <button class="icon-btn" title="Edit" @click="editGoal(goal.id)">

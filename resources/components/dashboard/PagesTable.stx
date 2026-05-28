@@ -47,9 +47,9 @@ function getPageUrl(path: string): string | null {
       </tr>
     </thead>
     <tbody>
-      <tr @for="page in pages()" @loading="loading()">
+      <tr x-for="page in pages()" @loading="loading()">
         <td class="cell-name" :title="page.path">
-          <a @show="getPageUrl(page.path)"
+          <a x-show="getPageUrl(page.path)"
              x-href="getPageUrl(page.path)"
              target="_blank"
              rel="noopener"
@@ -57,7 +57,7 @@ function getPageUrl(path: string): string | null {
             {{ page.path }}
             <Icon name="external-link" size="12" class="opacity-50" />
           </a>
-          <span @show="!getPageUrl(page.path)">{{ page.path }}</span>
+          <span x-show="!getPageUrl(page.path)">{{ page.path }}</span>
         </td>
         <td class="cell-value">{{ (page.entries ? page.entries : 0) | fmt }}</td>
         <td class="cell-value">{{ (page.visitors ? page.visitors : 0) | fmt }}</td>

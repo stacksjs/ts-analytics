@@ -155,39 +155,39 @@ effect(() => {
       type="text"
       placeholder="Search..."
       class="form-input max-w-[20rem] placeholder:text-muted"
-      @model="searchQuery"
+      x-model="searchQuery"
     />
   </div>
 
-  <div @show="loading()" class="flex items-center justify-center gap-2 text-center p-8 text-muted">
+  <div x-show="loading()" class="flex items-center justify-center gap-2 text-center p-8 text-muted">
     <Spinner size="sm" color="primary" />
     <span>Loading...</span>
   </div>
 
-  <div @show="error()" class="text-center p-8 text-error">
+  <div x-show="error()" class="text-center p-8 text-error">
     {{ error() }}
   </div>
 
-  <div @show="!loading() && !error()">
-    <div @show="filteredData().length === 0" class="empty-state">
+  <div x-show="!loading() && !error()">
+    <div x-show="filteredData().length === 0" class="empty-state">
       No data available
     </div>
 
-    <div @show="filteredData().length > 0" class="overflow-x-auto">
+    <div x-show="filteredData().length > 0" class="overflow-x-auto">
       <table class="data-table w-full">
         <thead>
           <tr>
-            <th @for="key in columnKeys()" class="text-left p-3 text-muted font-medium text-sm border-b border-border">{{ formatKey(key) }}</th>
+            <th x-for="key in columnKeys()" class="text-left p-3 text-muted font-medium text-sm border-b border-border">{{ formatKey(key) }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr @for="item in paginatedData()" class="hover:bg-bg-3">
-            <td @for="key in columnKeys()" class="p-3 text-sm border-b border-bg-3">{{ formatValue(item[key], key) }}</td>
+          <tr x-for="item in paginatedData()" class="hover:bg-bg-3">
+            <td x-for="key in columnKeys()" class="p-3 text-sm border-b border-bg-3">{{ formatValue(item[key], key) }}</td>
           </tr>
         </tbody>
       </table>
 
-      <div @show="totalPages() > 1" class="flex items-center justify-center gap-4 mt-4">
+      <div x-show="totalPages() > 1" class="flex items-center justify-center gap-4 mt-4">
         <button
           @click="goToPage(currentPage() - 1)"
           x-disabled="currentPage() === 1"

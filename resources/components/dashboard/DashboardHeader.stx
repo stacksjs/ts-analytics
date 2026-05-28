@@ -105,7 +105,7 @@ provide('dashboardHeader', {
   </div>
 
   <nav id="header-nav" class="header-nav flex gap-1 flex-wrap justify-center">
-    <a @for="tab in tabs"
+    <a x-for="tab in tabs"
        x-class="tabClass(tab)"
        x-href="tabHref(tab)"
        x-data-tab="tab.id"
@@ -114,8 +114,8 @@ provide('dashboardHeader', {
 
   <div class="flex items-center gap-2">
     <button id="theme-toggle" class="icon-btn" @click="toggleTheme()" title="Toggle dark/light mode">
-      <Icon name="moon" size="20" id="moon-icon" @show="isDark()" />
-      <Icon name="sun" size="20" id="sun-icon" @show="!isDark()" />
+      <Icon name="moon" size="20" id="moon-icon" x-show="isDark()" />
+      <Icon name="sun" size="20" id="sun-icon" x-show="!isDark()" />
     </button>
     <form method="POST" action="/logout" class="inline">
       <button type="submit" class="icon-btn hover:text-error" title="Logout">

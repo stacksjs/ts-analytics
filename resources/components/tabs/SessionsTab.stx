@@ -133,12 +133,12 @@ onMount(() => {
 <div class="col-span-full">
   <h3 class="text-base font-semibold text-text mb-4">Sessions (<span>{{ sessions().length }}</span>)</h3>
   <div class="flex flex-col gap-3">
-    <div @show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
+    <div x-show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
       <Spinner size="sm" color="primary" /><span>Loading...</span>
     </div>
-    <div @show="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">{{ error() }}</div>
-    <div @show="!loading() && !error() && sessions().length === 0" class="empty-state">No sessions recorded yet.</div>
-    <div @for="session in sessions()" class="session-card" @click="viewSession(session.sessionId || session.id)">
+    <div x-show="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">{{ error() }}</div>
+    <div x-show="!loading() && !error() && sessions().length === 0" class="empty-state">No sessions recorded yet.</div>
+    <div x-for="session in sessions()" class="session-card" @click="viewSession(session.sessionId || session.id)">
       <div class="flex justify-between items-center mb-2">
         <span class="font-medium text-text">{{ session.entryPage || session.entryPath || '/' }}</span>
         <span class="text-xs text-muted">{{ timeAgo(session.startTime || session.startedAt) }}</span>

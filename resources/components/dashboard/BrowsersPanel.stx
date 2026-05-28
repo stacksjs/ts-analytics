@@ -29,7 +29,7 @@ onMount(() => {
       </tr>
     </thead>
     <tbody>
-      <tr @for="browser in analytics.browsers()" @loading="analytics.loading()">
+      <tr x-for="browser in analytics.browsers()" @loading="analytics.loading()">
         <td class="cell-name">{{ browser.name ? browser.name : 'Unknown' }}</td>
         <td class="cell-value">{{ browser.visitors | fmt }}</td>
         <td class="cell-value">{{ browser.percentage ? browser.percentage : 0 }}%</td>

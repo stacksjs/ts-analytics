@@ -171,41 +171,41 @@ onMount(() => {
 <div class="col-span-full">
   <div class="flex justify-between items-center mb-4">
     <h3 class="text-base font-semibold text-text">
-      <button @show="currentAnalysis()" class="back-link" @click="backToFunnels()">&larr; Back to Funnels</button>
-      <span @show="!currentAnalysis()">Conversion Funnels</span>
+      <button x-show="currentAnalysis()" class="back-link" @click="backToFunnels()">&larr; Back to Funnels</button>
+      <span x-show="!currentAnalysis()">Conversion Funnels</span>
     </h3>
-    <button @show="showHeaderBtn() && !currentAnalysis()" class="btn btn-primary" @click="showCreateFunnelModal()">
+    <button x-show="showHeaderBtn() && !currentAnalysis()" class="btn btn-primary" @click="showCreateFunnelModal()">
       <Icon name="plus" size="16" />
       New Funnel
     </button>
   </div>
 
-  <div @show="loading()" class="text-center text-muted p-8 bg-bg-2 border border-border rounded-lg flex items-center justify-center gap-2"><Spinner size="sm" color="primary" /><span>Loading...</span></div>
+  <div x-show="loading()" class="text-center text-muted p-8 bg-bg-2 border border-border rounded-lg flex items-center justify-center gap-2"><Spinner size="sm" color="primary" /><span>Loading...</span></div>
 
-  <div @show="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">{{ error() }}</div>
+  <div x-show="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">{{ error() }}</div>
 
-  <div @show="currentAnalysis() && !loading()">
+  <div x-show="currentAnalysis() && !loading()">
     <h3 class="text-base font-semibold text-text mb-2">{{ currentAnalysis().name }}</h3>
     <p class="text-xs text-muted mb-6">
       {{ currentAnalysis().totalVisitors }} visitors entered &bull; {{ currentAnalysis().conversionRate }}% overall conversion
     </p>
     <div class="funnel-steps-analysis flex gap-2 items-stretch flex-wrap">
-      <div @for="(step, index) in (currentAnalysis().steps || [])" class="analysis-step-wrapper flex items-center gap-2 flex-1 min-w-[120px]">
+      <div x-for="(step, index) in (currentAnalysis().steps || [])" class="analysis-step-wrapper flex items-center gap-2 flex-1 min-w-[120px]">
         <div class="flex-1 text-center">
           <div class="bg-bg-2 border border-border rounded-lg p-4 mb-2">
             <div class="text-2xl font-semibold text-text">{{ step.visitors }}</div>
             <div class="text-[0.6875rem] text-muted mt-1">{{ step.rate }}%</div>
           </div>
           <div class="text-xs font-medium text-text">{{ step.path }}</div>
-          <div @show="step.dropoff > 0" class="text-[0.6875rem] text-error mt-1">-{{ step.dropoff }} dropped</div>
+          <div x-show="step.dropoff > 0" class="text-[0.6875rem] text-error mt-1">-{{ step.dropoff }} dropped</div>
         </div>
-        <div @show="index < currentAnalysis().steps.length - 1" class="text-muted text-2xl">&rarr;</div>
+        <div x-show="index < currentAnalysis().steps.length - 1" class="text-muted text-2xl">&rarr;</div>
       </div>
     </div>
   </div>
 
-  <div @show="!currentAnalysis() && !loading() && !error()">
-    <div @show="funnels().length === 0" class="empty-state">
+  <div x-show="!currentAnalysis() && !loading() && !error()">
+    <div x-show="funnels().length === 0" class="empty-state">
       <Icon name="filter" size="48" class="mb-4 opacity-50" />
       <p>No funnels configured yet</p>
       <p class="text-xs mt-2">Create a funnel to track conversion rates through your key user flows.</p>
@@ -215,7 +215,7 @@ onMount(() => {
       </button>
     </div>
 
-    <div @for="funnel in funnels()" class="bg-bg-2 border border-border rounded-lg p-4 mb-3">
+    <div x-for="funnel in funnels()" class="bg-bg-2 border border-border rounded-lg p-4 mb-3">
       <div class="flex justify-between items-center mb-3">
         <h4 class="text-sm font-semibold text-text m-0">{{ funnel.name }}</h4>
         <div class="flex gap-1">
@@ -228,9 +228,9 @@ onMount(() => {
         </div>
       </div>
       <div class="flex gap-2 flex-wrap items-center">
-        <span @for="(step, idx) in funnel.steps" class="text-[0.6875rem] py-1 px-2 bg-bg rounded text-text">
+        <span x-for="(step, idx) in funnel.steps" class="text-[0.6875rem] py-1 px-2 bg-bg rounded text-text">
           {{ step }}
-          <span @show="idx < funnel.steps.length - 1" class="text-accent">&rarr;</span>
+          <span x-show="idx < funnel.steps.length - 1" class="text-accent">&rarr;</span>
         </span>
       </div>
     </div>

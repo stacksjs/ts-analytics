@@ -126,12 +126,12 @@ onMount(() => {
 })
 </script>
 
-<div @show="showModal()" class="modal-overlay" @click.self="closeModal">
+<div x-show="showModal()" class="modal-overlay" @click.self="closeModal">
   <div class="modal-content bg-bg-2 max-w-[420px] p-6">
     <h3 class="text-lg font-semibold text-text mb-6">{{ modalTitle() }}</h3>
 
     <form @submit="handleSubmit">
-      <div @show="error()" class="error-message">{{ error() }}</div>
+      <div x-show="error()" class="error-message">{{ error() }}</div>
 
       <label class="block mb-4 text-[0.8125rem] text-text-2">
         Name
@@ -139,33 +139,33 @@ onMount(() => {
           type="text"
           class="form-input mt-1.5"
           placeholder="e.g. Sign Up Completed"
-          @model="goalName"
+          x-model="goalName"
           required
         />
       </label>
 
       <label class="block mb-4 text-[0.8125rem] text-text-2">
         Type
-        <select class="form-input mt-1.5" @model="goalType">
+        <select class="form-input mt-1.5" x-model="goalType">
           <option value="pageview">Destination (Page Path)</option>
           <option value="event">Event</option>
           <option value="duration">Duration (Time on Site)</option>
         </select>
       </label>
 
-      <div @show="showPatternGroup()">
+      <div x-show="showPatternGroup()">
         <label class="block mb-4 text-[0.8125rem] text-text-2">
           Pattern
           <input
             type="text"
             class="form-input mt-1.5"
             placeholder="/thank-you or /checkout/*"
-            @model="goalPattern"
+            x-model="goalPattern"
           />
         </label>
         <label class="block mb-4 text-[0.8125rem] text-text-2">
           Match Type
-          <select class="form-input mt-1.5" @model="goalMatchType">
+          <select class="form-input mt-1.5" x-model="goalMatchType">
             <option value="exact">Exact Match</option>
             <option value="contains">Contains</option>
             <option value="regex">Regular Expression</option>
@@ -173,14 +173,14 @@ onMount(() => {
         </label>
       </div>
 
-      <div @show="showDurationGroup()">
+      <div x-show="showDurationGroup()">
         <label class="block mb-4 text-[0.8125rem] text-text-2">
           Minutes on Site
           <input
             type="number"
             class="form-input mt-1.5"
             min="1"
-            @model="goalDuration"
+            x-model="goalDuration"
           />
         </label>
       </div>
@@ -192,7 +192,7 @@ onMount(() => {
           class="form-input mt-1.5"
           step="0.01"
           placeholder="0.00"
-          @model="goalValue"
+          x-model="goalValue"
         />
       </label>
 

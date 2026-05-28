@@ -102,7 +102,7 @@ provide('controlsBar', {
 
 <div id="controls-bar" class="flex justify-between items-center py-3 px-6 bg-bg border-b border-border gap-4 flex-wrap max-sm:flex-col max-sm:items-stretch">
   <div class="flex items-center gap-1 max-sm:justify-center">
-    <button @for="range in ranges" x-class="rangeBtnClass(range)" @click="setRange(range.id)">{{ range.label }}</button>
+    <button x-for="range in ranges" x-class="rangeBtnClass(range)" @click="setRange(range.id)">{{ range.label }}</button>
     <span class="border-l border-border h-6 mx-2"></span>
     <button id="compare-btn" x-class="compareBtnClass()" @click="toggleComparison()" title="Compare with previous period">
       <Icon name="bar-chart-2" size="14" />
@@ -114,7 +114,7 @@ provide('controlsBar', {
       <span class="pulse"></span>
       <span id="realtime-count">{{ realtimeCount() }} visitors online</span>
     </div>
-    <span id="last-updated" class="text-xs text-muted" @show="lastUpdated()">{{ lastUpdated() }}</span>
+    <span id="last-updated" class="text-xs text-muted" x-show="lastUpdated()">{{ lastUpdated() }}</span>
     <button id="refresh-btn" x-class="refreshBtnClass()" @click="refresh()" title="Refresh data">
       <Icon name="refresh-cw" size="16" />
     </button>

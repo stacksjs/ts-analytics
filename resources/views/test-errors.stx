@@ -33,7 +33,7 @@
     <div class="bg-gray-800 rounded-lg p-6">
       <h2 class="text-lg font-medium mb-4">Event Log</h2>
       <div class="bg-gray-900 rounded p-4 font-mono text-sm max-h-48 overflow-y-auto">
-        <div @for="entry in logEntries()" @class="['py-1 border-b border-gray-700 last:border-0', entry.type === 'error' ? 'text-red-400' : '', entry.type === 'success' ? 'text-green-400' : '']">
+        <div x-for="entry in logEntries()" @class="['py-1 border-b border-gray-700 last:border-0', entry.type === 'error' ? 'text-red-400' : '', entry.type === 'success' ? 'text-green-400' : '']">
           {{ entry.text }}
         </div>
       </div>

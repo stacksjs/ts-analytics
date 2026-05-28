@@ -57,21 +57,21 @@ onMount(() => {
 <div class="col-span-full">
   <h3 class="text-base font-semibold text-text mb-4">Insights</h3>
 
-  <div @show="loading()" class="panel flex items-center justify-center gap-2 text-muted">
+  <div x-show="loading()" class="panel flex items-center justify-center gap-2 text-muted">
     <Spinner size="sm" color="primary" />
     <span>Loading...</span>
   </div>
 
-  <div @show="error()" class="panel text-center text-error">
+  <div x-show="error()" class="panel text-center text-error">
     {{ error() }}
   </div>
 
-  <div @show="!loading() && !error()">
-    <div @show="comparisonStats()" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+  <div x-show="!loading() && !error()">
+    <div x-show="comparisonStats()" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
       <div class="stat-card text-center">
         <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().thisWeekViews | fmt }}</div>
         <div class="text-xs text-muted">Views This Week</div>
-        <div @show="comparisonStats().change !== 0" x-class="changeClass(comparisonStats())">
+        <div x-show="comparisonStats().change !== 0" x-class="changeClass(comparisonStats())">
           {{ comparisonStats().change > 0 ? '+' : '' }}{{ comparisonStats().change }}%
         </div>
       </div>
@@ -90,11 +90,11 @@ onMount(() => {
     </div>
 
     <div class="flex flex-col gap-3">
-      <div @show="insights().length === 0" class="empty-state">
+      <div x-show="insights().length === 0" class="empty-state">
         No insights available yet. Check back when you have more data.
       </div>
 
-      <div @for="insight in insights()" class="panel flex gap-4 items-start">
+      <div x-for="insight in insights()" class="panel flex gap-4 items-start">
         <div x-class="insightIconClass(insight)">
           <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(insight.type)" />

@@ -75,18 +75,18 @@ onMount(() => {
   <p class="text-text-2 mb-8">Select a site to view analytics</p>
 
   <div class="site-selector-content">
-    <div @show="loading()" class="site-status">
+    <div x-show="loading()" class="site-status">
       <div class="site-spinner"></div>
       <p>Loading sites...</p>
     </div>
 
-    <div @show="!loading() && error()" class="site-status">
+    <div x-show="!loading() && error()" class="site-status">
       <Icon name="alert-triangle" size="32" class="text-error" style="opacity:0.7;margin-bottom:0.75rem" />
       <p>{{ error() }}</p>
       <button class="retry-btn" @click="fetchSites()">Retry</button>
     </div>
 
-    <div @show="!loading() && !error()">
+    <div x-show="!loading() && !error()">
       <div class="create-form">
         <h3 class="section-label">Create New Site</h3>
         <form class="create-form-row" @submit="handleCreate($event)">
@@ -100,18 +100,18 @@ onMount(() => {
             {{ creating() ? 'Creating...' : 'Create' }}
           </button>
         </form>
-        <p @show="createError()" class="create-error">{{ createError() }}</p>
+        <p x-show="createError()" class="create-error">{{ createError() }}</p>
       </div>
 
-      <div @show="sites().length === 0" class="site-empty">
+      <div x-show="sites().length === 0" class="site-empty">
         <Icon name="bar-chart-2" size="48" />
         <p>No sites yet</p>
         <p class="text-xs text-muted mt-2">Create your first site above to start tracking analytics</p>
       </div>
 
-      <div @show="sites().length > 0" class="site-list-section">
+      <div x-show="sites().length > 0" class="site-list-section">
         <h3 class="section-label">Your Sites</h3>
-        <button @for="site in sites()" class="site-card" @click="pickSite(site.id, site.name || '')">
+        <button x-for="site in sites()" class="site-card" @click="pickSite(site.id, site.name || '')">
           <div class="site-icon">
             <Icon name="globe" size="24" />
           </div>

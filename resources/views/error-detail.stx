@@ -192,28 +192,28 @@ onMount(() => {
       Error ID: {{ ERROR_ID }}
     </div>
 
-    <div @if="loading()" class="flex items-center justify-center gap-2 text-center p-8 text-muted">
+    <div x-if="loading()" class="flex items-center justify-center gap-2 text-center p-8 text-muted">
       <Spinner size="sm" color="primary" />
       <span>Loading error details...</span>
     </div>
 
-    <div @if="error()" class="text-center p-8 text-error">
+    <div x-if="error()" class="text-center p-8 text-error">
       {{ error() }}
     </div>
 
-    <div @if="!loading() && !error() && errorData()" class="flex flex-col gap-6">
+    <div x-if="!loading() && !error() && errorData()" class="flex flex-col gap-6">
       <!-- Header Card -->
       <div class="error-card">
         <div class="flex justify-between items-start mb-4 gap-4 flex-wrap">
           <h3 class="text-lg font-medium text-error flex-1 min-w-[200px]">{{ errorData().message ? errorData().message : 'Unknown Error' }}</h3>
           <div class="flex gap-2 flex-wrap">
-            <span @if="errorData().severity" @class="['py-1 px-2 rounded text-xs font-semibold uppercase', getSeverityClass(errorData().severity)]">
+            <span x-if="errorData().severity" @class="['py-1 px-2 rounded text-xs font-semibold uppercase', getSeverityClass(errorData().severity)]">
               {{ errorData().severity }}
             </span>
-            <span @if="errorData().trend" @class="['py-1 px-2 rounded text-xs font-semibold capitalize', 'trend-' + errorData().trend]">
+            <span x-if="errorData().trend" @class="['py-1 px-2 rounded text-xs font-semibold capitalize', 'trend-' + errorData().trend]">
               {{ errorData().trend }}
             </span>
-            <span @if="errorData().category" class="py-1 px-2 rounded text-xs bg-bg-3 text-muted">
+            <span x-if="errorData().category" class="py-1 px-2 rounded text-xs bg-bg-3 text-muted">
               {{ errorData().category }}
             </span>
             <span @class="['py-1 px-2 rounded text-xs font-medium capitalize', getStatusClass(errorData().status)]">
@@ -224,17 +224,17 @@ onMount(() => {
 
         <div class="flex gap-2">
           <button
-            @if="errorData().status !== 'resolved'"
+            x-if="errorData().status !== 'resolved'"
             @click="updateStatus('resolved')"
             class="btn bg-success text-white hover:opacity-90"
           >Mark Resolved</button>
           <button
-            @if="errorData().status !== 'ignored'"
+            x-if="errorData().status !== 'ignored'"
             @click="updateStatus('ignored')"
             class="btn btn-secondary"
           >Ignore</button>
           <button
-            @if="errorData().status !== 'open'"
+            x-if="errorData().status !== 'open'"
             @click="updateStatus('open')"
             class="btn btn-primary"
           >Reopen</button>
@@ -278,10 +278,10 @@ onMount(() => {
       </div>
 
       <!-- Environment Breakdown -->
-      <div @if="errorData().environments && Object.keys(errorData().environments).length > 0" class="bg-bg-2 rounded-lg p-6">
+      <div x-if="errorData().environments && Object.keys(errorData().environments).length > 0" class="bg-bg-2 rounded-lg p-6">
         <h4 class="text-base font-semibold text-text mb-4">Environment Breakdown</h4>
         <div class="flex flex-col gap-2">
-          <div @for="env in Object.entries(errorData().environments)" class="flex items-center gap-3">
+          <div x-for="env in Object.entries(errorData().environments)" class="flex items-center gap-3">
             <span class="text-[0.8125rem] text-text min-w-[100px] font-medium">{{ env[0] }}</span>
             <div class="flex-1 h-5 bg-bg rounded overflow-hidden">
               <div class="h-full bg-accent rounded min-w-[4px] transition-[width] duration-300" x-style="`width: ${Math.min(100, Math.round((env[1] / (errorData().count || 1)) * 100))}%`"></div>
@@ -292,7 +292,7 @@ onMount(() => {
       </div>
 
       <!-- Latest Occurrence Details -->
-      <div @if="errorData().latestOccurrence" class="bg-bg-2 rounded-lg p-6">
+      <div x-if="errorData().latestOccurrence" class="bg-bg-2 rounded-lg p-6">
         <h4 class="text-base font-semibold text-text mb-4">Latest Occurrence</h4>
         <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
           <div class="bg-bg-2 border border-border rounded-md p-3">
@@ -307,25 +307,25 @@ onMount(() => {
             <div class="text-xs text-muted mb-1">OS</div>
             <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.os ? errorData().latestOccurrence.os : '' }} {{ errorData().latestOccurrence.osVersion ? errorData().latestOccurrence.osVersion : '' }}</div>
           </div>
-          <div @if="errorData().latestOccurrence.environment" class="bg-bg-2 border border-border rounded-md p-3">
+          <div x-if="errorData().latestOccurrence.environment" class="bg-bg-2 border border-border rounded-md p-3">
             <div class="text-xs text-muted mb-1">Environment</div>
             <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.environment }}</div>
           </div>
-          <div @if="errorData().latestOccurrence.framework" class="bg-bg-2 border border-border rounded-md p-3">
+          <div x-if="errorData().latestOccurrence.framework" class="bg-bg-2 border border-border rounded-md p-3">
             <div class="text-xs text-muted mb-1">Framework</div>
             <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.framework }}</div>
           </div>
-          <div @if="errorData().latestOccurrence.componentName" class="bg-bg-2 border border-border rounded-md p-3">
+          <div x-if="errorData().latestOccurrence.componentName" class="bg-bg-2 border border-border rounded-md p-3">
             <div class="text-xs text-muted mb-1">Component</div>
             <div class="text-sm font-medium text-text">{{ errorData().latestOccurrence.componentName }}</div>
           </div>
         </div>
 
         <!-- Tags -->
-        <div @if="errorData().latestOccurrence.tags && Object.keys(errorData().latestOccurrence.tags).length > 0" class="mt-2">
+        <div x-if="errorData().latestOccurrence.tags && Object.keys(errorData().latestOccurrence.tags).length > 0" class="mt-2">
           <h5 class="text-sm font-semibold text-muted mt-4 mb-2">Tags</h5>
           <div class="flex flex-wrap gap-2">
-            <span @for="key in Object.keys(errorData().latestOccurrence.tags)" class="bg-bg-3 text-muted py-1 px-2 rounded text-xs font-mono">
+            <span x-for="key in Object.keys(errorData().latestOccurrence.tags)" class="bg-bg-3 text-muted py-1 px-2 rounded text-xs font-mono">
               {{ key }}: {{ errorData().latestOccurrence.tags[key] }}
             </span>
           </div>
@@ -333,16 +333,16 @@ onMount(() => {
       </div>
 
       <!-- Stack Trace -->
-      <div @if="errorData().latestOccurrence?.stack || errorData().stack" class="bg-bg-2 rounded-lg p-6">
+      <div x-if="errorData().latestOccurrence?.stack || errorData().stack" class="bg-bg-2 rounded-lg p-6">
         <h4 class="text-base font-semibold text-text mb-4">Stack Trace</h4>
         <pre class="bg-bg rounded-md p-4 text-[0.8125rem] overflow-x-auto whitespace-pre-wrap break-words font-mono leading-relaxed">{{ errorData().latestOccurrence?.stack ? errorData().latestOccurrence.stack : errorData().stack }}</pre>
       </div>
 
       <!-- Breadcrumbs -->
-      <div @if="errorData().latestOccurrence?.breadcrumbs && errorData().latestOccurrence.breadcrumbs.length > 0" class="bg-bg-2 rounded-lg p-6">
+      <div x-if="errorData().latestOccurrence?.breadcrumbs && errorData().latestOccurrence.breadcrumbs.length > 0" class="bg-bg-2 rounded-lg p-6">
         <h4 class="text-base font-semibold text-text mb-4">Breadcrumbs</h4>
         <div class="flex flex-col gap-2">
-          <div @for="bc in errorData().latestOccurrence.breadcrumbs" class="flex items-center gap-3 py-2 px-3 bg-bg rounded-md text-[0.8125rem]">
+          <div x-for="bc in errorData().latestOccurrence.breadcrumbs" class="flex items-center gap-3 py-2 px-3 bg-bg rounded-md text-[0.8125rem]">
             <span class="shrink-0 w-5 text-center">{{ getBreadcrumbIcon(bc.type) }}</span>
             <div class="flex-1 min-w-0">
               <span class="text-accent font-medium mr-2">{{ bc.category }}</span>
@@ -354,15 +354,15 @@ onMount(() => {
       </div>
 
       <!-- Affected URLs -->
-      <div @if="errorData().affectedUrls && errorData().affectedUrls.length > 0" class="bg-bg-2 rounded-lg p-6">
+      <div x-if="errorData().affectedUrls && errorData().affectedUrls.length > 0" class="bg-bg-2 rounded-lg p-6">
         <h4 class="text-base font-semibold text-text mb-4">Affected URLs</h4>
         <ul class="list-none">
-          <li @for="url in errorData().affectedUrls" class="py-2 px-3 bg-bg rounded-md mb-2 text-[0.8125rem] font-mono break-all">{{ url }}</li>
+          <li x-for="url in errorData().affectedUrls" class="py-2 px-3 bg-bg rounded-md mb-2 text-[0.8125rem] font-mono break-all">{{ url }}</li>
         </ul>
       </div>
 
       <!-- Recent Occurrences Timeline -->
-      <div @if="errorData().recentOccurrences && errorData().recentOccurrences.length > 0" class="bg-bg-2 rounded-lg p-6">
+      <div x-if="errorData().recentOccurrences && errorData().recentOccurrences.length > 0" class="bg-bg-2 rounded-lg p-6">
         <h4 class="text-base font-semibold text-text mb-4">Recent Occurrences</h4>
         <div class="flex flex-col border border-border rounded-md overflow-hidden">
           <div class="occurrence-header">
@@ -371,7 +371,7 @@ onMount(() => {
             <span>OS</span>
             <span>URL</span>
           </div>
-          <div @for="occ in errorData().recentOccurrences" class="occurrence-row">
+          <div x-for="occ in errorData().recentOccurrences" class="occurrence-row">
             <span>{{ formatRelativeTime(occ.timestamp) }}</span>
             <span>{{ occ.browser ? occ.browser : 'Unknown' }}</span>
             <span>{{ occ.os ? occ.os : 'Unknown' }}</span>

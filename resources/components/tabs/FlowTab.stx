@@ -40,27 +40,27 @@ onMount(() => {
 <div class="col-span-full">
   <h3 class="text-base font-semibold text-text mb-2">User Flow</h3>
 
-  <div @show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
+  <div x-show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
     <Spinner size="sm" color="primary" />
     <span>Loading...</span>
   </div>
 
-  <div @show="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">
+  <div x-show="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">
     {{ error() }}
   </div>
 
-  <div @show="!loading() && !error()">
-    <p @show="summary()" class="text-xs text-muted mb-6">{{ summary() }}</p>
+  <div x-show="!loading() && !error()">
+    <p x-show="summary()" class="text-xs text-muted mb-6">{{ summary() }}</p>
 
-    <div @show="entryPages().length === 0 && topFlows().length === 0" class="empty-state">
+    <div x-show="entryPages().length === 0 && topFlows().length === 0" class="empty-state">
       No flow data available. Users need to visit multiple pages in a session.
     </div>
 
-    <div @show="entryPages().length > 0 || topFlows().length > 0" class="flex gap-8 overflow-x-auto pb-4">
+    <div x-show="entryPages().length > 0 || topFlows().length > 0" class="flex gap-8 overflow-x-auto pb-4">
       <div class="min-w-[200px]">
         <h4 class="text-[0.6875rem] uppercase text-muted mb-3 font-medium tracking-wider">Entry Pages</h4>
         <div class="flex flex-col gap-2">
-          <div @for="page in entryPages()" class="bg-bg border border-border py-2 px-3 rounded-md">
+          <div x-for="page in entryPages()" class="bg-bg border border-border py-2 px-3 rounded-md">
             <div class="text-[0.8125rem] text-text truncate">{{ page.path }}</div>
             <div class="text-[0.6875rem] text-muted">{{ page.count }} session{{ page.count !== 1 ? 's' : '' }}</div>
           </div>
@@ -70,7 +70,7 @@ onMount(() => {
       <div class="min-w-[300px] flex-1">
         <h4 class="text-[0.6875rem] uppercase text-muted mb-3 font-medium tracking-wider">Top Flows</h4>
         <div class="flex flex-col gap-2">
-          <div @for="flow in topFlows()" class="flex items-center gap-2 text-xs">
+          <div x-for="flow in topFlows()" class="flex items-center gap-2 text-xs">
             <span class="bg-bg py-1 px-2 rounded truncate max-w-[120px] text-text">{{ flow.source }}</span>
             <span class="text-accent">→</span>
             <span class="bg-bg py-1 px-2 rounded truncate max-w-[120px] text-text">{{ flow.target }}</span>
@@ -82,7 +82,7 @@ onMount(() => {
       <div class="min-w-[200px]">
         <h4 class="text-[0.6875rem] uppercase text-muted mb-3 font-medium tracking-wider">Most Visited</h4>
         <div class="flex flex-col gap-2">
-          <div @for="(page, index) in mostVisited()" class="flex items-center gap-2">
+          <div x-for="(page, index) in mostVisited()" class="flex items-center gap-2">
             <span class="w-[18px] h-[18px] bg-accent text-white rounded-full text-[0.6875rem] flex items-center justify-center shrink-0">{{ index + 1 }}</span>
             <span class="text-xs truncate flex-1 text-text">{{ page.path }}</span>
             <span class="text-[0.6875rem] text-muted">{{ page.count }}</span>

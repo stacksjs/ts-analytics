@@ -30,7 +30,7 @@ onMount(() => {
       </tr>
     </thead>
     <tbody>
-      <tr @for="page in analytics.pages()" @loading="analytics.loading()">
+      <tr x-for="page in analytics.pages()" @loading="analytics.loading()">
         <td class="cell-name" :title="page.path">
           <a x-href="page.path" target="_blank" rel="noopener" class="inline-flex items-center gap-1 hover:text-accent">
             {{ page.path }}

@@ -193,39 +193,39 @@ effect(() => {
         type="text"
         placeholder="Search..."
         class="search-input w-full max-w-xs py-2 px-4 bg-bg-2 border border-border rounded-md text-text text-sm outline-none transition-colors duration-150 focus:border-accent"
-        @model="searchQuery"
+        x-model="searchQuery"
       />
     </div>
 
-    <div @if="loading()" class="flex items-center justify-center gap-2 text-center p-8 text-muted">
+    <div x-if="loading()" class="flex items-center justify-center gap-2 text-center p-8 text-muted">
       <Spinner size="sm" color="primary" />
       <span>Loading...</span>
     </div>
 
-    <div @if="error()" class="text-center p-8 text-error">
+    <div x-if="error()" class="text-center p-8 text-error">
       {{ error() }}
     </div>
 
-    <div @if="!loading() && !error()">
-      <div @if="filteredData().length === 0" class="empty-state">
+    <div x-if="!loading() && !error()">
+      <div x-if="filteredData().length === 0" class="empty-state">
         No data available
       </div>
 
-      <div @if="filteredData().length > 0" class="overflow-x-auto">
+      <div x-if="filteredData().length > 0" class="overflow-x-auto">
         <table class="w-full border-collapse">
           <thead>
             <tr>
-              <th @for="key in columnKeys()" class="text-left py-3 px-3 text-muted font-medium text-sm border-b border-border">{{ formatKey(key) }}</th>
+              <th x-for="key in columnKeys()" class="text-left py-3 px-3 text-muted font-medium text-sm border-b border-border">{{ formatKey(key) }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr @for="item in paginatedData()" class="data-row">
-              <td @for="key in columnKeys()" class="py-3 px-3 text-sm border-b border-bg-3">{{ formatValue(item[key], key) }}</td>
+            <tr x-for="item in paginatedData()" class="data-row">
+              <td x-for="key in columnKeys()" class="py-3 px-3 text-sm border-b border-bg-3">{{ formatValue(item[key], key) }}</td>
             </tr>
           </tbody>
         </table>
 
-        <div @if="totalPages() > 1" class="flex items-center justify-center gap-4 mt-4">
+        <div x-if="totalPages() > 1" class="flex items-center justify-center gap-4 mt-4">
           <button
             @click="goToPage(currentPage() - 1)"
             x-disabled="currentPage() === 1"

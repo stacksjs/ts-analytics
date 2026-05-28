@@ -91,8 +91,8 @@ onMount(() => {
 })
 </script>
 
-<div id="modal-overlay" class="modal-overlay backdrop-blur-sm" @show="visible()" @click.self="close()">
-  <div @show="modalOptions()" x-class="modalClass()">
+<div id="modal-overlay" class="modal-overlay backdrop-blur-sm" x-show="visible()" @click.self="close()">
+  <div x-show="modalOptions()" x-class="modalClass()">
     <div class="modal-header">
       <h3 class="modal-title">{{ modalOptions()?.title || '' }}</h3>
       <button class="modal-close" type="button" aria-label="Close" @click="close()">
@@ -100,9 +100,9 @@ onMount(() => {
       </button>
     </div>
     <div class="modal-body" @html="modalOptions()?.content || ''"></div>
-    <div @show="modalOptions()?.showFooter !== false" class="modal-footer">
+    <div x-show="modalOptions()?.showFooter !== false" class="modal-footer">
       <button type="button" class="btn btn-secondary modal-cancel" @click="close()">{{ modalOptions()?.cancelText || 'Cancel' }}</button>
-      <button @show="modalOptions()?.onSubmit" type="button" class="btn btn-primary modal-submit"
+      <button x-show="modalOptions()?.onSubmit" type="button" class="btn btn-primary modal-submit"
               @click="handleSubmit()" x-disabled="isSubmitting()">
         {{ isSubmitting() ? 'Saving...' : (modalOptions()?.submitText || 'Save') }}
       </button>
