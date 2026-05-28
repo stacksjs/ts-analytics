@@ -193,7 +193,7 @@ onMount(() => {
     </div>
 
     <div @if="loading()" class="flex items-center justify-center gap-2 text-center p-8 text-muted">
-      <div class="spinner"></div>
+      <Spinner size="sm" color="primary" />
       <span>Loading error details...</span>
     </div>
 

@@ -180,7 +180,7 @@ onMount(() => {
     </button>
   </div>
 
-  <div @show="loading()" class="text-center text-muted p-8 bg-bg-2 border border-border rounded-lg flex items-center justify-center gap-2"><div class="spinner"></div><span>Loading...</span></div>
+  <div @show="loading()" class="text-center text-muted p-8 bg-bg-2 border border-border rounded-lg flex items-center justify-center gap-2"><Spinner size="sm" color="primary" /><span>Loading...</span></div>
 
   <div @show="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">{{ error() }}</div>
 

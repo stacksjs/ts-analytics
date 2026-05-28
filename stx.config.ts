@@ -1,4 +1,5 @@
 export default {
+  plugins: ['./stx-components.plugin.ts'] as const,
   // Paths relative to root ('resources', auto-detected).
   // Don't include the 'resources/' prefix — it's already the root.
   componentsDir: 'components',

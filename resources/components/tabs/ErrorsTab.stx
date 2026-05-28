@@ -205,7 +205,7 @@ onMount(() => {
   </div>
 
   <div @show="loading()" class="text-center text-text-2 py-10 px-8 bg-bg-2 border border-border rounded-lg flex flex-col items-center gap-2">
-    <div class="spinner"></div>
+    <Spinner size="sm" color="primary" />
     <span>Loading errors...</span>
   </div>
 

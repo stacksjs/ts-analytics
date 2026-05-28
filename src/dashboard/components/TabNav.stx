@@ -12,7 +12,7 @@
   @endforeach
 </div>
 
-<script lang="ts">
+<script>
   (function() {
     var d = window['document'];
     d['querySelectorAll']('.tabs').forEach(tabContainer => {

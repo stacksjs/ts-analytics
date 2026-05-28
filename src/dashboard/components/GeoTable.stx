@@ -125,11 +125,10 @@
   </div>
 </div>
 
-@ts
-import { ref } from 'vue'
+<script server>
+import { defineProps } from 'stx'
 
-// Props
-const props = defineProps<{
+interface GeoTableProps {
   countries: Array<{ name: string, code: string, flag?: string, visitors: number }>
   regions: Array<{ name: string, country: string, visitors: number }>
   cities: Array<{ name: string, region: string, country: string, visitors: number }>
@@ -137,46 +136,47 @@ const props = defineProps<{
   onFetchRegions?: (country: string) => void
   onFetchCities?: (country: string, region: string) => void
   onTabChange?: (tab: 'countries' | 'regions' | 'cities') => void
-}>()
+}
 
-// State for drill-down
-const selectedCountry = ref<string | null>(null)
-const selectedRegion = ref<string | null>(null)
+const props = defineProps<GeoTableProps>()
+
+let selectedCountry: string | null = null
+let selectedRegion: string | null = null
 
 function handleTabChange(tab: 'countries' | 'regions' | 'cities') {
   props.onTabChange?.(tab)
 }
 
 function drillDownToRegions(country: { name: string, code: string }) {
-  selectedCountry.value = country.name
-  selectedRegion.value = null
+  selectedCountry = country.name
+  selectedRegion = null
   props.onFetchRegions?.(country.code)
   props.onTabChange?.('regions')
 }
 
 function drillDownToCities(region: { name: string, country: string }) {
-  selectedRegion.value = region.name
+  selectedRegion = region.name
   // Use the country code from the selected country context
-  const countryCode = props.countries.find(c => c.name === selectedCountry.value)?.code || selectedCountry.value || ''
+  const countryCode = props.countries.find(c => c.name === selectedCountry)?.code || selectedCountry || ''
   props.onFetchCities?.(countryCode, region.name)
   props.onTabChange?.('cities')
 }
 
 function clearFilters() {
-  selectedCountry.value = null
-  selectedRegion.value = null
+  selectedCountry = null
+  selectedRegion = null
   props.onTabChange?.('countries')
 }
 
 function clearRegionFilter() {
-  selectedRegion.value = null
-  if (selectedCountry.value) {
-    const countryCode = props.countries.find(c => c.name === selectedCountry.value)?.code || selectedCountry.value
+  selectedRegion = null
+  if (selectedCountry) {
+    const countryCode = props.countries.find(c => c.name === selectedCountry)?.code || selectedCountry
     props.onFetchRegions?.(countryCode)
   }
   props.onTabChange?.('regions')
 }
-@endts
+</script>
 
 <style>
 .data-panel {

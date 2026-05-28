@@ -1,4 +1,4 @@
-<script server lang="ts">
+<script server>
 /**
  * FullAnalyticsDashboard Component
  *

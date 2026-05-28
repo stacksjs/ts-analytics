@@ -134,7 +134,7 @@ onMount(() => {
   <h3 class="text-base font-semibold text-text mb-4">Sessions (<span>{{ sessions().length }}</span>)</h3>
   <div class="flex flex-col gap-3">
     <div @show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
-      <div class="spinner"></div><span>Loading...</span>
+      <Spinner size="sm" color="primary" /><span>Loading...</span>
     </div>
     <div @show="error()" class="text-center text-error p-8 bg-bg-2 border border-border rounded-lg">{{ error() }}</div>
     <div @show="!loading() && !error() && sessions().length === 0" class="empty-state">No sessions recorded yet.</div>

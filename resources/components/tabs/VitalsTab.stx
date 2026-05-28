@@ -54,7 +54,7 @@ onMount(() => {
   <h3 class="text-base font-semibold text-text mb-4">Core Web Vitals</h3>
 
   <div @show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
-    <div class="spinner"></div>
+    <Spinner size="sm" color="primary" />
     <span>Loading...</span>
   </div>
 

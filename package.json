@@ -64,10 +64,11 @@
     "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "@cwcss/crosswind": "^0.1.6",
+    "@cwcss/crosswind": "^0.2.4",
     "@stacksjs/bun-router": "^0.0.14",
-    "@stacksjs/stx": "^0.2.10",
-    "bun-plugin-stx": "^0.2.10",
+    "@stacksjs/components": "^0.2.67",
+    "@stacksjs/stx": "^0.2.67",
+    "bun-plugin-stx": "^0.2.67",
     "bun-query-builder": "^0.1.13",
     "dynamodb-tooling": "^0.3.2",
     "ts-countries": "^0.1.2"

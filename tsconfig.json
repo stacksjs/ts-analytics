@@ -14,10 +14,6 @@
     "types": [
       "bun"
     ],
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./*"]
-    },
     "allowImportingTsExtensions": true,
     "strict": true,
     "strictNullChecks": true,
@@ -48,9 +44,6 @@
     ".storybook",
     "**/*.stories.ts",
     "**/demo/**",
-    "**/useDashboardData.ts",
-    "**/dashboard/**",
-    "**/components/dashboard/**",
     ".config/pickier.ts"
   ]
 }

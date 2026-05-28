@@ -1,4 +1,4 @@
-<script server lang="ts">
+<script server>
 export const title: string = props.title || 'Analytics Dashboard'
 export const containerClass: string = props.containerClass || 'max-w-6xl'
 export const apiEndpoint: string = props.apiEndpoint || ''

@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
 /**
  * ClickHeatmap Component
  * Canvas-based click density overlay for page heatmap visualization.

@@ -5,6 +5,8 @@ export default {
     './resources/views/**/*.stx',
     './resources/layouts/**/*.stx',
     './resources/components/**/*.stx',
+    // @stacksjs/components source templates — so their utility classes get generated
+    './node_modules/@stacksjs/components/src/ui/**/*.stx',
   ],
   output: './public/assets/crosswind.css',
   minify: false,
