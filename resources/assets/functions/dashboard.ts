@@ -155,32 +155,7 @@ const tabTitles: Record<string, string> = {
   settings: 'Settings'
 }
 
-// Theme management
-function getPreferredTheme() {
-  const stored = localStorage.getItem('ts-analytics-theme')
-  if (stored) return stored
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
-}
-
-function applyTheme(theme: string) {
-  document.documentElement.setAttribute('data-theme', theme)
-  const darkIcon = document.getElementById('theme-icon-dark')
-  const lightIcon = document.getElementById('theme-icon-light')
-  if (darkIcon && lightIcon) {
-    darkIcon.style.display = theme === 'dark' ? 'block' : 'none'
-    lightIcon.style.display = theme === 'light' ? 'block' : 'none'
-  }
-}
-
-function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme') || 'dark'
-  const newTheme = current === 'dark' ? 'light' : 'dark'
-  localStorage.setItem('ts-analytics-theme', newTheme)
-  applyTheme(newTheme)
-  // ChartSection redraws itself on theme change (observes <html data-theme>).
-}
-
-applyTheme(getPreferredTheme())
+// Theme is owned by DashboardHeader (isDark state + data-theme effect + storage).
 
 // Site management — fetchSites/renderSiteSelector/createSite handled by SiteSelector.stx component
 
@@ -530,7 +505,6 @@ else {
 Object.assign(window, {
   selectSite,
   goBack,
-  toggleTheme,
   setDateRange,
   switchTab,
   navigateTo,

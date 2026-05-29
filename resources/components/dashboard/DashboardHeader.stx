@@ -1,8 +1,16 @@
 <script client>
 import type { NavTab } from '../../types/dashboard'
 
+// Resolve the initial theme synchronously (stored preference, else OS setting)
+// so the data-theme effect paints the right theme on first run — no flash.
+function preferredDark(): boolean {
+  const stored: string | null = localStorage.getItem('ts-analytics-theme')
+  if (stored) return stored === 'dark'
+  return !window.matchMedia('(prefers-color-scheme: light)').matches
+}
+
 const siteName = state<string>('Analytics Dashboard')
-const isDark = state<boolean>(true)
+const isDark = state<boolean>(preferredDark())
 const currentTab = state<string>('dashboard')
 const siteId = state<string>('')
 
@@ -27,12 +35,8 @@ function detectCurrentTab(): string {
 
 function toggleTheme(): void {
   isDark.update((v: boolean) => !v)
-  const theme: string = isDark() ? 'dark' : 'light'
-  localStorage.setItem('ts-analytics-theme', theme)
-
-  if (window.toggleTheme) {
-    window.toggleTheme()
-  }
+  localStorage.setItem('ts-analytics-theme', isDark() ? 'dark' : 'light')
+  // The data-theme effect repaints; ChartSection redraws via its data-theme observer.
 }
 
 function goBack(): void {
@@ -58,13 +62,6 @@ effect(() => {
 })
 
 onMount(() => {
-  const stored: string | null = localStorage.getItem('ts-analytics-theme')
-  if (stored) {
-    isDark.set(stored === 'dark')
-  } else {
-    isDark.set(!window.matchMedia('(prefers-color-scheme: light)').matches)
-  }
-
   siteId.set(new URLSearchParams(window.location.search).get('siteId') || '')
   currentTab.set(detectCurrentTab())
 
