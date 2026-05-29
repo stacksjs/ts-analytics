@@ -137,16 +137,8 @@ catch (e) {}
 
 const cachedStats = loadCachedStats()
 let stats = cachedStats || { realtime: 0, sessions: 0, people: 0, views: 0, avgTime: '00:00', bounceRate: 0, events: 0 }
-let goals: any[] = []
 const _siteHostname: string | null = null
-const _showGoalModal = false
-let editingGoal: any = null
 let siteHasHistoricalData = cachedStats ? true : false
-
-// Comparison state (time series + annotations now live in the analytics store,
-// rendered by the ChartSection component)
-let showComparison = false
-let comparisonData: any = null
 
 // Tab state
 let activeTab = 'dashboard'
@@ -290,17 +282,6 @@ function refreshAllPanels() {
 }
 window.refreshAllPanels = refreshAllPanels
 
-function toggleComparison() {
-  showComparison = !showComparison
-  const btn = document.getElementById('compare-btn')
-  if (btn) {
-    btn.classList.toggle('active', showComparison)
-    btn.style.background = showComparison ? 'var(--accent)' : ''
-    btn.style.color = showComparison ? 'white' : ''
-  }
-  fetchDashboardData()
-}
-
 // Data fetching
 async function fetchDashboardData() {
   if (isLoading) return
@@ -314,21 +295,11 @@ async function fetchDashboardData() {
   const params = getDateRangeParams(false)
 
   try {
-    const fetchPromises: Promise<any>[] = [
+    const results = await Promise.all([
       fetch(apiPath(`${baseUrl}/stats${params}`)).then(r => r.json()).catch(() => ({})),
       fetch(apiPath(`${baseUrl}/realtime`)).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
-      fetch(apiPath(`${baseUrl}/goals${params}`)).then(r => r.json()).catch(() => ({ goals: [] })),
-    ]
-
-    if (showComparison) {
-      fetchPromises.push(fetch(apiPath(`${baseUrl}/comparison${params}`)).then(r => r.json()).catch(() => null))
-    }
-
-    const results = await Promise.all(fetchPromises)
-    const [statsRes, realtimeRes, goalsRes] = results
-    if (showComparison && results[3]) {
-      comparisonData = results[3]
-    }
+    ])
+    const [statsRes, realtimeRes] = results
 
     previousStats = { ...stats }
     stats = {
@@ -341,7 +312,6 @@ async function fetchDashboardData() {
       events: statsRes.events || 0
     }
     saveCachedStats(stats)
-    goals = goalsRes.goals || []
     lastUpdated = new Date()
 
     if (stats.views > 0 || stats.sessions > 0) {
@@ -480,118 +450,6 @@ function renderDashboard(_animate = false) {
   if (mainContent) mainContent.style.display = 'block'
 }
 
-// Goal modal
-function showCreateGoalModal() {
-  editingGoal = null
-  const titleEl = document.getElementById('goal-modal-title')
-  if (titleEl) titleEl.textContent = 'Create Goal'
-  const form = document.getElementById('goal-form') as HTMLFormElement
-  if (form) form.reset()
-  const modal = document.getElementById('goal-modal')
-  if (modal) modal.style.display = 'flex'
-  updateGoalForm()
-}
-
-function editGoal(goalId: string) {
-  const goal = goals.find(g => g.id === goalId)
-  if (!goal) return
-
-  editingGoal = goal
-  const titleEl = document.getElementById('goal-modal-title')
-  if (titleEl) titleEl.textContent = 'Edit Goal'
-  const nameEl = document.getElementById('goal-name') as HTMLInputElement
-  if (nameEl) nameEl.value = goal.name || ''
-  const typeEl = document.getElementById('goal-type') as HTMLSelectElement
-  if (typeEl) typeEl.value = goal.type || 'pageview'
-  const patternEl = document.getElementById('goal-pattern') as HTMLInputElement
-  if (patternEl) patternEl.value = goal.pattern || ''
-  const matchTypeEl = document.getElementById('goal-match-type') as HTMLSelectElement
-  if (matchTypeEl) matchTypeEl.value = goal.matchType || 'exact'
-  const durationEl = document.getElementById('goal-duration') as HTMLInputElement
-  if (durationEl) durationEl.value = goal.durationMinutes || 5
-  const valueEl = document.getElementById('goal-value') as HTMLInputElement
-  if (valueEl) valueEl.value = goal.value || ''
-  const modal = document.getElementById('goal-modal')
-  if (modal) modal.style.display = 'flex'
-  updateGoalForm()
-}
-
-function updateGoalForm() {
-  const typeEl = document.getElementById('goal-type') as HTMLSelectElement
-  const type = typeEl?.value
-  const patternGroup = document.getElementById('goal-pattern-group')
-  const durationGroup = document.getElementById('goal-duration-group')
-  if (patternGroup) patternGroup.style.display = type !== 'duration' ? 'block' : 'none'
-  if (durationGroup) durationGroup.style.display = type === 'duration' ? 'block' : 'none'
-}
-
-function closeGoalModal() {
-  const modal = document.getElementById('goal-modal')
-  if (modal) modal.style.display = 'none'
-  editingGoal = null
-}
-
-async function saveGoal(e: Event) {
-  e.preventDefault()
-
-  const typeEl = document.getElementById('goal-type') as HTMLSelectElement
-  const type = typeEl?.value
-  const data = {
-    name: (document.getElementById('goal-name') as HTMLInputElement)?.value,
-    type,
-    pattern: type !== 'duration' ? (document.getElementById('goal-pattern') as HTMLInputElement)?.value : '',
-    matchType: type !== 'duration' ? (document.getElementById('goal-match-type') as HTMLSelectElement)?.value : 'exact',
-    durationMinutes: type === 'duration' ? Number((document.getElementById('goal-duration') as HTMLInputElement)?.value) : undefined,
-    value: (document.getElementById('goal-value') as HTMLInputElement)?.value ? Number((document.getElementById('goal-value') as HTMLInputElement)?.value) : undefined,
-    isActive: true,
-  }
-
-  const url = editingGoal
-    ? apiPath(`${API_ENDPOINT}/api/sites/${siteId}/goals/${editingGoal.id}`)
-    : apiPath(`${API_ENDPOINT}/api/sites/${siteId}/goals`)
-  const method = editingGoal ? 'PUT' : 'POST'
-
-  try {
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    if (res.ok) {
-      closeGoalModal()
-      fetchDashboardData()
-      refreshAllPanels()
-    }
-else {
-      const err = await res.json()
-      alert(err.error || 'Failed to save goal')
-    }
-  }
-catch (err) {
-    console.error('Save goal error:', err)
-    alert('Failed to save goal')
-  }
-}
-
-async function deleteGoal(goalId: string) {
-  if (!confirm('Delete this goal? Conversion data will be preserved.')) return
-
-  try {
-    const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites/${siteId}/goals/${goalId}`), { method: 'DELETE' })
-    if (res.ok) {
-      fetchDashboardData()
-      refreshAllPanels()
-    }
-  }
-catch (err) {
-    console.error('Delete goal error:', err)
-  }
-}
-
-// Expose goal modal functions for STX GoalsPanel component
-window.showEditGoalModal = editGoal
-window.confirmDeleteGoal = deleteGoal
-
 // SPA navigation handler — update UI after STX router swaps content
 window.addEventListener('stx:navigate', () => {
   const tab = getTabFromUrl()
@@ -676,12 +534,5 @@ Object.assign(window, {
   setDateRange,
   switchTab,
   navigateTo,
-  showCreateGoalModal,
-  closeGoalModal,
-  saveGoal,
-  updateGoalForm,
-  editGoal,
-  deleteGoal,
-  toggleComparison,
   fetchDashboardData,
 })
