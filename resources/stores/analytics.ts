@@ -23,6 +23,10 @@ defineStore('analytics', () => {
   // Summary stats (realtime/sessions/visitors/views/avg-time/bounce-rate)
   const stats = state(null)
 
+  // Chart data: pageviews-over-time series + annotation markers
+  const timeSeries = state([])
+  const annotations = state([])
+
   // Section data arrays (replaces scattered `const pages = state([])`, etc.)
   const pages = state([])
   const referrers = state([])
@@ -148,6 +152,31 @@ defineStore('analytics', () => {
   }
 
   /**
+   * Fetch the pageviews-over-time series and annotation markers for the chart.
+   * The /timeseries endpoint reads startDate/endDate plus a granularity period,
+   * so this builds those explicitly rather than using apiUrlWithDates.
+   */
+  async function fetchTimeSeries() {
+    if (!dashboard.siteId()) return
+    const { start, end } = dashboard.dateBounds()
+    const period = dashboard.timeseriesPeriod()
+    try {
+      const [tsRes, annRes] = await Promise.all([
+        fetch(dashboard.apiUrl(`/timeseries?startDate=${start}&endDate=${end}&period=${period}`)).then(r => r.json()).catch(() => ({ timeSeries: [] })),
+        fetch(dashboard.apiUrl(`/annotations?startDate=${start}&endDate=${end}`)).then(r => r.json()).catch(() => ({ annotations: [] })),
+      ])
+      timeSeries.set((tsRes.timeSeries || []).map(t => ({
+        date: t.timestamp || t.date,
+        views: t.views,
+        visitors: t.visitors,
+      })))
+      annotations.set(annRes.annotations || [])
+    } catch (e) {
+      console.error('Failed to fetch timeseries:', e)
+    }
+  }
+
+  /**
    * Fetch available sites list.
    */
   async function fetchSites() {
@@ -169,8 +198,11 @@ defineStore('analytics', () => {
   return {
     loading,
     stats,
+    timeSeries,
+    annotations,
     hydrateStatsFromCache,
     fetchStats,
+    fetchTimeSeries,
     pages,
     referrers,
     browsers,

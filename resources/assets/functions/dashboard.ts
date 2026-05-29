@@ -137,15 +137,14 @@ catch (e) {}
 
 const cachedStats = loadCachedStats()
 let stats = cachedStats || { realtime: 0, sessions: 0, people: 0, views: 0, avgTime: '00:00', bounceRate: 0, events: 0 }
-let timeSeriesData: any[] = []
 let goals: any[] = []
 const _siteHostname: string | null = null
 const _showGoalModal = false
 let editingGoal: any = null
 let siteHasHistoricalData = cachedStats ? true : false
 
-// Annotations and comparison state
-let annotations: any[] = []
+// Comparison state (time series + annotations now live in the analytics store,
+// rendered by the ChartSection component)
 let showComparison = false
 let comparisonData: any = null
 
@@ -186,7 +185,7 @@ function toggleTheme() {
   const newTheme = current === 'dark' ? 'light' : 'dark'
   localStorage.setItem('ts-analytics-theme', newTheme)
   applyTheme(newTheme)
-  if (timeSeriesData.length) renderChart()
+  // ChartSection redraws itself on theme change (observes <html data-theme>).
 }
 
 applyTheme(getPreferredTheme())
@@ -302,32 +301,6 @@ function toggleComparison() {
   fetchDashboardData()
 }
 
-async function addAnnotation() {
-  const type = prompt('Annotation type (deployment, campaign, incident, general):') || 'general'
-  if (!['deployment', 'campaign', 'incident', 'general'].includes(type)) {
-    alert('Invalid type. Use: deployment, campaign, incident, or general')
-    return
-  }
-  const title = prompt('Title (e.g., "v2.0 Release"):')
-  if (!title) return
-  const description = prompt('Description (optional):') || ''
-  const dateStr = prompt('Date (YYYY-MM-DD, leave empty for today):')
-  const date = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString()
-
-  try {
-    await fetch(apiPath(`${API_ENDPOINT}/api/sites/${siteId}/annotations`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, title, description, date })
-    })
-    fetchDashboardData()
-  }
-catch (e) {
-    console.error('Failed to add annotation:', e)
-    alert('Failed to add annotation')
-  }
-}
-
 // Data fetching
 async function fetchDashboardData() {
   if (isLoading) return
@@ -339,15 +312,12 @@ async function fetchDashboardData() {
 
   const baseUrl = `${API_ENDPOINT}/api/sites/${siteId}`
   const params = getDateRangeParams(false)
-  const tsParams = getDateRangeParams(true)
 
   try {
     const fetchPromises: Promise<any>[] = [
       fetch(apiPath(`${baseUrl}/stats${params}`)).then(r => r.json()).catch(() => ({})),
       fetch(apiPath(`${baseUrl}/realtime`)).then(r => r.json()).catch(() => ({ currentVisitors: 0 })),
-      fetch(apiPath(`${baseUrl}/timeseries${tsParams}`)).then(r => r.json()).catch(() => ({ timeSeries: [] })),
       fetch(apiPath(`${baseUrl}/goals${params}`)).then(r => r.json()).catch(() => ({ goals: [] })),
-      fetch(apiPath(`${baseUrl}/annotations${params}`)).then(r => r.json()).catch(() => ({ annotations: [] })),
     ]
 
     if (showComparison) {
@@ -355,9 +325,9 @@ async function fetchDashboardData() {
     }
 
     const results = await Promise.all(fetchPromises)
-    const [statsRes, realtimeRes, timeseriesRes, goalsRes, annotationsRes] = results
-    if (showComparison && results[5]) {
-      comparisonData = results[5]
+    const [statsRes, realtimeRes, goalsRes] = results
+    if (showComparison && results[3]) {
+      comparisonData = results[3]
     }
 
     previousStats = { ...stats }
@@ -372,19 +342,15 @@ async function fetchDashboardData() {
     }
     saveCachedStats(stats)
     goals = goalsRes.goals || []
-    timeSeriesData = (timeseriesRes.timeSeries || []).map((t: any) => ({
-      date: t.timestamp || t.date,
-      views: t.views,
-      visitors: t.visitors
-    }))
-    annotations = annotationsRes.annotations || []
     lastUpdated = new Date()
 
-    if (stats.views > 0 || stats.sessions > 0 || timeSeriesData.some((t: any) => t.views > 0)) {
+    if (stats.views > 0 || stats.sessions > 0) {
       siteHasHistoricalData = true
     }
 
     renderDashboard(true)
+    // ChartSection owns time-series/annotations data; nudge it to refresh too.
+    window.refreshChart?.()
   }
 catch (error) {
     console.error('Failed to fetch:', error)
@@ -512,8 +478,6 @@ function renderDashboard(_animate = false) {
 
   if (noDataMsg) noDataMsg.style.display = 'none'
   if (mainContent) mainContent.style.display = 'block'
-
-  renderChart()
 }
 
 // Goal modal
@@ -628,260 +592,6 @@ catch (err) {
 window.showEditGoalModal = editGoal
 window.confirmDeleteGoal = deleteGoal
 
-// Chart rendering
-function renderChart() {
-  const canvas = document.getElementById('chart') as HTMLCanvasElement
-  const chartEmpty = document.getElementById('chart-empty')
-  const tooltip = document.getElementById('chartTooltip')
-
-  if (!canvas) return
-
-  const styles = getComputedStyle(document.documentElement)
-  const colors = {
-    border: styles.getPropertyValue('--border').trim() || '#2d3139',
-    accent2: styles.getPropertyValue('--accent2').trim() || '#818cf8',
-    muted: styles.getPropertyValue('--muted').trim() || '#6b7280',
-    text: styles.getPropertyValue('--text').trim() || '#f3f4f6'
-  }
-
-  if (!timeSeriesData.length) {
-    canvas.style.display = 'none'
-    if (chartEmpty) chartEmpty.style.display = 'flex'
-    return
-  }
-
-  canvas.style.display = 'block'
-  if (chartEmpty) chartEmpty.style.display = 'none'
-
-  const ctx = canvas.getContext('2d')!
-  const rect = canvas.parentElement!.getBoundingClientRect()
-  const dpr = window.devicePixelRatio || 1
-  const logicalW = rect.width - 48
-  const logicalH = 220
-  canvas.width = logicalW * dpr
-  canvas.height = logicalH * dpr
-  canvas.style.width = `${logicalW}px`
-  canvas.style.height = `${logicalH}px`
-  ctx.scale(dpr, dpr)
-  const pad = { top: 20, right: 20, bottom: 50, left: 50 }
-  const w = logicalW - pad.left - pad.right
-  const h = logicalH - pad.top - pad.bottom
-  const maxV = Math.max(...timeSeriesData.map(d => d.views || d.count || 0), 1)
-  const xS = w / (timeSeriesData.length - 1 || 1)
-  const yS = h / maxV
-
-  const points = timeSeriesData.map((d, i) => ({
-    x: pad.left + i * xS,
-    y: pad.top + h - (d.views || d.count || 0) * yS,
-    data: d
-  }))
-
-  function fmtDate(dateStr: string) {
-    if (!dateStr) return '-'
-    const date = new Date(dateStr)
-    if (isNaN(date.getTime())) return String(dateStr)
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-    if (dateRange === '1h' || dateRange === '6h' || dateRange === '12h') {
-      const hr = date.getHours()
-      const m = date.getMinutes()
-      const ampm = hr >= 12 ? 'pm' : 'am'
-      const h12 = hr % 12 || 12
-      return `${h12}:${m < 10 ? '0' : ''}${m}${ampm}`
-    }
-else if (dateRange === '24h') {
-      const hr = date.getHours()
-      const ampm = hr >= 12 ? 'pm' : 'am'
-      const h12 = hr % 12 || 12
-      return `${h12}${ampm}`
-    }
-    return `${months[date.getMonth()]} ${date.getDate()}`
-  }
-
-  function fmtDateFull(dateStr: string) {
-    if (!dateStr) return '-'
-    const date = new Date(dateStr)
-    if (isNaN(date.getTime())) return String(dateStr)
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-    const hr = date.getHours()
-    const m = date.getMinutes()
-    const ampm = hr >= 12 ? 'pm' : 'am'
-    const h12 = hr % 12 || 12
-    const timeStr = `${h12}:${m < 10 ? '0' : ''}${m}${ampm}`
-    const dateStr2 = `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
-    if (dateRange === '1h' || dateRange === '6h' || dateRange === '12h' || dateRange === '24h') {
-      return `${dateStr2} at ${timeStr}`
-    }
-    return dateStr2
-  }
-
-  function draw(hoverIdx: number) {
-    ctx.save()
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.clearRect(0, 0, logicalW, logicalH)
-
-    ctx.strokeStyle = colors.border
-    ctx.lineWidth = 1
-    for (let i = 0; i <= 4; i++) {
-      const y = pad.top + (h/4)*i
-      ctx.beginPath()
-      ctx.moveTo(pad.left, y)
-      ctx.lineTo(pad.left+w, y)
-      ctx.stroke()
-    }
-
-    ctx.beginPath()
-    ctx.fillStyle = `${colors.accent2}1a`
-    points.forEach((p, i) => {
-      i===0 ? (ctx.moveTo(p.x,pad.top+h), ctx.lineTo(p.x,p.y)) : ctx.lineTo(p.x,p.y)
-    })
-    ctx.lineTo(points[points.length-1].x, pad.top+h)
-    ctx.closePath()
-    ctx.fill()
-
-    ctx.beginPath()
-    ctx.strokeStyle = colors.accent2
-    ctx.lineWidth = 2
-    points.forEach((p, i) => { i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y) })
-    ctx.stroke()
-
-    points.forEach((p, i) => {
-      ctx.beginPath()
-      ctx.fillStyle = i === hoverIdx ? colors.text : colors.accent2
-      ctx.arc(p.x, p.y, i === hoverIdx ? 6 : 3, 0, Math.PI * 2)
-      ctx.fill()
-      if (i === hoverIdx) { ctx.strokeStyle = colors.accent2; ctx.lineWidth = 2; ctx.stroke() }
-    })
-
-    const annotationColors: Record<string, string> = { deployment: '#22c55e', campaign: '#3b82f6', incident: '#ef4444', general: '#8b5cf6' }
-    if (annotations.length > 0) {
-      annotations.forEach(ann => {
-        const annDate = new Date(ann.date).toISOString().split('T')[0]
-        const idx = timeSeriesData.findIndex(d => {
-          const tDate = new Date(d.date).toISOString().split('T')[0]
-          return tDate === annDate
-        })
-        if (idx >= 0 && idx < points.length) {
-          const px = points[idx].x
-          const color = annotationColors[ann.type] || annotationColors.general
-          ctx.beginPath()
-          ctx.strokeStyle = color
-          ctx.lineWidth = 2
-          ctx.setLineDash([4, 2])
-          ctx.moveTo(px, pad.top)
-          ctx.lineTo(px, pad.top + h)
-          ctx.stroke()
-          ctx.setLineDash([])
-          ctx.beginPath()
-          ctx.fillStyle = color
-          ctx.arc(px, pad.top - 8, 5, 0, Math.PI * 2)
-          ctx.fill()
-          ctx.fillStyle = 'white'
-          ctx.font = '8px sans-serif'
-          ctx.textAlign = 'center'
-          const icons: Record<string, string> = { deployment: '↑', campaign: '📢', incident: '!', general: '•' }
-          ctx.fillText(icons[ann.type] || '•', px, pad.top - 5)
-        }
-      })
-    }
-
-    ctx.fillStyle = colors.muted
-    ctx.font = '11px -apple-system, sans-serif'
-    ctx.textAlign = 'right'
-    for (let i = 0; i <= 4; i++) {
-      ctx.fillText(fmt(Math.round(maxV - (maxV/4)*i)), pad.left-10, pad.top+(h/4)*i+4)
-    }
-
-    ctx.textAlign = 'center'
-    const n = timeSeriesData.length
-    let maxLabels = 7
-    if (dateRange === '1h') maxLabels = Math.min(n, 7)
-    else if (dateRange === '6h') maxLabels = Math.min(n, 7)
-    else if (dateRange === '12h') maxLabels = Math.min(n, 7)
-    else if (dateRange === '24h') maxLabels = Math.min(n, 8)
-
-    if (n === 1) {
-      ctx.fillText(fmtDate(timeSeriesData[0].date), pad.left + w / 2, logicalH - 10)
-    }
-else if (n <= maxLabels) {
-      timeSeriesData.forEach((d, i) => {
-        ctx.fillText(fmtDate(d.date), pad.left + i * xS, logicalH - 10)
-      })
-    }
-else {
-      const step = (n - 1) / (maxLabels - 1)
-      for (let j = 0; j < maxLabels; j++) {
-        const i = Math.round(j * step)
-        const d = timeSeriesData[i]
-        ctx.fillText(fmtDate(d.date), pad.left + i * xS, logicalH - 10)
-      }
-    }
-
-    if (hoverIdx >= 0) {
-      ctx.beginPath()
-      ctx.strokeStyle = `${colors.accent2}80`
-      ctx.lineWidth = 1
-      ctx.setLineDash([4, 4])
-      ctx.moveTo(points[hoverIdx].x, pad.top)
-      ctx.lineTo(points[hoverIdx].x, pad.top + h)
-      ctx.stroke()
-      ctx.setLineDash([])
-    }
-    ctx.restore()
-  }
-
-  draw(-1)
-
-  if (tooltip) {
-    let tooltipDate = tooltip.querySelector('.tooltip-date') as HTMLElement
-    if (!tooltipDate) {
-      tooltipDate = document.createElement('div')
-      tooltipDate.className = 'tooltip-date'
-      tooltip.appendChild(tooltipDate)
-    }
-    let tooltipViews = tooltip.querySelector('.tooltip-views') as HTMLElement
-    if (!tooltipViews) {
-      const row = document.createElement('div')
-      row.className = 'tooltip-row'
-      row.innerHTML = '<span class="tooltip-dot views"></span>Views: <strong class="tooltip-views"></strong>'
-      tooltip.appendChild(row)
-      tooltipViews = row.querySelector('.tooltip-views')!
-    }
-    let tooltipVisitors = tooltip.querySelector('.tooltip-visitors') as HTMLElement
-    if (!tooltipVisitors) {
-      const row = document.createElement('div')
-      row.className = 'tooltip-row'
-      row.innerHTML = '<span class="tooltip-dot visitors"></span>Visitors: <strong class="tooltip-visitors"></strong>'
-      tooltip.appendChild(row)
-      tooltipVisitors = row.querySelector('.tooltip-visitors')!
-    }
-
-    canvas.onmousemove = function(e) {
-      const cr = canvas.getBoundingClientRect()
-      const mx = e.clientX - cr.left
-      let closest = -1, minDist = 30
-      points.forEach((p, i) => { const d = Math.abs(mx - p.x); if (d < minDist) { minDist = d; closest = i } })
-      if (closest >= 0) {
-        const p = points[closest], d = p.data
-        tooltipDate.textContent = fmtDateFull(d.date)
-        tooltipViews.textContent = fmt(d.views || d.count || 0)
-        tooltipVisitors.textContent = fmt(d.visitors || 0)
-        tooltip.style.display = 'block'
-        let left = p.x + 10; if (left + 150 > logicalW) left = p.x - 160
-        tooltip.style.left = `${left}px`
-        tooltip.style.top = `${p.y - 20}px`
-        draw(closest)
-        canvas.style.cursor = 'pointer'
-      }
-else {
-        tooltip.style.display = 'none'
-        draw(-1)
-        canvas.style.cursor = 'default'
-      }
-    }
-    canvas.onmouseleave = function() { tooltip.style.display = 'none'; draw(-1) }
-  }
-}
-
 // SPA navigation handler — update UI after STX router swaps content
 window.addEventListener('stx:navigate', () => {
   const tab = getTabFromUrl()
@@ -958,8 +668,6 @@ else {
   }
 })
 
-window.addEventListener('resize', () => { if (timeSeriesData.length) renderChart() })
-
 // Expose functions to global scope
 Object.assign(window, {
   selectSite,
@@ -974,7 +682,6 @@ Object.assign(window, {
   updateGoalForm,
   editGoal,
   deleteGoal,
-  addAnnotation,
   toggleComparison,
   fetchDashboardData,
 })

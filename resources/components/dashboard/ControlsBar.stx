@@ -1,6 +1,8 @@
 <script client>
 import type { DateRange } from '../../types/dashboard'
 
+const dashboard = useStore('dashboard')
+
 const activeRange = state<string>('6h')
 const showComparison = state<boolean>(false)
 const realtimeCount = state<number>(0)
@@ -19,6 +21,9 @@ const ranges: DateRange[] = [
 
 function setRange(range: string): void {
   activeRange.set(range)
+  // Keep the store in sync so store-driven fetches (chart, panels) use the
+  // selected range, then let the legacy controller refresh its own pieces.
+  dashboard.dateRange.set(range)
   if (window.setDateRange) {
     window.setDateRange(range)
   }
@@ -84,6 +89,7 @@ onMount(() => {
 
   if (window.dateRange) {
     activeRange.set(window.dateRange)
+    dashboard.dateRange.set(window.dateRange)
   }
 })
 

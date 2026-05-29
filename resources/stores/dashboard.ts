@@ -105,6 +105,31 @@ defineStore('dashboard', () => {
     return apiUrl(path + dateParams())
   }
 
+  // Absolute start/end ISO bounds for the current range. Used by endpoints that
+  // read startDate/endDate (e.g. /timeseries, /annotations) rather than start/end.
+  function dateBounds(): { start: string, end: string } {
+    const now = new Date()
+    const spans: Record<string, number> = {
+      '1h': 60 * 60 * 1000,
+      '6h': 6 * 60 * 60 * 1000,
+      '12h': 12 * 60 * 60 * 1000,
+      '24h': 24 * 60 * 60 * 1000,
+      '7d': 7 * 24 * 60 * 60 * 1000,
+      '30d': 30 * 24 * 60 * 60 * 1000,
+      '90d': 90 * 24 * 60 * 60 * 1000,
+    }
+    const span = spans[dateRange()] ?? spans['30d']
+    return { start: new Date(now.getTime() - span).toISOString(), end: now.toISOString() }
+  }
+
+  // Bucket granularity for the timeseries endpoint, derived from the range.
+  function timeseriesPeriod(): string {
+    const range = dateRange()
+    if (range === '1h') return 'minute'
+    if (range === '6h' || range === '12h' || range === '24h') return 'hour'
+    return 'day'
+  }
+
   // SPA navigation
   function navigateTo(section: string): void {
     const url = `/dashboard/${section}?siteId=${encodeURIComponent(siteId())}`
@@ -124,6 +149,8 @@ defineStore('dashboard', () => {
     apiUrl,
     dateParams,
     apiUrlWithDates,
+    dateBounds,
+    timeseriesPeriod,
     navigateTo,
   }
 })

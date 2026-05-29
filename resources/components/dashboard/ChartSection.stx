@@ -1,30 +1,355 @@
-<script server>
-import { defineProps, withDefaults } from 'stx'
+<script client>
+/**
+ * ChartSection Component
+ *
+ * Pageviews-over-time chart. Data (time series + annotations) comes from the
+ * shared analytics store; the canvas is (re)drawn reactively whenever that data,
+ * the theme, or the viewport changes. Empty-state visibility is bound with
+ * x-show rather than toggled imperatively.
+ */
+const analytics = useStore('analytics')
+const dashboard = useStore('dashboard')
 
-interface ChartSectionProps {
-  title?: string
-  showAnnotation?: boolean
+const title = 'Pageviews Over Time'
+
+function hasData() {
+  return analytics.timeSeries().length > 0
 }
 
-const { title, showAnnotation } = withDefaults(defineProps<ChartSectionProps>(), {
-  title: 'Pageviews Over Time',
-  showAnnotation: true,
+function fmt(n) {
+  if (n === undefined || n === null) return '0'
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
+}
+
+function renderChart() {
+  const canvas = document.getElementById('chart') as HTMLCanvasElement
+  const tooltip = document.getElementById('chartTooltip')
+
+  if (!canvas) return
+
+  const timeSeriesData = analytics.timeSeries()
+  const annotations = analytics.annotations()
+  const dateRange = dashboard.dateRange()
+
+  const styles = getComputedStyle(document.documentElement)
+  const colors = {
+    border: styles.getPropertyValue('--border').trim() || '#2d3139',
+    accent2: styles.getPropertyValue('--accent2').trim() || '#818cf8',
+    muted: styles.getPropertyValue('--muted').trim() || '#6b7280',
+    text: styles.getPropertyValue('--text').trim() || '#f3f4f6',
+  }
+
+  if (!timeSeriesData.length) {
+    // Visibility is handled by x-show; nothing to draw.
+    return
+  }
+
+  const ctx = canvas.getContext('2d')!
+  const rect = canvas.parentElement!.getBoundingClientRect()
+  const dpr = window.devicePixelRatio || 1
+  const logicalW = rect.width - 48
+  const logicalH = 220
+  canvas.width = logicalW * dpr
+  canvas.height = logicalH * dpr
+  canvas.style.width = `${logicalW}px`
+  canvas.style.height = `${logicalH}px`
+  ctx.scale(dpr, dpr)
+  const pad = { top: 20, right: 20, bottom: 50, left: 50 }
+  const w = logicalW - pad.left - pad.right
+  const h = logicalH - pad.top - pad.bottom
+  const maxV = Math.max(...timeSeriesData.map(d => d.views || d.count || 0), 1)
+  const xS = w / (timeSeriesData.length - 1 || 1)
+  const yS = h / maxV
+
+  const points = timeSeriesData.map((d, i) => ({
+    x: pad.left + i * xS,
+    y: pad.top + h - (d.views || d.count || 0) * yS,
+    data: d,
+  }))
+
+  function fmtDate(dateStr: string) {
+    if (!dateStr) return '-'
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return String(dateStr)
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    if (dateRange === '1h' || dateRange === '6h' || dateRange === '12h') {
+      const hr = date.getHours()
+      const m = date.getMinutes()
+      const ampm = hr >= 12 ? 'pm' : 'am'
+      const h12 = hr % 12 || 12
+      return `${h12}:${m < 10 ? '0' : ''}${m}${ampm}`
+    }
+    else if (dateRange === '24h') {
+      const hr = date.getHours()
+      const ampm = hr >= 12 ? 'pm' : 'am'
+      const h12 = hr % 12 || 12
+      return `${h12}${ampm}`
+    }
+    return `${months[date.getMonth()]} ${date.getDate()}`
+  }
+
+  function fmtDateFull(dateStr: string) {
+    if (!dateStr) return '-'
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return String(dateStr)
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const hr = date.getHours()
+    const m = date.getMinutes()
+    const ampm = hr >= 12 ? 'pm' : 'am'
+    const h12 = hr % 12 || 12
+    const timeStr = `${h12}:${m < 10 ? '0' : ''}${m}${ampm}`
+    const dateStr2 = `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
+    if (dateRange === '1h' || dateRange === '6h' || dateRange === '12h' || dateRange === '24h') {
+      return `${dateStr2} at ${timeStr}`
+    }
+    return dateStr2
+  }
+
+  function draw(hoverIdx: number) {
+    ctx.save()
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, logicalW, logicalH)
+
+    ctx.strokeStyle = colors.border
+    ctx.lineWidth = 1
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.top + (h / 4) * i
+      ctx.beginPath()
+      ctx.moveTo(pad.left, y)
+      ctx.lineTo(pad.left + w, y)
+      ctx.stroke()
+    }
+
+    ctx.beginPath()
+    ctx.fillStyle = `${colors.accent2}1a`
+    points.forEach((p, i) => {
+      i === 0 ? (ctx.moveTo(p.x, pad.top + h), ctx.lineTo(p.x, p.y)) : ctx.lineTo(p.x, p.y)
+    })
+    ctx.lineTo(points[points.length - 1].x, pad.top + h)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.beginPath()
+    ctx.strokeStyle = colors.accent2
+    ctx.lineWidth = 2
+    points.forEach((p, i) => { i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y) })
+    ctx.stroke()
+
+    points.forEach((p, i) => {
+      ctx.beginPath()
+      ctx.fillStyle = i === hoverIdx ? colors.text : colors.accent2
+      ctx.arc(p.x, p.y, i === hoverIdx ? 6 : 3, 0, Math.PI * 2)
+      ctx.fill()
+      if (i === hoverIdx) { ctx.strokeStyle = colors.accent2; ctx.lineWidth = 2; ctx.stroke() }
+    })
+
+    const annotationColors: Record<string, string> = { deployment: '#22c55e', campaign: '#3b82f6', incident: '#ef4444', general: '#8b5cf6' }
+    if (annotations.length > 0) {
+      annotations.forEach(ann => {
+        const annDate = new Date(ann.date).toISOString().split('T')[0]
+        const idx = timeSeriesData.findIndex(d => {
+          const tDate = new Date(d.date).toISOString().split('T')[0]
+          return tDate === annDate
+        })
+        if (idx >= 0 && idx < points.length) {
+          const px = points[idx].x
+          const color = annotationColors[ann.type] || annotationColors.general
+          ctx.beginPath()
+          ctx.strokeStyle = color
+          ctx.lineWidth = 2
+          ctx.setLineDash([4, 2])
+          ctx.moveTo(px, pad.top)
+          ctx.lineTo(px, pad.top + h)
+          ctx.stroke()
+          ctx.setLineDash([])
+          ctx.beginPath()
+          ctx.fillStyle = color
+          ctx.arc(px, pad.top - 8, 5, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.fillStyle = 'white'
+          ctx.font = '8px sans-serif'
+          ctx.textAlign = 'center'
+          const icons: Record<string, string> = { deployment: '↑', campaign: '📢', incident: '!', general: '•' }
+          ctx.fillText(icons[ann.type] || '•', px, pad.top - 5)
+        }
+      })
+    }
+
+    ctx.fillStyle = colors.muted
+    ctx.font = '11px -apple-system, sans-serif'
+    ctx.textAlign = 'right'
+    for (let i = 0; i <= 4; i++) {
+      ctx.fillText(fmt(Math.round(maxV - (maxV / 4) * i)), pad.left - 10, pad.top + (h / 4) * i + 4)
+    }
+
+    ctx.textAlign = 'center'
+    const n = timeSeriesData.length
+    let maxLabels = 7
+    if (dateRange === '1h') maxLabels = Math.min(n, 7)
+    else if (dateRange === '6h') maxLabels = Math.min(n, 7)
+    else if (dateRange === '12h') maxLabels = Math.min(n, 7)
+    else if (dateRange === '24h') maxLabels = Math.min(n, 8)
+
+    if (n === 1) {
+      ctx.fillText(fmtDate(timeSeriesData[0].date), pad.left + w / 2, logicalH - 10)
+    }
+    else if (n <= maxLabels) {
+      timeSeriesData.forEach((d, i) => {
+        ctx.fillText(fmtDate(d.date), pad.left + i * xS, logicalH - 10)
+      })
+    }
+    else {
+      const step = (n - 1) / (maxLabels - 1)
+      for (let j = 0; j < maxLabels; j++) {
+        const i = Math.round(j * step)
+        const d = timeSeriesData[i]
+        ctx.fillText(fmtDate(d.date), pad.left + i * xS, logicalH - 10)
+      }
+    }
+
+    if (hoverIdx >= 0) {
+      ctx.beginPath()
+      ctx.strokeStyle = `${colors.accent2}80`
+      ctx.lineWidth = 1
+      ctx.setLineDash([4, 4])
+      ctx.moveTo(points[hoverIdx].x, pad.top)
+      ctx.lineTo(points[hoverIdx].x, pad.top + h)
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+    ctx.restore()
+  }
+
+  draw(-1)
+
+  if (tooltip) {
+    let tooltipDate = tooltip.querySelector('.tooltip-date') as HTMLElement
+    if (!tooltipDate) {
+      tooltipDate = document.createElement('div')
+      tooltipDate.className = 'tooltip-date'
+      tooltip.appendChild(tooltipDate)
+    }
+    let tooltipViews = tooltip.querySelector('.tooltip-views') as HTMLElement
+    if (!tooltipViews) {
+      const row = document.createElement('div')
+      row.className = 'tooltip-row'
+      row.innerHTML = '<span class="tooltip-dot views"></span>Views: <strong class="tooltip-views"></strong>'
+      tooltip.appendChild(row)
+      tooltipViews = row.querySelector('.tooltip-views')!
+    }
+    let tooltipVisitors = tooltip.querySelector('.tooltip-visitors') as HTMLElement
+    if (!tooltipVisitors) {
+      const row = document.createElement('div')
+      row.className = 'tooltip-row'
+      row.innerHTML = '<span class="tooltip-dot visitors"></span>Visitors: <strong class="tooltip-visitors"></strong>'
+      tooltip.appendChild(row)
+      tooltipVisitors = row.querySelector('.tooltip-visitors')!
+    }
+
+    canvas.onmousemove = function (e) {
+      const cr = canvas.getBoundingClientRect()
+      const mx = e.clientX - cr.left
+      let closest = -1, minDist = 30
+      points.forEach((p, i) => { const d = Math.abs(mx - p.x); if (d < minDist) { minDist = d; closest = i } })
+      if (closest >= 0) {
+        const p = points[closest], d = p.data
+        tooltipDate.textContent = fmtDateFull(d.date)
+        tooltipViews.textContent = fmt(d.views || d.count || 0)
+        tooltipVisitors.textContent = fmt(d.visitors || 0)
+        tooltip.style.display = 'block'
+        let left = p.x + 10; if (left + 150 > logicalW) left = p.x - 160
+        tooltip.style.left = `${left}px`
+        tooltip.style.top = `${p.y - 20}px`
+        draw(closest)
+        canvas.style.cursor = 'pointer'
+      }
+      else {
+        tooltip.style.display = 'none'
+        draw(-1)
+        canvas.style.cursor = 'default'
+      }
+    }
+    canvas.onmouseleave = function () { tooltip.style.display = 'none'; draw(-1) }
+  }
+}
+
+// Draw on the next frame so x-show has applied layout before we measure.
+function scheduleRender() {
+  requestAnimationFrame(() => renderChart())
+}
+
+async function addAnnotation() {
+  const type = prompt('Annotation type (deployment, campaign, incident, general):') || 'general'
+  if (!['deployment', 'campaign', 'incident', 'general'].includes(type)) {
+    alert('Invalid type. Use: deployment, campaign, incident, or general')
+    return
+  }
+  const annTitle = prompt('Title (e.g., "v2.0 Release"):')
+  if (!annTitle) return
+  const description = prompt('Description (optional):') || ''
+  const dateStr = prompt('Date (YYYY-MM-DD, leave empty for today):')
+  const date = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString()
+
+  try {
+    await fetch(dashboard.apiUrl('/annotations'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, title: annTitle, description, date }),
+    })
+    analytics.fetchTimeSeries()
+  }
+  catch (e) {
+    console.error('Failed to add annotation:', e)
+    alert('Failed to add annotation')
+  }
+}
+
+// Refetch whenever the selected range changes (also fires once on mount).
+effect(() => {
+  dashboard.dateRange()
+  analytics.fetchTimeSeries()
+})
+
+// Redraw whenever the data changes.
+effect(() => {
+  analytics.timeSeries()
+  analytics.annotations()
+  scheduleRender()
+})
+
+onMount(() => {
+  // Let the legacy controller's refresh paths (interval, manual refresh, range
+  // change) also refresh the chart through the store.
+  window.refreshChart = () => analytics.fetchTimeSeries()
+
+  const onResize = () => scheduleRender()
+  window.addEventListener('resize', onResize)
+
+  // Redraw with theme colors when the <html data-theme> attribute flips.
+  const themeObserver = new MutationObserver(() => scheduleRender())
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+
+  const poll = setInterval(() => analytics.fetchTimeSeries(), 30000)
+
+  return () => {
+    window.removeEventListener('resize', onResize)
+    themeObserver.disconnect()
+    clearInterval(poll)
+  }
 })
 </script>
 
 <div class="panel relative mb-6">
   <div class="flex justify-between items-center mb-4">
     <div class="font-semibold text-sm text-text">{{ title }}</div>
-    @if (showAnnotation)
-      <button @click="window.addAnnotation()" class="bg-bg-3 border border-border text-text-2 py-1 px-2 rounded flex items-center text-[0.6875rem] transition-all duration-150 cursor-pointer hover:bg-bg hover:text-text" title="Mark an event on the chart">
-        <Icon name="plus" size="12" class="mr-1 inline-block align-middle" />
-        Annotation
-      </button>
-    @endif
+    <button @click="addAnnotation()" class="bg-bg-3 border border-border text-text-2 py-1 px-2 rounded flex items-center text-[0.6875rem] transition-all duration-150 cursor-pointer hover:bg-bg hover:text-text" title="Mark an event on the chart">
+      <Icon name="plus" size="12" class="mr-1 inline-block align-middle" />
+      Annotation
+    </button>
   </div>
-  <canvas id="chart"></canvas>
+  <canvas id="chart" x-show="hasData()"></canvas>
   <div id="chartTooltip" class="tooltip"></div>
-  <div id="chart-empty" class="empty-state hidden" style="display:none">
+  <div id="chart-empty" class="empty-state" x-show="!hasData()">
     <Icon name="bar-chart-2" size="32" class="opacity-50 mb-2" />
     <p class="text-sm">No time series data available</p>
   </div>
