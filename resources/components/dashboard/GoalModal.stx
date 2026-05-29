@@ -4,6 +4,7 @@ import type { GoalModalAPI } from '../../types/dashboard'
 import { useSiteApi } from '@composables'
 
 const { siteId: _siteId, apiUrl: _apiUrl } = useSiteApi()
+const analytics = useStore('analytics')
 
 const showModal = state<boolean>(false)
 const isEditing = state<boolean>(false)
@@ -97,8 +98,7 @@ async function handleSubmit(e: Event): Promise<void> {
 
     if (res.ok) {
       closeModal()
-      if (window.fetchDashboardData) window.fetchDashboardData()
-      if (window.refreshAllPanels) window.refreshAllPanels()
+      analytics.fetchSection('goals')
     } else {
       const errData: { error?: string } = await res.json()
       error.set(errData.error || 'Failed to save goal')

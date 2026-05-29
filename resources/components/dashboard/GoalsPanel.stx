@@ -1,7 +1,10 @@
 <script client>
-import type { Goal } from '../../types/analytics'
+const analytics = useStore('analytics')
+const dashboard = useStore('dashboard')
 
-const goals = state<Goal[]>([])
+// Goals data is shared via the analytics store; loading stays panel-local so the
+// table doesn't flicker when other panels fetch.
+const goals = analytics.goals
 const loading = state<boolean>(true)
 
 function formatCurrency(n: number): string {
@@ -18,21 +21,10 @@ function getTypeBadgeClass(type: string): string {
   return classes[type?.toLowerCase()] || 'badge'
 }
 
-async function fetchGoals(): Promise<void> {
-  const siteId: string | undefined = window.siteId
-  if (!siteId) {
-    loading.set(false)
-    return
-  }
-  try {
-    const res: Response = await fetch(window.apiPath(`${window.API_ENDPOINT}/api/sites/${siteId}/goals`))
-    const data: { goals?: Goal[] } = await res.json()
-    goals.set(data.goals || [])
-  } catch (e: unknown) {
-    console.error('Failed to fetch goals:', e)
-  } finally {
-    loading.set(false)
-  }
+async function loadGoals(): Promise<void> {
+  loading.set(true)
+  await analytics.fetchSection('goals')
+  loading.set(false)
 }
 
 function editGoal(goalId: string): void {
@@ -45,14 +37,8 @@ function deleteGoal(goalId: string): void {
   if (window.Modal) {
     window.Modal.confirm('Delete this goal? Conversion data will be preserved.', async () => {
       try {
-        const res: Response = await fetch(
-          window.apiPath(`${window.API_ENDPOINT}/api/sites/${window.siteId}/goals/${goalId}`),
-          { method: 'DELETE' },
-        )
-        if (res.ok) {
-          fetchGoals()
-          if (window.fetchDashboardData) window.fetchDashboardData()
-        }
+        const res: Response = await fetch(dashboard.apiUrl(`/goals/${goalId}`), { method: 'DELETE' })
+        if (res.ok) loadGoals()
       } catch (err: unknown) {
         console.error('Delete goal error:', err)
       }
@@ -67,10 +53,10 @@ function openCreateGoal(): void {
 }
 
 onMount(() => {
-  if (window.siteId) fetchGoals()
+  if (dashboard.siteId()) loadGoals()
 })
 
-window.refreshGoalsPanel = fetchGoals
+window.refreshGoalsPanel = loadGoals
 </script>
 
 <div class="panel">
