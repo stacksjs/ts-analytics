@@ -1,9 +1,10 @@
-<script server>
+<script client>
 /**
  * StatsRow Component
  *
  * Static card layout (realtime, sessions, visitors, ...). The card values are
- * bound reactively to the shared analytics store rather than poked by id.
+ * bound reactively to the shared analytics store and counted up to their new
+ * targets, rather than poked into the DOM by id.
  */
 interface Stat {
   id: string
@@ -45,45 +46,107 @@ const stats: Stat[] = [
     icon: 'M13 17h8m0 0V9m0 8l-8-8-4 4-6-6',
   },
 ]
-</script>
 
-<script client>
 const analytics = useStore('analytics')
+
+// Reactive values the cards display. Animated toward the store's stats so the
+// numbers count up on each update.
+const display = state({ realtime: 0, sessions: 0, people: 0, views: 0, bounceRate: 0, avgTime: '00:00' })
+
+// Untracked snapshot of the values currently shown, used as the animation start
+// point. Kept outside the reactive graph so tweening it never re-triggers the
+// effect that watches the store.
+let current = { realtime: 0, sessions: 0, people: 0, views: 0, bounceRate: 0 }
+let primed = false
+let raf = 0
 
 function fmtCompact(n) {
   const num = typeof n === 'number' ? n : Number(n) || 0
   return num >= 1000 ? `${(num / 1000).toFixed(1)}k` : String(num)
 }
 
-function statValue(id) {
-  const s = analytics.stats()
-  if (!s) return '—'
-  if (id === 'avgtime') return s.avgTime || '—'
-  if (id === 'bounce') return `${s.bounceRate ?? 0}%`
-  return fmtCompact(s[id] ?? 0)
+function cardClass(stat) {
+  return stat.highlight ? 'stat-card text-center highlight' : 'stat-card text-center'
 }
+
+function statValue(id) {
+  const d = display()
+  if (id === 'avgtime')
+    return d.avgTime || '—'
+  if (id === 'bounce')
+    return `${d.bounceRate ?? 0}%`
+  return fmtCompact(d[id] ?? 0)
+}
+
+// Count the displayed numbers up to `target` over ~600ms with an ease-out curve.
+// The first application paints instantly (preserves the cache-seeded instant
+// paint on load); subsequent updates animate.
+function applyStats(target) {
+  const next = {
+    realtime: target.realtime || 0,
+    sessions: target.sessions || 0,
+    people: target.people || 0,
+    views: target.views || 0,
+    bounceRate: target.bounceRate || 0,
+  }
+
+  if (!primed) {
+    primed = true
+    current = next
+    display.set({ ...next, avgTime: target.avgTime || '00:00' })
+    return
+  }
+
+  const from = { ...current }
+  const start = performance.now()
+  const duration = 600
+  cancelAnimationFrame(raf)
+
+  function tick(now) {
+    const progress = Math.min((now - start) / duration, 1)
+    const ease = 1 - (1 - progress) ** 3
+    const frame = {
+      realtime: Math.round(from.realtime + (next.realtime - from.realtime) * ease),
+      sessions: Math.round(from.sessions + (next.sessions - from.sessions) * ease),
+      people: Math.round(from.people + (next.people - from.people) * ease),
+      views: Math.round(from.views + (next.views - from.views) * ease),
+      bounceRate: Math.round(from.bounceRate + (next.bounceRate - from.bounceRate) * ease),
+    }
+    current = frame
+    display.set({ ...frame, avgTime: target.avgTime || '00:00' })
+    if (progress < 1)
+      raf = requestAnimationFrame(tick)
+  }
+  raf = requestAnimationFrame(tick)
+}
+
+// Re-run whenever the store's stats change (cache hydrate, fetch, poll).
+effect(() => {
+  const s = analytics.stats()
+  if (s)
+    applyStats(s)
+})
 
 onMount(() => {
   analytics.hydrateStatsFromCache()
   analytics.fetchStats()
   const poll = setInterval(() => analytics.fetchStats(), 15000)
-  return () => clearInterval(poll)
+  return () => {
+    clearInterval(poll)
+    cancelAnimationFrame(raf)
+  }
 })
 </script>
 
 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 p-6">
-  @foreach (stats as stat)
-    <div class="stat-card text-center {{ stat.highlight ? 'highlight' : '' }}">
-      <svg class="text-muted mb-2 mx-auto" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        @if (stat.id === 'realtime')
-          <circle cx="12" cy="12" r="3"/>
-        @endif
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ stat.icon }}"/>
-      </svg>
-      <div class="text-2xl font-bold text-text leading-tight" x-text="statValue('{{ stat.id }}')">—</div>
-      <div class="text-xs text-text-2 mt-1 uppercase tracking-wide">{{ stat.label }}</div>
-    </div>
-  @endforeach
+  <div x-for="stat in stats" x-class="cardClass(stat)">
+    <svg class="text-muted mb-2 mx-auto" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle x-show="stat.id === 'realtime'" cx="12" cy="12" r="3"/>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="stat.icon"/>
+    </svg>
+    <div class="text-2xl font-bold text-text leading-tight" x-text="statValue(stat.id)">—</div>
+    <div class="text-xs text-text-2 mt-1 uppercase tracking-wide">{{ stat.label }}</div>
+  </div>
 </div>
 
 <style>
