@@ -59,11 +59,25 @@ const STEALTH_MAP: Record<string, string> = {
 defineStore('dashboard', () => {
   const urlParams = new URLSearchParams(window.location.search)
 
+  // Tabs that show the controls/filters bars (others hide them)
+  const TABS_WITH_CONTROLS = ['dashboard', 'sessions', 'flow', 'live', 'funnels']
+
+  function tabFromPath(): string {
+    const match = window.location.pathname.match(/\/dashboard\/([^/]+)/)
+    return match ? match[1] : 'dashboard'
+  }
+
   // Core state
   const siteId = state(urlParams.get('siteId') || '')
   const apiEndpoint = state(window.ANALYTICS_API_ENDPOINT || window.API_ENDPOINT || window.location.origin)
   const useStealth = state(window.ANALYTICS_STEALTH_MODE ?? (urlParams.get('stealth') === 'true'))
   const dateRange = state('6h')
+  const currentTab = state(tabFromPath())
+
+  // Whether the controls/filters bars should show for the current tab.
+  function controlsVisible(): boolean {
+    return TABS_WITH_CONTROLS.includes(currentTab())
+  }
 
   // Stealth path mapper
   function apiPath(path: string): string {
@@ -145,6 +159,8 @@ defineStore('dashboard', () => {
     apiEndpoint,
     useStealth,
     dateRange,
+    currentTab,
+    controlsVisible,
     apiPath,
     apiUrl,
     dateParams,

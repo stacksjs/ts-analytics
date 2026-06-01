@@ -138,20 +138,8 @@ const cachedStats = loadCachedStats()
 let stats = cachedStats || { realtime: 0, sessions: 0, people: 0, views: 0, avgTime: '00:00', bounceRate: 0, events: 0 }
 const _siteHostname: string | null = null
 
-// Tab state
-let activeTab = 'dashboard'
+// Valid tab ids (used for URL validation; tab chrome lives in DashboardHeader)
 const validTabs = ['dashboard', 'live', 'sessions', 'funnels', 'flow', 'vitals', 'errors', 'insights', 'settings']
-const tabTitles: Record<string, string> = {
-  dashboard: 'Dashboard',
-  live: 'Live View',
-  sessions: 'Sessions',
-  funnels: 'Funnels',
-  flow: 'User Flow',
-  vitals: 'Web Vitals',
-  errors: 'Errors',
-  insights: 'Insights',
-  settings: 'Settings'
-}
 
 // Theme is owned by DashboardHeader (isDark state + data-theme effect + storage).
 
@@ -341,75 +329,17 @@ else {
 
 function switchTab(tab: string, updateHistory = true) {
   if (!validTabs.includes(tab)) tab = 'dashboard'
-  activeTab = tab
-
-  // Update document title based on current tab
-  document.title = `${tabTitles[tab] || 'Dashboard'} - Analytics`
-
+  // Tab chrome (title, active state) and controls/filters visibility are owned
+  // reactively by DashboardHeader + ControlsBar/FiltersBar (dashboard.currentTab).
+  // Tab content is swapped by the stx router; this only maintains history/URL.
   if (updateHistory && siteId) {
     updateUrlForTab(tab)
-  }
-
-  document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.classList.toggle('active', (btn as HTMLElement).dataset.tab === tab)
-  })
-
-  const statsSection = document.querySelector('.stats')
-  const chartBox = document.querySelector('.chart-box')
-  const dashboardPanels = document.getElementById('dashboard-panels')
-  const controlsBar = document.getElementById('controls-bar')
-  const filtersBar = document.getElementById('filters-bar')
-
-  const tabsWithControls = ['dashboard', 'sessions', 'flow', 'live', 'funnels']
-  const showControls = tabsWithControls.includes(tab)
-
-  if (controlsBar) (controlsBar as HTMLElement).style.display = showControls ? 'flex' : 'none'
-  if (filtersBar) (filtersBar as HTMLElement).style.display = showControls ? 'flex' : 'none'
-
-  document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'))
-
-  if (tab === 'dashboard') {
-    if (statsSection) (statsSection as HTMLElement).style.display = 'grid'
-    if (chartBox) (chartBox as HTMLElement).style.display = 'block'
-    if (dashboardPanels) dashboardPanels.style.display = 'block'
-  }
-else {
-    if (statsSection) (statsSection as HTMLElement).style.display = 'none'
-    if (chartBox) (chartBox as HTMLElement).style.display = 'none'
-    if (dashboardPanels) dashboardPanels.style.display = 'none'
-
-    const tabView = document.getElementById(`tab-${tab}`)
-    if (tabView) tabView.classList.remove('hidden')
   }
 }
 
 // Empty-state onboarding + main-content visibility are owned by NoDataMessage
-// (bound to analytics.stats / hasHistoricalData).
-
-// SPA navigation handler — update UI after STX router swaps content
-window.addEventListener('stx:navigate', () => {
-  const tab = getTabFromUrl()
-  activeTab = tab
-  document.title = `${tabTitles[tab] || 'Dashboard'} - Analytics`
-
-  // Update active nav state
-  document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.classList.toggle('active', (btn as HTMLElement).dataset.tab === tab)
-  })
-
-  // Toggle controls visibility (controls are outside #main-content, persist across swaps)
-  const controlsBar = document.getElementById('controls-bar')
-  const filtersBar = document.getElementById('filters-bar')
-  const statsSection = document.querySelector('.stats') as HTMLElement | null
-  const chartBox = document.querySelector('.chart-box') as HTMLElement | null
-  const tabsWithControls = ['dashboard', 'sessions', 'flow', 'live', 'funnels']
-  const showControls = tabsWithControls.includes(tab)
-
-  if (controlsBar) (controlsBar as HTMLElement).style.display = showControls ? 'flex' : 'none'
-  if (filtersBar) (filtersBar as HTMLElement).style.display = showControls ? 'flex' : 'none'
-  if (statsSection) statsSection.style.display = tab === 'dashboard' ? 'grid' : 'none'
-  if (chartBox) chartBox.style.display = tab === 'dashboard' ? 'block' : 'none'
-})
+// (bound to analytics.stats / hasHistoricalData). Tab chrome + controls/filters
+// visibility are owned by DashboardHeader + ControlsBar/FiltersBar.
 
 // Event handlers
 window.addEventListener('popstate', (event) => {

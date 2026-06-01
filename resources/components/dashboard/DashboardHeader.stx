@@ -13,8 +13,20 @@ const dashboard = useStore('dashboard')
 
 const siteName = state<string>('Analytics Dashboard')
 const isDark = state<boolean>(preferredDark())
-const currentTab = state<string>('dashboard')
 const siteId = state<string>('')
+
+// Document titles per tab (mirrors the controller's old tabTitles map).
+const TAB_TITLES: Record<string, string> = {
+  dashboard: 'Dashboard',
+  live: 'Live View',
+  sessions: 'Sessions',
+  funnels: 'Funnels',
+  flow: 'User Flow',
+  vitals: 'Web Vitals',
+  errors: 'Errors',
+  insights: 'Insights',
+  settings: 'Settings',
+}
 
 const tabs: NavTab[] = [
   { id: 'dashboard', label: 'Dashboard', href: '/dashboard' },
@@ -59,16 +71,21 @@ function tabHref(tab: NavTab): string {
 
 function tabClass(tab: NavTab): string {
   const base = 'text-text-2 py-2 px-3 rounded-md text-[0.8125rem] font-medium transition-all duration-150 hover:bg-bg-3 hover:text-text no-underline'
-  return currentTab() === tab.id ? `${base} bg-accent text-white` : base
+  return dashboard.currentTab() === tab.id ? `${base} bg-accent text-white` : base
 }
 
 effect(() => {
   document.documentElement.setAttribute('data-theme', isDark() ? 'dark' : 'light')
 })
 
+// Keep the document title in sync with the active tab.
+effect(() => {
+  document.title = `${TAB_TITLES[dashboard.currentTab()] || 'Dashboard'} - Analytics`
+})
+
 onMount(() => {
   siteId.set(new URLSearchParams(window.location.search).get('siteId') || '')
-  currentTab.set(detectCurrentTab())
+  dashboard.currentTab.set(detectCurrentTab())
 
   window.headerSetSiteName = (name: string) => siteName.set(name || 'Analytics Dashboard')
   window.dashboardHeader = {
@@ -77,21 +94,24 @@ onMount(() => {
     isDarkTheme: () => isDark(),
   }
 
-  const onNavigate = (): void => {
-    currentTab.set(detectCurrentTab())
+  // Sync the active tab + siteId from the URL after SPA navigation or history nav.
+  const syncFromUrl = (): void => {
+    dashboard.currentTab.set(detectCurrentTab())
     siteId.set(new URLSearchParams(window.location.search).get('siteId') || '')
   }
-  window.addEventListener('stx:navigate', onNavigate)
+  window.addEventListener('stx:navigate', syncFromUrl)
+  window.addEventListener('popstate', syncFromUrl)
 
   return () => {
-    window.removeEventListener('stx:navigate', onNavigate)
+    window.removeEventListener('stx:navigate', syncFromUrl)
+    window.removeEventListener('popstate', syncFromUrl)
   }
 })
 
 provide('dashboardHeader', {
   siteName,
   isDark,
-  currentTab,
+  currentTab: dashboard.currentTab,
   siteId,
   toggleTheme,
   goBack,
