@@ -1,24 +1,38 @@
-<script server>
+<script client>
 /**
  * NoDataMessage Component
  *
- * Displays instructions when no analytics data is available.
- * Props: siteId, apiEndpoint (passed from parent)
+ * Onboarding instructions shown when a site has never collected data. Visibility
+ * and the tracking snippet are bound to the analytics store; when shown, the
+ * dashboard's main content is hidden so only the onboarding appears.
  */
+const analytics = useStore('analytics')
+const dashboard = useStore('dashboard')
 
-interface NoDataMessageProps {
-  siteId?: string
-  apiEndpoint?: string
+// Show only once stats have loaded, there's no data now, and the site has never
+// had data this session (mirrors the controller's siteHasHistoricalData gate).
+function showOnboarding(): boolean {
+  const s = analytics.stats()
+  if (!s || analytics.hasHistoricalData()) return false
+  return !(s.views > 0 || s.sessions > 0 || s.people > 0)
 }
 
-// Props are automatically available from parent context
+function trackingSnippet(): string {
+  return `<script src="${dashboard.apiEndpoint()}/sites/${dashboard.siteId()}/script" defer><\/script>`
+}
+
+// The onboarding replaces the dashboard body, so hide #main-content while shown.
+effect(() => {
+  const main = document.getElementById('main-content')
+  if (main) main.style.display = showOnboarding() ? 'none' : ''
+})
 </script>
 
-<div id="no-data-msg" class="bg-bg-2 rounded-lg p-12 text-center border border-border mb-6" style="display:none">
+<div id="no-data-msg" class="bg-bg-2 rounded-lg p-12 text-center border border-border mb-6" style="display:none" x-show="showOnboarding()">
   <Icon name="bar-chart-2" size="48" class="text-warning mb-4 mx-auto" />
   <h3 class="mb-2 text-warning">No analytics data yet</h3>
   <p class="text-text-2 mb-4">Add the tracking script to your website to start collecting data.</p>
-  <code id="tracking-script" class="block bg-bg p-4 rounded-md text-xs mt-4 text-accent-2 break-all text-left"></code>
+  <code id="tracking-script" class="block bg-bg p-4 rounded-md text-xs mt-4 text-accent-2 break-all text-left" x-text="trackingSnippet()"></code>
   <div class="flex items-start gap-4 text-left mt-6 pt-6 border-t border-border">
     <div class="bg-accent text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-semibold flex-shrink-0">1</div>
     <div class="flex-1">

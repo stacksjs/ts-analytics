@@ -23,6 +23,10 @@ defineStore('analytics', () => {
   // Summary stats (realtime/sessions/visitors/views/avg-time/bounce-rate)
   const stats = state(null)
 
+  // True once this site has ever shown data (cache hit or a fetch with data).
+  // Gates the onboarding empty-state so it doesn't flash on a zero-data range.
+  const hasHistoricalData = state(false)
+
   // Chart data: pageviews-over-time series + annotation markers
   const timeSeries = state([])
   const annotations = state([])
@@ -112,6 +116,7 @@ defineStore('analytics', () => {
       const data = JSON.parse(cached)
       if (data.timestamp && Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
         stats.set(data.stats)
+        hasHistoricalData.set(true)
       }
     } catch (e) {
       // ignore malformed cache
@@ -139,6 +144,9 @@ defineStore('analytics', () => {
         events: statsRes.events || 0,
       }
       stats.set(summary)
+      if (summary.views > 0 || summary.sessions > 0 || summary.people > 0) {
+        hasHistoricalData.set(true)
+      }
       try {
         localStorage.setItem(`ts-analytics-stats-${dashboard.siteId()}`, JSON.stringify({ stats: summary, timestamp: Date.now() }))
       } catch (e) {
@@ -198,6 +206,7 @@ defineStore('analytics', () => {
   return {
     loading,
     stats,
+    hasHistoricalData,
     timeSeries,
     annotations,
     hydrateStatsFromCache,

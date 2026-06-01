@@ -137,7 +137,6 @@ catch (e) {}
 const cachedStats = loadCachedStats()
 let stats = cachedStats || { realtime: 0, sessions: 0, people: 0, views: 0, avgTime: '00:00', bounceRate: 0, events: 0 }
 const _siteHostname: string | null = null
-let siteHasHistoricalData = cachedStats ? true : false
 
 // Tab state
 let activeTab = 'dashboard'
@@ -180,8 +179,6 @@ function selectSite(id: string, name: string) {
   if (cached) {
     stats = cached
     previousStats = null
-    siteHasHistoricalData = true
-    renderDashboard(false)
   }
 
   fetchDashboardData()
@@ -287,11 +284,6 @@ async function fetchDashboardData() {
     }
     saveCachedStats(stats)
 
-    if (stats.views > 0 || stats.sessions > 0) {
-      siteHasHistoricalData = true
-    }
-
-    renderDashboard(true)
     // ChartSection owns time-series/annotations data; nudge it to refresh too.
     window.refreshChart?.()
   }
@@ -380,7 +372,6 @@ function switchTab(tab: string, updateHistory = true) {
     if (statsSection) (statsSection as HTMLElement).style.display = 'grid'
     if (chartBox) (chartBox as HTMLElement).style.display = 'block'
     if (dashboardPanels) dashboardPanels.style.display = 'block'
-    renderDashboard()
   }
 else {
     if (statsSection) (statsSection as HTMLElement).style.display = 'none'
@@ -392,28 +383,8 @@ else {
   }
 }
 
-function hasAnyData() {
-  return stats.views > 0 || stats.sessions > 0 || stats.people > 0
-}
-
-function renderDashboard(_animate = false) {
-  // Stat cards, realtime count and last-updated are rendered reactively by the
-  // StatsRow / ControlsBar components (bound to the analytics store). This
-  // controller only handles the empty-state gating below.
-  const noDataMsg = document.getElementById('no-data-msg')
-  const mainContent = document.getElementById('main-content')
-
-  if (!hasAnyData() && !siteHasHistoricalData) {
-    if (noDataMsg) noDataMsg.style.display = 'block'
-    if (mainContent) mainContent.style.display = 'none'
-    const trackingScriptEl = document.getElementById('tracking-script')
-    if (trackingScriptEl) trackingScriptEl.textContent = '<script src="' + API_ENDPOINT + '/sites/' + siteId + '/script" defer></' + 'script>'
-    return
-  }
-
-  if (noDataMsg) noDataMsg.style.display = 'none'
-  if (mainContent) mainContent.style.display = 'block'
-}
+// Empty-state onboarding + main-content visibility are owned by NoDataMessage
+// (bound to analytics.stats / hasHistoricalData).
 
 // SPA navigation handler — update UI after STX router swaps content
 window.addEventListener('stx:navigate', () => {
@@ -474,9 +445,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (cached) {
       stats = cached
       previousStats = null
-      if (initialTab === 'dashboard') {
-        renderDashboard(false)
-      }
     }
 
     await fetchDashboardData()
