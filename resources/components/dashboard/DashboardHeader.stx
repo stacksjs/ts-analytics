@@ -9,6 +9,8 @@ function preferredDark(): boolean {
   return !window.matchMedia('(prefers-color-scheme: light)').matches
 }
 
+const dashboard = useStore('dashboard')
+
 const siteName = state<string>('Analytics Dashboard')
 const isDark = state<boolean>(preferredDark())
 const currentTab = state<string>('dashboard')
@@ -40,6 +42,9 @@ function toggleTheme(): void {
 }
 
 function goBack(): void {
+  // Clear the source-of-truth siteId so store-bound components reset; the
+  // controller still handles shell visibility + history.
+  dashboard.siteId.set('')
   if (window.goBack) {
     window.goBack()
   } else {

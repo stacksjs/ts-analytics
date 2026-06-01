@@ -1,4 +1,6 @@
 <script client>
+const dashboard = useStore('dashboard')
+
 const loading = state(true)
 const error = state(null)
 const sites = state([])
@@ -50,8 +52,11 @@ async function handleCreate(e) {
     newName.set('')
     newDomain.set('')
     await fetchSites()
-    if (data.site && window.selectSite) {
-      window.selectSite(data.site.id, data.site.name)
+    if (data.site) {
+      // Store is the source of truth for siteId so store-bound panels/chart pick
+      // up the new site; the controller still orchestrates the shell + fetches.
+      dashboard.siteId.set(data.site.id)
+      if (window.selectSite) window.selectSite(data.site.id, data.site.name)
     }
   } catch (e) {
     createError.set('Failed to create site')
@@ -61,6 +66,9 @@ async function handleCreate(e) {
 }
 
 function pickSite(id, label) {
+  // Store is the source of truth for siteId (store-bound components react to it);
+  // the controller still handles shell visibility + the initial fetch burst.
+  dashboard.siteId.set(id)
   if (window.selectSite) window.selectSite(id, label)
 }
 
