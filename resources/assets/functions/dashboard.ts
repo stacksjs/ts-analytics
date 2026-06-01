@@ -103,7 +103,6 @@ let currentSite: any = null
 let dateRange = '6h'
 let isLoading = false
 let refreshInterval: ReturnType<typeof setInterval> | null = null
-let previousStats: any = null
 
 // Expose globals for STX panel components
 window.API_ENDPOINT = API_ENDPOINT
@@ -136,7 +135,6 @@ catch (e) {}
 
 const cachedStats = loadCachedStats()
 let stats = cachedStats || { realtime: 0, sessions: 0, people: 0, views: 0, avgTime: '00:00', bounceRate: 0, events: 0 }
-const _siteHostname: string | null = null
 
 // Valid tab ids (used for URL validation; tab chrome lives in DashboardHeader)
 const validTabs = ['dashboard', 'live', 'sessions', 'funnels', 'flow', 'vitals', 'errors', 'insights', 'settings']
@@ -166,7 +164,6 @@ function selectSite(id: string, name: string) {
   const cached = loadCachedStats()
   if (cached) {
     stats = cached
-    previousStats = null
   }
 
   fetchDashboardData()
@@ -190,21 +187,9 @@ function goBack() {
   if (window.fetchSites) window.fetchSites()
 }
 
-function navigateTo(section: string) {
-  const url = `/dashboard/${section}?siteId=${encodeURIComponent(siteId)}`
-  if (window.stxRouter?.navigate) {
-    window.stxRouter.navigate(url)
-  }
-else {
-    navigate(url, true)
-  }
-}
-
 // Date range handling
 function setDateRange(range: string) {
   dateRange = range
-  document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'))
-  document.querySelector(`[data-range="${range}"]`)?.classList.add('active')
   fetchDashboardData()
   refreshAllPanels()
 }
@@ -260,7 +245,6 @@ async function fetchDashboardData() {
     ])
     const [statsRes, realtimeRes] = results
 
-    previousStats = { ...stats }
     stats = {
       realtime: realtimeRes.currentVisitors || 0,
       sessions: statsRes.sessions || 0,
@@ -291,11 +275,6 @@ finally {
       refreshBtn?.classList.remove('spinning')
     }, remainingTime)
   }
-}
-
-function fmt(n: number | undefined | null) {
-  if (n === undefined || n === null) return '0'
-  return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'k' : String(n)
 }
 
 // Tab navigation
@@ -374,7 +353,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cached = loadCachedStats()
     if (cached) {
       stats = cached
-      previousStats = null
     }
 
     await fetchDashboardData()
@@ -395,6 +373,5 @@ Object.assign(window, {
   goBack,
   setDateRange,
   switchTab,
-  navigateTo,
   fetchDashboardData,
 })
