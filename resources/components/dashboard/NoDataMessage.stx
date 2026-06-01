@@ -18,7 +18,11 @@ function showOnboarding(): boolean {
 }
 
 function trackingSnippet(): string {
-  return `<script src="${dashboard.apiEndpoint()}/sites/${dashboard.siteId()}/script" defer><\/script>`
+  // Assemble the closing tag from parts so the literal "</script>" never appears
+  // in the compiled source — otherwise it terminates this inlined <script> block
+  // early and breaks the whole page bundle.
+  const endTag = ['<', '/script>'].join('')
+  return `<script src="${dashboard.apiEndpoint()}/sites/${dashboard.siteId()}/script" defer>${endTag}`
 }
 
 // The onboarding replaces the dashboard body, so hide #main-content while shown.
