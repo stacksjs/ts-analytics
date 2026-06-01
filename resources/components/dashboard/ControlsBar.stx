@@ -2,12 +2,23 @@
 import type { DateRange } from '../../types/dashboard'
 
 const dashboard = useStore('dashboard')
+const analytics = useStore('analytics')
 
 const activeRange = state<string>('6h')
 const showComparison = state<boolean>(false)
-const realtimeCount = state<number>(0)
 const lastUpdated = state<string>('')
 const isRefreshing = state<boolean>(false)
+
+// Realtime visitor count comes from the shared stats; reflect singular/plural.
+function realtimeLabel(): string {
+  const n = analytics.stats()?.realtime ?? 0
+  return n === 1 ? '1 visitor online' : `${n} visitors online`
+}
+
+// Stamp "last updated" whenever fresh stats land.
+effect(() => {
+  if (analytics.stats()) lastUpdated.set(`Updated ${new Date().toLocaleTimeString()}`)
+})
 
 const ranges: DateRange[] = [
   { id: '1h', label: '1h' },
@@ -74,8 +85,6 @@ function refreshBtnClass(): string {
 }
 
 onMount(() => {
-  window.updateRealtimeCount = (count: number) => realtimeCount.set(count)
-  window.updateLastUpdated = (time: string) => lastUpdated.set(time)
   window.controlsSetDateRange = (range: string) => activeRange.set(range)
   window.controlsBar = {
     setRange,
@@ -96,7 +105,6 @@ onMount(() => {
 provide('controlsBar', {
   activeRange,
   showComparison,
-  realtimeCount,
   lastUpdated,
   isRefreshing,
   setRange,
@@ -118,7 +126,7 @@ provide('controlsBar', {
   <div class="flex items-center gap-3 max-sm:justify-between">
     <div class="flex items-center gap-2 py-1.5 px-3 bg-success/10 rounded-full text-xs font-medium text-success">
       <span class="pulse"></span>
-      <span id="realtime-count">{{ realtimeCount() }} visitors online</span>
+      <span id="realtime-count">{{ realtimeLabel() }}</span>
     </div>
     <span id="last-updated" class="text-xs text-muted" x-show="lastUpdated()">{{ lastUpdated() }}</span>
     <button id="refresh-btn" x-class="refreshBtnClass()" @click="refresh()" title="Refresh data">

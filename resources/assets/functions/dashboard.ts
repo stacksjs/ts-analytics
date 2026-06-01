@@ -102,7 +102,6 @@ let availableSites: any[] = []
 let currentSite: any = null
 let dateRange = '6h'
 let isLoading = false
-let lastUpdated: Date | null = null
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 let previousStats: any = null
 
@@ -287,7 +286,6 @@ async function fetchDashboardData() {
       events: statsRes.events || 0
     }
     saveCachedStats(stats)
-    lastUpdated = new Date()
 
     if (stats.views > 0 || stats.sessions > 0) {
       siteHasHistoricalData = true
@@ -399,17 +397,9 @@ function hasAnyData() {
 }
 
 function renderDashboard(_animate = false) {
-  // Stat cards are rendered reactively by the StatsRow component (bound to the
-  // analytics store). This controller only maintains the realtime-count
-  // indicator, last-updated label, and empty-state handling below.
-  const realtimeCountEl = document.getElementById('realtime-count')
-  if (realtimeCountEl) realtimeCountEl.textContent = stats.realtime === 1 ? '1 visitor online' : `${stats.realtime} visitors online`
-
-  if (lastUpdated) {
-    const updatedEl = document.getElementById('last-updated')
-    if (updatedEl) updatedEl.textContent = `Updated ${lastUpdated.toLocaleTimeString()}`
-  }
-
+  // Stat cards, realtime count and last-updated are rendered reactively by the
+  // StatsRow / ControlsBar components (bound to the analytics store). This
+  // controller only handles the empty-state gating below.
   const noDataMsg = document.getElementById('no-data-msg')
   const mainContent = document.getElementById('main-content')
 
