@@ -96,8 +96,10 @@ onMount(() => {
 
   // Sync the active tab + siteId from the URL after SPA navigation or history nav.
   const syncFromUrl = (): void => {
+    const urlSiteId = new URLSearchParams(window.location.search).get('siteId') || ''
     dashboard.currentTab.set(detectCurrentTab())
-    siteId.set(new URLSearchParams(window.location.search).get('siteId') || '')
+    dashboard.siteId.set(urlSiteId)
+    siteId.set(urlSiteId)
   }
   window.addEventListener('stx:navigate', syncFromUrl)
   window.addEventListener('popstate', syncFromUrl)

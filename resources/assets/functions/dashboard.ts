@@ -98,8 +98,6 @@ window.USE_STEALTH = USE_STEALTH
 
 let siteName = 'Analytics Dashboard'
 let siteId = SITE_ID
-let availableSites: any[] = []
-let currentSite: any = null
 let dateRange = '6h'
 let isLoading = false
 let refreshInterval: ReturnType<typeof setInterval> | null = null
@@ -148,14 +146,9 @@ function selectSite(id: string, name: string) {
   siteId = id
   window.siteId = id
   siteName = name || 'Analytics Dashboard'
-  availableSites = window._availableSites || availableSites
-  currentSite = availableSites.find(s => s.id === id)
-  const sel = document.getElementById('site-selector')
-  const dash = document.getElementById('dashboard')
-  const nameEl = document.getElementById('current-site-name')
-  if (sel) sel.style.display = 'none'
-  if (dash) dash.style.display = 'block'
-  if (nameEl) nameEl.textContent = siteName
+  // Shell visibility is reactive (SiteSelector effect on the store siteId, set by
+  // pickSite). Update the header name through its reactive setter.
+  if (window.headerSetSiteName) window.headerSetSiteName(siteName)
 
   const url = new URL(`${window.location.origin}/dashboard`)
   url.searchParams.set('siteId', id)
@@ -176,11 +169,7 @@ function goBack() {
   if (refreshInterval) clearInterval(refreshInterval)
   siteId = ''
   window.siteId = ''
-  currentSite = null
-  const sel = document.getElementById('site-selector')
-  const dash = document.getElementById('dashboard')
-  if (sel) sel.style.display = 'flex'
-  if (dash) dash.style.display = 'none'
+  // Shell visibility is reactive (SiteSelector effect on the store siteId).
   const url = new URL(window.location.href)
   url.searchParams.delete('siteId')
   window.history.pushState({}, '', url)
@@ -336,19 +325,12 @@ else if (!siteId) {
 })
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const selectorEl = document.getElementById('site-selector')
-  const dashboardEl = document.getElementById('dashboard')
-
+  // Shell visibility is reactive (SiteSelector effect on the store siteId) and the
+  // layout's inline pre-paint sets the initial state. This bootstrap only kicks
+  // off the data fetch + refresh loop for a site loaded directly via the URL.
   if (siteId) {
-    currentSite = { id: siteId }
-    if (selectorEl) selectorEl.style.display = 'none'
-
     const initialTab = getTabFromUrl()
-
-    // Switch to the correct tab BEFORE showing the dashboard to avoid flash
     switchTab(initialTab, false)
-
-    if (dashboardEl) dashboardEl.style.display = 'block'
 
     const cached = loadCachedStats()
     if (cached) {
@@ -360,11 +342,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     updateUrlForTab(initialTab, true)
   }
-else {
-    if (selectorEl) selectorEl.style.display = 'flex'
-    if (dashboardEl) dashboardEl.style.display = 'none'
-    // SiteSelector component handles fetchSites via onMount
-  }
+  // No-site case: SiteSelector renders the selector and fetches sites via onMount.
 })
 
 // Expose functions to global scope

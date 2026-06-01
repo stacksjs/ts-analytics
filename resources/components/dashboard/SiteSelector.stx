@@ -66,11 +66,21 @@ async function handleCreate(e) {
 }
 
 function pickSite(id, label) {
-  // Store is the source of truth for siteId (store-bound components react to it);
-  // the controller still handles shell visibility + the initial fetch burst.
+  // Store is the source of truth for siteId — the shell effect below reacts to it.
   dashboard.siteId.set(id)
   if (window.selectSite) window.selectSite(id, label)
 }
+
+// Shell visibility: show the dashboard when a site is selected, the selector
+// otherwise. setProperty('important') overrides the layout's inline pre-paint
+// style so this stays authoritative across SPA transitions.
+effect(() => {
+  const hasSite = !!dashboard.siteId()
+  const sel = document.getElementById('site-selector')
+  const dash = document.getElementById('dashboard')
+  if (sel) sel.style.setProperty('display', hasSite ? 'none' : 'flex', 'important')
+  if (dash) dash.style.setProperty('display', hasSite ? 'flex' : 'none', 'important')
+})
 
 onMount(() => {
   fetchSites()
