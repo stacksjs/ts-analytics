@@ -149,8 +149,8 @@ onMount(() => {
             <Icon name="globe" size="24" />
           </div>
           <div class="site-info">
-            <span class="site-name">{{ site.name || 'Unnamed' }}</span>
-            <span class="site-domain">{{ site.domains?.[0] || site.id }}</span>
+            <span class="site-name" x-text="site.name || 'Unnamed'"></span>
+            <span class="site-domain" x-text="site.domains?.[0] || site.id"></span>
           </div>
           <Icon name="chevron-right" size="20" class="site-arrow" />
         </button>
