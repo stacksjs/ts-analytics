@@ -18,11 +18,14 @@ function showOnboarding(): boolean {
 }
 
 function trackingSnippet(): string {
-  // Assemble the closing tag from parts so the literal "</script>" never appears
-  // in the compiled source — otherwise it terminates this inlined <script> block
-  // early and breaks the whole page bundle.
-  const endTag = ['<', '/script>'].join('')
-  return `<script src="${dashboard.apiEndpoint()}/sites/${dashboard.siteId()}/script" defer>${endTag}`
+  // Build BOTH tags from parts so no literal script-tag text appears in this
+  // component's source. A literal opening or closing tag corrupts stx's
+  // script-block parser (it emits this block raw, leaking TS), and a literal
+  // closing tag also terminates the inlined block in the browser.
+  const open = ['<', 'script'].join('')
+  const close = ['<', '/script>'].join('')
+  const url = `${dashboard.apiEndpoint()}/sites/${dashboard.siteId()}/script`
+  return `${open} src="${url}" defer>${close}`
 }
 
 // The onboarding replaces the dashboard body, so hide #main-content while shown.
