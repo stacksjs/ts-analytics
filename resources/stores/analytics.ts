@@ -15,7 +15,15 @@ import { defineStore, useStore, state } from '@stacksjs/stx'
  */
 
 defineStore('analytics', () => {
-  const dashboard = useStore('dashboard')
+  // Resolve the dashboard store LAZILY. Store factories run eagerly at
+  // defineStore() time in whatever order they're bundled, and this one can run
+  // before 'dashboard' is registered — an eager useStore('dashboard') would throw
+  // and abort the whole store-registration script (leaving stores unregistered →
+  // "Store not found"). The proxy defers the lookup to first property access, by
+  // which point every store is registered.
+  const dashboard: any = new Proxy({}, {
+    get: (_target, key) => (useStore('dashboard') as any)[key],
+  })
 
   // Shared loading state (replaces per-panel `const loading = state(true)`)
   const loading = state(true)
