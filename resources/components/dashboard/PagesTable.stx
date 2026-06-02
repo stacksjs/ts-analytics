@@ -47,7 +47,7 @@ function getPageUrl(path: string): string | null {
       </tr>
     </thead>
     <tbody>
-      <tr x-for="page in pages()" @loading="loading()">
+      <tr x-for="page in pages" @loading="loading()">
         <td class="cell-name" :title="page.path">
           <a x-show="getPageUrl(page.path)"
              x-href="getPageUrl(page.path)"

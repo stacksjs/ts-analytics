@@ -252,7 +252,7 @@ onMount(() => {
     </div>
 
     <div class="flex flex-col gap-px bg-border border border-border rounded-lg overflow-hidden mt-2">
-      <div x-for="e in filteredErrors()">
+      <div x-for="e in filteredErrors">
         <a x-href="errorHref(e)" x-class="errorRowClass(e)">
           <div x-class="severityBarClass(e)"></div>
           <div class="flex-1 min-w-0 py-3 px-4 flex flex-col gap-1.5">

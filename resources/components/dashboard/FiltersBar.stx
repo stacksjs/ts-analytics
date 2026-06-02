@@ -78,7 +78,7 @@ onMount(() => {
     x-model="countryFilter"
     @change="applyFilter('country', countryFilter())"
   >
-    <option x-for="country in countries()" x-value="country.value">{{ country.label }}</option>
+    <option x-for="country in countries" x-value="country.value">{{ country.label }}</option>
     <option x-show="countries().length === 0" value="">All Countries</option>
   </select>
 
@@ -88,7 +88,7 @@ onMount(() => {
     x-model="deviceFilter"
     @change="applyFilter('device', deviceFilter())"
   >
-    <option x-for="device in devices()" x-value="device.value">{{ device.label }}</option>
+    <option x-for="device in devices" x-value="device.value">{{ device.label }}</option>
   </select>
 
   <select
@@ -97,7 +97,7 @@ onMount(() => {
     x-model="browserFilter"
     @change="applyFilter('browser', browserFilter())"
   >
-    <option x-for="browser in browsers()" x-value="browser.value">{{ browser.label }}</option>
+    <option x-for="browser in browsers" x-value="browser.value">{{ browser.label }}</option>
     <option x-show="browsers().length === 0" value="">All Browsers</option>
   </select>
 </div>

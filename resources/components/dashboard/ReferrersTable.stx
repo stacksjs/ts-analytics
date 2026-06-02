@@ -44,7 +44,7 @@ function getDomain(source: string): string {
       </tr>
     </thead>
     <tbody>
-      <tr x-for="ref in referrers()" @loading="loading()">
+      <tr x-for="ref in referrers" @loading="loading()">
         <td class="py-2 text-text">
           <a x-show="isExternalLink(ref.source ? ref.source : 'Direct')"
              x-href="getHref(ref.source)"

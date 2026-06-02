@@ -94,7 +94,7 @@ onMount(() => {
         No insights available yet. Check back when you have more data.
       </div>
 
-      <div x-for="insight in insights()" class="panel flex gap-4 items-start">
+      <div x-for="insight in insights" class="panel flex gap-4 items-start">
         <div x-class="insightIconClass(insight)">
           <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(insight.type)" />

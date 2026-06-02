@@ -86,7 +86,7 @@ window.refreshGoalsPanel = loadGoals
       </tr>
     </thead>
     <tbody>
-      <tr x-for="goal in goals()" class="goal-row">
+      <tr x-for="goal in goals" class="goal-row">
         <td class="font-medium">{{ goal.name }}</td>
         <td>
           <span x-class="getTypeBadgeClass(goal.type)">{{ goal.type }}</span>

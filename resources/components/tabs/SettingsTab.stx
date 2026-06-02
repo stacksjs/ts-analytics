@@ -402,7 +402,7 @@ onMount(() => {
         <p class="text-xs text-muted mb-3">Get notified when metrics exceed thresholds.</p>
         <div class="flex flex-col gap-2">
           <p x-show="settings().alerts.length === 0" class="text-xs text-muted italic">No alerts configured.</p>
-          <div x-for="alert in settings().alerts" class="flex justify-between items-center p-2 bg-bg rounded">
+          <div x-for="alert in settings.alerts" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ alert.metric }}</div>
               <div class="text-[0.6875rem] text-muted">Threshold: {{ alert.threshold }} → {{ alert.email }}</div>
@@ -420,7 +420,7 @@ onMount(() => {
         <p class="text-xs text-muted mb-3">Schedule automated email reports.</p>
         <div class="flex flex-col gap-2">
           <p x-show="settings().emailReports.length === 0" class="text-xs text-muted italic">No email reports scheduled.</p>
-          <div x-for="report in settings().emailReports" class="flex justify-between items-center p-2 bg-bg rounded">
+          <div x-for="report in settings.emailReports" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ report.email }}</div>
               <div class="text-[0.6875rem] text-muted">{{ report.frequency }}</div>
@@ -438,7 +438,7 @@ onMount(() => {
         <p class="text-xs text-muted mb-3">Monitor your site availability.</p>
         <div class="flex flex-col gap-2">
           <p x-show="settings().uptimeMonitors.length === 0" class="text-xs text-muted italic">No uptime monitors configured.</p>
-          <div x-for="monitor in settings().uptimeMonitors" class="flex justify-between items-center p-2 bg-bg rounded">
+          <div x-for="monitor in settings.uptimeMonitors" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <code class="text-[0.6875rem] text-muted break-all">{{ monitor.url }}</code>
               <div class="text-[0.6875rem] text-muted">Every {{ monitor.interval }}min &bull; {{ monitor.status || 'Pending' }}</div>
@@ -459,7 +459,7 @@ onMount(() => {
         <p class="text-xs text-muted mb-3">Manage team access to this site.</p>
         <div class="flex flex-col gap-2">
           <p x-show="settings().teamMembers.length === 0" class="text-xs text-muted italic">No team members added.</p>
-          <div x-for="member in settings().teamMembers" class="flex justify-between items-center p-2 bg-bg rounded">
+          <div x-for="member in settings.teamMembers" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ member.email }}</div>
               <div class="text-[0.6875rem] text-muted">{{ member.role }}</div>
@@ -477,7 +477,7 @@ onMount(() => {
         <p class="text-xs text-muted mb-3">Send real-time data to external services.</p>
         <div class="flex flex-col gap-2">
           <p x-show="settings().webhooks.length === 0" class="text-xs text-muted italic">No webhooks configured.</p>
-          <div x-for="webhook in settings().webhooks" class="flex justify-between items-center p-2 bg-bg rounded">
+          <div x-for="webhook in settings.webhooks" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <code class="text-[0.6875rem] text-muted break-all">{{ webhook.url }}</code>
               <div class="text-[0.6875rem] text-muted">{{ (webhook.events || []).join(', ') }}</div>
@@ -495,7 +495,7 @@ onMount(() => {
         <p class="text-xs text-muted mb-3">Set performance thresholds for alerts.</p>
         <div class="flex flex-col gap-2">
           <p x-show="settings().perfBudgets.length === 0" class="text-xs text-muted italic">No performance budgets set.</p>
-          <div x-for="budget in settings().perfBudgets" class="flex justify-between items-center p-2 bg-bg rounded">
+          <div x-for="budget in settings.perfBudgets" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
               <div class="text-[0.8125rem] font-medium text-text">{{ budget.metric }}</div>
               <div class="text-[0.6875rem] text-muted">Threshold: {{ budget.threshold }}{{ budget.metric === 'CLS' ? '' : 'ms' }}</div>

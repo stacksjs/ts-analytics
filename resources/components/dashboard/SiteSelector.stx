@@ -129,7 +129,7 @@ onMount(() => {
 
       <div x-show="sites().length > 0" class="site-list-section">
         <h3 class="section-label">Your Sites</h3>
-        <button x-for="site in sites()" class="site-card" @click="pickSite(site.id, site.name || '')">
+        <button x-for="site in sites" class="site-card" @click="pickSite(site.id, site.name || '')">
           <div class="site-icon">
             <Icon name="globe" size="24" />
           </div>

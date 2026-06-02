@@ -190,7 +190,7 @@ onMount(() => {
       {{ currentAnalysis().totalVisitors }} visitors entered &bull; {{ currentAnalysis().conversionRate }}% overall conversion
     </p>
     <div class="funnel-steps-analysis flex gap-2 items-stretch flex-wrap">
-      <div x-for="(step, index) in (currentAnalysis().steps || [])" class="analysis-step-wrapper flex items-center gap-2 flex-1 min-w-[120px]">
+      <div x-for="(step, index) in (currentAnalysis?.steps || [])" class="analysis-step-wrapper flex items-center gap-2 flex-1 min-w-[120px]">
         <div class="flex-1 text-center">
           <div class="bg-bg-2 border border-border rounded-lg p-4 mb-2">
             <div class="text-2xl font-semibold text-text">{{ step.visitors }}</div>
@@ -215,7 +215,7 @@ onMount(() => {
       </button>
     </div>
 
-    <div x-for="funnel in funnels()" class="bg-bg-2 border border-border rounded-lg p-4 mb-3">
+    <div x-for="funnel in funnels" class="bg-bg-2 border border-border rounded-lg p-4 mb-3">
       <div class="flex justify-between items-center mb-3">
         <h4 class="text-sm font-semibold text-text m-0">{{ funnel.name }}</h4>
         <div class="flex gap-1">

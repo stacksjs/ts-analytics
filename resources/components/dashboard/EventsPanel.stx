@@ -53,7 +53,7 @@ onMount(() => {
   </div>
 
   <div class="flex flex-col gap-3">
-    <div x-for="event in events()" @loading="loading()" class="flex flex-col gap-1">
+    <div x-for="event in events" @loading="loading()" class="flex flex-col gap-1">
       <div class="flex justify-between items-center">
         <span class="text-[0.8125rem] text-text font-medium truncate">{{ event.name }}</span>
         <span class="text-xs text-muted shrink-0 ml-2">{{ getPercentage(event.count ? event.count : 0) }}%</span>
