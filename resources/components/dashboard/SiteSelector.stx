@@ -72,8 +72,9 @@ function pickSite(id, label) {
 }
 
 // Show the dashboard when a site is selected, the selector otherwise.
-// setProperty('important') overrides the layout's inline pre-paint <style> so this
-// stays authoritative across SPA transitions.
+// setProperty('important') overrides the layout's inline pre-paint style rule so
+// this stays authoritative across SPA transitions. (No literal tag text in this
+// comment — it would corrupt stx's component block parsing.)
 function applyShellVisibility() {
   const hasSite = !!dashboard.siteId()
   const sel = document.getElementById('site-selector')
