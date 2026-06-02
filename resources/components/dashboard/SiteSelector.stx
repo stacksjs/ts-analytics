@@ -71,18 +71,28 @@ function pickSite(id, label) {
   if (window.selectSite) window.selectSite(id, label)
 }
 
-// Shell visibility: show the dashboard when a site is selected, the selector
-// otherwise. setProperty('important') overrides the layout's inline pre-paint
-// style so this stays authoritative across SPA transitions.
-effect(() => {
+// Show the dashboard when a site is selected, the selector otherwise.
+// setProperty('important') overrides the layout's inline pre-paint <style> so this
+// stays authoritative across SPA transitions.
+function applyShellVisibility() {
   const hasSite = !!dashboard.siteId()
   const sel = document.getElementById('site-selector')
   const dash = document.getElementById('dashboard')
   if (sel) sel.style.setProperty('display', hasSite ? 'none' : 'flex', 'important')
   if (dash) dash.style.setProperty('display', hasSite ? 'flex' : 'none', 'important')
+}
+
+// Reactive: re-apply on every site change (pick / create / goBack transitions).
+effect(() => {
+  dashboard.siteId()
+  applyShellVisibility()
 })
 
 onMount(() => {
+  // Re-apply now that this component's #site-selector root is actually mounted —
+  // the top-level effect's first run happens before the root is attached, so on a
+  // no-siteId load it would otherwise leave the selector hidden (black page).
+  applyShellVisibility()
   fetchSites()
   window.fetchSites = fetchSites
 })
