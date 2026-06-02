@@ -9,14 +9,18 @@ const newDomain = state('')
 const createError = state(null)
 const creating = state(false)
 
-const API_ENDPOINT = window.API_ENDPOINT || window.ANALYTICS_API_ENDPOINT || window.location.origin
-const apiPath = window.apiPath || (u => u)
+// Build the /api/sites URL at call time via the store (resolves the endpoint
+// lazily). Capturing window.API_ENDPOINT at eval time gets the origin fallback,
+// because the layout sets window.ANALYTICS_API_ENDPOINT after components init.
+function sitesUrl(): string {
+  return dashboard.apiPath(`${dashboard.apiEndpoint()}/api/sites`)
+}
 
 async function fetchSites() {
   loading.set(true)
   error.set(null)
   try {
-    const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites`))
+    const res = await fetch(sitesUrl())
     if (!res.ok) throw new Error('Failed to fetch')
     const data = await res.json()
     sites.set(data.sites || [])
@@ -39,7 +43,7 @@ async function handleCreate(e) {
   creating.set(true)
   createError.set(null)
   try {
-    const res = await fetch(apiPath(`${API_ENDPOINT}/api/sites`), {
+    const res = await fetch(sitesUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, domain: newDomain().trim() || undefined }),

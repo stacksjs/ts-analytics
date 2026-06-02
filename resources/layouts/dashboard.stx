@@ -16,7 +16,7 @@
   })();
 </script>
 
-<script>window.ANALYTICS_API_ENDPOINT = '{{ $env.STX_PUBLIC_API_ENDPOINT || "" }}';</script>
+<script>window.ANALYTICS_API_ENDPOINT = {{ $env.STX_PUBLIC_API_ENDPOINT || '' }};</script>
 <script src="/assets/functions/composables.ts"></script>
 <script src="/assets/functions/dashboard.ts"></script>
 

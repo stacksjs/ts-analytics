@@ -69,8 +69,15 @@ defineStore('dashboard', () => {
 
   // Core state
   const siteId = state(urlParams.get('siteId') || '')
-  const apiEndpoint = state(window.ANALYTICS_API_ENDPOINT || window.API_ENDPOINT || window.location.origin)
   const useStealth = state(window.ANALYTICS_STEALTH_MODE ?? (urlParams.get('stealth') === 'true'))
+
+  // Resolve the API endpoint LAZILY at call time. The layout's
+  // window.ANALYTICS_API_ENDPOINT setter runs AFTER stores/components initialize,
+  // so capturing it at store-init would always get the origin fallback and ignore
+  // a configured endpoint (the reason a separate API server was unreachable).
+  function apiEndpoint(): string {
+    return window.ANALYTICS_API_ENDPOINT || window.API_ENDPOINT || window.location.origin
+  }
   const dateRange = state('6h')
   const currentTab = state(tabFromPath())
 
