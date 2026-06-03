@@ -33,6 +33,12 @@ Dashboard
     <campaigns-panel />
   </div>
 
+  <!-- Row 4: Link Clicks & Channels -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <link-clicks-panel />
+    <channels-panel />
+  </div>
+
   <!-- Events Section -->
   <div class="mb-6">
     <events-panel />
