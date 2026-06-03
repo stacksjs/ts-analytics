@@ -1,0 +1,88 @@
+<script client>
+/**
+ * EngagementPanel Component
+ * Per-page engagement: average active time-on-page + average scroll depth,
+ * plus site-wide averages. Loop-variable values use x-text (not interpolation)
+ * per the stx #1748 workaround; :for/x-for use bare signal refs.
+ */
+const dashboard = useStore('dashboard')
+
+const pages = state([])
+const avgScroll = state(0)
+const avgSeconds = state(0)
+const loading = state(true)
+
+function fmtTime(seconds) {
+  const s = Math.max(0, Math.round(seconds || 0))
+  const m = Math.floor(s / 60)
+  const r = s % 60
+  return `${m}:${r < 10 ? '0' + r : r}`
+}
+
+async function fetchEngagement() {
+  if (!dashboard.siteId()) {
+    loading.set(false)
+    return
+  }
+  try {
+    const res = await fetch(dashboard.apiUrlWithDates('/engagement'))
+    const data = await res.json()
+    pages.set((data.engagement || []).slice(0, 10))
+    avgScroll.set(data.avgScrollDepth || 0)
+    avgSeconds.set(data.avgSeconds || 0)
+  } catch (e) {
+    console.error('Failed to fetch engagement:', e)
+  } finally {
+    loading.set(false)
+  }
+}
+
+onMount(() => {
+  if (dashboard.siteId()) fetchEngagement()
+  window.refreshEngagementPanel = fetchEngagement
+})
+</script>
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <Icon name="clock" size="16" class="text-muted" />
+      Engagement
+    </div>
+    <a href="#" @click.prevent="dashboard.navigateTo('engagement')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
+  </div>
+
+  <div class="flex gap-8 mb-4">
+    <div class="flex flex-col">
+      <span class="text-[0.6875rem] uppercase tracking-wide text-muted">Avg. time on page</span>
+      <span class="text-lg font-semibold text-text" x-text="fmtTime(avgSeconds())"></span>
+    </div>
+    <div class="flex flex-col">
+      <span class="text-[0.6875rem] uppercase tracking-wide text-muted">Avg. scroll depth</span>
+      <span class="text-lg font-semibold text-text" x-text="avgScroll() + '%'"></span>
+    </div>
+  </div>
+
+  <table class="w-full text-[0.8125rem]">
+    <thead>
+      <tr>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-left">Page</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-right">Avg. time</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-right">Avg. scroll</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr x-for="p in pages" @loading="loading()">
+        <td class="cell-name truncate" x-text="p.path"></td>
+        <td class="cell-value" x-text="fmtTime(p.avgSeconds)"></td>
+        <td class="cell-value" x-text="p.avgScrollDepth + '%'"></td>
+      </tr>
+      <tr @for-loading>
+        <td colspan="3" class="text-center text-muted py-4">Loading...</td>
+      </tr>
+      <tr @for-empty>
+        <td colspan="3" class="text-center text-muted py-4">No engagement data yet</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

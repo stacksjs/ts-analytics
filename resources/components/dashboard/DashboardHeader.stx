@@ -35,6 +35,7 @@ const tabs: NavTab[] = [
   { id: 'funnels', label: 'Funnels', href: '/dashboard/funnels' },
   { id: 'flow', label: 'User Flow', href: '/dashboard/flow' },
   { id: 'clicks', label: 'Link Clicks', href: '/dashboard/clicks' },
+  { id: 'engagement', label: 'Engagement', href: '/dashboard/engagement' },
   { id: 'vitals', label: 'Web Vitals', href: '/dashboard/vitals' },
   { id: 'errors', label: 'Errors', href: '/dashboard/errors' },
   { id: 'insights', label: 'Insights', href: '/dashboard/insights' },

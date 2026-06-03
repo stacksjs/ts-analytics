@@ -39,6 +39,11 @@ Dashboard
     <channels-panel />
   </div>
 
+  <!-- Row 5: Engagement -->
+  <div class="mb-6">
+    <engagement-panel />
+  </div>
+
   <!-- Events Section -->
   <div class="mb-6">
     <events-panel />

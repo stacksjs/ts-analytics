@@ -776,7 +776,7 @@ export async function handleGetEngagement(request: Request, siteId: string): Pro
         samples: stat.count,
         visitors: stat.visitors.size,
         avgScrollDepth: Math.round(stat.sumScroll / stat.count),
-        avgTimeOnPage: Math.round(stat.sumTime / stat.count),
+        avgSeconds: Math.round(stat.sumTime / stat.count),
       }))
       .sort((a, b) => b.samples - a.samples)
       .slice(0, limit)
@@ -785,7 +785,7 @@ export async function handleGetEngagement(request: Request, siteId: string): Pro
     return jsonResponse({
       engagement: pages,
       avgScrollDepth: n > 0 ? Math.round(totalScroll / n) : 0,
-      avgTimeOnPage: n > 0 ? Math.round(totalTime / n) : 0,
+      avgSeconds: n > 0 ? Math.round(totalTime / n) : 0,
       samples: n,
     })
   }
