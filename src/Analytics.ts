@@ -3116,6 +3116,8 @@ export interface TrackingScriptOptions {
   trackLinkClicks?: boolean
   /** Whether to track SPA route changes (history pushState/replaceState/popstate) as page views */
   trackSpaRoutes?: boolean
+  /** Whether to track engagement (max scroll depth + active time on page), flushed on page-leave */
+  trackEngagement?: boolean
   /** Custom domain for script (optional) */
   customDomain?: string
   /** Use stealth mode (shorter endpoint paths, less identifiable) */
@@ -3299,6 +3301,33 @@ catch (e){}
     }else return;
     t('click',{url:a.href,kind:kind,text:(a.innerText||a.textContent||'').replace(/\\s+/g,' ').trim().slice(0,200)},true);
   });`
+    : ''}
+  ${options.trackEngagement
+    ? `
+  var engStart=Date.now(),engActive=0,engMax=0,engSent=false;
+  function engScroll(){
+    var st=w.pageYOffset||d.documentElement.scrollTop;
+    var dh=Math.max(d.body.scrollHeight,d.documentElement.scrollHeight)-w.innerHeight;
+    if(dh<=0)return;
+    var p=Math.round((st/dh)*100);
+    if(p>engMax)engMax=p>100?100:p;
+  }
+  var engThr=null;
+  w.addEventListener('scroll',function(){
+    if(engThr)return;
+    engThr=setTimeout(function(){engThr=null;engScroll();},250);
+  },{passive:true});
+  function engFlush(){
+    if(engSent)return;
+    engSent=true;
+    if(d.visibilityState!=='hidden')engActive+=Date.now()-engStart;
+    t('engagement',{scrollDepth:engMax,timeOnPage:Math.round(engActive/1000)},true);
+  }
+  d.addEventListener('visibilitychange',function(){
+    if(d.visibilityState==='hidden'){engActive+=Date.now()-engStart;engFlush();}
+    else{engStart=Date.now();}
+  });
+  w.addEventListener('pagehide',engFlush);`
     : ''}
   if(d.readyState==='complete')pv();
   else w.addEventListener('load',pv);

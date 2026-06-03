@@ -382,6 +382,28 @@ else if (payload.e === 'click') {
         setSession(sessionKey, session)
       }
     }
+else if (payload.e === 'engagement') {
+      const props = payload.p || {}
+      const scrollDepth = Math.max(0, Math.min(100, Math.round(Number(props.scrollDepth) || 0)))
+      const timeOnPage = Math.max(0, Math.round(Number(props.timeOnPage) || 0))
+
+      await dynamodb.putItem({
+        TableName: TABLE_NAME,
+        Item: marshall({
+          pk: `SITE#${payload.s}`,
+          sk: `ENGAGEMENT#${timestamp.toISOString()}#${generateId()}`,
+          siteId: payload.s,
+          sessionId,
+          visitorId,
+          path: parsedUrl.pathname,
+          scrollDepth,
+          timeOnPage,
+          timestamp: timestamp.toISOString(),
+          _et: 'Engagement',
+          ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
+        }),
+      })
+    }
 else if (payload.e === 'hm_click') {
       const props = payload.p || {}
       const deviceInfo = parseUserAgent(userAgent)

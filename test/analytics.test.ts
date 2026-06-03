@@ -1020,6 +1020,30 @@ describe('generateTrackingScript', () => {
     expect(script).not.toContain('history.pushState')
   })
 
+  it('should include engagement tracking when trackEngagement is enabled', () => {
+    const script = generateTrackingScript({
+      siteId: 'site-123',
+      apiEndpoint: 'https://api.example.com',
+      trackEngagement: true,
+    })
+
+    // Sends a scroll-depth + active-time summary, flushed on page-leave
+    expect(script).toContain('t(\'engagement\'')
+    expect(script).toContain('scrollDepth')
+    expect(script).toContain('timeOnPage')
+    expect(script).toContain('visibilitychange')
+    expect(script).toContain('pagehide')
+  })
+
+  it('should not include engagement tracking by default', () => {
+    const script = generateTrackingScript({
+      siteId: 'site-123',
+      apiEndpoint: 'https://api.example.com',
+    })
+
+    expect(script).not.toContain('t(\'engagement\'')
+  })
+
   it('should generate valid HTML', () => {
     const script = generateTrackingScript({
       siteId: 'site-123',

@@ -730,6 +730,72 @@ catch (error) {
 }
 
 /**
+ * GET /api/sites/{siteId}/engagement
+ * Per-page engagement: average scroll depth (%) and active time-on-page (s).
+ */
+export async function handleGetEngagement(request: Request, siteId: string): Promise<Response> {
+  try {
+    const query = getQueryParams(request)
+    const { startDate, endDate } = parseDateRange(query)
+    const limit = Math.min(Number(query.limit) || 20, 100)
+
+    // Query engagement samples
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `ENGAGEMENT#${startDate.toISOString()}` },
+        ':end': { S: `ENGAGEMENT#${endDate.toISOString()}` },
+      },
+    }) as { Items?: any[] }
+
+    const samples = (result.Items || []).map(unmarshall)
+
+    // Aggregate by page path
+    const pageStats: Record<string, { count: number; sumScroll: number; sumTime: number; visitors: Set<string> }> = {}
+    let totalScroll = 0
+    let totalTime = 0
+    for (const s of samples) {
+      const path = s.path || '/'
+      if (!pageStats[path]) {
+        pageStats[path] = { count: 0, sumScroll: 0, sumTime: 0, visitors: new Set() }
+      }
+      const stat = pageStats[path]
+      stat.count++
+      stat.sumScroll += s.scrollDepth || 0
+      stat.sumTime += s.timeOnPage || 0
+      stat.visitors.add(s.visitorId)
+      totalScroll += s.scrollDepth || 0
+      totalTime += s.timeOnPage || 0
+    }
+
+    const pages = Object.entries(pageStats)
+      .map(([path, stat]) => ({
+        path,
+        samples: stat.count,
+        visitors: stat.visitors.size,
+        avgScrollDepth: Math.round(stat.sumScroll / stat.count),
+        avgTimeOnPage: Math.round(stat.sumTime / stat.count),
+      }))
+      .sort((a, b) => b.samples - a.samples)
+      .slice(0, limit)
+
+    const n = samples.length
+    return jsonResponse({
+      engagement: pages,
+      avgScrollDepth: n > 0 ? Math.round(totalScroll / n) : 0,
+      avgTimeOnPage: n > 0 ? Math.round(totalTime / n) : 0,
+      samples: n,
+    })
+  }
+catch (error) {
+    console.error('Engagement error:', error)
+    return errorResponse('Failed to fetch engagement')
+  }
+}
+
+/**
  * GET /api/sites/{siteId}/campaigns
  */
 export async function handleGetCampaigns(request: Request, siteId: string): Promise<Response> {
