@@ -32,6 +32,10 @@ function applyFilter(filterType: string, value: string): void {
       break
   }
 
+  // Store-native filter: new reactive panels refetch via their filters() effect.
+  dashboard.setFilter(filterType, value)
+
+  // Legacy controller path: keeps the older {{ }}-based panels in sync.
   if (window.applyFilter) {
     window.applyFilter(filterType, value)
   }
@@ -61,6 +65,7 @@ function resetFilters(): void {
   countryFilter.set('')
   deviceFilter.set('')
   browserFilter.set('')
+  dashboard.clearFilters()
 }
 
 onMount(() => {

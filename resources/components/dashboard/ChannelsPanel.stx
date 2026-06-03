@@ -39,8 +39,14 @@ async function fetchChannels() {
 }
 
 onMount(() => {
-  if (dashboard.siteId()) fetchChannels()
   window.refreshChannelsPanel = fetchChannels
+})
+
+// Refetch when the site, date range, or active filters change.
+effect(() => {
+  dashboard.filters()
+  dashboard.dateRange()
+  if (dashboard.siteId()) fetchChannels()
 })
 </script>
 

@@ -81,6 +81,10 @@ defineStore('dashboard', () => {
   const dateRange = state('6h')
   const currentTab = state(tabFromPath())
 
+  // Active dashboard filters (e.g. { country, device, browser }); appended to
+  // every store-built API URL so all panels share the same slice.
+  const filters = state<Record<string, string>>({})
+
   // Whether the controls/filters bars should show for the current tab.
   function controlsVisible(): boolean {
     return TABS_WITH_CONTROLS.includes(currentTab())
@@ -121,9 +125,34 @@ defineStore('dashboard', () => {
     return `?start=${start.toISOString()}&end=${now.toISOString()}&period=${range}`
   }
 
-  // Build API URL with date params included
+  // Active filters as query params (e.g. &country=US&device=mobile)
+  function filterParams(): string {
+    const f = filters()
+    const parts = Object.keys(f)
+      .filter(k => f[k])
+      .map(k => `${k}=${encodeURIComponent(f[k])}`)
+    return parts.length > 0 ? `&${parts.join('&')}` : ''
+  }
+
+  // Set (or clear, when value is falsy) a single filter dimension, triggering a
+  // refetch in any panel whose effect reads filters().
+  function setFilter(key: string, value: string): void {
+    const next = { ...filters() }
+    if (value) next[key] = value
+    else delete next[key]
+    filters.set(next)
+  }
+
+  function clearFilters(): void {
+    filters.set({})
+  }
+
+  // Build API URL with date + filter params included
   function apiUrlWithDates(path: string): string {
-    return apiUrl(path + dateParams())
+    const dp = dateParams()
+    const fp = filterParams()
+    const qs = dp ? dp + fp : (fp ? `?${fp.slice(1)}` : '')
+    return apiUrl(path + qs)
   }
 
   // Absolute start/end ISO bounds for the current range. Used by endpoints that
@@ -172,6 +201,10 @@ defineStore('dashboard', () => {
     apiUrl,
     dateParams,
     apiUrlWithDates,
+    filters,
+    filterParams,
+    setFilter,
+    clearFilters,
     dateBounds,
     timeseriesPeriod,
     navigateTo,

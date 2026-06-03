@@ -52,8 +52,14 @@ async function fetchClicks() {
 }
 
 onMount(() => {
-  if (dashboard.siteId()) fetchClicks()
   window.refreshLinkClicksPanel = fetchClicks
+})
+
+// Refetch when the site, date range, or active filters change.
+effect(() => {
+  dashboard.filters()
+  dashboard.dateRange()
+  if (dashboard.siteId()) fetchClicks()
 })
 </script>
 
