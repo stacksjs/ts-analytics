@@ -628,7 +628,7 @@ export async function handleGetEvents(request: Request, siteId: string): Promise
     // Aggregate by event name
     const eventStats: Record<string, { count: number; visitors: Set<string> }> = {}
     for (const e of events) {
-      const name = e.eventName || 'unknown'
+      const name = e.name || 'unknown'
       if (!eventStats[name]) {
         eventStats[name] = { count: 0, visitors: new Set() }
       }

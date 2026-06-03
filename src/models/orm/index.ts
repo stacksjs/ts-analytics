@@ -199,6 +199,8 @@ interface PageViewData {
   browser?: string
   os?: string
   country?: string
+  region?: string
+  city?: string
   screenWidth?: number
   screenHeight?: number
   isUnique: boolean
@@ -321,6 +323,8 @@ export class Session extends Model {
   utmMedium?: string
   utmCampaign?: string
   country?: string
+  region?: string
+  city?: string
   deviceType?: DeviceType
   browser?: string
   os?: string
@@ -436,6 +440,9 @@ interface SessionData {
   utmSource?: string
   utmMedium?: string
   utmCampaign?: string
+  country?: string
+  region?: string
+  city?: string
   deviceType?: DeviceType
   browser?: string
   os?: string

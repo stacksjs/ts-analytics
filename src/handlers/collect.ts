@@ -21,8 +21,8 @@ import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { getSQSProducer, isSQSEnabled } from '../lib/sqs'
 import { checkAndRecordConversions } from '../lib/goals'
 import { getSession, setSession } from '../utils/cache'
-import { parseUserAgent } from '../utils/user-agent'
-import { getCountryFromHeaders, getCountryFromIP, parseReferrerSource } from '../utils/geolocation'
+import { parseUserAgent, isBot } from '../utils/user-agent'
+import { getCountryFromHeaders, getCountryFromIP, getRegionFromHeaders, getCityFromHeaders, parseReferrerSource } from '../utils/geolocation'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getLambdaEvent, getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
 import { ensureSiteExists } from './misc'
@@ -47,12 +47,18 @@ catch {
       return jsonResponse({ error: 'Invalid URL' }, 400)
     }
 
+    const userAgent = getUserAgent(request)
+
+    // Drop bot/crawler traffic before any writes (no site auto-create, no records)
+    if (isBot(userAgent)) {
+      return new Response(null, { status: 204 })
+    }
+
     // Ensure site exists (auto-create if first event)
     await ensureSiteExists(payload.s, parsedUrlForSite.hostname)
 
     const event = getLambdaEvent(request)
     const ip = getClientIP(request)
-    const userAgent = getUserAgent(request)
     const headers = getHeaders(request)
 
     // SQS Fast Path - Queue events for async processing
@@ -77,6 +83,8 @@ catch {
           }
 
           const country = getCountryFromHeaders(headers)
+          const region = getRegionFromHeaders(headers)
+          const city = getCityFromHeaders(headers)
 
           const analyticsEvent: AnalyticsEvent = {
             type: payload.e === 'pageview' ? 'pageview' : 'event',
@@ -99,6 +107,8 @@ catch {
               browser,
               os: deviceInfo.os,
               country,
+              region,
+              city,
               screenWidth: payload.sw,
               screenHeight: payload.sh,
               isUnique: true,
@@ -176,6 +186,8 @@ catch (e) {
       if (!country) {
         country = await getCountryFromIP(ip)
       }
+      const region = getRegionFromHeaders(headers)
+      const city = getCityFromHeaders(headers)
 
       await PageViewModel.record({
         id: generateId(),
@@ -194,6 +206,8 @@ catch (e) {
         browser,
         os: deviceInfo.os,
         country,
+        region,
+        city,
         screenWidth: payload.sw,
         screenHeight: payload.sh,
         isUnique: isNewSession,
@@ -225,6 +239,8 @@ else {
           browser,
           os: deviceInfo.os,
           country,
+          region,
+          city,
           pageViewCount: 1,
           eventCount: 0,
           isBounce: true,
