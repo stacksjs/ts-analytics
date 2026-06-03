@@ -3114,6 +3114,8 @@ export interface TrackingScriptOptions {
   trackOutboundLinks?: boolean
   /** Whether to track link clicks (outbound, internal, download, mailto, tel) */
   trackLinkClicks?: boolean
+  /** Whether to track SPA route changes (history pushState/replaceState/popstate) as page views */
+  trackSpaRoutes?: boolean
   /** Custom domain for script (optional) */
   customDomain?: string
   /** Use stealth mode (shorter endpoint paths, less identifiable) */
@@ -3258,6 +3260,21 @@ catch (e){}
   }
   function pv(){t('pageview');}
   ${options.trackHashChanges ? 'w.addEventListener(\'hashchange\',pv);' : ''}
+  ${options.trackSpaRoutes
+    ? `
+  var lastPath=location.pathname+location.search;
+  function spaPv(){
+    var p=location.pathname+location.search;
+    if(p===lastPath)return;
+    lastPath=p;
+    pv();
+  }
+  var _ps=history.pushState;
+  history.pushState=function(){_ps.apply(this,arguments);spaPv();};
+  var _rs=history.replaceState;
+  history.replaceState=function(){_rs.apply(this,arguments);spaPv();};
+  w.addEventListener('popstate',spaPv);`
+    : ''}
   ${options.trackOutboundLinks
     ? `
   d.addEventListener('click',function(e){

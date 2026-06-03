@@ -996,6 +996,30 @@ describe('generateTrackingScript', () => {
     expect(script).not.toContain('t(\'click\'')
   })
 
+  it('should include SPA route tracking when trackSpaRoutes is enabled', () => {
+    const script = generateTrackingScript({
+      siteId: 'site-123',
+      apiEndpoint: 'https://api.example.com',
+      trackSpaRoutes: true,
+    })
+
+    // Wraps the History API and listens for back/forward navigation
+    expect(script).toContain('history.pushState')
+    expect(script).toContain('history.replaceState')
+    expect(script).toContain('popstate')
+    // Only fires on an actual path change (dedupe guard)
+    expect(script).toContain('lastPath')
+  })
+
+  it('should not include SPA route tracking by default', () => {
+    const script = generateTrackingScript({
+      siteId: 'site-123',
+      apiEndpoint: 'https://api.example.com',
+    })
+
+    expect(script).not.toContain('history.pushState')
+  })
+
   it('should generate valid HTML', () => {
     const script = generateTrackingScript({
       siteId: 'site-123',
