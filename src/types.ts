@@ -281,6 +281,10 @@ export interface PageView {
   utmContent?: string
   /** UTM term */
   utmTerm?: string
+  /** Google Ads click ID */
+  gclid?: string
+  /** Meta/Facebook Ads click ID */
+  fbclid?: string
   /** Country code (ISO 3166-1 alpha-2) */
   country?: string
   /** Region/state */
@@ -363,6 +367,12 @@ export interface Session {
   utmSource?: string
   utmMedium?: string
   utmCampaign?: string
+  utmContent?: string
+  utmTerm?: string
+  /** Google Ads click ID */
+  gclid?: string
+  /** Meta/Facebook Ads click ID */
+  fbclid?: string
   /** Country code (ISO 3166-1 alpha-2) */
   country?: string
   /** Region/state code or name */

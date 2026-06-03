@@ -5,6 +5,7 @@
 import { dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { parseDateRange, formatDuration } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
+import { getReferrerSourceChannel } from '../utils/geolocation'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 
 /**
@@ -215,27 +216,44 @@ export async function handleGetReferrers(request: Request, siteId: string): Prom
       return sessionStart >= startDate && sessionStart <= endDate
     })
 
-    // Aggregate by referrer source
+    // Aggregate by referrer source, plus a higher-level channel rollup
     const referrerStats: Record<string, { visitors: Set<string>; views: number }> = {}
+    const channelStats: Record<string, { visitors: Set<string>; views: number }> = {}
     for (const s of sessions) {
-      const source = s.referrerSource || 'direct'
+      const source = s.referrerSource || 'Direct'
       if (!referrerStats[source]) {
         referrerStats[source] = { visitors: new Set(), views: 0 }
       }
       referrerStats[source].visitors.add(s.visitorId)
       referrerStats[source].views += s.pageViewCount || 1
+
+      const channel = getReferrerSourceChannel(source)
+      if (!channelStats[channel]) {
+        channelStats[channel] = { visitors: new Set(), views: 0 }
+      }
+      channelStats[channel].visitors.add(s.visitorId)
+      channelStats[channel].views += s.pageViewCount || 1
     }
 
     const referrers = Object.entries(referrerStats)
       .map(([source, stats]) => ({
         source,
+        channel: getReferrerSourceChannel(source),
         visitors: stats.visitors.size,
         views: stats.views,
       }))
       .sort((a, b) => b.visitors - a.visitors)
       .slice(0, limit)
 
-    return jsonResponse({ referrers })
+    const byChannel = Object.entries(channelStats)
+      .map(([channel, stats]) => ({
+        channel,
+        visitors: stats.visitors.size,
+        views: stats.views,
+      }))
+      .sort((a, b) => b.visitors - a.visitors)
+
+    return jsonResponse({ referrers, byChannel })
   }
 catch (error) {
     console.error('Referrers error:', error)

@@ -22,10 +22,34 @@ import { getSQSProducer, isSQSEnabled } from '../lib/sqs'
 import { checkAndRecordConversions } from '../lib/goals'
 import { getSession, setSession } from '../utils/cache'
 import { parseUserAgent, isBot } from '../utils/user-agent'
-import { getCountryFromHeaders, getCountryFromIP, getRegionFromHeaders, getCityFromHeaders, parseReferrerSource } from '../utils/geolocation'
+import { getCountryFromHeaders, getCountryFromIP, getRegionFromHeaders, getCityFromHeaders, parseReferrerSource, isSpamReferrer } from '../utils/geolocation'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getLambdaEvent, getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
 import { ensureSiteExists } from './misc'
+
+/**
+ * Extract UTM parameters and ad click IDs from a request URL.
+ */
+function extractUtm(url: URL): {
+  utmSource?: string
+  utmMedium?: string
+  utmCampaign?: string
+  utmContent?: string
+  utmTerm?: string
+  gclid?: string
+  fbclid?: string
+} {
+  const g = (k: string): string | undefined => url.searchParams.get(k) || undefined
+  return {
+    utmSource: g('utm_source'),
+    utmMedium: g('utm_medium'),
+    utmCampaign: g('utm_campaign'),
+    utmContent: g('utm_content'),
+    utmTerm: g('utm_term'),
+    gclid: g('gclid'),
+    fbclid: g('fbclid'),
+  }
+}
 
 /**
  * POST /collect or /t
@@ -49,8 +73,9 @@ catch {
 
     const userAgent = getUserAgent(request)
 
-    // Drop bot/crawler traffic before any writes (no site auto-create, no records)
-    if (isBot(userAgent)) {
+    // Drop bot/crawler traffic and known referral-spam before any writes
+    // (no site auto-create, no records).
+    if (isBot(userAgent) || isSpamReferrer(payload.r)) {
       return new Response(null, { status: 204 })
     }
 
@@ -100,9 +125,7 @@ catch {
               title: payload.t,
               referrer: payload.r,
               referrerSource,
-              utmSource: parsedUrl.searchParams.get('utm_source') || undefined,
-              utmMedium: parsedUrl.searchParams.get('utm_medium') || undefined,
-              utmCampaign: parsedUrl.searchParams.get('utm_campaign') || undefined,
+              ...extractUtm(parsedUrl),
               deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
               browser,
               os: deviceInfo.os,
@@ -199,9 +222,7 @@ catch (e) {
         title: payload.t,
         referrer: payload.r,
         referrerSource,
-        utmSource: parsedUrl.searchParams.get('utm_source') || undefined,
-        utmMedium: parsedUrl.searchParams.get('utm_medium') || undefined,
-        utmCampaign: parsedUrl.searchParams.get('utm_campaign') || undefined,
+        ...extractUtm(parsedUrl),
         deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
         browser,
         os: deviceInfo.os,
@@ -232,9 +253,7 @@ else {
           exitPath: parsedUrl.pathname,
           referrer: payload.r,
           referrerSource,
-          utmSource: parsedUrl.searchParams.get('utm_source') || undefined,
-          utmMedium: parsedUrl.searchParams.get('utm_medium') || undefined,
-          utmCampaign: parsedUrl.searchParams.get('utm_campaign') || undefined,
+          ...extractUtm(parsedUrl),
           deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
           browser,
           os: deviceInfo.os,

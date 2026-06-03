@@ -99,23 +99,171 @@ catch (err) {
 }
 
 /**
- * Parse referrer URL to get source
+ * Marketing channel a referrer belongs to.
+ */
+export type ReferrerChannel = 'Search' | 'Social' | 'AI' | 'Email' | 'Referral' | 'Paid' | 'Direct'
+
+interface ReferrerEntry {
+  /** Substring match (broad, for ccTLD coverage e.g. google.*) or RegExp (precise, for short ambiguous hosts e.g. t.co). */
+  match: string | RegExp
+  name: string
+  channel: ReferrerChannel
+}
+
+// Ordered: the first match wins, so more-specific hosts come before broader ones
+// (e.g. mail.google / gemini.google before google; reddit before t.co).
+const REFERRER_MAP: ReferrerEntry[] = [
+  // Webmail (before search engines so mail.google != Google)
+  { match: 'mail.google', name: 'Gmail', channel: 'Email' },
+  { match: 'mail.yahoo', name: 'Yahoo Mail', channel: 'Email' },
+  { match: 'outlook.', name: 'Outlook', channel: 'Email' },
+  { match: 'mail.proton', name: 'Proton Mail', channel: 'Email' },
+
+  // AI assistants (before search; gemini.google contains "google")
+  { match: 'chatgpt.', name: 'ChatGPT', channel: 'AI' },
+  { match: 'chat.openai', name: 'ChatGPT', channel: 'AI' },
+  { match: 'openai.', name: 'ChatGPT', channel: 'AI' },
+  { match: 'perplexity', name: 'Perplexity', channel: 'AI' },
+  { match: 'gemini.google', name: 'Gemini', channel: 'AI' },
+  { match: 'bard.google', name: 'Gemini', channel: 'AI' },
+  { match: 'claude.ai', name: 'Claude', channel: 'AI' },
+  { match: 'copilot.microsoft', name: 'Copilot', channel: 'AI' },
+  { match: /(^|\.)you\.com$/, name: 'You.com', channel: 'AI' },
+  { match: 'phind.', name: 'Phind', channel: 'AI' },
+
+  // Search engines
+  { match: 'google', name: 'Google', channel: 'Search' },
+  { match: 'bing', name: 'Bing', channel: 'Search' },
+  { match: 'duckduckgo', name: 'DuckDuckGo', channel: 'Search' },
+  { match: 'yahoo', name: 'Yahoo', channel: 'Search' },
+  { match: 'yandex', name: 'Yandex', channel: 'Search' },
+  { match: 'baidu', name: 'Baidu', channel: 'Search' },
+  { match: 'ecosia', name: 'Ecosia', channel: 'Search' },
+  { match: 'startpage', name: 'Startpage', channel: 'Search' },
+  { match: 'search.brave', name: 'Brave Search', channel: 'Search' },
+  { match: 'qwant', name: 'Qwant', channel: 'Search' },
+  { match: 'search.marginalia', name: 'Marginalia', channel: 'Search' },
+  { match: /(^|\.)ask\.com$/, name: 'Ask', channel: 'Search' },
+
+  // Social (reddit before t.co; precise regex for short ambiguous hosts)
+  { match: 'reddit', name: 'Reddit', channel: 'Social' },
+  { match: 'facebook', name: 'Facebook', channel: 'Social' },
+  { match: /(^|\.)fb\.com$/, name: 'Facebook', channel: 'Social' },
+  { match: /(^|\.)fb\.me$/, name: 'Facebook', channel: 'Social' },
+  { match: 'instagram', name: 'Instagram', channel: 'Social' },
+  { match: /^t\.co$/, name: 'Twitter', channel: 'Social' },
+  { match: 'twitter', name: 'Twitter', channel: 'Social' },
+  { match: /(^|\.)x\.com$/, name: 'Twitter', channel: 'Social' },
+  { match: 'linkedin', name: 'LinkedIn', channel: 'Social' },
+  { match: /(^|\.)lnkd\.in$/, name: 'LinkedIn', channel: 'Social' },
+  { match: 'youtube', name: 'YouTube', channel: 'Social' },
+  { match: /(^|\.)youtu\.be$/, name: 'YouTube', channel: 'Social' },
+  { match: 'pinterest', name: 'Pinterest', channel: 'Social' },
+  { match: 'tiktok', name: 'TikTok', channel: 'Social' },
+  { match: 'threads.net', name: 'Threads', channel: 'Social' },
+  { match: 'mastodon', name: 'Mastodon', channel: 'Social' },
+  { match: 'quora', name: 'Quora', channel: 'Social' },
+  { match: 'snapchat', name: 'Snapchat', channel: 'Social' },
+  { match: 'tumblr', name: 'Tumblr', channel: 'Social' },
+  { match: 'telegram', name: 'Telegram', channel: 'Social' },
+  { match: /^t\.me$/, name: 'Telegram', channel: 'Social' },
+  { match: 'news.ycombinator', name: 'Hacker News', channel: 'Social' },
+  { match: 'ycombinator', name: 'Hacker News', channel: 'Social' },
+
+  // Dev / community / content
+  { match: 'github', name: 'GitHub', channel: 'Referral' },
+  { match: 'gitlab', name: 'GitLab', channel: 'Referral' },
+  { match: 'stackoverflow', name: 'Stack Overflow', channel: 'Referral' },
+  { match: 'medium.com', name: 'Medium', channel: 'Referral' },
+  { match: 'dev.to', name: 'DEV', channel: 'Referral' },
+]
+
+function matchReferrer(host: string): ReferrerEntry | undefined {
+  return REFERRER_MAP.find(e => typeof e.match === 'string' ? host.includes(e.match) : e.match.test(host))
+}
+
+/**
+ * Parse a referrer URL into a normalized, human-readable source name
+ * (e.g. "Google", "Reddit", "ChatGPT"). Unknown hosts fall back to the
+ * bare domain (www. stripped). Empty → "Direct", invalid → "Unknown".
  */
 export function parseReferrerSource(referrer?: string): string {
-  if (!referrer) return 'direct'
+  if (!referrer) return 'Direct'
   try {
-    const url = new URL(referrer)
-    const host = url.hostname.toLowerCase()
-    if (host.includes('google')) return 'google'
-    if (host.includes('bing')) return 'bing'
-    if (host.includes('twitter') || host.includes('x.com')) return 'twitter'
-    if (host.includes('facebook')) return 'facebook'
-    if (host.includes('linkedin')) return 'linkedin'
-    if (host.includes('github')) return 'github'
-    return host
+    const host = new URL(referrer).hostname.toLowerCase()
+    const entry = matchReferrer(host)
+    if (entry) return entry.name
+    return host.startsWith('www.') ? host.slice(4) : host
   }
 catch {
-    return 'unknown'
+    return 'Unknown'
+  }
+}
+
+/**
+ * Classify traffic into a marketing channel. Paid/email are inferred from
+ * UTM medium and ad click IDs (gclid/fbclid); otherwise from the referrer.
+ */
+export function getReferrerChannel(opts: {
+  referrer?: string
+  utmMedium?: string
+  gclid?: string
+  fbclid?: string
+}): ReferrerChannel {
+  const medium = (opts.utmMedium || '').toLowerCase()
+  if (opts.gclid || opts.fbclid
+    || ['cpc', 'ppc', 'paid', 'paidsearch', 'paid-search', 'paid_search', 'display', 'cpm', 'retargeting', 'affiliate'].includes(medium)) {
+    return 'Paid'
+  }
+  if (medium === 'email' || medium === 'newsletter') return 'Email'
+  if (medium === 'social' || medium === 'social-media') return 'Social'
+  if (medium === 'organic' || medium === 'search') return 'Search'
+  if (medium === 'referral') return 'Referral'
+  if (!opts.referrer) return 'Direct'
+  try {
+    const host = new URL(opts.referrer).hostname.toLowerCase()
+    return matchReferrer(host)?.channel ?? 'Referral'
+  }
+catch {
+    return 'Direct'
+  }
+}
+
+/**
+ * Channel for an already-normalized source name (e.g. a stored referrerSource).
+ * Used at query time where the original referrer/UTM is no longer available, so
+ * it can only classify Search/Social/AI/Referral/Direct (not Paid/Email).
+ */
+export function getReferrerSourceChannel(source?: string): ReferrerChannel {
+  if (!source || source === 'Direct' || source === 'direct') return 'Direct'
+  const entry = REFERRER_MAP.find(e => e.name === source)
+  return entry?.channel ?? 'Referral'
+}
+
+// Known referral-spam / ghost-spam domains whose hits are fabricated by bots.
+const SPAM_REFERRERS: string[] = [
+  'semalt.com', 'buttons-for-website.com', 'buttons-for-your-website.com',
+  'darodar.com', 'best-seo-offer.com', 'best-seo-solution.com',
+  'free-share-buttons.com', 'free-social-buttons.com', 'get-free-traffic-now.com',
+  'social-buttons.com', 'success-seo.com', 'trafficmonetizer.org',
+  'simple-share-buttons.com', '4webmasters.org', 'ilovevitaly.com',
+  'priceg.com', 'blackhatworth.com', 'econom.co', 'savetubevideo.com',
+  'kambasoft.com', 'voucherssite.com', 'sharebutton.net', 'sitevaluation.org',
+  'dailyrank.net', 'lifehacĸer.com', 'o-o-6-o-o.com', 'humanorightswatch.org',
+  'guardlink.org', 'cenoval.ru', 'descargar-musica-gratis.net',
+]
+
+/**
+ * Whether a referrer is a known referral-spam domain (so its hits can be dropped).
+ */
+export function isSpamReferrer(referrer?: string): boolean {
+  if (!referrer) return false
+  try {
+    const host = new URL(referrer).hostname.toLowerCase().replace(/^www\./, '')
+    return SPAM_REFERRERS.some(d => host === d || host.endsWith(`.${d}`))
+  }
+catch {
+    return false
   }
 }
 

@@ -258,6 +258,16 @@ function eventToWriteRequest(event: AnalyticsEvent): WriteRequest | null {
   }
 }
 
+// UTM parameters + ad click IDs as DynamoDB string attributes (only when present).
+function utmAttrs(data: Record<string, unknown>): Record<string, { S: string }> {
+  const out: Record<string, { S: string }> = {}
+  const keys = ['utmSource', 'utmMedium', 'utmCampaign', 'utmContent', 'utmTerm', 'gclid', 'fbclid'] as const
+  for (const k of keys) {
+    if (data[k]) out[k] = { S: data[k] as string }
+  }
+  return out
+}
+
 function pageViewToWriteRequest(
   event: AnalyticsEvent,
   timestamp: Date,
@@ -282,6 +292,7 @@ function pageViewToWriteRequest(
         ...(data.title && { title: { S: data.title as string } }),
         ...(data.referrer && { referrer: { S: data.referrer as string } }),
         ...(data.referrerSource && { referrerSource: { S: data.referrerSource as string } }),
+        ...utmAttrs(data),
         ...(data.deviceType && { deviceType: { S: data.deviceType as string } }),
         ...(data.browser && { browser: { S: data.browser as string } }),
         ...(data.os && { os: { S: data.os as string } }),
@@ -323,6 +334,7 @@ function sessionToWriteRequest(
         exitPath: { S: (data.exitPath as string) || '/' },
         ...(data.referrer && { referrer: { S: data.referrer as string } }),
         ...(data.referrerSource && { referrerSource: { S: data.referrerSource as string } }),
+        ...utmAttrs(data),
         ...(data.deviceType && { deviceType: { S: data.deviceType as string } }),
         ...(data.browser && { browser: { S: data.browser as string } }),
         ...(data.os && { os: { S: data.os as string } }),

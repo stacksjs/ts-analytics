@@ -115,6 +115,8 @@ export class PageView extends Model {
   utmCampaign?: string
   utmContent?: string
   utmTerm?: string
+  gclid?: string
+  fbclid?: string
   country?: string
   region?: string
   city?: string
@@ -195,6 +197,10 @@ interface PageViewData {
   utmSource?: string
   utmMedium?: string
   utmCampaign?: string
+  utmContent?: string
+  utmTerm?: string
+  gclid?: string
+  fbclid?: string
   deviceType?: DeviceType
   browser?: string
   os?: string
@@ -322,6 +328,10 @@ export class Session extends Model {
   utmSource?: string
   utmMedium?: string
   utmCampaign?: string
+  utmContent?: string
+  utmTerm?: string
+  gclid?: string
+  fbclid?: string
   country?: string
   region?: string
   city?: string
@@ -440,6 +450,10 @@ interface SessionData {
   utmSource?: string
   utmMedium?: string
   utmCampaign?: string
+  utmContent?: string
+  utmTerm?: string
+  gclid?: string
+  fbclid?: string
   country?: string
   region?: string
   city?: string
