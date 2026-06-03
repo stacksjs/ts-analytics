@@ -654,6 +654,64 @@ catch (error) {
 }
 
 /**
+ * GET /api/sites/{siteId}/clicks
+ * Aggregated link-click report (outbound, internal, download, mailto, tel).
+ */
+export async function handleGetClicks(request: Request, siteId: string): Promise<Response> {
+  try {
+    const query = getQueryParams(request)
+    const { startDate, endDate } = parseDateRange(query)
+    const limit = Math.min(Number(query.limit) || 20, 100)
+    const kindFilter = query.kind
+
+    // Query link clicks
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `CLICK#${startDate.toISOString()}` },
+        ':end': { S: `CLICK#${endDate.toISOString()}` },
+      },
+    }) as { Items?: any[] }
+
+    const clicks = (result.Items || [])
+      .map(unmarshall)
+      .filter(c => !kindFilter || c.kind === kindFilter)
+
+    // Aggregate by destination URL, plus a per-kind summary
+    const urlStats: Record<string, { kind: string; text: string; count: number; visitors: Set<string> }> = {}
+    const byKind: Record<string, number> = { outbound: 0, internal: 0, download: 0, mailto: 0, tel: 0 }
+    for (const c of clicks) {
+      const url = c.url || 'unknown'
+      if (!urlStats[url]) {
+        urlStats[url] = { kind: c.kind || 'outbound', text: c.text || '', count: 0, visitors: new Set() }
+      }
+      urlStats[url].count++
+      urlStats[url].visitors.add(c.visitorId)
+      if (byKind[c.kind] !== undefined) byKind[c.kind]++
+    }
+
+    const clicksList = Object.entries(urlStats)
+      .map(([url, s]) => ({
+        url,
+        kind: s.kind,
+        text: s.text,
+        count: s.count,
+        visitors: s.visitors.size,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit)
+
+    return jsonResponse({ clicks: clicksList, byKind, total: clicks.length })
+  }
+catch (error) {
+    console.error('Clicks error:', error)
+    return errorResponse('Failed to fetch clicks')
+  }
+}
+
+/**
  * GET /api/sites/{siteId}/campaigns
  */
 export async function handleGetCampaigns(request: Request, siteId: string): Promise<Response> {

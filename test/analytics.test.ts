@@ -968,6 +968,34 @@ describe('generateTrackingScript', () => {
     expect(script).toContain('e.target.closest(\'a\')')
   })
 
+  it('should include link-click tracking when trackLinkClicks is enabled', () => {
+    const script = generateTrackingScript({
+      siteId: 'site-123',
+      apiEndpoint: 'https://api.example.com',
+      trackLinkClicks: true,
+    })
+
+    // Sends a classified click event...
+    expect(script).toContain('t(\'click\'')
+    // ...with a kind for each link category...
+    expect(script).toContain('mailto')
+    expect(script).toContain('tel:')
+    expect(script).toContain('download')
+    expect(script).toContain('outbound')
+    expect(script).toContain('internal')
+    // ...and uses sendBeacon so the event survives navigation.
+    expect(script).toContain('sendBeacon')
+  })
+
+  it('should not include link-click tracking by default', () => {
+    const script = generateTrackingScript({
+      siteId: 'site-123',
+      apiEndpoint: 'https://api.example.com',
+    })
+
+    expect(script).not.toContain('t(\'click\'')
+  })
+
   it('should generate valid HTML', () => {
     const script = generateTrackingScript({
       siteId: 'site-123',

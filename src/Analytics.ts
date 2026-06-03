@@ -3110,8 +3110,10 @@ export interface TrackingScriptOptions {
   honorDnt?: boolean
   /** Whether to track hash changes as page views */
   trackHashChanges?: boolean
-  /** Whether to track outbound links */
+  /** Whether to track outbound links (legacy; superseded by trackLinkClicks) */
   trackOutboundLinks?: boolean
+  /** Whether to track link clicks (outbound, internal, download, mailto, tel) */
+  trackLinkClicks?: boolean
   /** Custom domain for script (optional) */
   customDomain?: string
   /** Use stealth mode (shorter endpoint paths, less identifiable) */
@@ -3125,7 +3127,7 @@ export interface TrackingScriptOptions {
 /**
  * Generate minimal tracking script
  */
-/* eslint-disable prefer-const, pickier/no-unused-vars */
+/* eslint-disable prefer-const, pickier/no-unused-vars, general/prefer-template */
 export function generateTrackingScript(options: TrackingScriptOptions): string {
   const endpoint = options.stealthMode ? '/t' : '/collect'
   const webVitalsCode = options.trackWebVitals !== false ? `
@@ -3241,16 +3243,18 @@ catch (e){}}
     }
   }
 catch (e){}
-  function t(e,p){
-    var x=new XMLHttpRequest();
-    x.open('POST',api+'${endpoint}',true);
-    x.setRequestHeader('Content-Type','application/json');
-    x.send(JSON.stringify({
+  function t(e,p,b){
+    var body=JSON.stringify({
       s:site,sid:sid,e:e,p:p||{},
       u:location.href,r:d.referrer,t:d.title,
       sw:screen.width,sh:screen.height,
       br:br
-    }));
+    });
+    if(b&&n.sendBeacon){try{if(n.sendBeacon(api+'${endpoint}',new Blob([body],{type:'application/json'})))return;}catch(_e){}}
+    var x=new XMLHttpRequest();
+    x.open('POST',api+'${endpoint}',true);
+    x.setRequestHeader('Content-Type','application/json');
+    x.send(body);
   }
   function pv(){t('pageview');}
   ${options.trackHashChanges ? 'w.addEventListener(\'hashchange\',pv);' : ''}
@@ -3263,6 +3267,22 @@ catch (e){}
     }
   });`
     : ''}
+  ${options.trackLinkClicks
+    ? `
+  d.addEventListener('click',function(e){
+    var a=e.target&&e.target.closest&&e.target.closest('a');
+    if(!a||!a.href)return;
+    var proto=a.protocol,kind;
+    if(proto==='mailto:')kind='mailto';
+    else if(proto==='tel:')kind='tel';
+    else if(proto==='http:'||proto==='https:'){
+      if(a.hasAttribute('download')||/\\.(pdf|zip|docx?|xlsx?|pptx?|dmg|pkg|exe|csv|tsv|mp3|mp4|mov|wav|gz|tgz|rar|7z|apk|iso|bin|deb|rpm|msi)$/i.test(a.pathname))kind='download';
+      else if(a.hostname!==location.hostname)kind='outbound';
+      else{var h=a.getAttribute('href')||'';if(h.charAt(0)==='#')return;kind='internal';}
+    }else return;
+    t('click',{url:a.href,kind:kind,text:(a.innerText||a.textContent||'').replace(/\\s+/g,' ').trim().slice(0,200)},true);
+  });`
+    : ''}
   if(d.readyState==='complete')pv();
   else w.addEventListener('load',pv);
   w.fathom={track:function(n,v){t('event',{name:n,value:v});}};\n${webVitalsCode}${errorTrackingCode}
@@ -3270,4 +3290,4 @@ catch (e){}
 </script>
 `.trim()
 }
-/* eslint-enable prefer-const, pickier/no-unused-vars */
+/* eslint-enable prefer-const, pickier/no-unused-vars, general/prefer-template */

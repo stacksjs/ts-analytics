@@ -320,7 +320,7 @@ export async function handleScript(request: Request): Promise<Response> {
 
   const script = minimal
     ? generateMinimalTrackingScript({ siteId, apiEndpoint })
-    : generateTrackingScript({ siteId, apiEndpoint })
+    : generateTrackingScript({ siteId, apiEndpoint, trackLinkClicks: true })
 
   return jsResponse(script)
 }

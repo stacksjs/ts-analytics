@@ -329,6 +329,40 @@ else if (payload.e === 'outbound') {
         setSession(sessionKey, session)
       }
     }
+else if (payload.e === 'click') {
+      const props = payload.p || {}
+      const kind = ['outbound', 'internal', 'download', 'mailto', 'tel'].includes(props.kind)
+        ? props.kind
+        : 'outbound'
+
+      await dynamodb.putItem({
+        TableName: TABLE_NAME,
+        Item: marshall({
+          pk: `SITE#${payload.s}`,
+          sk: `CLICK#${timestamp.toISOString()}#${generateId()}`,
+          siteId: payload.s,
+          sessionId,
+          visitorId,
+          path: parsedUrl.pathname,
+          url: String(props.url || '').slice(0, 1000),
+          kind,
+          text: String(props.text || '').slice(0, 200),
+          timestamp: timestamp.toISOString(),
+          _et: 'LinkClick',
+          ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
+        }),
+      })
+
+      if (session) {
+        session.eventCount += 1
+        session.endedAt = timestamp
+        const startedAt = session.startedAt instanceof Date ? session.startedAt : new Date(session.startedAt)
+        session.duration = timestamp.getTime() - startedAt.getTime()
+
+        await SessionModel.upsert(session)
+        setSession(sessionKey, session)
+      }
+    }
 else if (payload.e === 'hm_click') {
       const props = payload.p || {}
       const deviceInfo = parseUserAgent(userAgent)

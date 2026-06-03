@@ -151,6 +151,7 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/sites/{siteId}/cities', (req: any) => stats.handleGetCities(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/timeseries', (req: any) => stats.handleGetTimeSeries(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/events', (req: any) => stats.handleGetEvents(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/clicks', (req: any) => stats.handleGetClicks(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/campaigns', (req: any) => stats.handleGetCampaigns(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/comparison', (req: any) => stats.handleGetComparison(req, req.params.siteId))
 
@@ -298,6 +299,7 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/p/{siteId}/locale', (req: any) => stats.handleGetCities(req, req.params.siteId))
   await router.get('/api/p/{siteId}/series', (req: any) => stats.handleGetTimeSeries(req, req.params.siteId))
   await router.get('/api/p/{siteId}/actions', (req: any) => stats.handleGetEvents(req, req.params.siteId))
+  await router.get('/api/p/{siteId}/links', (req: any) => stats.handleGetClicks(req, req.params.siteId))
   await router.get('/api/p/{siteId}/promo', (req: any) => stats.handleGetCampaigns(req, req.params.siteId))
   await router.get('/api/p/{siteId}/diff', (req: any) => stats.handleGetComparison(req, req.params.siteId))
 
