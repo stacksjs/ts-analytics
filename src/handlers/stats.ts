@@ -6,6 +6,7 @@ import { dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { parseDateRange, formatDuration } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getReferrerSourceChannel } from '../utils/geolocation'
+import { parseFilters, matchesFilters } from '../utils/filters'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 
 /**
@@ -53,14 +54,15 @@ export async function handleGetStats(request: Request, siteId: string): Promise<
     const realtimePageviews = (realtimeResult.Items || []).map(unmarshall)
     const realtimeVisitors = new Set(realtimePageviews.map(pv => pv.visitorId)).size
 
-    const pageviews = pageviewsResult.Items || []
+    const filters = parseFilters(query)
+    const pageviews = (pageviewsResult.Items || []).map(unmarshall).filter((pv: any) => matchesFilters(pv, filters))
     const sessions = (sessionsResult.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
-      return sessionStart >= startDate && sessionStart <= endDate
+      return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
     })
 
     // Calculate stats
-    const uniqueVisitors = new Set(pageviews.map((pv: any) => pv.visitorId?.S)).size
+    const uniqueVisitors = new Set(pageviews.map((pv: any) => pv.visitorId)).size
     const totalViews = pageviews.length
     const totalSessions = sessions.length
     const bounces = sessions.filter(s => s.isBounce).length
@@ -211,9 +213,10 @@ export async function handleGetReferrers(request: Request, siteId: string): Prom
       },
     }) as { Items?: any[] }
 
+    const filters = parseFilters(query)
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
-      return sessionStart >= startDate && sessionStart <= endDate
+      return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
     })
 
     // Aggregate by referrer source, plus a higher-level channel rollup
@@ -279,9 +282,10 @@ export async function handleGetDevices(request: Request, siteId: string): Promis
       },
     }) as { Items?: any[] }
 
+    const filters = parseFilters(query)
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
-      return sessionStart >= startDate && sessionStart <= endDate
+      return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
     })
 
     // Aggregate by device type
@@ -344,9 +348,10 @@ export async function handleGetBrowsers(request: Request, siteId: string): Promi
       },
     }) as { Items?: any[] }
 
+    const filters = parseFilters(query)
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
-      return sessionStart >= startDate && sessionStart <= endDate
+      return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
     })
 
     // Aggregate by browser
@@ -395,9 +400,10 @@ export async function handleGetCountries(request: Request, siteId: string): Prom
       },
     }) as { Items?: any[] }
 
+    const filters = parseFilters(query)
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
-      return sessionStart >= startDate && sessionStart <= endDate
+      return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
     })
 
     // Aggregate by country
@@ -429,7 +435,7 @@ export async function handleGetRegions(request: Request, siteId: string): Promis
     const query = getQueryParams(request)
     const { startDate, endDate } = parseDateRange(query)
     const limit = Math.min(Number(query.limit) || 10, 100)
-    const countryFilter = query.country
+    const filters = parseFilters(query)
 
     // Query sessions
     const result = await dynamodb.query({
@@ -444,8 +450,7 @@ export async function handleGetRegions(request: Request, siteId: string): Promis
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
       if (sessionStart < startDate || sessionStart > endDate) return false
-      if (countryFilter && s.country !== countryFilter) return false
-      return true
+      return matchesFilters(s, filters)
     })
 
     // Aggregate by region
@@ -482,8 +487,7 @@ export async function handleGetCities(request: Request, siteId: string): Promise
     const query = getQueryParams(request)
     const { startDate, endDate } = parseDateRange(query)
     const limit = Math.min(Number(query.limit) || 10, 100)
-    const countryFilter = query.country
-    const regionFilter = query.region
+    const filters = parseFilters(query)
 
     // Query sessions
     const result = await dynamodb.query({
@@ -498,9 +502,7 @@ export async function handleGetCities(request: Request, siteId: string): Promise
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
       if (sessionStart < startDate || sessionStart > endDate) return false
-      if (countryFilter && s.country !== countryFilter) return false
-      if (regionFilter && s.region !== regionFilter) return false
-      return true
+      return matchesFilters(s, filters)
     })
 
     // Aggregate by city
@@ -883,13 +885,14 @@ export async function handleGetComparison(request: Request, siteId: string): Pro
         },
       }) as { Items?: any[] }
 
-      const pageviews = pageviewsResult.Items || []
+      const filters = parseFilters(query)
+      const pageviews = (pageviewsResult.Items || []).map(unmarshall).filter((pv: any) => matchesFilters(pv, filters))
       const sessions = (sessionsResult.Items || []).map(unmarshall).filter(s => {
         const sessionStart = new Date(s.startedAt)
-        return sessionStart >= start && sessionStart <= end
+        return sessionStart >= start && sessionStart <= end && matchesFilters(s, filters)
       })
 
-      const uniqueVisitors = new Set(pageviews.map((pv: any) => pv.visitorId?.S)).size
+      const uniqueVisitors = new Set(pageviews.map((pv: any) => pv.visitorId)).size
       const totalViews = pageviews.length
       const totalSessions = sessions.length
       const bounces = sessions.filter(s => s.isBounce).length
