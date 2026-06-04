@@ -101,8 +101,8 @@ onMount(() => {
           </svg>
         </div>
         <div class="flex-1 min-w-0">
-          <div class="text-sm font-semibold text-text mb-1">{{ insight.title }}</div>
-          <div class="text-[0.8125rem] text-muted leading-normal">{{ insight.description }}</div>
+          <div class="text-sm font-semibold text-text mb-1" x-text="insight.title"></div>
+          <div class="text-[0.8125rem] text-muted leading-normal" x-text="insight.description"></div>
         </div>
       </div>
     </div>

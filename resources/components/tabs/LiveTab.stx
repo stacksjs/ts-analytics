@@ -56,12 +56,12 @@ onMount(() => {
     <div x-for="activity in activities" @loading="loading()" class="panel flex items-center gap-4 py-3 px-4">
       <div class="w-2 h-2 bg-success rounded-full flex-shrink-0"></div>
       <div class="flex-1 min-w-0">
-        <div class="text-sm text-text truncate">{{ activity.path ? activity.path : '/' }}</div>
+        <div class="text-sm text-text truncate" x-text="activity.path ? activity.path : '/'"></div>
         <div class="text-[0.6875rem] text-muted">
-          {{ activity.country ? activity.country : 'Unknown' }} &bull; {{ activity.device ? activity.device : 'Unknown' }} &bull; {{ activity.browser ? activity.browser : 'Unknown' }}
+          <span x-text="(activity.country ? activity.country : 'Unknown') + ' • ' + (activity.device ? activity.device : 'Unknown') + ' • ' + (activity.browser ? activity.browser : 'Unknown')"></span>
         </div>
       </div>
-      <div class="text-[0.6875rem] text-muted whitespace-nowrap">{{ timeAgo(activity.timestamp) }}</div>
+      <div class="text-[0.6875rem] text-muted whitespace-nowrap" x-text="timeAgo(activity.timestamp)"></div>
     </div>
     <div @for-loading class="panel flex items-center justify-center gap-2 text-muted">
       <Spinner size="sm" color="primary" />

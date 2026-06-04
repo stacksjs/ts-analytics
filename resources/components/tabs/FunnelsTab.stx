@@ -193,11 +193,11 @@ onMount(() => {
       <div x-for="(step, index) in (currentAnalysis?.steps || [])" class="analysis-step-wrapper flex items-center gap-2 flex-1 min-w-[120px]">
         <div class="flex-1 text-center">
           <div class="bg-bg-2 border border-border rounded-lg p-4 mb-2">
-            <div class="text-2xl font-semibold text-text">{{ step.visitors }}</div>
-            <div class="text-[0.6875rem] text-muted mt-1">{{ step.rate }}%</div>
+            <div class="text-2xl font-semibold text-text" x-text="step.visitors"></div>
+            <div class="text-[0.6875rem] text-muted mt-1"><span x-text="step.rate"></span>%</div>
           </div>
-          <div class="text-xs font-medium text-text">{{ step.path }}</div>
-          <div x-show="step.dropoff > 0" class="text-[0.6875rem] text-error mt-1">-{{ step.dropoff }} dropped</div>
+          <div class="text-xs font-medium text-text" x-text="step.path"></div>
+          <div x-show="step.dropoff > 0" class="text-[0.6875rem] text-error mt-1"><span x-text="'-' + step.dropoff + ' dropped'"></span></div>
         </div>
         <div x-show="index < currentAnalysis().steps.length - 1" class="text-muted text-2xl">&rarr;</div>
       </div>
@@ -217,7 +217,7 @@ onMount(() => {
 
     <div x-for="funnel in funnels" class="bg-bg-2 border border-border rounded-lg p-4 mb-3">
       <div class="flex justify-between items-center mb-3">
-        <h4 class="text-sm font-semibold text-text m-0">{{ funnel.name }}</h4>
+        <h4 class="text-sm font-semibold text-text m-0" x-text="funnel.name"></h4>
         <div class="flex gap-1">
           <button class="icon-btn" @click="analyzeFunnel(funnel.id)" title="View analysis">
             <Icon name="bar-chart-2" size="16" />
@@ -229,7 +229,7 @@ onMount(() => {
       </div>
       <div class="flex gap-2 flex-wrap items-center">
         <span x-for="(step, idx) in funnel.steps" class="text-[0.6875rem] py-1 px-2 bg-bg rounded text-text">
-          {{ step }}
+          <span x-text="step"></span>
           <span x-show="idx < funnel.steps.length - 1" class="text-accent">&rarr;</span>
         </span>
       </div>

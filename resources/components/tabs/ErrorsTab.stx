@@ -199,8 +199,8 @@ onMount(() => {
   <div class="flex gap-1 mb-4">
     <button x-for="r in dateRangeOptions"
       x-class="rangeBtnClass(r.id)"
-      @click="setErrorDateRange(r.id)">
-      {{ r.label }}
+      @click="setErrorDateRange(r.id)"
+      x-text="r.label">
     </button>
   </div>
 
@@ -223,8 +223,8 @@ onMount(() => {
   <div x-show="!loading() && !error() && errors().length > 0">
     <div class="severity-grid grid grid-cols-4 gap-2 mb-3">
       <div x-for="sev in severityKeys" x-class="sevStatClass(sev)">
-        <span class="text-lg font-bold text-text">{{ severityCounts()[sev] }}</span>
-        <span class="text-[0.6875rem] text-muted uppercase tracking-wider">{{ severityLabels[sev] }}</span>
+        <span class="text-lg font-bold text-text" x-text="severityCounts()[sev]"></span>
+        <span class="text-[0.6875rem] text-muted uppercase tracking-wider" x-text="severityLabels[sev]"></span>
       </div>
     </div>
 
@@ -258,23 +258,23 @@ onMount(() => {
           <div class="flex-1 min-w-0 py-3 px-4 flex flex-col gap-1.5">
             <div class="flex items-center justify-between gap-2">
               <div class="flex gap-1.5 items-center flex-wrap">
-                <span x-class="badgeSeverityClass(e)">{{ severityLabels[e.severity] || 'Unknown' }}</span>
-                <span class="text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide whitespace-nowrap bg-bg-3 text-text-2">{{ e.category || 'Error' }}</span>
-                <span x-class="badgeStatusClass(e)">{{ statusLabels[getErrorStatus(e.fingerprint)] || 'New' }}</span>
+                <span x-class="badgeSeverityClass(e)" x-text="severityLabels[e.severity] || 'Unknown'"></span>
+                <span class="text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide whitespace-nowrap bg-bg-3 text-text-2" x-text="e.category || 'Error'"></span>
+                <span x-class="badgeStatusClass(e)" x-text="statusLabels[getErrorStatus(e.fingerprint)] || 'New'"></span>
               </div>
               <span class="inline-flex items-center gap-1 text-[0.6875rem] font-semibold text-text-2 whitespace-nowrap">
                 <Icon name="zap" size="12" class="text-muted" />
-                {{ e.count }}
+                <span x-text="e.count"></span>
               </span>
             </div>
-            <div class="text-[0.8125rem] text-text leading-relaxed overflow-hidden text-ellipsis line-clamp-2 break-words">{{ e.message || 'Unknown error' }}</div>
+            <div class="text-[0.8125rem] text-text leading-relaxed overflow-hidden text-ellipsis line-clamp-2 break-words" x-text="e.message || 'Unknown error'"></div>
             <div class="flex gap-3 items-center flex-wrap">
               <span class="inline-flex items-center gap-1 text-[0.6875rem] text-muted">
                 <Icon name="clock" size="11" class="opacity-60" />
-                {{ timeAgo(e.lastSeen) }}
+                <span x-text="timeAgo(e.lastSeen)"></span>
               </span>
-              <span x-show="e.source" class="inline-flex items-center gap-1 text-[0.6875rem] text-muted font-mono text-text-2">{{ e.source.split('/').pop() }}{{ e.line ? ':' + e.line : '' }}</span>
-              <span class="inline-flex items-center gap-1 text-[0.6875rem] text-muted">{{ (e.browsers || []).join(', ') || 'server' }}</span>
+              <span x-show="e.source" class="inline-flex items-center gap-1 text-[0.6875rem] text-muted font-mono text-text-2" x-text="e.source.split('/').pop() + (e.line ? ':' + e.line : '')"></span>
+              <span class="inline-flex items-center gap-1 text-[0.6875rem] text-muted" x-text="(e.browsers || []).join(', ') || 'server'"></span>
             </div>
           </div>
           <div class="error-actions flex flex-col gap-0.5 py-2 px-2 opacity-0 transition-opacity duration-150 items-center justify-center group-hover:opacity-100" @click.stop>
