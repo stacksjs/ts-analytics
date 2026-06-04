@@ -52,6 +52,22 @@ function extractUtm(url: URL): {
 }
 
 /**
+ * Filterable visitor dimensions copied from the session onto click/engagement
+ * records, so those reports can be sliced by the dashboard filters. Only defined
+ * values are included (marshall stores undefined as NULL otherwise).
+ */
+function filterDims(session: SessionType | null | undefined): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (!session) return out
+  const keys = ['deviceType', 'browser', 'os', 'country', 'region', 'city', 'referrerSource', 'utmSource', 'utmMedium', 'utmCampaign'] as const
+  for (const k of keys) {
+    const v = (session as Record<string, any>)[k]
+    if (v) out[k] = v
+  }
+  return out
+}
+
+/**
  * POST /collect or /t
  */
 export async function handleCollect(request: Request): Promise<Response> {
@@ -362,6 +378,7 @@ else if (payload.e === 'click') {
           siteId: payload.s,
           sessionId,
           visitorId,
+          ...filterDims(session),
           path: parsedUrl.pathname,
           url: String(props.url || '').slice(0, 1000),
           kind,
@@ -395,6 +412,7 @@ else if (payload.e === 'engagement') {
           siteId: payload.s,
           sessionId,
           visitorId,
+          ...filterDims(session),
           path: parsedUrl.pathname,
           scrollDepth,
           timeOnPage,

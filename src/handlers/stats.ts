@@ -695,9 +695,10 @@ export async function handleGetClicks(request: Request, siteId: string): Promise
       },
     }) as { Items?: any[] }
 
+    const filters = parseFilters(query)
     const clicks = (result.Items || [])
       .map(unmarshall)
-      .filter(c => !kindFilter || c.kind === kindFilter)
+      .filter(c => (!kindFilter || c.kind === kindFilter) && matchesFilters(c, filters))
 
     // Aggregate by destination URL, plus a per-kind summary
     const urlStats: Record<string, { kind: string; text: string; count: number; visitors: Set<string> }> = {}
@@ -752,7 +753,8 @@ export async function handleGetEngagement(request: Request, siteId: string): Pro
       },
     }) as { Items?: any[] }
 
-    const samples = (result.Items || []).map(unmarshall)
+    const filters = parseFilters(query)
+    const samples = (result.Items || []).map(unmarshall).filter(s => matchesFilters(s, filters))
 
     // Aggregate by page path
     const pageStats: Record<string, { count: number; sumScroll: number; sumTime: number; visitors: Set<string> }> = {}
