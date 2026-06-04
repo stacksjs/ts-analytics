@@ -306,13 +306,22 @@ else if (payload.e === 'event') {
       const eventName = props.name || 'unnamed'
       const eventValue = typeof props.value === 'number' ? props.value : undefined
 
+      // Keep only primitive custom props; exclude the reserved name/value keys.
+      const customProps: Record<string, string | number | boolean> = {}
+      for (const [k, v] of Object.entries(props)) {
+        if (k === 'name' || k === 'value') continue
+        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') customProps[k] = v
+      }
+
       await CustomEventModel.record({
         id: generateId(),
         siteId: payload.s,
         visitorId,
         sessionId,
+        ...filterDims(session),
         name: eventName,
         value: eventValue,
+        properties: Object.keys(customProps).length > 0 ? customProps : undefined,
         path: parsedUrl.pathname,
         timestamp,
       })

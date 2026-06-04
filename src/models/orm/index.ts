@@ -613,6 +613,17 @@ interface EventData {
   value?: number
   properties?: Record<string, string | number | boolean>
   path: string
+  // Visitor dimensions (copied from the session) so event reports are filterable.
+  deviceType?: string
+  browser?: string
+  os?: string
+  country?: string
+  region?: string
+  city?: string
+  referrerSource?: string
+  utmSource?: string
+  utmMedium?: string
+  utmCampaign?: string
   timestamp?: Date | string
 }
 

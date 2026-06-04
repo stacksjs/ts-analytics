@@ -643,7 +643,8 @@ export async function handleGetEvents(request: Request, siteId: string): Promise
       },
     }) as { Items?: any[] }
 
-    const events = (result.Items || []).map(unmarshall)
+    const filters = parseFilters(query)
+    const events = (result.Items || []).map(unmarshall).filter(e => matchesFilters(e, filters))
 
     // Aggregate by event name
     const eventStats: Record<string, { count: number; visitors: Set<string> }> = {}
@@ -670,6 +671,96 @@ export async function handleGetEvents(request: Request, siteId: string): Promise
 catch (error) {
     console.error('Events error:', error)
     return errorResponse('Failed to fetch events')
+  }
+}
+
+/**
+ * Aggregate custom events into per-(event, property key, property value) rows
+ * with counts + unique visitors. Pure (no DynamoDB) so it is unit-testable.
+ * The reserved name/value keys are skipped, and non-primitive values ignored.
+ */
+export function aggregateEventProperties(
+  events: Array<{ name?: string, visitorId?: string, properties?: Record<string, any> | null }>,
+  opts: { limit?: number } = {},
+): {
+  eventProperties: Array<{ event: string, key: string, value: string, count: number, visitors: number }>
+  byEvent: Record<string, number>
+  total: number
+} {
+  const limit = opts.limit ?? 100
+  const groups: Record<string, Record<string, Record<string, { count: number, visitors: Set<string> }>>> = {}
+  const byEvent: Record<string, number> = {}
+
+  for (const e of events) {
+    const event = e.name || 'unknown'
+    byEvent[event] = (byEvent[event] || 0) + 1
+    const props = e.properties
+    if (!props || typeof props !== 'object') continue
+    for (const [key, raw] of Object.entries(props)) {
+      if (key === 'name' || key === 'value') continue
+      if (raw === null || raw === undefined || typeof raw === 'object') continue
+      const value = String(raw)
+      const byKey = (groups[event] ||= {})
+      const byValue = (byKey[key] ||= {})
+      const bucket = (byValue[value] ||= { count: 0, visitors: new Set() })
+      bucket.count++
+      if (e.visitorId) bucket.visitors.add(e.visitorId)
+    }
+  }
+
+  const eventProperties: Array<{ event: string, key: string, value: string, count: number, visitors: number }> = []
+  for (const event of Object.keys(groups).sort()) {
+    for (const key of Object.keys(groups[event]).sort()) {
+      const rows = Object.entries(groups[event][key])
+        .map(([value, b]) => ({ event, key, value, count: b.count, visitors: b.visitors.size }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit)
+      eventProperties.push(...rows)
+    }
+  }
+
+  return { eventProperties, byEvent, total: events.length }
+}
+
+/**
+ * GET /api/sites/{siteId}/event-properties
+ * Per-event property value distribution (e.g. signup -> plan=pro/free).
+ */
+export async function handleGetEventProperties(request: Request, siteId: string): Promise<Response> {
+  try {
+    const query = getQueryParams(request)
+    const { startDate, endDate } = parseDateRange(query)
+    const limit = Math.min(Number(query.limit) || 100, 200)
+    const eventFilter = query.event
+    const filters = parseFilters(query)
+
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `EVENT#${startDate.toISOString()}` },
+        ':end': { S: `EVENT#${endDate.toISOString()}` },
+      },
+    }) as { Items?: any[] }
+
+    const events = (result.Items || [])
+      .map(unmarshall)
+      .filter((e: any) => (!eventFilter || e.name === eventFilter) && matchesFilters(e, filters))
+      .map((e: any) => {
+        // properties are persisted as a JSON string; parse defensively (mirrors the ORM read path)
+        if (typeof e.properties === 'string') {
+          try { e.properties = JSON.parse(e.properties) }
+          catch { e.properties = {} }
+        }
+        return e
+      })
+
+    return jsonResponse(aggregateEventProperties(events, { limit }))
+  }
+catch (error) {
+    console.error('Event properties error:', error)
+    return errorResponse('Failed to fetch event properties')
   }
 }
 
