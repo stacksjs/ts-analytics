@@ -6,6 +6,11 @@
 const dashboard = useStore('dashboard')
 const analytics = useStore('analytics')
 
+function fmt(n) {
+  if (n === undefined || n === null) return '0'
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
+}
+
 onMount(() => {
   if (dashboard.siteId()) analytics.fetchSection('pages')
   window.refreshPagesPanel = () => analytics.fetchSection('pages')
@@ -33,13 +38,13 @@ onMount(() => {
       <tr x-for="page in analytics.pages" @loading="analytics.loading()">
         <td class="cell-name" :title="page.path">
           <a x-href="page.path" target="_blank" rel="noopener" class="inline-flex items-center gap-1 hover:text-accent">
-            {{ page.path }}
+            <span x-text="page.path"></span>
             <Icon name="external-link" size="10" class="opacity-50" />
           </a>
         </td>
-        <td class="cell-value">{{ page.entries | fmt }}</td>
-        <td class="cell-value">{{ page.visitors | fmt }}</td>
-        <td class="cell-value">{{ page.views | fmt }}</td>
+        <td class="cell-value" x-text="fmt(page.entries)"></td>
+        <td class="cell-value" x-text="fmt(page.visitors)"></td>
+        <td class="cell-value" x-text="fmt(page.views)"></td>
       </tr>
       <tr @for-loading>
         <td colspan="4" class="text-center text-muted py-4">Loading...</td>

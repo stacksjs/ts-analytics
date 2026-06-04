@@ -21,6 +21,11 @@ function getBarWidth(count) {
   return max > 0 ? Math.round((count / max) * 100) : 0
 }
 
+function fmt(n) {
+  if (n === undefined || n === null) return '0'
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
+}
+
 async function fetchEvents() {
   if (!dashboard.siteId()) {
     loading.set(false)
@@ -55,13 +60,13 @@ onMount(() => {
   <div class="flex flex-col gap-3">
     <div x-for="event in events" @loading="loading()" class="flex flex-col gap-1">
       <div class="flex justify-between items-center">
-        <span class="text-[0.8125rem] text-text font-medium truncate">{{ event.name }}</span>
-        <span class="text-xs text-muted shrink-0 ml-2">{{ getPercentage(event.count ? event.count : 0) }}%</span>
+        <span class="text-[0.8125rem] text-text font-medium truncate" x-text="event.name"></span>
+        <span class="text-xs text-muted shrink-0 ml-2" x-text="getPercentage(event.count ? event.count : 0) + '%'"></span>
       </div>
       <div class="h-1.5 bg-bg-3 rounded-sm overflow-hidden">
         <div class="h-full bg-accent rounded-sm transition-[width] duration-300" x-style="'width: ' + getBarWidth(event.count ? event.count : 0) + '%'"></div>
       </div>
-      <div class="text-[0.6875rem] text-muted text-right">{{ event.count | fmt }}</div>
+      <div class="text-[0.6875rem] text-muted text-right" x-text="fmt(event.count)"></div>
     </div>
     <div @for-loading class="text-center text-muted py-4 text-[0.8125rem]">Loading...</div>
     <div @for-empty class="text-center text-muted py-4 text-[0.8125rem]">No custom events tracked</div>

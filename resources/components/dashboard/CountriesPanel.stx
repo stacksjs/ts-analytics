@@ -23,6 +23,11 @@ function getFlag(name) {
   return countryFlags[name] || '🌍'
 }
 
+function fmt(n) {
+  if (n === undefined || n === null) return '0'
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
+}
+
 onMount(() => {
   if (dashboard.siteId()) analytics.fetchSection('countries')
   window.refreshCountriesPanel = () => analytics.fetchSection('countries')
@@ -47,10 +52,10 @@ onMount(() => {
     <tbody>
       <tr x-for="country in analytics.countries" @loading="analytics.loading()">
         <td class="cell-name flex items-center gap-1.5">
-          <span class="text-base">{{ getFlag(country.name ? country.name : country.code) }}</span>
-          {{ country.name ? country.name : (country.code ? country.code : 'Unknown') }}
+          <span class="text-base" x-text="getFlag(country.name ? country.name : country.code)"></span>
+          <span x-text="country.name ? country.name : (country.code ? country.code : 'Unknown')"></span>
         </td>
-        <td class="cell-value">{{ country.visitors | fmt }}</td>
+        <td class="cell-value" x-text="fmt(country.visitors)"></td>
       </tr>
       <tr @for-loading>
         <td colspan="2" class="text-center text-muted py-4">Loading...</td>

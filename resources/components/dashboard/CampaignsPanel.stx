@@ -8,6 +8,11 @@ const dashboard = useStore('dashboard')
 const campaigns = state([])
 const loading = state(true)
 
+function fmt(n) {
+  if (n === undefined || n === null) return '0'
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
+}
+
 async function fetchCampaigns() {
   if (!dashboard.siteId()) {
     loading.set(false)
@@ -48,9 +53,9 @@ onMount(() => {
     </thead>
     <tbody>
       <tr x-for="campaign in campaigns" @loading="loading()">
-        <td class="cell-name">{{ campaign.name ? campaign.name : (campaign.source ? campaign.source : 'Unknown') }}</td>
-        <td class="cell-value">{{ (campaign.visitors ? campaign.visitors : 0) | fmt }}</td>
-        <td class="cell-value">{{ (campaign.views ? campaign.views : 0) | fmt }}</td>
+        <td class="cell-name" x-text="campaign.name ? campaign.name : (campaign.source ? campaign.source : 'Unknown')"></td>
+        <td class="cell-value" x-text="fmt(campaign.visitors ? campaign.visitors : 0)"></td>
+        <td class="cell-value" x-text="fmt(campaign.views ? campaign.views : 0)"></td>
       </tr>
       <tr @for-loading>
         <td colspan="3" class="text-center text-muted py-4">Loading...</td>

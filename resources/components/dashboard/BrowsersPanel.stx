@@ -6,6 +6,11 @@
 const dashboard = useStore('dashboard')
 const analytics = useStore('analytics')
 
+function fmt(n) {
+  if (n === undefined || n === null) return '0'
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
+}
+
 onMount(() => {
   if (dashboard.siteId()) analytics.fetchSection('browsers')
   window.refreshBrowsersPanel = () => analytics.fetchSection('browsers')
@@ -30,9 +35,9 @@ onMount(() => {
     </thead>
     <tbody>
       <tr x-for="browser in analytics.browsers" @loading="analytics.loading()">
-        <td class="cell-name">{{ browser.name ? browser.name : 'Unknown' }}</td>
-        <td class="cell-value">{{ browser.visitors | fmt }}</td>
-        <td class="cell-value">{{ browser.percentage ? browser.percentage : 0 }}%</td>
+        <td class="cell-name" x-text="browser.name ? browser.name : 'Unknown'"></td>
+        <td class="cell-value" x-text="fmt(browser.visitors)"></td>
+        <td class="cell-value" x-text="(browser.percentage ? browser.percentage : 0) + '%'"></td>
       </tr>
       <tr @for-loading>
         <td colspan="3" class="text-center text-muted py-4">Loading...</td>
