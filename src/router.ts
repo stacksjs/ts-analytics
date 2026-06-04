@@ -13,6 +13,7 @@ import * as goals from './handlers/goals'
 import * as sessions from './handlers/sessions'
 import * as heatmaps from './handlers/heatmaps'
 import * as errors from './handlers/errors'
+import { withReadCache } from './handlers/lib/read-cache'
 import * as performance from './handlers/performance'
 import * as funnels from './handlers/funnels'
 import * as annotations from './handlers/annotations'
@@ -140,7 +141,7 @@ export async function createRouter(): Promise<Router> {
 
   // Site-specific API routes
   // Stats & Analytics
-  await router.get('/api/sites/{siteId}/stats', (req: any) => stats.handleGetStats(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/stats', (req: any) => withReadCache(req, 'stats', 30_000, () => stats.handleGetStats(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/realtime', (req: any) => stats.handleGetRealtime(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/pages', (req: any) => stats.handleGetPages(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/referrers', (req: any) => stats.handleGetReferrers(req, req.params.siteId))
@@ -149,7 +150,7 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/sites/{siteId}/countries', (req: any) => stats.handleGetCountries(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/regions', (req: any) => stats.handleGetRegions(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/cities', (req: any) => stats.handleGetCities(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/timeseries', (req: any) => stats.handleGetTimeSeries(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/timeseries', (req: any) => withReadCache(req, 'timeseries', 60_000, () => stats.handleGetTimeSeries(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/events', (req: any) => stats.handleGetEvents(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/event-properties', (req: any) => stats.handleGetEventProperties(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/clicks', (req: any) => stats.handleGetClicks(req, req.params.siteId))
@@ -290,7 +291,7 @@ export async function createRouter(): Promise<Router> {
 
   // Site-specific stealth routes using /api/p/ prefix
   // Stats & Analytics (stealth)
-  await router.get('/api/p/{siteId}/summary', (req: any) => stats.handleGetStats(req, req.params.siteId))
+  await router.get('/api/p/{siteId}/summary', (req: any) => withReadCache(req, 'stats', 30_000, () => stats.handleGetStats(req, req.params.siteId)))
   await router.get('/api/p/{siteId}/pulse', (req: any) => stats.handleGetRealtime(req, req.params.siteId))
   await router.get('/api/p/{siteId}/content', (req: any) => stats.handleGetPages(req, req.params.siteId))
   await router.get('/api/p/{siteId}/sources', (req: any) => stats.handleGetReferrers(req, req.params.siteId))
@@ -299,7 +300,7 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/p/{siteId}/geo', (req: any) => stats.handleGetCountries(req, req.params.siteId))
   await router.get('/api/p/{siteId}/area', (req: any) => stats.handleGetRegions(req, req.params.siteId))
   await router.get('/api/p/{siteId}/locale', (req: any) => stats.handleGetCities(req, req.params.siteId))
-  await router.get('/api/p/{siteId}/series', (req: any) => stats.handleGetTimeSeries(req, req.params.siteId))
+  await router.get('/api/p/{siteId}/series', (req: any) => withReadCache(req, 'timeseries', 60_000, () => stats.handleGetTimeSeries(req, req.params.siteId)))
   await router.get('/api/p/{siteId}/actions', (req: any) => stats.handleGetEvents(req, req.params.siteId))
   await router.get('/api/p/{siteId}/traits', (req: any) => stats.handleGetEventProperties(req, req.params.siteId))
   await router.get('/api/p/{siteId}/links', (req: any) => stats.handleGetClicks(req, req.params.siteId))
