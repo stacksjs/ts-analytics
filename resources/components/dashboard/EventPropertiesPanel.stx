@@ -1,0 +1,96 @@
+<script client>
+/**
+ * EventPropertiesPanel Component
+ * Top custom-event property values (event · key=value) with counts + visitors,
+ * plus a per-event summary. Loop-variable values use x-text (not interpolation)
+ * per the stx #1748 workaround; :for/x-for use bare signal refs.
+ */
+const dashboard = useStore('dashboard')
+
+const rows = state([])
+const byEvent = state({})
+const loading = state(true)
+
+const maxCount = derived(() => Math.max(...rows().map(r => r.count || 0), 1))
+
+const eventChips = derived(() => {
+  const counts = byEvent()
+  return Object.keys(counts)
+    .map(name => ({ name, count: counts[name] }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6)
+})
+
+function fmtNum(n) {
+  return (n || 0).toLocaleString()
+}
+
+function barWidth(count) {
+  const max = maxCount()
+  return max > 0 ? Math.round((count / max) * 100) : 0
+}
+
+function rowLabel(r) {
+  return `${r.event} · ${r.key}=${r.value}`
+}
+
+async function fetchEventProperties() {
+  if (!dashboard.siteId()) {
+    loading.set(false)
+    return
+  }
+  try {
+    const res = await fetch(dashboard.apiUrlWithDates('/event-properties'))
+    const data = await res.json()
+    rows.set((data.eventProperties || []).slice(0, 10))
+    byEvent.set(data.byEvent || {})
+  } catch (e) {
+    console.error('Failed to fetch event properties:', e)
+  } finally {
+    loading.set(false)
+  }
+}
+
+onMount(() => {
+  window.refreshEventPropertiesPanel = fetchEventProperties
+})
+
+// Refetch when the site, date range, or active filters change.
+effect(() => {
+  dashboard.filters()
+  dashboard.dateRange()
+  if (dashboard.siteId()) fetchEventProperties()
+})
+</script>
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <Icon name="zap" size="16" class="text-muted" />
+      Event Properties
+    </div>
+    <a href="#" @click.prevent="dashboard.navigateTo('event-properties')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
+  </div>
+
+  <div x-show="eventChips().length > 0" class="flex flex-wrap gap-2 mb-3">
+    <span x-for="chip in eventChips" class="inline-flex items-center gap-1 rounded-full bg-bg-3 px-2 py-0.5 text-[0.6875rem] text-muted">
+      <span x-text="chip.name"></span>
+      <span class="font-medium text-text" x-text="fmtNum(chip.count)"></span>
+    </span>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <div x-for="r in rows" @loading="loading()" class="flex flex-col gap-1">
+      <div class="flex justify-between items-center gap-2">
+        <span class="text-[0.8125rem] text-text font-medium truncate" x-text="rowLabel(r)"></span>
+        <span class="text-xs text-muted shrink-0 ml-2" x-text="fmtNum(r.count)"></span>
+      </div>
+      <div class="h-1.5 bg-bg-3 rounded-sm overflow-hidden">
+        <div class="h-full bg-accent rounded-sm transition-[width] duration-300" x-style="'width: ' + barWidth(r.count ? r.count : 0) + '%'"></div>
+      </div>
+      <div class="text-[0.6875rem] text-muted text-right" x-text="fmtNum(r.visitors) + ' visitors'"></div>
+    </div>
+    <div @for-loading class="text-center text-muted py-4 text-[0.8125rem]">Loading...</div>
+    <div @for-empty class="text-center text-muted py-4 text-[0.8125rem]">No event properties tracked yet</div>
+  </div>
+</div>
