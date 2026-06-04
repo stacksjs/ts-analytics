@@ -311,10 +311,14 @@ export async function handleScript(request: Request): Promise<Response> {
   const query = getQueryParams(request)
   const event = getLambdaEvent(request)
   const minimal = query.minimal === 'true'
-  const apiEndpoint = `https://${event?.requestContext?.domainName || 'analytics.stacksjs.com'}`
+  const url = new URL(request.url)
+
+  // Where /collect lives: explicit ?api= override, else the deployed domain
+  // (Lambda), else the request origin (covers local dev + self-hosted).
+  const apiEndpoint = query.api
+    || (event?.requestContext?.domainName ? `https://${event.requestContext.domainName}` : url.origin)
 
   // Extract siteId from path
-  const url = new URL(request.url)
   const pathMatch = url.pathname.match(/\/sites\/([^/]+)\/script/)
   const siteId = pathMatch?.[1] || 'unknown'
 

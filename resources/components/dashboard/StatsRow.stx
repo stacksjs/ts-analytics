@@ -145,7 +145,7 @@ onMount(() => {
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="stat.icon"/>
     </svg>
     <div class="text-2xl font-bold text-text leading-tight" x-text="statValue(stat.id)">—</div>
-    <div class="text-xs text-text-2 mt-1 uppercase tracking-wide">{{ stat.label }}</div>
+    <div class="text-xs text-text-2 mt-1 uppercase tracking-wide" x-text="stat.label"></div>
   </div>
 </div>
 

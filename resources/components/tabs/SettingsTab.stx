@@ -18,6 +18,24 @@ const settings = state<SiteSettings>({
 const loading = state<boolean>(true)
 const error = state<string | null>(null)
 const copied = state<boolean>(false)
+const installSnippet = state<string>('')
+const snippetCopied = state<boolean>(false)
+
+async function fetchSnippet(): Promise<void> {
+  try {
+    const res: Response = await fetch(apiUrl('/script'))
+    installSnippet.set((await res.text()).trim())
+  } catch {
+    // best-effort; the snippet section just stays empty
+  }
+}
+
+function copySnippet(): void {
+  if (!installSnippet()) return
+  navigator.clipboard.writeText(installSnippet())
+  snippetCopied.set(true)
+  setTimeout(() => snippetCopied.set(false), 2000)
+}
 
 async function fetchSettings(): Promise<void> {
   if (!siteId()) { loading.set(false); return }
@@ -68,7 +86,7 @@ function copyApiKey(): void {
 }
 
 function regenerateApiKey(): void {
-  Modal.confirm('Regenerate API key? The current key will stop working immediately.', async () => {
+  const run = async (): Promise<void> => {
     const res: Response = await fetch(apiUrl('/api-keys/regenerate'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -94,7 +112,13 @@ function regenerateApiKey(): void {
         fetchSettings()
       },
     })
-  })
+  }
+
+  if (settings().apiKey) {
+    Modal.confirm('Regenerate API key? The current key will stop working immediately.', run)
+  } else {
+    run()
+  }
 }
 
 function showAlertModal(): void {
@@ -353,11 +377,25 @@ function gdprDelete(): void {
 
 onMount(() => {
   fetchSettings()
+  fetchSnippet()
 })
 </script>
 
 <div class="col-span-full">
   <h3 class="text-base font-semibold text-text mb-6">Settings</h3>
+
+  <div x-show="!loading() && !error()" class="panel mb-4">
+    <div class="panel-header">
+      <h4 class="panel-title">Installation</h4>
+      <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="copySnippet()">
+        <span x-show="!snippetCopied()">Copy snippet</span>
+        <span x-show="snippetCopied()" class="text-success">Copied!</span>
+      </button>
+    </div>
+    <p class="text-xs text-muted mb-3">Paste this into the <code class="text-text">&lt;head&gt;</code> of every page you want to track (site <code class="text-text" x-text="siteId()"></code>). It captures page views, SPA route changes, link clicks, engagement, web vitals, and errors.</p>
+    <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed" x-text="installSnippet()"></pre>
+    <p x-show="!installSnippet()" class="text-xs text-muted italic mt-2">Loading snippet…</p>
+  </div>
 
   <div x-show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
     <Spinner size="sm" color="primary" />
@@ -374,14 +412,17 @@ onMount(() => {
       <div class="panel">
         <div class="panel-header">
           <h4 class="panel-title">API Key</h4>
-          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="regenerateApiKey()">Regenerate</button>
+          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="regenerateApiKey()">
+            <span x-show="settings().apiKey">Regenerate</span>
+            <span x-show="!settings().apiKey">Generate</span>
+          </button>
         </div>
         <p class="text-xs text-muted mb-3">Use this key for programmatic access to your analytics data.</p>
         <div class="flex flex-col gap-2">
           <div x-show="settings().apiKey" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
-              <div class="text-[0.8125rem] font-medium text-text">{{ settings().apiKey.name }}</div>
-              <code class="text-[0.6875rem] text-muted break-all">{{ settings().apiKey.key }}</code>
+              <div class="text-[0.8125rem] font-medium text-text" x-text="settings().apiKey ? settings().apiKey.name : ''"></div>
+              <code class="text-[0.6875rem] text-muted break-all" x-text="settings().apiKey ? settings().apiKey.key : ''"></code>
             </div>
             <div class="flex items-center gap-1">
               <button class="icon-btn" @click="copyApiKey()" title="Copy key">
