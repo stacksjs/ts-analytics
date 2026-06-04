@@ -11,6 +11,11 @@ function formatCurrency(n: number): string {
   return `$${(n || 0).toFixed(2)}`
 }
 
+function fmt(n: number): string {
+  if (n === undefined || n === null) return '0'
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
+}
+
 function getTypeBadgeClass(type: string): string {
   const classes: Record<string, string> = {
     pageview: 'badge type-badge-pageview',
@@ -87,13 +92,13 @@ window.refreshGoalsPanel = loadGoals
     </thead>
     <tbody>
       <tr x-for="goal in goals" class="goal-row">
-        <td class="font-medium">{{ goal.name }}</td>
+        <td class="font-medium" x-text="goal.name"></td>
         <td>
-          <span x-class="getTypeBadgeClass(goal.type)">{{ goal.type }}</span>
+          <span x-class="getTypeBadgeClass(goal.type)" x-text="goal.type"></span>
         </td>
-        <td class="text-right tabular-nums">{{ (goal.conversions ? goal.conversions : 0) | fmt }}</td>
+        <td class="text-right tabular-nums" x-text="fmt(goal.conversions ? goal.conversions : 0)"></td>
         <td class="text-right tabular-nums">
-          <span x-show="goal.value">{{ formatCurrency(goal.value) }}</span>
+          <span x-show="goal.value" x-text="formatCurrency(goal.value)"></span>
           <span x-show="!goal.value">-</span>
         </td>
         <td class="text-right whitespace-nowrap">
