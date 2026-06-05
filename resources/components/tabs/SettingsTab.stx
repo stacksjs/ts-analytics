@@ -21,13 +21,13 @@ const copied = state<boolean>(false)
 const installSnippet = state<string>('')
 const snippetCopied = state<boolean>(false)
 
-async function fetchSnippet(): Promise<void> {
-  try {
-    const res: Response = await fetch(apiUrl('/script'))
-    installSnippet.set((await res.text()).trim())
-  } catch {
-    // best-effort; the snippet section just stays empty
-  }
+function fetchSnippet(): void {
+  // One-line install: the served /script.js derives site + api from its own src URL.
+  // Build the tag from parts so the literal opening/closing script-tag text never
+  // appears in this component's source (that would corrupt the stx inlined bundle).
+  const open: string = ['<', 'script defer src="', apiUrl('/script.js'), '">'].join('')
+  const close: string = ['<', '/script>'].join('')
+  installSnippet.set(open + close)
 }
 
 function copySnippet(): void {

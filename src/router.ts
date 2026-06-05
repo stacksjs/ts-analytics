@@ -409,6 +409,10 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/sites/{siteId}/script', (req: any) => {
     return import('./handlers/views').then(v => v.handleScript(req))
   })
+  // Raw-JS variant for the `<script src=".../script.js">` one-liner install.
+  await router.get('/api/sites/{siteId}/script.js', (req: any) => {
+    return import('./handlers/views').then(v => v.handleScript(req))
+  })
 
   return router
 }

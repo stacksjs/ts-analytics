@@ -322,9 +322,20 @@ export async function handleScript(request: Request): Promise<Response> {
   const pathMatch = url.pathname.match(/\/sites\/([^/]+)\/script/)
   const siteId = pathMatch?.[1] || 'unknown'
 
-  const script = minimal
+  let script = minimal
     ? generateMinimalTrackingScript({ siteId, apiEndpoint })
     : generateTrackingScript({ siteId, apiEndpoint, trackLinkClicks: true, trackSpaRoutes: true, trackEngagement: true })
+
+  // Raw-JS variant (for the `<script src=".../script.js">` one-liner): strip the
+  // HTML comment + <script> wrapper so the response is loadable JavaScript. The
+  // IIFE derives site/api from its own src URL, so no data-* attributes are needed.
+  const raw = url.pathname.endsWith('.js') || query.format === 'js' || query.raw === 'true'
+  if (raw) {
+    script = script
+      .replace(/^<!--[\s\S]*?-->\s*/, '')
+      .replace(/^<script[^>]*>\s*/, '')
+      .replace(/\s*<\/script>\s*$/, '')
+  }
 
   return jsResponse(script)
 }
