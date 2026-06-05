@@ -115,7 +115,7 @@ onMount(() => {
 
     <div x-show="!loading() && error()" class="site-status">
       <Icon name="alert-triangle" size="32" class="text-error" style="opacity:0.7;margin-bottom:0.75rem" />
-      <p>{{ error() }}</p>
+      <p x-text="error()"></p>
       <button class="retry-btn" @click="fetchSites()">Retry</button>
     </div>
 
@@ -129,11 +129,9 @@ onMount(() => {
           <input type="text" placeholder="Domain (optional)"
                  x-value="newDomain()" @input="newDomain.set($event.target.value)"
                  class="form-input" />
-          <button type="submit" class="create-btn" x-disabled="creating()">
-            {{ creating() ? 'Creating...' : 'Create' }}
-          </button>
+          <button type="submit" class="create-btn" x-disabled="creating()" x-text="creating() ? 'Creating...' : 'Create'"></button>
         </form>
-        <p x-show="createError()" class="create-error">{{ createError() }}</p>
+        <p x-show="createError()" class="create-error" x-text="createError()"></p>
       </div>
 
       <div x-show="sites().length === 0" class="site-empty">

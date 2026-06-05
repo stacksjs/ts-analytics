@@ -124,7 +124,7 @@ provide('controlsBar', {
     </button>
   </div>
   <div class="flex items-center gap-3 max-sm:justify-between">
-    <div class="flex items-center gap-2 py-1.5 px-3 bg-success/10 rounded-full text-xs font-medium text-success">
+    <div class="realtime-badge flex items-center gap-2 py-1.5 px-3 rounded-full text-xs font-medium text-success">
       <span class="pulse"></span>
       <span id="realtime-count" x-text="realtimeLabel()"></span>
     </div>
@@ -145,6 +145,11 @@ provide('controlsBar', {
   background-color: var(--success);
   border-radius: 9999px;
   animation: pulse 2s infinite;
+}
+/* crosswind renders bg-success/10 as SOLID (opacity modifier on a var() color),
+   so the green text/dot become invisible. Use a real translucent green. */
+.realtime-badge {
+  background-color: color-mix(in srgb, var(--success) 14%, transparent);
 }
 @keyframes pulse {
   0% { opacity: 1; transform: scale(1); }
