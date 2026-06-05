@@ -109,6 +109,7 @@ export async function createRouter(): Promise<Router> {
   // Auth routes (API only — login page served by stx frontend)
   await router.post('/login', auth.handleLogin)
   await router.post('/logout', auth.handleLogout)
+  await router.post('/api/auth/signup', auth.handleSignup)
 
   // Collection endpoints
   await router.post('/collect', collect.handleCollect)

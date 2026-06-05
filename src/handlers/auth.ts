@@ -6,7 +6,7 @@
  */
 
 import { dynamodb, TABLE_NAME, marshall, unmarshall } from '../lib/dynamodb'
-import { htmlResponse } from '../utils/response'
+import { htmlResponse, jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -18,7 +18,7 @@ const SESSION_TTL_DAYS = 30
 /**
  * Create a new user in DynamoDB
  */
-async function createUser(email: string, password: string): Promise<{ userId: string; email: string }> {
+async function createUser(email: string, password: string, name = ''): Promise<{ userId: string; email: string; name: string }> {
   const userId = crypto.randomUUID()
   const hash = await Bun.password.hash(password)
   const now = new Date().toISOString()
@@ -32,12 +32,65 @@ async function createUser(email: string, password: string): Promise<{ userId: st
       gsi1sk: `USER#${userId}`,
       userId,
       email: email.toLowerCase(),
+      name,
       passwordHash: hash,
+      emailVerified: false,
       createdAt: now,
+      updatedAt: now,
     }),
   })
 
-  return { userId, email: email.toLowerCase() }
+  return { userId, email: email.toLowerCase(), name }
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** Validate sign-up / credential input. Returns an error message, or null if valid. */
+export function validateCredentials(email: string, password: string): string | null {
+  if (!email || !password) return 'Email and password are required'
+  if (!EMAIL_RE.test(email)) return 'Please enter a valid email address'
+  if (password.length < 8) return 'Password must be at least 8 characters'
+  return null
+}
+
+const SESSION_MAX_AGE = SESSION_TTL_DAYS * 86400
+
+/** Build the session Set-Cookie header (Secure in production). */
+function sessionCookie(token: string, maxAge: number = SESSION_MAX_AGE): string {
+  const secure = process.env.NODE_ENV === 'production' ? ' Secure;' : ''
+  return `${SESSION_COOKIE}=${token}; HttpOnly;${secure} SameSite=Lax; Path=/; Max-Age=${maxAge}`
+}
+
+/**
+ * POST /api/auth/signup — create an account (JSON) and start a session.
+ */
+export async function handleSignup(request: Request): Promise<Response> {
+  let body: { email?: string; password?: string; name?: string }
+  try {
+    body = await request.json() as typeof body
+  }
+catch {
+    return errorResponse('Invalid request body', 400)
+  }
+
+  const email = (body.email || '').trim().toLowerCase()
+  const password = body.password || ''
+  const name = (body.name || '').trim()
+
+  const invalid = validateCredentials(email, password)
+  if (invalid) return errorResponse(invalid, 400)
+
+  const existing = await getUserByEmail(email)
+  if (existing) return errorResponse('An account with this email already exists', 409)
+
+  const user = await createUser(email, password, name)
+  const token = await createSession(user.userId, user.email)
+
+  return jsonResponse(
+    { user: { userId: user.userId, email: user.email, name, emailVerified: false } },
+    201,
+    { 'Set-Cookie': sessionCookie(token) },
+  )
 }
 
 /**
