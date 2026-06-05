@@ -116,7 +116,7 @@ provide('controlsBar', {
 
 <div id="controls-bar" class="flex justify-between items-center py-3 px-6 bg-bg border-b border-border gap-4 flex-wrap max-sm:flex-col max-sm:items-stretch" x-show="dashboard.controlsVisible()">
   <div class="flex items-center gap-1 max-sm:justify-center">
-    <button x-for="range in ranges" x-class="rangeBtnClass(range)" @click="setRange(range.id)">{{ range.label }}</button>
+    <button x-for="range in ranges" x-class="rangeBtnClass(range)" @click="setRange(range.id)" x-text="range.label"></button>
     <span class="border-l border-border h-6 mx-2"></span>
     <button id="compare-btn" x-class="compareBtnClass()" @click="toggleComparison()" title="Compare with previous period">
       <Icon name="bar-chart-2" size="14" />
@@ -126,9 +126,9 @@ provide('controlsBar', {
   <div class="flex items-center gap-3 max-sm:justify-between">
     <div class="flex items-center gap-2 py-1.5 px-3 bg-success/10 rounded-full text-xs font-medium text-success">
       <span class="pulse"></span>
-      <span id="realtime-count">{{ realtimeLabel() }}</span>
+      <span id="realtime-count" x-text="realtimeLabel()"></span>
     </div>
-    <span id="last-updated" class="text-xs text-muted" x-show="lastUpdated()">{{ lastUpdated() }}</span>
+    <span id="last-updated" class="text-xs text-muted" x-show="lastUpdated()" x-text="lastUpdated()"></span>
     <button id="refresh-btn" x-class="refreshBtnClass()" @click="refresh()" title="Refresh data">
       <Icon name="refresh-cw" size="16" />
     </button>
