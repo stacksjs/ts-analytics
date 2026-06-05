@@ -116,6 +116,7 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/auth/verify', auth.handleVerifyEmail)
   await router.post('/api/auth/verify/resend', auth.handleResendVerification)
   await router.post('/api/auth/forgot', auth.handleForgotPassword)
+  await router.post('/api/auth/reset', auth.handleResetPassword)
 
   // Collection endpoints
   await router.post('/collect', collect.handleCollect)

@@ -215,6 +215,33 @@ catch {
 }
 
 /**
+ * POST /api/auth/reset — set a new password from a reset token, then sign out
+ * every existing session.
+ */
+export async function handleResetPassword(request: Request): Promise<Response> {
+  let body: { token?: string; password?: string }
+  try {
+    body = await request.json() as typeof body
+  }
+catch {
+    return errorResponse('Invalid request body', 400)
+  }
+
+  const token = body.token || ''
+  const password = body.password || ''
+  if (!token) return errorResponse('Missing token', 400)
+  if (password.length < 8) return errorResponse('Password must be at least 8 characters', 400)
+
+  const userId = await consumeToken('RESET', token)
+  if (!userId) return errorResponse('This reset link is invalid or has expired', 400)
+
+  const hash = await Bun.password.hash(password, 'argon2id')
+  await updateUserFields(userId, { passwordHash: hash })
+  await invalidateUserSessions(userId)
+  return jsonResponse({ ok: true })
+}
+
+/**
  * Look up a user by email using GSI1
  */
 async function getUserByEmail(email: string): Promise<any | null> {
@@ -326,6 +353,8 @@ async function createSession(userId: string, email: string): Promise<string> {
     Item: marshall({
       pk: `SESSION#${token}`,
       sk: `SESSION#${token}`,
+      gsi1pk: `USER_SESSIONS#${userId}`,
+      gsi1sk: `SESSION#${token}`,
       userId,
       email,
       createdAt: now.toISOString(),
@@ -334,6 +363,20 @@ async function createSession(userId: string, email: string): Promise<string> {
   })
 
   return token
+}
+
+/** Delete every session for a user (password reset, log-out-everywhere). */
+export async function invalidateUserSessions(userId: string): Promise<void> {
+  const r = await dynamodb.query({
+    TableName: TABLE_NAME,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'gsi1pk = :pk',
+    ExpressionAttributeValues: { ':pk': { S: `USER_SESSIONS#${userId}` } },
+  }) as { Items?: any[] }
+  for (const raw of (r.Items || [])) {
+    const s = unmarshall(raw)
+    await dynamodb.deleteItem({ TableName: TABLE_NAME, Key: { pk: { S: s.pk }, sk: { S: s.sk } } })
+  }
 }
 
 /**
