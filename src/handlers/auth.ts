@@ -157,6 +157,18 @@ catch {
 }
 
 /**
+ * POST /api/auth/logout-all — revoke every session for the current user.
+ */
+export async function handleLogoutAll(request: Request): Promise<Response> {
+  const session = await getSessionFromRequest(request)
+  if (!session) return errorResponse('Not authenticated', 401)
+  await invalidateUserSessions(session.userId)
+  return jsonResponse({ ok: true }, 200, {
+    'Set-Cookie': `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+  })
+}
+
+/**
  * GET /api/auth/verify?token= — confirm an email address (single-use token).
  */
 export async function handleVerifyEmail(request: Request): Promise<Response> {
@@ -396,9 +408,28 @@ async function getSession(token: string): Promise<{ userId: string; email: strin
   const session = unmarshall(result.Item)
 
   // Check TTL manually (DynamoDB TTL can be delayed)
-  if (session.ttl && session.ttl < Math.floor(Date.now() / 1000)) {
+  const now = Math.floor(Date.now() / 1000)
+  if (session.ttl && session.ttl < now) {
     await deleteSession(token)
     return null
+  }
+
+  // Sliding refresh: once past the halfway mark, extend the TTL. Writes at most
+  // once per ~half-window per session, so it's effectively free.
+  const fullTtl = SESSION_TTL_DAYS * 86400
+  if (session.ttl && session.ttl - now < fullTtl / 2) {
+    try {
+      await dynamodb.updateItem({
+        TableName: TABLE_NAME,
+        Key: { pk: { S: `SESSION#${token}` }, sk: { S: `SESSION#${token}` } },
+        UpdateExpression: 'SET #t = :ttl',
+        ExpressionAttributeNames: { '#t': 'ttl' },
+        ExpressionAttributeValues: { ':ttl': { N: String(now + fullTtl) } },
+      })
+    }
+catch {
+      // best-effort
+    }
   }
 
   return { userId: session.userId, email: session.email }
