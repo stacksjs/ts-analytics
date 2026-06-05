@@ -20,7 +20,7 @@ const SESSION_TTL_DAYS = 30
  */
 async function createUser(email: string, password: string, name = ''): Promise<{ userId: string; email: string; name: string }> {
   const userId = crypto.randomUUID()
-  const hash = await Bun.password.hash(password)
+  const hash = await Bun.password.hash(password, 'argon2id')
   const now = new Date().toISOString()
 
   await dynamodb.putItem({
@@ -109,10 +109,18 @@ catch {
   const password = body.password || ''
   if (!email || !password) return errorResponse('Email and password are required', 400)
 
+  if (await getLoginFailures(email) >= MAX_LOGIN_ATTEMPTS) {
+    return errorResponse('Too many failed attempts. Please try again in a few minutes.', 429)
+  }
+
   const user = await getUserByEmail(email)
   const ok = user ? await Bun.password.verify(password, user.passwordHash) : false
-  if (!user || !ok) return errorResponse('Invalid email or password', 401)
+  if (!user || !ok) {
+    await recordLoginFailure(email)
+    return errorResponse('Invalid email or password', 401)
+  }
 
+  await clearLoginFailures(email)
   const token = await createSession(user.userId, user.email)
   return jsonResponse({ user: publicUser(user) }, 200, { 'Set-Cookie': sessionCookie(token) })
 }
@@ -238,6 +246,51 @@ async function deleteSession(token: string): Promise<void> {
       sk: { S: `SESSION#${token}` },
     },
   })
+}
+
+// ---- Login throttling (brute-force protection) -----------------------------
+const MAX_LOGIN_ATTEMPTS = 5
+const LOGIN_WINDOW_SEC = 15 * 60
+
+function failKey(email: string): { pk: { S: string }; sk: { S: string } } {
+  return { pk: { S: `LOGINFAIL#${email}` }, sk: { S: `LOGINFAIL#${email}` } }
+}
+
+/** Failed-login count within the active window (0 if none/expired). */
+export async function getLoginFailures(email: string): Promise<number> {
+  const r = await dynamodb.getItem({ TableName: TABLE_NAME, Key: failKey(email) })
+  if (!r.Item) return 0
+  const item = unmarshall(r.Item)
+  const now = Math.floor(Date.now() / 1000)
+  if (!item.windowStart || now - item.windowStart >= LOGIN_WINDOW_SEC) return 0
+  return item.count || 0
+}
+
+async function recordLoginFailure(email: string): Promise<void> {
+  const r = await dynamodb.getItem({ TableName: TABLE_NAME, Key: failKey(email) })
+  const now = Math.floor(Date.now() / 1000)
+  let count = 1
+  let windowStart = now
+  if (r.Item) {
+    const item = unmarshall(r.Item)
+    if (item.windowStart && now - item.windowStart < LOGIN_WINDOW_SEC) {
+      count = (item.count || 0) + 1
+      windowStart = item.windowStart
+    }
+  }
+  await dynamodb.putItem({
+    TableName: TABLE_NAME,
+    Item: marshall({ pk: `LOGINFAIL#${email}`, sk: `LOGINFAIL#${email}`, count, windowStart, ttl: windowStart + LOGIN_WINDOW_SEC }),
+  })
+}
+
+async function clearLoginFailures(email: string): Promise<void> {
+  try {
+    await dynamodb.deleteItem({ TableName: TABLE_NAME, Key: failKey(email) })
+  }
+catch {
+    // best-effort
+  }
 }
 
 /**
@@ -413,8 +466,16 @@ else {
       })
     }
 
+    if (await getLoginFailures(email) >= MAX_LOGIN_ATTEMPTS) {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: '/login?error=throttled' },
+      })
+    }
+
     const user = await getUserByEmail(email)
     if (!user) {
+      await recordLoginFailure(email)
       return new Response(null, {
         status: 302,
         headers: { Location: '/login?error=invalid' },
@@ -423,12 +484,14 @@ else {
 
     const valid = await Bun.password.verify(password, user.passwordHash)
     if (!valid) {
+      await recordLoginFailure(email)
       return new Response(null, {
         status: 302,
         headers: { Location: '/login?error=invalid' },
       })
     }
 
+    await clearLoginFailures(email)
     const token = await createSession(user.userId, user.email)
     const maxAge = SESSION_TTL_DAYS * 86400
 
