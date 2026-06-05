@@ -7,6 +7,7 @@
 
 import { dynamodb, TABLE_NAME, marshall, unmarshall } from '../lib/dynamodb'
 import { htmlResponse, jsonResponse, errorResponse } from '../utils/response'
+import { sendEmail, appBaseUrl } from '../lib/email'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -84,6 +85,7 @@ catch {
   if (existing) return errorResponse('An account with this email already exists', 409)
 
   const user = await createUser(email, password, name)
+  await sendVerificationEmail(user.userId, user.email)
   const token = await createSession(user.userId, user.email)
 
   return jsonResponse(
@@ -155,6 +157,34 @@ catch {
 }
 
 /**
+ * GET /api/auth/verify?token= — confirm an email address (single-use token).
+ */
+export async function handleVerifyEmail(request: Request): Promise<Response> {
+  const token = new URL(request.url).searchParams.get('token') || ''
+  if (!token) return errorResponse('Missing token', 400)
+
+  const userId = await consumeToken('VERIFY', token)
+  if (!userId) return errorResponse('This verification link is invalid or has expired', 400)
+
+  await updateUserFields(userId, { emailVerified: true })
+  return new Response(null, { status: 302, headers: { Location: '/dashboard?verified=1' } })
+}
+
+/**
+ * POST /api/auth/verify/resend — re-send the verification email (auth required).
+ */
+export async function handleResendVerification(request: Request): Promise<Response> {
+  const session = await getSessionFromRequest(request)
+  if (!session) return errorResponse('Not authenticated', 401)
+  const user = await getUserById(session.userId)
+  if (!user) return errorResponse('Not authenticated', 401)
+  if (user.emailVerified) return jsonResponse({ ok: true, alreadyVerified: true })
+
+  await sendVerificationEmail(user.userId, user.email)
+  return jsonResponse({ ok: true })
+}
+
+/**
  * Look up a user by email using GSI1
  */
 async function getUserByEmail(email: string): Promise<any | null> {
@@ -185,6 +215,72 @@ async function getUserById(userId: string): Promise<any | null> {
 /** Shape a user record for API responses (never leaks the password hash). */
 function publicUser(u: any): { userId: string; email: string; name: string; emailVerified: boolean } {
   return { userId: u.userId, email: u.email, name: u.name || '', emailVerified: !!u.emailVerified }
+}
+
+/** Patch fields on a user record. */
+async function updateUserFields(userId: string, fields: Record<string, string | boolean>): Promise<void> {
+  const keys = Object.keys(fields)
+  if (keys.length === 0) return
+  const names: Record<string, string> = { '#u': 'updatedAt' }
+  const values: Record<string, any> = marshall({ ':u': new Date().toISOString() })
+  const sets: string[] = ['#u = :u']
+  keys.forEach((k, i) => {
+    names[`#k${i}`] = k
+    Object.assign(values, marshall({ [`:v${i}`]: fields[k] }))
+    sets.push(`#k${i} = :v${i}`)
+  })
+  await dynamodb.updateItem({
+    TableName: TABLE_NAME,
+    Key: { pk: { S: `USER#${userId}` }, sk: { S: `USER#${userId}` } },
+    UpdateExpression: `SET ${sets.join(', ')}`,
+    ExpressionAttributeNames: names,
+    ExpressionAttributeValues: values,
+  })
+}
+
+// ---- Single-use email tokens (verify / reset) ------------------------------
+type TokenKind = 'VERIFY' | 'RESET'
+
+async function createToken(kind: TokenKind, userId: string, ttlSec: number): Promise<string> {
+  const token = crypto.randomUUID()
+  await dynamodb.putItem({
+    TableName: TABLE_NAME,
+    Item: marshall({
+      pk: `${kind}#${token}`,
+      sk: `${kind}#${token}`,
+      userId,
+      kind,
+      createdAt: new Date().toISOString(),
+      ttl: Math.floor(Date.now() / 1000) + ttlSec,
+    }),
+  })
+  return token
+}
+
+/** Validate + consume a single-use token, returning its userId (or null). */
+async function consumeToken(kind: TokenKind, token: string): Promise<string | null> {
+  const r = await dynamodb.getItem({
+    TableName: TABLE_NAME,
+    Key: { pk: { S: `${kind}#${token}` }, sk: { S: `${kind}#${token}` } },
+  })
+  if (!r.Item) return null
+  const item = unmarshall(r.Item)
+  await dynamodb.deleteItem({
+    TableName: TABLE_NAME,
+    Key: { pk: { S: `${kind}#${token}` }, sk: { S: `${kind}#${token}` } },
+  })
+  if (item.ttl && item.ttl < Math.floor(Date.now() / 1000)) return null
+  return item.userId || null
+}
+
+async function sendVerificationEmail(userId: string, email: string): Promise<void> {
+  const token = await createToken('VERIFY', userId, 24 * 3600)
+  const link = `${appBaseUrl()}/api/auth/verify?token=${token}`
+  await sendEmail({
+    to: email,
+    subject: 'Verify your email',
+    text: `Welcome to Analytics! Confirm your email address:\n\n${link}\n\nThis link expires in 24 hours.`,
+  })
 }
 
 /**
