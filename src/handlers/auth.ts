@@ -254,6 +254,85 @@ catch {
 }
 
 /**
+ * PUT /api/auth/profile — update the current user's display name.
+ */
+export async function handleUpdateProfile(request: Request): Promise<Response> {
+  const session = await getSessionFromRequest(request)
+  if (!session) return errorResponse('Not authenticated', 401)
+  let body: { name?: string }
+  try {
+    body = await request.json() as typeof body
+  }
+catch {
+    return errorResponse('Invalid request body', 400)
+  }
+  await updateUserFields(session.userId, { name: (body.name || '').trim() })
+  const user = await getUserById(session.userId)
+  return jsonResponse({ user: publicUser(user) })
+}
+
+/**
+ * POST /api/auth/password — change password (requires current password); signs
+ * out other sessions but keeps the caller logged in on this device.
+ */
+export async function handleChangePassword(request: Request): Promise<Response> {
+  const session = await getSessionFromRequest(request)
+  if (!session) return errorResponse('Not authenticated', 401)
+  let body: { currentPassword?: string; newPassword?: string }
+  try {
+    body = await request.json() as typeof body
+  }
+catch {
+    return errorResponse('Invalid request body', 400)
+  }
+  const next = body.newPassword || ''
+  if (next.length < 8) return errorResponse('New password must be at least 8 characters', 400)
+
+  const user = await getUserById(session.userId)
+  if (!user) return errorResponse('Not authenticated', 401)
+  const ok = await Bun.password.verify(body.currentPassword || '', user.passwordHash)
+  if (!ok) return errorResponse('Current password is incorrect', 400)
+
+  const hash = await Bun.password.hash(next, 'argon2id')
+  await updateUserFields(session.userId, { passwordHash: hash })
+  await invalidateUserSessions(session.userId)
+  const token = await createSession(user.userId, user.email)
+  return jsonResponse({ ok: true }, 200, { 'Set-Cookie': sessionCookie(token) })
+}
+
+/**
+ * POST /api/auth/email — change email (requires password); resets verification
+ * and re-sends the verification link.
+ */
+export async function handleChangeEmail(request: Request): Promise<Response> {
+  const session = await getSessionFromRequest(request)
+  if (!session) return errorResponse('Not authenticated', 401)
+  let body: { email?: string; password?: string }
+  try {
+    body = await request.json() as typeof body
+  }
+catch {
+    return errorResponse('Invalid request body', 400)
+  }
+  const email = (body.email || '').trim().toLowerCase()
+  if (!EMAIL_RE.test(email)) return errorResponse('Please enter a valid email address', 400)
+
+  const user = await getUserById(session.userId)
+  if (!user) return errorResponse('Not authenticated', 401)
+  const ok = await Bun.password.verify(body.password || '', user.passwordHash)
+  if (!ok) return errorResponse('Password is incorrect', 400)
+  if (email === user.email) return jsonResponse({ user: publicUser(user) })
+
+  const existing = await getUserByEmail(email)
+  if (existing) return errorResponse('That email is already in use', 409)
+
+  await updateUserFields(session.userId, { email, gsi1pk: `EMAIL#${email}`, emailVerified: false })
+  await sendVerificationEmail(session.userId, email)
+  const updated = await getUserById(session.userId)
+  return jsonResponse({ user: publicUser(updated) })
+}
+
+/**
  * Look up a user by email using GSI1
  */
 async function getUserByEmail(email: string): Promise<any | null> {

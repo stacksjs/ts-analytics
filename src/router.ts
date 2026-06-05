@@ -118,6 +118,9 @@ export async function createRouter(): Promise<Router> {
   await router.post('/api/auth/forgot', auth.handleForgotPassword)
   await router.post('/api/auth/reset', auth.handleResetPassword)
   await router.post('/api/auth/logout-all', auth.handleLogoutAll)
+  await router.put('/api/auth/profile', auth.handleUpdateProfile)
+  await router.post('/api/auth/password', auth.handleChangePassword)
+  await router.post('/api/auth/email', auth.handleChangeEmail)
 
   // Collection endpoints
   await router.post('/collect', collect.handleCollect)
