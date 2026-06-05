@@ -110,6 +110,9 @@ export async function createRouter(): Promise<Router> {
   await router.post('/login', auth.handleLogin)
   await router.post('/logout', auth.handleLogout)
   await router.post('/api/auth/signup', auth.handleSignup)
+  await router.post('/api/auth/login', auth.handleAuthLogin)
+  await router.get('/api/auth/me', auth.handleMe)
+  await router.post('/api/auth/logout', auth.handleApiLogout)
 
   // Collection endpoints
   await router.post('/collect', collect.handleCollect)

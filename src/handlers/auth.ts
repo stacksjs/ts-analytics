@@ -94,6 +94,59 @@ catch {
 }
 
 /**
+ * POST /api/auth/login — authenticate (JSON) and start a session.
+ */
+export async function handleAuthLogin(request: Request): Promise<Response> {
+  let body: { email?: string; password?: string }
+  try {
+    body = await request.json() as typeof body
+  }
+catch {
+    return errorResponse('Invalid request body', 400)
+  }
+
+  const email = (body.email || '').trim().toLowerCase()
+  const password = body.password || ''
+  if (!email || !password) return errorResponse('Email and password are required', 400)
+
+  const user = await getUserByEmail(email)
+  const ok = user ? await Bun.password.verify(password, user.passwordHash) : false
+  if (!user || !ok) return errorResponse('Invalid email or password', 401)
+
+  const token = await createSession(user.userId, user.email)
+  return jsonResponse({ user: publicUser(user) }, 200, { 'Set-Cookie': sessionCookie(token) })
+}
+
+/**
+ * GET /api/auth/me — return the currently authenticated user.
+ */
+export async function handleMe(request: Request): Promise<Response> {
+  const session = await getSessionFromRequest(request)
+  if (!session) return errorResponse('Not authenticated', 401)
+  const user = await getUserById(session.userId)
+  if (!user) return errorResponse('Not authenticated', 401)
+  return jsonResponse({ user: publicUser(user) })
+}
+
+/**
+ * POST /api/auth/logout — destroy the session (JSON variant of /logout).
+ */
+export async function handleApiLogout(request: Request): Promise<Response> {
+  const token = getSessionToken(request)
+  if (token) {
+    try {
+      await deleteSession(token)
+    }
+catch {
+      // best-effort
+    }
+  }
+  return jsonResponse({ ok: true }, 200, {
+    'Set-Cookie': `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+  })
+}
+
+/**
  * Look up a user by email using GSI1
  */
 async function getUserByEmail(email: string): Promise<any | null> {
@@ -108,6 +161,22 @@ async function getUserByEmail(email: string): Promise<any | null> {
 
   if (!result.Items || result.Items.length === 0) return null
   return unmarshall(result.Items[0])
+}
+
+/**
+ * Look up a user by id
+ */
+async function getUserById(userId: string): Promise<any | null> {
+  const result = await dynamodb.getItem({
+    TableName: TABLE_NAME,
+    Key: { pk: { S: `USER#${userId}` }, sk: { S: `USER#${userId}` } },
+  })
+  return result.Item ? unmarshall(result.Item) : null
+}
+
+/** Shape a user record for API responses (never leaks the password hash). */
+function publicUser(u: any): { userId: string; email: string; name: string; emailVerified: boolean } {
+  return { userId: u.userId, email: u.email, name: u.name || '', emailVerified: !!u.emailVerified }
 }
 
 /**
