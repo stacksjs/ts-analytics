@@ -185,6 +185,36 @@ export async function handleResendVerification(request: Request): Promise<Respon
 }
 
 /**
+ * POST /api/auth/forgot — email a password-reset link. Always 200 (never
+ * reveals whether an account exists).
+ */
+export async function handleForgotPassword(request: Request): Promise<Response> {
+  let body: { email?: string }
+  try {
+    body = await request.json() as typeof body
+  }
+catch {
+    return errorResponse('Invalid request body', 400)
+  }
+
+  const email = (body.email || '').trim().toLowerCase()
+  if (email && EMAIL_RE.test(email)) {
+    const user = await getUserByEmail(email)
+    if (user) {
+      const token = await createToken('RESET', user.userId, 3600)
+      const link = `${appBaseUrl()}/reset-password?token=${token}`
+      await sendEmail({
+        to: email,
+        subject: 'Reset your password',
+        text: `Reset your password here:\n\n${link}\n\nThis link expires in 1 hour. If you didn't request it, you can safely ignore this email.`,
+      })
+    }
+  }
+
+  return jsonResponse({ ok: true })
+}
+
+/**
  * Look up a user by email using GSI1
  */
 async function getUserByEmail(email: string): Promise<any | null> {
