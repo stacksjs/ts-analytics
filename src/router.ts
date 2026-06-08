@@ -434,6 +434,8 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/sites/{siteId}/script.js', (req: any) => {
     return import('./handlers/views').then(v => v.handleScript(req))
   })
+  // Standalone error-tracking SDK (Sentry-style): configure with TSA.init({dsn}).
+  await router.get('/sdk.js', () => import('./handlers/views').then(v => v.handleErrorSdk()))
 
   return router
 }

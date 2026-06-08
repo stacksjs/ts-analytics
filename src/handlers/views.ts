@@ -6,6 +6,7 @@
  */
 
 import { generateTrackingScript, generateMinimalTrackingScript } from '../index'
+import { generateErrorSdk } from '../error-sdk'
 import { htmlResponse, jsResponse } from '../utils/response'
 import { getQueryParams, getLambdaEvent } from '../../deploy/lambda-adapter'
 import { injectQueryPreservationScript } from '@stacksjs/bun-router'
@@ -343,4 +344,11 @@ export async function handleScript(request: Request): Promise<Response> {
   }
 
   return jsResponse(script)
+}
+
+/**
+ * GET /sdk.js — the standalone error-tracking SDK (configure with TSA.init({dsn})).
+ */
+export function handleErrorSdk(): Response {
+  return jsResponse(generateErrorSdk())
 }
