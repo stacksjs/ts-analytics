@@ -6,6 +6,8 @@ import { generateId } from '../index'
 import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
+import { addMembership, removeMembership } from '../lib/membership'
+import { getUserByEmail } from './auth'
 
 /**
  * POST /api/sites/{siteId}/team
@@ -24,6 +26,8 @@ export async function handleInviteTeamMember(request: Request, siteId: string): 
     }
 
     const memberId = generateId()
+    const existingUser = await getUserByEmail(body.email)
+    const now = new Date().toISOString()
     const member = {
       pk: `SITE#${siteId}`,
       sk: `TEAM#${memberId}`,
@@ -31,15 +35,20 @@ export async function handleInviteTeamMember(request: Request, siteId: string): 
       siteId,
       email: body.email,
       role: body.role,
-      status: 'invited',
-      invitedAt: new Date().toISOString(),
-      acceptedAt: null,
+      userId: existingUser?.userId || null,
+      status: existingUser ? 'active' : 'invited',
+      invitedAt: now,
+      acceptedAt: existingUser ? now : null,
     }
 
     await dynamodb.putItem({
       TableName: TABLE_NAME,
       Item: marshall(member),
     })
+
+    // Existing users get immediate project access via the membership layer
+    // (what the authz guard checks). New emails stay 'invited' until accept (#60).
+    if (existingUser) await addMembership(existingUser.userId, siteId, body.role)
 
     return jsonResponse({ member }, 201)
   }
@@ -78,6 +87,16 @@ catch (error) {
  */
 export async function handleRemoveTeamMember(_request: Request, siteId: string, memberId: string): Promise<Response> {
   try {
+    // Load the record first so we can revoke the linked project membership.
+    const got = await dynamodb.getItem({
+      TableName: TABLE_NAME,
+      Key: { pk: { S: `SITE#${siteId}` }, sk: { S: `TEAM#${memberId}` } },
+    })
+    if (got.Item) {
+      const m = unmarshall(got.Item)
+      if (m.userId) await removeMembership(m.userId, siteId)
+    }
+
     await dynamodb.deleteItem({
       TableName: TABLE_NAME,
       Key: marshall({

@@ -12,7 +12,7 @@
  * visitors load it without a session.
  */
 import { getSessionFromRequest } from './auth'
-import { getMembership } from '../lib/membership'
+import { getMembership, roleAtLeast, type Role } from '../lib/membership'
 import { jsonResponse } from '../utils/response'
 
 const SITE_PATH = /^\/api\/(?:sites|p)\/([^/]+)\//
@@ -34,12 +34,23 @@ export function authRequired(): boolean {
 }
 
 /**
+ * Minimum role for a request: reads need viewer, member management needs admin,
+ * other writes need editor. Pure — unit tested.
+ */
+export function requiredRole(method: string, path: string): Role {
+  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return 'viewer'
+  if (/\/(?:team|members)(?:\/|$)/.test(path)) return 'admin'
+  return 'editor'
+}
+
+/**
  * Returns a 401/403 Response to block the request, or null to allow it.
  */
 export async function siteAuthGuard(req: Request): Promise<Response | null> {
   if (!authRequired()) return null
 
-  const siteId = guardedSiteId(new URL(req.url).pathname)
+  const path = new URL(req.url).pathname
+  const siteId = guardedSiteId(path)
   if (!siteId) return null
 
   const session = await getSessionFromRequest(req)
@@ -47,6 +58,10 @@ export async function siteAuthGuard(req: Request): Promise<Response | null> {
 
   const role = await getMembership(session.userId, siteId)
   if (!role) return jsonResponse({ error: 'You do not have access to this project' }, 403)
+
+  if (!roleAtLeast(role, requiredRole((req as { method?: string }).method || 'GET', path))) {
+    return jsonResponse({ error: 'Insufficient permissions for this action' }, 403)
+  }
 
   return null
 }

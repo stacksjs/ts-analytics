@@ -335,7 +335,7 @@ catch {
 /**
  * Look up a user by email using GSI1
  */
-async function getUserByEmail(email: string): Promise<any | null> {
+export async function getUserByEmail(email: string): Promise<any | null> {
   const result = await dynamodb.query({
     TableName: TABLE_NAME,
     IndexName: 'GSI1',
