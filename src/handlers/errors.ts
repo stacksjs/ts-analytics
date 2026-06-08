@@ -216,16 +216,20 @@ catch (e) {
       return jsonResponse({ error: 'Invalid status. Must be: open, resolved, or ignored' }, 400)
     }
 
-    await dynamodb.putItem({
-      TableName: TABLE_NAME,
-      Item: marshall({
-        pk: `SITE#${siteId}`,
-        sk: `ERROR_STATUS#${errorId}`,
-        errorId,
-        status,
-        updatedAt: new Date().toISOString(),
-      }),
-    })
+    const now = new Date().toISOString()
+    const statusItem: Record<string, any> = {
+      pk: `SITE#${siteId}`,
+      sk: `ERROR_STATUS#${errorId}`,
+      errorId,
+      status,
+      updatedAt: now,
+      regressed: false,
+    }
+    if (status === 'resolved') {
+      statusItem.resolvedAt = now
+      if (body.release) statusItem.resolvedRelease = body.release
+    }
+    await dynamodb.putItem({ TableName: TABLE_NAME, Item: marshall(statusItem) })
 
     return jsonResponse({ success: true, errorId, status })
   }
@@ -335,6 +339,28 @@ catch { return body.url || '' } })(),
         ':open': { S: 'open' },
       },
     })
+
+    // Auto-regression: a new occurrence of a *resolved* issue reopens it. The
+    // conditional update only fires when an ERROR_STATUS# record exists and is
+    // 'resolved'; otherwise ConditionalCheckFailed (expected) and we move on.
+    try {
+      await dynamodb.updateItem({
+        TableName: TABLE_NAME,
+        Key: { pk: { S: `SITE#${siteId}` }, sk: { S: `ERROR_STATUS#${fingerprint}` } },
+        UpdateExpression: 'SET #s = :open, regressed = :t, regressedAt = :now, updatedAt = :now',
+        ConditionExpression: '#s = :resolved',
+        ExpressionAttributeNames: { '#s': 'status' },
+        ExpressionAttributeValues: {
+          ':open': { S: 'open' },
+          ':resolved': { S: 'resolved' },
+          ':t': { BOOL: true },
+          ':now': { S: timestamp.toISOString() },
+        },
+      })
+    }
+catch (e: any) {
+      if (!String(e?.name || e).includes('ConditionalCheckFailed')) console.error('Regression update failed:', e)
+    }
 
     // Track environment counts, browser and OS sets on the group record
     const env = body.environment || 'production'
