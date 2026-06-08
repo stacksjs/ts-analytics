@@ -8,6 +8,10 @@ import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 import { categorizeError, getErrorSeverity, getErrorFingerprint, getErrorTrend, shouldIgnoreError } from '../utils/errors'
+import { rateLimitAllow } from '../lib/rate-limit'
+
+/** Max error events per minute per ingest key (429 beyond this). */
+const ERROR_INGEST_LIMIT = Number(process.env.ANALYTICS_ERROR_RATE_LIMIT) || 300
 import { getTimeInterval } from '../utils/date'
 
 /**
@@ -245,6 +249,13 @@ catch (error) {
  */
 export async function handleCollectError(request: Request, siteId: string, keyId: string): Promise<Response> {
   try {
+    if (!rateLimitAllow(`err:${keyId}`, ERROR_INGEST_LIMIT, 60_000)) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '60' },
+      })
+    }
+
     const body = await request.json() as Record<string, any>
 
     if (!body.message) {
