@@ -326,6 +326,8 @@ catch { return body.url || '' } })(),
         'category = :cat',
         'fingerprint = :fp',
         'siteId = :sid',
+        'firstRelease = if_not_exists(firstRelease, :rel)',
+        'lastRelease = :rel',
         '#status = if_not_exists(#status, :open)',
       ].join(', '),
       ExpressionAttributeNames: {
@@ -341,6 +343,7 @@ catch { return body.url || '' } })(),
         ':fp': { S: fingerprint },
         ':sid': { S: siteId },
         ':open': { S: 'open' },
+        ':rel': { S: body.release || 'unknown' },
       },
     })
 
@@ -351,7 +354,7 @@ catch { return body.url || '' } })(),
       await dynamodb.updateItem({
         TableName: TABLE_NAME,
         Key: { pk: { S: `SITE#${siteId}` }, sk: { S: `ERROR_STATUS#${fingerprint}` } },
-        UpdateExpression: 'SET #s = :open, regressed = :t, regressedAt = :now, updatedAt = :now',
+        UpdateExpression: 'SET #s = :open, regressed = :t, regressedAt = :now, regressedInRelease = :rel, updatedAt = :now',
         ConditionExpression: '#s = :resolved',
         ExpressionAttributeNames: { '#s': 'status' },
         ExpressionAttributeValues: {
@@ -359,6 +362,7 @@ catch { return body.url || '' } })(),
           ':resolved': { S: 'resolved' },
           ':t': { BOOL: true },
           ':now': { S: timestamp.toISOString() },
+          ':rel': { S: body.release || 'unknown' },
         },
       })
     }
