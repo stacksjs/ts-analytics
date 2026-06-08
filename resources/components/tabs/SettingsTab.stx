@@ -382,9 +382,27 @@ function gdprExport(): void {
 }
 
 function gdprDelete(): void {
-  Modal.confirm('This will permanently delete ALL analytics data for this site. This action cannot be undone. Are you sure?', async () => {
-    await fetch(apiUrl('/gdpr/delete'), { method: 'DELETE' })
-    Modal.alert('Success', 'All data has been deleted.')
+  Modal.open({
+    title: 'Delete visitor data (GDPR)',
+    content: `
+      <p class="text-xs text-muted mb-4">Permanently erase all stored data for a single visitor (right to erasure). This cannot be undone.</p>
+      <div class="mb-2">
+        <label class="text-xs font-medium text-muted mb-1 block">Visitor ID</label>
+        <input type="text" name="visitorId" class="form-input" placeholder="visitor hash / id" />
+      </div>
+    `,
+    submitText: 'Delete data',
+    onSubmit: async () => {
+      const data: Record<string, string> = Modal.getFormData()
+      if (!data.visitorId) return
+      const res: Response = await fetch(apiUrl('/gdpr/delete'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitorId: data.visitorId }),
+      })
+      Modal.close()
+      Modal.alert(res.ok ? 'Success' : 'Error', res.ok ? 'Visitor data deleted.' : 'Failed to delete visitor data.')
+    },
   })
 }
 
