@@ -180,7 +180,7 @@ function showEmailReportModal(): void {
       </div>
       <div class="mb-4">
         <label class="text-xs font-medium text-muted mb-1 block">Frequency</label>
-        <select name="frequency" class="form-input">
+        <select name="schedule" class="form-input">
           <option value="daily">Daily</option>
           <option value="weekly" selected>Weekly</option>
           <option value="monthly">Monthly</option>
@@ -193,7 +193,7 @@ function showEmailReportModal(): void {
       await fetch(apiUrl('/email-reports'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email, frequency: data.frequency }),
+        body: JSON.stringify({ email: data.email, schedule: data.schedule }),
       })
       Modal.close()
       fetchSettings()
