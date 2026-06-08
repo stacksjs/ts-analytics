@@ -7,7 +7,7 @@ import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 import { generateApiKey } from './api-keys'
-import { addMembership } from '../lib/membership'
+import { addMembership, getUserMemberships } from '../lib/membership'
 import { generateId } from '../index'
 
 /**
@@ -173,34 +173,56 @@ catch (error) {
  */
 export async function handleGetSites(_request: Request, ownerId?: string): Promise<Response> {
   try {
-    let result: { Items?: any[] }
+    // Dedupe by site sort-key across owned + member-shared projects.
+    const bySk = new Map<string, any>()
 
     if (ownerId) {
-      // Query GSI1 for sites owned by this user
-      result = await dynamodb.query({
+      // Sites this user owns (OWNER# GSI)...
+      const owned = await dynamodb.query({
         TableName: TABLE_NAME,
         IndexName: 'GSI1',
         KeyConditionExpression: 'gsi1pk = :pk',
-        ExpressionAttributeValues: {
-          ':pk': { S: `OWNER#${ownerId}` },
-        },
+        ExpressionAttributeValues: { ':pk': { S: `OWNER#${ownerId}` } },
       }) as { Items?: any[] }
+      for (const raw of (owned.Items || [])) {
+        const s = unmarshall(raw)
+        bySk.set(s.sk || `SITE#${s.siteId}`, s)
+      }
+
+      // ...plus projects shared with them via membership (teams).
+      const memberships = await getUserMemberships(ownerId)
+      for (const m of memberships) {
+        const sk = `SITE#${m.siteId}`
+        if (bySk.has(sk)) {
+          bySk.get(sk).role = m.role
+          continue
+        }
+        const got = await dynamodb.getItem({ TableName: TABLE_NAME, Key: { pk: { S: 'SITES' }, sk: { S: sk } } })
+        if (got.Item) {
+          const s = unmarshall(got.Item)
+          s.role = m.role
+          bySk.set(sk, s)
+        }
+      }
     }
 else {
-      // Fallback: return all sites (for unauthenticated API access)
-      result = await dynamodb.query({
+      // No session → all sites (legacy/unauthenticated access; gated by #54).
+      const all = await dynamodb.query({
         TableName: TABLE_NAME,
         KeyConditionExpression: 'pk = :pk',
-        ExpressionAttributeValues: {
-          ':pk': { S: 'SITES' },
-        },
+        ExpressionAttributeValues: { ':pk': { S: 'SITES' } },
       }) as { Items?: any[] }
+      for (const raw of (all.Items || [])) {
+        const s = unmarshall(raw)
+        bySk.set(s.sk || `SITE#${s.siteId}`, s)
+      }
     }
 
-    const sites = (result.Items || []).map(unmarshall).map((s: any) => ({
+    const sites = [...bySk.values()].map((s: any) => ({
       id: s.id || s.siteId,
       name: s.name,
       domains: s.domains || [],
+      role: s.role || (ownerId && s.ownerId === ownerId ? 'owner' : undefined),
       createdAt: s.createdAt,
     }))
 
