@@ -235,21 +235,21 @@ describe('getErrorFingerprint', () => {
     const stack = '#0 /app/Http/Controllers/UserController.php(42): App\\Models\\User->find()'
     const fp = getErrorFingerprint('SQLSTATE[42S02]: Table not found', stack, 'laravel')
 
-    expect(fp).toContain('/app/Http/Controllers/UserController.php:42')
-    expect(fp).toContain('@')
+    expect(fp).toContain('UserController.php')
+    expect(fp).toContain('::')
   })
 
   it('should produce fingerprint with URL for JS errors', () => {
     const stack = '    at handleClick (https://example.com/app.js:42:15)'
     const fp = getErrorFingerprint('TypeError: Cannot read property', stack)
 
-    expect(fp).toContain('https://example.com/app.js:42')
-    expect(fp).toContain('@')
+    expect(fp).toContain('app.js')
+    expect(fp).toContain('handleClick')
   })
 
   it('should use unknown when no stack provided', () => {
     const fp = getErrorFingerprint('some error', undefined)
-    expect(fp).toContain('@unknown')
+    expect(fp).toContain('@nostack')
   })
 
   it('should normalize numbers in messages', () => {
