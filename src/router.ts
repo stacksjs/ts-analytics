@@ -155,6 +155,10 @@ export async function createRouter(): Promise<Router> {
     const session = await auth.getSessionFromRequest(req)
     return misc.handleCreateSite(req, session?.userId)
   })
+  await router.delete('/api/sites/{siteId}', async (req: any) => {
+    const session = await auth.getSessionFromRequest(req)
+    return misc.handleDeleteSite(req, req.params.siteId, session?.userId)
+  })
 
   // Share link validation
   await router.get('/api/share/{token}', (req: any) => sharing.handleGetSharedDashboard(req, req.params.token))

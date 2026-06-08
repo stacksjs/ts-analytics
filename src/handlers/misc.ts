@@ -7,7 +7,7 @@ import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 import { generateApiKey } from './api-keys'
-import { addMembership, getUserMemberships } from '../lib/membership'
+import { addMembership, getUserMemberships, getMembership, getSiteMembers, removeMembership } from '../lib/membership'
 import { generateId } from '../index'
 
 /**
@@ -115,6 +115,51 @@ export async function handleCreateSite(request: Request, ownerId?: string): Prom
 catch (error) {
     console.error('Create site error:', error)
     return errorResponse('Failed to create site')
+  }
+}
+
+/**
+ * DELETE /api/sites/{siteId} — owner-only. Removes the project, its memberships,
+ * and everything stored under its SITE# partition (API keys, errors, stats,
+ * pageviews, sessions, …). Large projects are purged via pagination.
+ */
+export async function handleDeleteSite(_request: Request, siteId: string, userId?: string): Promise<Response> {
+  try {
+    if (!userId) return jsonResponse({ error: 'Authentication required' }, 401)
+    const role = await getMembership(userId, siteId)
+    if (role !== 'owner') return jsonResponse({ error: 'Only the project owner can delete it' }, 403)
+
+    // The site metadata record (lives in the shared SITES partition).
+    await dynamodb.deleteItem({ TableName: TABLE_NAME, Key: { pk: { S: 'SITES' }, sk: { S: `SITE#${siteId}` } } })
+
+    // Memberships (both mirrored records per member).
+    for (const m of await getSiteMembers(siteId)) {
+      await removeMembership(m.userId, siteId)
+    }
+
+    // Everything under the project's own partition: API keys, error groups +
+    // occurrences, statuses, alerts, pageviews, sessions, etc.
+    let lastKey: Record<string, unknown> | undefined
+    do {
+      const res = await dynamodb.query({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk',
+        ExpressionAttributeValues: { ':pk': { S: `SITE#${siteId}` } },
+        ExclusiveStartKey: lastKey,
+        Limit: 200,
+      }) as { Items?: any[]; LastEvaluatedKey?: Record<string, unknown> }
+      for (const raw of (res.Items || [])) {
+        const it = unmarshall(raw)
+        await dynamodb.deleteItem({ TableName: TABLE_NAME, Key: { pk: { S: it.pk }, sk: { S: it.sk } } })
+      }
+      lastKey = res.LastEvaluatedKey
+    } while (lastKey)
+
+    return jsonResponse({ success: true, siteId })
+  }
+catch (error) {
+    console.error('Delete site error:', error)
+    return errorResponse('Failed to delete site')
   }
 }
 
