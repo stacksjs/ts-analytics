@@ -9,6 +9,7 @@ import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 import { categorizeError, getErrorSeverity, getErrorFingerprint, getErrorTrend, shouldIgnoreError } from '../utils/errors'
 import { rateLimitAllow } from '../lib/rate-limit'
+import { getMembership } from '../lib/membership'
 
 /** Max error events per minute per ingest key (429 beyond this). */
 const ERROR_INGEST_LIMIT = Number(process.env.ANALYTICS_ERROR_RATE_LIMIT) || 300
@@ -240,6 +241,50 @@ catch (e) {
 catch (error) {
     console.error('Update error status error:', error)
     return errorResponse('Failed to update error status')
+  }
+}
+
+/**
+ * POST /api/sites/{siteId}/errors/assign — assign an issue to a project member
+ * (assignee = userId, or null/omitted to unassign). Stored on the issue's
+ * ERROR_STATUS# record.
+ */
+export async function handleAssignError(request: Request, siteId: string): Promise<Response> {
+  try {
+    const body = await request.json() as Record<string, any>
+    const errorId = body.errorId
+    const assignee = body.assignee || null
+    if (!errorId) return jsonResponse({ error: 'Missing required field: errorId' }, 400)
+
+    if (assignee) {
+      const role = await getMembership(assignee, siteId)
+      if (!role) return jsonResponse({ error: 'Assignee is not a member of this project' }, 400)
+    }
+
+    const now = new Date().toISOString()
+    const key = { pk: { S: `SITE#${siteId}` }, sk: { S: `ERROR_STATUS#${errorId}` } }
+    if (assignee) {
+      await dynamodb.updateItem({
+        TableName: TABLE_NAME,
+        Key: key,
+        UpdateExpression: 'SET assignee = :a, errorId = :eid, updatedAt = :now',
+        ExpressionAttributeValues: { ':a': { S: assignee }, ':eid': { S: errorId }, ':now': { S: now } },
+      })
+    }
+else {
+      await dynamodb.updateItem({
+        TableName: TABLE_NAME,
+        Key: key,
+        UpdateExpression: 'REMOVE assignee SET errorId = :eid, updatedAt = :now',
+        ExpressionAttributeValues: { ':eid': { S: errorId }, ':now': { S: now } },
+      })
+    }
+
+    return jsonResponse({ success: true, errorId, assignee })
+  }
+catch (error) {
+    console.error('Assign error error:', error)
+    return errorResponse('Failed to assign error')
   }
 }
 

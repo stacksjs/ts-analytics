@@ -205,6 +205,7 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/sites/{siteId}/errors', (req: any) => errors.handleGetErrors(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/errors/statuses', (req: any) => errors.handleGetErrorStatuses(req, req.params.siteId))
   await router.post('/api/sites/{siteId}/errors/status', (req: any) => errors.handleUpdateErrorStatus(req, req.params.siteId))
+  await router.post('/api/sites/{siteId}/errors/assign', (req: any) => errors.handleAssignError(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/errors/timeseries', (req: any) => errors.handleGetErrorTimeseries(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/errors/comparison', (req: any) => errors.handleGetErrorComparison(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/errors/groups', (req: any) => errors.handleGetErrorGroups(req, req.params.siteId))
