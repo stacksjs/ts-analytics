@@ -28,6 +28,7 @@ import * as sharing from './handlers/sharing'
 import * as collect from './handlers/collect'
 import * as misc from './handlers/misc'
 import * as auth from './handlers/auth'
+import * as authz from './handlers/authz'
 
 /**
  * Stealth API path mapping
@@ -99,6 +100,13 @@ export async function createRouter(): Promise<Router> {
 
   // Disable auto file-based routing (all routes are registered explicitly)
   router._fileRoutesInitialized = true
+
+  // Global authorization: gate every /api/sites/{id}/* + /api/p/{id}/* route on
+  // project membership (no-op unless ANALYTICS_REQUIRE_AUTH=true). See handlers/authz.
+  await router.use(async (req: any, next: () => Promise<Response>) => {
+    const denied = await authz.siteAuthGuard(req)
+    return denied || next()
+  })
 
   // Health check
   await router.get('/health', misc.handleHealth)
