@@ -3126,6 +3126,9 @@ export interface TrackingScriptOptions {
   trackWebVitals?: boolean
   /** Whether to track JavaScript errors */
   trackErrors?: boolean
+  /** Ingest-only error key (Sentry-style DSN key). When set, captured errors
+   * POST to /errors/collect with X-Analytics-Token instead of the public /collect. */
+  errorIngestKey?: string
 }
 
 /**
@@ -3198,12 +3201,23 @@ catch (e){}
 
   const errorTrackingCode = options.trackErrors !== false ? `
   // Error tracking
+  var ik=${JSON.stringify(options.errorIngestKey || '')};
   var errorsSent=new Set();
   function sendError(msg,source,line,col,stack){
     var key=msg+source+line;
     if(errorsSent.has(key))return;
     errorsSent.add(key);
-    t('error',{message:String(msg).slice(0,500),source:source,line:line,col:col,stack:String(stack||'').slice(0,2000)});
+    if(ik){
+      try{
+        var eb=JSON.stringify({message:String(msg).slice(0,500),type:'Error',source:source,line:line,col:col,stack:String(stack||'').slice(0,4000),url:location.href,browser:br,environment:'production',sdkVersion:'tsa-js/1'});
+        var xe=new XMLHttpRequest();xe.open('POST',api+'/errors/collect',true);
+        xe.setRequestHeader('Content-Type','application/json');
+        xe.setRequestHeader('X-Analytics-Token',ik);
+        xe.send(eb);
+      }catch(_e){}
+    }else{
+      t('error',{message:String(msg).slice(0,500),source:source,line:line,col:col,stack:String(stack||'').slice(0,2000)});
+    }
   }
   w.addEventListener('error',function(e){
     sendError(e.message,e.filename,e.lineno,e.colno,e.error&&e.error.stack);

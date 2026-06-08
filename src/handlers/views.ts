@@ -10,6 +10,7 @@ import { htmlResponse, jsResponse } from '../utils/response'
 import { getQueryParams, getLambdaEvent } from '../../deploy/lambda-adapter'
 import { injectQueryPreservationScript } from '@stacksjs/bun-router'
 import { requireAuth } from './auth'
+import { getOrCreateIngestKey } from './api-keys'
 import path from 'node:path'
 import fs from 'node:fs'
 
@@ -322,9 +323,13 @@ export async function handleScript(request: Request): Promise<Response> {
   const pathMatch = url.pathname.match(/\/sites\/([^/]+)\/script/)
   const siteId = pathMatch?.[1] || 'unknown'
 
+  // Embed the project's ingest-only error key so captured errors go to the keyed
+  // /errors/collect (Sentry-style), not the public /collect.
+  const errorIngestKey = minimal ? '' : await getOrCreateIngestKey(siteId).catch(() => '')
+
   let script = minimal
     ? generateMinimalTrackingScript({ siteId, apiEndpoint })
-    : generateTrackingScript({ siteId, apiEndpoint, trackLinkClicks: true, trackSpaRoutes: true, trackEngagement: true })
+    : generateTrackingScript({ siteId, apiEndpoint, trackLinkClicks: true, trackSpaRoutes: true, trackEngagement: true, errorIngestKey })
 
   // Raw-JS variant (for the `<script src=".../script.js">` one-liner): strip the
   // HTML comment + <script> wrapper so the response is loadable JavaScript. The
