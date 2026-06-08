@@ -114,6 +114,81 @@ catch (error) {
 }
 
 /**
+ * Get (or lazily create) the project's ingest-only error-tracking key.
+ *
+ * This key has the 'error-tracking' permission but NOT 'read', so it is safe to
+ * embed in client pages — like a Sentry public DSN it can only ingest errors,
+ * never read analytics.
+ */
+export async function getOrCreateIngestKey(siteId: string): Promise<string> {
+  const result = await dynamodb.query({
+    TableName: TABLE_NAME,
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+    ExpressionAttributeValues: { ':pk': { S: `SITE#${siteId}` }, ':prefix': { S: 'API_KEY#' } },
+  }) as { Items?: any[] }
+
+  const keys = (result.Items || []).map(unmarshall)
+  const existing = keys.find(k =>
+    k.isActive && Array.isArray(k.permissions) && k.permissions.includes('error-tracking') && !k.permissions.includes('read'),
+  )
+  if (existing) return existing.key
+
+  const keyId = generateId()
+  const apiKey = generateApiKey()
+  await dynamodb.putItem({
+    TableName: TABLE_NAME,
+    Item: marshall({
+      pk: `SITE#${siteId}`,
+      sk: `API_KEY#${keyId}`,
+      gsi1pk: `API_KEY#${apiKey}`,
+      gsi1sk: `SITE#${siteId}`,
+      id: keyId,
+      siteId,
+      name: 'Error Ingest',
+      key: apiKey,
+      keyPrefix: apiKey.slice(0, 8),
+      permissions: ['error-tracking'],
+      lastUsed: null,
+      usageCount: 0,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    }),
+  })
+  return apiKey
+}
+
+/** Build a Sentry-style DSN: <scheme>://<ingestKey>@<host>/<siteId>. */
+export function buildDsn(origin: string, siteId: string, key: string): string {
+  try {
+    const u = new URL(origin)
+    return `${u.protocol}//${key}@${u.host}/${siteId}`
+  }
+catch {
+    return `${origin}/${siteId}?key=${key}`
+  }
+}
+
+/**
+ * GET /api/sites/{siteId}/dsn — the project's error-tracking DSN + ingest key.
+ */
+export async function handleGetDsn(request: Request, siteId: string): Promise<Response> {
+  try {
+    const key = await getOrCreateIngestKey(siteId)
+    const origin = new URL(request.url).origin
+    return jsonResponse({
+      dsn: buildDsn(origin, siteId, key),
+      ingestKey: key,
+      endpoint: `${origin}/errors/collect`,
+      siteId,
+    })
+  }
+catch (error) {
+    console.error('Get DSN error:', error)
+    return errorResponse('Failed to get DSN')
+  }
+}
+
+/**
  * GET /api/sites/{siteId}/api-keys
  * Returns the single API key for the site
  */

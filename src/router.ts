@@ -244,6 +244,7 @@ export async function createRouter(): Promise<Router> {
   await router.delete('/api/sites/{siteId}/email-reports/{reportId}', (req: any) => alerts.handleDeleteEmailReport(req, req.params.siteId, req.params.reportId))
 
   // API Keys
+  await router.get('/api/sites/{siteId}/dsn', (req: any) => apiKeys.handleGetDsn(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/api-keys', (req: any) => apiKeys.handleGetApiKey(req, req.params.siteId))
   await router.post('/api/sites/{siteId}/api-keys/regenerate', (req: any) => apiKeys.handleRegenerateApiKey(req, req.params.siteId))
 
