@@ -59,4 +59,25 @@ describe('generateErrorSdk', () => {
     expect(sent.tags.plan).toBe('pro')
     expect(sent.tags.area).toBe('checkout')
   })
+
+  it('attaches breadcrumbs to captured events', () => {
+    let sent: any = null
+    function FakeXHR(this: any) {}
+    ;(FakeXHR.prototype as any).open = function () {}
+    ;(FakeXHR.prototype as any).setRequestHeader = function () {}
+    ;(FakeXHR.prototype as any).send = function (b: string) { sent = JSON.parse(b) }
+    const win: any = { addEventListener() {}, fetch: null }
+    const hist: any = { pushState() {} }
+    const con: any = { error() {}, warn() {} }
+    // eslint-disable-next-line no-new-func
+    new Function('window', 'URL', 'XMLHttpRequest', 'location', 'history', 'console', sdk)(
+      win, URL, FakeXHR, { href: 'x', pathname: '/p' }, hist, con,
+    )
+    win.TSA.init({ endpoint: 'https://h/errors/collect', key: 'ak_k' })
+    win.TSA.addBreadcrumb({ category: 'test', message: 'hello' })
+    win.TSA.captureException(new Error('boom'))
+
+    expect(Array.isArray(sent.breadcrumbs)).toBe(true)
+    expect(sent.breadcrumbs.some((b: any) => b.message === 'hello')).toBe(true)
+  })
 })
