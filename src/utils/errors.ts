@@ -227,19 +227,33 @@ export function parseStackTrace(stack: string | undefined, framework?: string): 
  * Group similar errors for deduplication
  */
 export function getErrorFingerprint(message: string, stack: string | undefined, framework?: string): string {
-  // Remove variable parts from message (numbers, hashes, etc)
+  // Remove variable parts from the message (numbers, hex, hashes).
   const normalizedMessage = message
     .replace(/\d+/g, 'N')
     .replace(/0x[a-f0-9]+/gi, 'HEX')
     .replace(/[a-f0-9]{8,}/gi, 'HASH')
     .toLowerCase()
+    .trim()
+    .slice(0, 120)
 
-  // Get first frame from stack for location
-  const frames = parseStackTrace(stack, framework)
-  const firstFrame = frames[0]
-  const location = firstFrame ? `${firstFrame.file}:${firstFrame.line}` : 'unknown'
+  // Build a signature from the top frames using function + file, but NOT
+  // line/column — those shift on every build/minify and would over-split what
+  // is really the same error. Content-hashed bundle names (app.4f3a2b1c.js) and
+  // query strings are normalized so the same error groups across deploys.
+  const sig = parseStackTrace(stack, framework)
+    .slice(0, 3)
+    .map((f) => {
+      const file = (f.file || '')
+        .replace(/[?#].*$/, '')
+        .replace(/\.[a-f0-9]{8,}\.(js|mjs|cjs|ts)$/i, '.$1')
+        .split('/')
+        .slice(-2)
+        .join('/')
+      return `${f.function || '?'}@${file}`
+    })
+    .join('|')
 
-  return `${normalizedMessage}@${location}`
+  return sig ? `${normalizedMessage}::${sig}`.slice(0, 400) : `${normalizedMessage}@nostack`
 }
 
 /**
