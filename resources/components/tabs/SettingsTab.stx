@@ -126,12 +126,25 @@ function showAlertModal(): void {
     title: 'Create Alert',
     content: `
       <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Name</label>
+        <input type="text" name="name" class="form-input" placeholder="e.g. Traffic spike" />
+      </div>
+      <div class="mb-4">
         <label class="text-xs font-medium text-muted mb-1 block">Metric</label>
         <select name="metric" class="form-input">
           <option value="pageviews">Page Views</option>
           <option value="visitors">Visitors</option>
           <option value="bounce_rate">Bounce Rate</option>
           <option value="error_rate">Error Rate</option>
+        </select>
+      </div>
+      <div class="mb-4">
+        <label class="text-xs font-medium text-muted mb-1 block">Condition</label>
+        <select name="condition" class="form-input">
+          <option value="above">Above threshold</option>
+          <option value="below">Below threshold</option>
+          <option value="equals">Equals threshold</option>
+          <option value="change_percent">% change</option>
         </select>
       </div>
       <div class="mb-4">
@@ -149,7 +162,7 @@ function showAlertModal(): void {
       await fetch(apiUrl('/alerts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ metric: data.metric, threshold: parseInt(data.threshold), email: data.email }),
+        body: JSON.stringify({ name: data.name, metric: data.metric, condition: data.condition, threshold: parseInt(data.threshold), email: data.email }),
       })
       Modal.close()
       fetchSettings()
