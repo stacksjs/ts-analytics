@@ -7,6 +7,7 @@ import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 import { generateApiKey } from './api-keys'
+import { addMembership } from '../lib/membership'
 import { generateId } from '../index'
 
 /**
@@ -66,6 +67,9 @@ export async function handleCreateSite(request: Request, ownerId?: string): Prom
       TableName: TABLE_NAME,
       Item: marshall(siteItem),
     })
+
+    // Record the creator as the project owner (membership layer).
+    if (ownerId) await addMembership(ownerId, siteId, 'owner')
 
     // Auto-generate the first API key
     const keyId = generateId()
