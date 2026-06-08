@@ -8,6 +8,7 @@
 import { dynamodb, TABLE_NAME, marshall, unmarshall } from '../lib/dynamodb'
 import { htmlResponse, jsonResponse, errorResponse } from '../utils/response'
 import { sendEmail, appBaseUrl } from '../lib/email'
+import { acceptInvites } from '../lib/membership'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -85,6 +86,8 @@ catch {
   if (existing) return errorResponse('An account with this email already exists', 409)
 
   const user = await createUser(email, password, name)
+  // Turn any pending project invites for this email into memberships.
+  await acceptInvites(user.userId, user.email)
   await sendVerificationEmail(user.userId, user.email)
   const token = await createSession(user.userId, user.email)
 

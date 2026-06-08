@@ -6,7 +6,7 @@ import { generateId } from '../index'
 import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
-import { addMembership, removeMembership } from '../lib/membership'
+import { addMembership, removeMembership, addPendingInvite } from '../lib/membership'
 import { getUserByEmail } from './auth'
 
 /**
@@ -49,6 +49,7 @@ export async function handleInviteTeamMember(request: Request, siteId: string): 
     // Existing users get immediate project access via the membership layer
     // (what the authz guard checks). New emails stay 'invited' until accept (#60).
     if (existingUser) await addMembership(existingUser.userId, siteId, body.role)
+    else await addPendingInvite(body.email, siteId, body.role)
 
     return jsonResponse({ member }, 201)
   }

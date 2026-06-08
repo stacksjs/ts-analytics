@@ -55,6 +55,39 @@ export async function getUserMemberships(userId: string): Promise<{ siteId: stri
   return (r.Items || []).map(unmarshall).map((m: any) => ({ siteId: m.siteId, role: m.role as Role }))
 }
 
+// ---- Pending invites (for emails without an account yet) -------------------
+// Keyed by email so they can be found + auto-accepted when the person signs up:
+//   INVITE#{email} / SITE#{siteId} -> role
+
+export async function addPendingInvite(email: string, siteId: string, role: Role): Promise<void> {
+  await dynamodb.putItem({
+    TableName: TABLE_NAME,
+    Item: marshall({ pk: `INVITE#${email.toLowerCase()}`, sk: `SITE#${siteId}`, email: email.toLowerCase(), siteId, role, invitedAt: new Date().toISOString() }),
+  })
+}
+
+export async function getPendingInvites(email: string): Promise<{ siteId: string; role: Role }[]> {
+  const r = await dynamodb.query({
+    TableName: TABLE_NAME,
+    KeyConditionExpression: 'pk = :pk',
+    ExpressionAttributeValues: { ':pk': { S: `INVITE#${email.toLowerCase()}` } },
+  }) as { Items?: any[] }
+  return (r.Items || []).map(unmarshall).map((i: any) => ({ siteId: i.siteId, role: i.role as Role }))
+}
+
+/** Convert all pending invites for an email into real memberships. Returns count. */
+export async function acceptInvites(userId: string, email: string): Promise<number> {
+  const invites = await getPendingInvites(email)
+  for (const inv of invites) {
+    await addMembership(userId, inv.siteId, inv.role)
+    await dynamodb.deleteItem({
+      TableName: TABLE_NAME,
+      Key: { pk: { S: `INVITE#${email.toLowerCase()}` }, sk: { S: `SITE#${inv.siteId}` } },
+    })
+  }
+  return invites.length
+}
+
 export async function getSiteMembers(siteId: string): Promise<{ userId: string; role: Role }[]> {
   const r = await dynamodb.query({
     TableName: TABLE_NAME,
