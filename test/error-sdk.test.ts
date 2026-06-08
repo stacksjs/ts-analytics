@@ -37,4 +37,26 @@ describe('generateErrorSdk', () => {
     expect(listeners).toContain('error')
     expect(listeners).toContain('unhandledrejection')
   })
+
+  it('merges persistent scope (user/tags) into captured events', () => {
+    let sent: any = null
+    function FakeXHR(this: any) {}
+    ;(FakeXHR.prototype as any).open = function () {}
+    ;(FakeXHR.prototype as any).setRequestHeader = function () {}
+    ;(FakeXHR.prototype as any).send = function (b: string) { sent = JSON.parse(b) }
+    const win: any = { addEventListener() {} }
+    // eslint-disable-next-line no-new-func
+    new Function('window', 'URL', 'XMLHttpRequest', 'location', sdk)(win, URL, FakeXHR, { href: 'https://x' })
+
+    win.TSA.init({ endpoint: 'https://h/errors/collect', key: 'ak_k' })
+    win.TSA.setUser({ id: 'u1' })
+    win.TSA.setTag('plan', 'pro')
+    win.TSA.captureException(new Error('boom'), { tags: { area: 'checkout' } })
+
+    expect(sent).toBeTruthy()
+    expect(sent.message).toBe('boom')
+    expect(sent.user).toEqual({ id: 'u1' })
+    expect(sent.tags.plan).toBe('pro')
+    expect(sent.tags.area).toBe('checkout')
+  })
 })
