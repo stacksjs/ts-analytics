@@ -3,6 +3,7 @@
  */
 
 import { generateId } from '../index'
+import { analyzeVariants } from '../lib/significance'
 import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
@@ -65,7 +66,10 @@ export async function handleGetExperiments(_request: Request, siteId: string): P
       },
     }) as { Items?: any[] }
 
-    const experiments = (result.Items || []).map(unmarshall)
+    const experiments = (result.Items || []).map(unmarshall).map((exp: any) => {
+      const stats = analyzeVariants(exp.variants || [])
+      return { ...exp, variants: (exp.variants || []).map((v: any, i: number) => ({ ...v, ...stats[i] })) }
+    })
 
     return jsonResponse({ experiments })
   }
