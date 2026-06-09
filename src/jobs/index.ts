@@ -8,6 +8,7 @@
 import { registerJob } from '../lib/scheduler'
 import { evaluateAllSitesErrorAlerts } from '../handlers/errors'
 import { runUptimeChecks } from '../handlers/uptime'
+import { sendDueEmailDigests } from '../handlers/alerts'
 
 let bootstrapped = false
 
@@ -47,6 +48,19 @@ export function bootstrapJobs(): void {
       const n = await runUptimeChecks()
       if (n > 0)
         console.log(`[jobs] uptime-checks: probed ${n} monitor(s)`)
+    },
+  })
+
+  // Email digests — send each email-report on its schedule (daily/weekly/
+  // monthly) with the period's pageview summary (#93). Checked hourly; the
+  // per-report schedule gates the actual send.
+  registerJob({
+    name: 'email-digests',
+    intervalMs: 60 * 60_000,
+    run: async () => {
+      const n = await sendDueEmailDigests()
+      if (n > 0)
+        console.log(`[jobs] email-digests: sent ${n} report(s)`)
     },
   })
 

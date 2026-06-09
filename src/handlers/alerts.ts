@@ -6,6 +6,7 @@ import { generateId } from '../index'
 import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
+import { sendEmail } from '../lib/email'
 
 /**
  * POST /api/sites/{siteId}/alerts
@@ -184,4 +185,80 @@ catch (error) {
     console.error('Delete email report error:', error)
     return errorResponse('Failed to delete email report')
   }
+}
+
+// ── Scheduled email digests (#93) ──────────────────────────────────────────
+const DIGEST_PERIOD_MS: Record<string, number> = {
+  daily: 24 * 60 * 60 * 1000,
+  weekly: 7 * 24 * 60 * 60 * 1000,
+  monthly: 30 * 24 * 60 * 60 * 1000,
+}
+
+/** Pure: whether a digest on `schedule` is due given its last send. */
+export function digestDue(schedule: string, lastSentMs: number | null, now: number): boolean {
+  const period = DIGEST_PERIOD_MS[schedule] ?? DIGEST_PERIOD_MS.weekly
+  return lastSentMs === null || now - lastSentMs >= period
+}
+
+async function countPageviews(siteId: string, startIso: string, endIso: string): Promise<number> {
+  const r = await dynamodb.query({
+    TableName: TABLE_NAME,
+    KeyConditionExpression: 'pk = :pk AND sk BETWEEN :s AND :e',
+    ExpressionAttributeValues: { ':pk': { S: `SITE#${siteId}` }, ':s': { S: `PAGEVIEW#${startIso}` }, ':e': { S: `PAGEVIEW#${endIso}` } },
+    Select: 'COUNT',
+  }) as { Count?: number }
+  return r.Count || 0
+}
+
+/** Send every due email-report digest across all sites (scheduled job, #93/#90). */
+export async function sendDueEmailDigests(): Promise<number> {
+  const sites = await dynamodb.query({
+    TableName: TABLE_NAME,
+    KeyConditionExpression: 'pk = :pk',
+    ExpressionAttributeValues: { ':pk': { S: 'SITES' } },
+  }) as { Items?: any[] }
+
+  const now = Date.now()
+  const nowIso = new Date(now).toISOString()
+  let sent = 0
+
+  for (const raw of (sites.Items || [])) {
+    const site = unmarshall(raw)
+    const siteId = site.siteId || site.id
+    if (!siteId)
+      continue
+    const reports = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :p)',
+      ExpressionAttributeValues: { ':pk': { S: `SITE#${siteId}` }, ':p': { S: 'EMAIL_REPORT#' } },
+    }) as { Items?: any[] }
+
+    for (const rraw of (reports.Items || [])) {
+      const report = unmarshall(rraw)
+      if (report.isActive === false)
+        continue
+      const lastSentMs = report.lastSent ? new Date(report.lastSent).getTime() : null
+      if (!digestDue(report.schedule, lastSentMs, now))
+        continue
+
+      const period = DIGEST_PERIOD_MS[report.schedule] ?? DIGEST_PERIOD_MS.weekly
+      const sinceIso = new Date(now - period).toISOString()
+      const label = report.schedule === 'daily' ? 'day' : report.schedule === 'monthly' ? 'month' : 'week'
+      const pv = await countPageviews(siteId, sinceIso, nowIso)
+
+      await sendEmail({
+        to: report.email,
+        subject: `Your ${report.schedule} analytics report — ${siteId}`,
+        text: `Analytics summary for ${siteId}\n\n${pv} pageviews in the last ${label}.`,
+      })
+      await dynamodb.updateItem({
+        TableName: TABLE_NAME,
+        Key: { pk: { S: `SITE#${siteId}` }, sk: { S: report.sk } },
+        UpdateExpression: 'SET lastSent = :now',
+        ExpressionAttributeValues: { ':now': { S: nowIso } },
+      })
+      sent++
+    }
+  }
+  return sent
 }
