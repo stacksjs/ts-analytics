@@ -9,6 +9,7 @@ import { registerJob } from '../lib/scheduler'
 import { evaluateAllSitesErrorAlerts } from '../handlers/errors'
 import { runUptimeChecks } from '../handlers/uptime'
 import { sendDueEmailDigests } from '../handlers/alerts'
+import { processWebhookDeliveries } from '../handlers/webhooks'
 
 let bootstrapped = false
 
@@ -64,5 +65,15 @@ export function bootstrapJobs(): void {
     },
   })
 
-  // Feature jobs append here in their own issues.
+  // Webhook delivery — drain the queue, POST each event (HMAC-signed) with
+  // retry/backoff (#92).
+  registerJob({
+    name: 'webhook-delivery',
+    intervalMs: 60_000,
+    run: async () => {
+      const n = await processWebhookDeliveries()
+      if (n > 0)
+        console.log(`[jobs] webhook-delivery: processed ${n} delivery(s)`)
+    },
+  })
 }

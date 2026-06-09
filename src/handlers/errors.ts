@@ -12,6 +12,7 @@ import { rateLimitAllow } from '../lib/rate-limit'
 import { getMembership } from '../lib/membership'
 import { recordEventWithinQuota } from '../lib/quota'
 import { sendEmail } from '../lib/email'
+import { enqueueWebhookEvent } from './webhooks'
 
 /** Max error events per minute per ingest key (429 beyond this). */
 const ERROR_INGEST_LIMIT = Number(process.env.ANALYTICS_ERROR_RATE_LIMIT) || 300
@@ -435,6 +436,15 @@ catch { return body.url || '' } })(),
 catch (e: any) {
       if (!String(e?.name || e).includes('ConditionalCheckFailed')) console.error('Regression update failed:', e)
     }
+
+    // Fan out to any webhooks subscribed to error events (#92). Fire-and-forget
+    // so webhook delivery never blocks ingest.
+    void enqueueWebhookEvent(siteId, 'error', {
+      fingerprint,
+      message: String(body.message || '').slice(0, 200),
+      type: body.type || 'Error',
+      url: body.url,
+    }).catch(() => {})
 
     // Track environment counts, browser and OS sets on the group record
     const env = body.environment || 'production'
