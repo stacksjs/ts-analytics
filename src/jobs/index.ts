@@ -6,6 +6,7 @@
  * email digests #93) register here.
  */
 import { registerJob } from '../lib/scheduler'
+import { evaluateAllSitesErrorAlerts } from '../handlers/errors'
 
 let bootstrapped = false
 
@@ -20,6 +21,18 @@ export function bootstrapJobs(): void {
     intervalMs: 60_000,
     run: async () => {
       console.log(`[jobs] heartbeat ${new Date().toISOString()}`)
+    },
+  })
+
+  // Error alerts — evaluate every site's error-rate / new-issue alerts and
+  // notify (email + webhook) when they fire (#80).
+  registerJob({
+    name: 'error-alerts',
+    intervalMs: 5 * 60_000,
+    run: async () => {
+      const n = await evaluateAllSitesErrorAlerts()
+      if (n > 0)
+        console.log(`[jobs] error-alerts: ${n} alert(s) triggered`)
     },
   })
 

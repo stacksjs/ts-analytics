@@ -11,6 +11,7 @@ import { categorizeError, getErrorSeverity, getErrorFingerprint, getErrorTrend, 
 import { rateLimitAllow } from '../lib/rate-limit'
 import { getMembership } from '../lib/membership'
 import { recordEventWithinQuota } from '../lib/quota'
+import { sendEmail } from '../lib/email'
 
 /** Max error events per minute per ingest key (429 beyond this). */
 const ERROR_INGEST_LIMIT = Number(process.env.ANALYTICS_ERROR_RATE_LIMIT) || 300
@@ -1115,6 +1116,12 @@ else if (alert.metric === 'error_threshold') {
       shouldTrigger = currentValue >= (alert.threshold || 100)
     }
 
+    // Cooldown: don't re-fire while still inside the same window (avoids
+    // re-notifying on every scheduler tick while the condition persists).
+    if (shouldTrigger && alert.lastTriggered && now.getTime() - new Date(alert.lastTriggered).getTime() < windowMs) {
+      shouldTrigger = false
+    }
+
     if (shouldTrigger) {
       const triggerId = `${now.toISOString()}#${alert.id}`
       const trigger = {
@@ -1148,8 +1155,52 @@ else if (alert.metric === 'error_threshold') {
       })
 
       triggered.push(trigger)
+      await notifyAlert(alert, trigger)
     }
   }
 
   return triggered
+}
+
+/** Notify an alert's configured channels (email + webhook) when it fires. */
+async function notifyAlert(alert: any, trigger: any): Promise<void> {
+  const msg = `Alert "${alert.name}" triggered: ${alert.metric} = ${trigger.currentValue} (threshold ${alert.threshold ?? '—'})`
+  if (alert.email) {
+    await sendEmail({ to: alert.email, subject: `[Alert] ${alert.name}`, text: msg })
+  }
+  if (alert.webhookUrl) {
+    try {
+      await fetch(alert.webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alert: alert.name, metric: alert.metric, value: trigger.currentValue, threshold: alert.threshold, triggeredAt: trigger.triggeredAt }),
+      })
+    }
+catch (e) {
+      console.error('Alert webhook failed:', (e as Error).message)
+    }
+  }
+}
+
+/** Evaluate error alerts for every site (driven by the scheduled job, #80/#90). */
+export async function evaluateAllSitesErrorAlerts(): Promise<number> {
+  const sitesResult = await dynamodb.query({
+    TableName: TABLE_NAME,
+    KeyConditionExpression: 'pk = :pk',
+    ExpressionAttributeValues: { ':pk': { S: 'SITES' } },
+  }) as { Items?: any[] }
+
+  let total = 0
+  for (const raw of (sitesResult.Items || [])) {
+    const site = unmarshall(raw)
+    const id = site.siteId || site.id
+    if (!id) continue
+    try {
+      total += (await evaluateErrorAlerts(id)).length
+    }
+catch (e) {
+      console.error(`[jobs] alert eval ${id} failed:`, (e as Error).message)
+    }
+  }
+  return total
 }
