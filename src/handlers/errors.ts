@@ -10,6 +10,7 @@ import { getQueryParams } from '../../deploy/lambda-adapter'
 import { categorizeError, getErrorSeverity, getErrorFingerprint, getErrorTrend, shouldIgnoreError } from '../utils/errors'
 import { rateLimitAllow } from '../lib/rate-limit'
 import { getMembership } from '../lib/membership'
+import { recordEventWithinQuota } from '../lib/quota'
 
 /** Max error events per minute per ingest key (429 beyond this). */
 const ERROR_INGEST_LIMIT = Number(process.env.ANALYTICS_ERROR_RATE_LIMIT) || 300
@@ -309,6 +310,14 @@ export async function handleCollectError(request: Request, siteId: string, keyId
 
     if (shouldIgnoreError(body.message, body.framework)) {
       return new Response(null, { status: 204 })
+    }
+
+    // Monthly per-project event quota (coarse cap; no-op unless configured).
+    if (!(await recordEventWithinQuota(siteId))) {
+      return new Response(JSON.stringify({ error: 'Monthly event quota exceeded' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     const timestamp = new Date()
