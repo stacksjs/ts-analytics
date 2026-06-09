@@ -8,7 +8,7 @@
 import { dynamodb, TABLE_NAME, unmarshall } from './dynamodb'
 
 /** Monthly event cap per project (env ANALYTICS_MONTHLY_EVENT_QUOTA; 0 = unlimited). */
-export const MONTHLY_EVENT_QUOTA = Number(process.env.ANALYTICS_MONTHLY_EVENT_QUOTA) || 0
+export const MONTHLY_EVENT_QUOTA: number = Number(process.env.ANALYTICS_MONTHLY_EVENT_QUOTA) || 0
 
 /** Current month bucket key (YYYY-MM). */
 export function monthKey(d: Date = new Date()): string {
