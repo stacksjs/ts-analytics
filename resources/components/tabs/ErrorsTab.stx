@@ -7,6 +7,7 @@ const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi
 const errors = state<ErrorItem[]>([])
 const errorStatuses = state<ErrorStatuses>({})
 const statusFilter = state<string>('all')
+const searchQuery = state<string>('')
 const errorDateRange = state<string>('30d')
 const loading = state<boolean>(true)
 const error = state<string | null>(null)
@@ -25,9 +26,11 @@ const severityKeys = ['critical', 'high', 'medium', 'low']
 
 const filteredErrors = derived(() => {
   const filter = statusFilter()
-  const all = errors()
-  if (filter === 'all') return all
-  return all.filter((e: ErrorItem) => getErrorStatus(e.fingerprint) === filter)
+  const q = searchQuery().toLowerCase().trim()
+  let all = errors()
+  if (filter !== 'all') all = all.filter((e: ErrorItem) => getErrorStatus(e.fingerprint) === filter)
+  if (q) all = all.filter((e: ErrorItem) => (e.message || '').toLowerCase().includes(q))
+  return all
 })
 
 const statusCounts = derived(() => {
@@ -50,6 +53,11 @@ const severityCounts = derived(() => {
 
 function getErrorStatus(fingerprint: string): string {
   return errorStatuses()[fingerprint]?.status || 'new'
+}
+
+function isRegressed(fingerprint: string): boolean {
+  const s: { regressed?: boolean } = errorStatuses()[fingerprint] || {}
+  return !!s.regressed
 }
 
 function timeAgo(ts: string | null): string {
@@ -251,6 +259,15 @@ onMount(() => {
       <p class="text-xs text-muted">Try a different filter</p>
     </div>
 
+    <div class="mt-3">
+      <input
+        type="text"
+        x-value="searchQuery()"
+        @input="searchQuery.set($event.target.value)"
+        placeholder="Search issues by message…"
+        class="form-input w-full max-w-[24rem] placeholder:text-muted"
+      />
+    </div>
     <div class="flex flex-col gap-px bg-border border border-border rounded-lg overflow-hidden mt-2">
       <div x-for="e in filteredErrors">
         <a x-href="errorHref(e)" x-class="errorRowClass(e)">
@@ -261,6 +278,7 @@ onMount(() => {
                 <span x-class="badgeSeverityClass(e)" x-text="severityLabels[e.severity] || 'Unknown'"></span>
                 <span class="text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide whitespace-nowrap bg-bg-3 text-text-2" x-text="e.category || 'Error'"></span>
                 <span x-class="badgeStatusClass(e)" x-text="statusLabels[getErrorStatus(e.fingerprint)] || 'New'"></span>
+                <span x-show="isRegressed(e.fingerprint)" class="text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide whitespace-nowrap border border-error text-error">Regressed</span>
               </div>
               <span class="inline-flex items-center gap-1 text-[0.6875rem] font-semibold text-text-2 whitespace-nowrap">
                 <Icon name="zap" size="12" class="text-muted" />

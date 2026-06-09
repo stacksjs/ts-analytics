@@ -129,7 +129,7 @@ export async function handleGetErrorStatuses(request: Request, siteId: string): 
 
     if (errorIds.length > 0) {
       // Query specific error status records
-      const statuses: Record<string, { status: string }> = {}
+      const statuses: Record<string, { status: string, regressed?: boolean, assignee?: string }> = {}
       for (const errorId of errorIds.slice(0, 50)) {
         const result = await dynamodb.query({
           TableName: TABLE_NAME,
@@ -142,7 +142,7 @@ export async function handleGetErrorStatuses(request: Request, siteId: string): 
 
         if (result.Items && result.Items.length > 0) {
           const item = unmarshall(result.Items[0])
-          statuses[errorId] = { status: item.status || 'new' }
+          statuses[errorId] = { status: item.status || 'new', regressed: !!item.regressed, assignee: item.assignee }
         }
       }
       return jsonResponse({ statuses })
@@ -158,10 +158,10 @@ export async function handleGetErrorStatuses(request: Request, siteId: string): 
       },
     }) as { Items?: any[] }
 
-    const statuses: Record<string, { status: string }> = {}
+    const statuses: Record<string, { status: string, regressed?: boolean, assignee?: string }> = {}
     for (const item of (result.Items || []).map(unmarshall)) {
       if (item.errorId) {
-        statuses[item.errorId] = { status: item.status || 'new' }
+        statuses[item.errorId] = { status: item.status || 'new', regressed: !!item.regressed, assignee: item.assignee }
       }
     }
 
