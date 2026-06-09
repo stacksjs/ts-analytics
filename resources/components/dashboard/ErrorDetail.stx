@@ -1,0 +1,167 @@
+<script client>
+import { useSiteApi } from '@composables'
+
+const { siteId, apiUrl } = useSiteApi()
+
+const detail = state(null)
+const loading = state(true)
+const loadError = state('')
+
+const issue = derived(() => detail() || {})
+const latest = derived(() => issue().latestOccurrence || {})
+const breadcrumbs = derived(() => latest().breadcrumbs || [])
+const occurrences = derived(() => issue().recentOccurrences || [])
+const browsers = derived(() => issue().browsers || [])
+const affectedUrls = derived(() => issue().affectedUrls || [])
+
+function issueId() {
+  return new URLSearchParams(window.location.search).get('id') || ''
+}
+
+function backHref() {
+  const sid = siteId()
+  return '/dashboard/errors' + (sid ? `?siteId=${encodeURIComponent(sid)}` : '')
+}
+
+// Plain text colours only (no bg-opacity utilities — crosswind renders those
+// solid; see cwcss/crosswind#16).
+function statusColor() {
+  const s = issue().status
+  if (s === 'resolved') return 'text-success border-success'
+  if (s === 'ignored') return 'text-muted border-muted'
+  return 'text-error border-error'
+}
+function statusLabel() {
+  return (issue().status || 'open').toUpperCase()
+}
+function severityLabel() {
+  return (issue().severity || 'medium').toUpperCase()
+}
+function fmtNum(n) {
+  if (n === undefined || n === null) return '0'
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
+}
+function when(ts) {
+  if (!ts) return '—'
+  try {
+    return new Date(ts).toLocaleString()
+  }
+catch {
+    return String(ts)
+  }
+}
+
+onMount(async () => {
+  const id = issueId()
+  if (!id) {
+    loadError.set('No issue specified')
+    loading.set(false)
+    return
+  }
+  try {
+    const res = await fetch(apiUrl(`/errors/detail?id=${encodeURIComponent(id)}`))
+    if (!res.ok) {
+      loadError.set(res.status === 404 ? 'Issue not found' : 'Failed to load issue')
+      return
+    }
+    const data = await res.json()
+    detail.set(data.error)
+  }
+catch (e) {
+    loadError.set('Failed to load issue')
+  }
+finally {
+    loading.set(false)
+  }
+})
+</script>
+
+<div class="p-6 max-w-[1100px] mx-auto w-full">
+  <a x-href="backHref()" class="inline-flex items-center gap-1 text-accent text-sm mb-4 hover:underline no-underline">
+    <Icon name="chevron-left" size="16" />
+    Back to Errors
+  </a>
+
+  <div x-show="loading()" class="text-center text-muted py-12">Loading issue…</div>
+  <div x-show="!loading() && loadError()" class="text-center text-error py-12" x-text="loadError()"></div>
+
+  <div x-show="!loading() && !loadError()">
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-4 mb-4">
+      <h1 class="text-lg font-semibold text-text break-words" x-text="issue().message"></h1>
+      <div class="flex gap-2 shrink-0">
+        <span class="text-[0.625rem] font-semibold py-0.5 px-2 rounded uppercase tracking-wide border" x-class="statusColor()" x-text="statusLabel()"></span>
+        <span class="text-[0.625rem] font-semibold py-0.5 px-2 rounded uppercase tracking-wide border border-border text-text-2" x-text="severityLabel()"></span>
+        <span x-show="issue().status === 'open' && issue().trend" class="text-[0.625rem] font-semibold py-0.5 px-2 rounded uppercase tracking-wide border border-border text-text-2" x-text="issue().trend"></span>
+      </div>
+    </div>
+
+    <!-- Meta stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div class="panel py-3">
+        <div class="text-xs text-muted">Events</div>
+        <div class="text-base font-semibold text-text" x-text="fmtNum(issue().count)"></div>
+      </div>
+      <div class="panel py-3">
+        <div class="text-xs text-muted">Affected</div>
+        <div class="text-base font-semibold text-text" x-text="fmtNum(issue().affectedVisitors)"></div>
+      </div>
+      <div class="panel py-3">
+        <div class="text-xs text-muted">First seen</div>
+        <div class="text-[0.8125rem] font-medium text-text" x-text="when(issue().firstSeen)"></div>
+      </div>
+      <div class="panel py-3">
+        <div class="text-xs text-muted">Last seen</div>
+        <div class="text-[0.8125rem] font-medium text-text" x-text="when(issue().lastSeen)"></div>
+      </div>
+    </div>
+
+    <!-- Stack trace -->
+    <div class="panel mb-6">
+      <div class="panel-title mb-2">Stack trace</div>
+      <pre class="text-xs text-text-2 overflow-x-auto whitespace-pre-wrap break-words bg-bg-3 rounded-md p-3 m-0" x-text="latest().stack || 'No stack trace captured'"></pre>
+    </div>
+
+    <!-- Breadcrumbs -->
+    <div x-show="breadcrumbs().length > 0" class="panel mb-6">
+      <div class="panel-title mb-2">Breadcrumbs</div>
+      <div class="flex flex-col gap-1">
+        <div x-for="c in breadcrumbs" class="flex items-center gap-2 text-xs border-b border-bg-3 py-1.5 last:border-0">
+          <span class="text-muted font-mono shrink-0 w-28 truncate" x-text="c.category || 'log'"></span>
+          <span class="text-text-2 truncate" x-text="c.message || ''"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent occurrences -->
+    <div x-show="occurrences().length > 0" class="panel mb-6">
+      <div class="panel-title mb-2">Recent occurrences</div>
+      <table class="w-full text-[0.8125rem]">
+        <thead>
+          <tr>
+            <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-left">When</th>
+            <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-left">Browser</th>
+            <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-left">OS</th>
+            <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-left">URL</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr x-for="o in occurrences" class="border-b border-bg-3">
+            <td class="py-1.5 text-text-2 whitespace-nowrap" x-text="when(o.timestamp)"></td>
+            <td class="py-1.5 text-text-2" x-text="o.browser || '—'"></td>
+            <td class="py-1.5 text-text-2" x-text="o.os || '—'"></td>
+            <td class="py-1.5 text-text-2 truncate max-w-[24rem]" x-text="o.url || '—'"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Affected browsers -->
+    <div x-show="browsers().length > 0" class="panel">
+      <div class="panel-title mb-2">Affected browsers</div>
+      <div class="flex flex-wrap gap-2">
+        <span x-for="b in browsers" class="text-xs text-text-2 border border-border rounded px-2 py-0.5" x-text="b"></span>
+      </div>
+    </div>
+  </div>
+</div>

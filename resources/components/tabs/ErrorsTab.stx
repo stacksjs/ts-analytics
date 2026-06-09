@@ -168,7 +168,7 @@ function badgeStatusClass(e: ErrorItem): string {
 }
 
 function errorHref(e: ErrorItem): string {
-  return `/errors/${encodeURIComponent(e.errorId)}?siteId=${_siteId()}`
+  return `/dashboard/error-detail?siteId=${_siteId()}&id=${encodeURIComponent(e.errorId)}`
 }
 
 onMount(() => {
