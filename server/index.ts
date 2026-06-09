@@ -7,6 +7,8 @@
 
 import { createRouter } from '../src/router'
 import { assignUnownedSites } from '../src/handlers/auth'
+import { bootstrapJobs } from '../src/jobs'
+import { startScheduler } from '../src/lib/scheduler'
 
 // Configuration from environment
 const PORT = Number.parseInt(process.env.PORT || '3001', 10)
@@ -19,6 +21,14 @@ console.log(`CORS: ${process.env.CORS_ORIGINS || '*'}`)
 
 // Assign unowned sites to admin (if ADMIN_EMAIL is set)
 await assignUnownedSites()
+
+// Register periodic jobs. The in-process scheduler runs only when
+// ANALYTICS_ENABLE_JOBS=true (otherwise drive it via POST /api/jobs/tick).
+bootstrapJobs()
+if (process.env.ANALYTICS_ENABLE_JOBS === 'true') {
+  startScheduler()
+  console.log('Scheduler: in-process loop enabled')
+}
 
 const router = await createRouter()
 await router.serve({ port: PORT })

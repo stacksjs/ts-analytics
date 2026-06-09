@@ -130,6 +130,17 @@ export async function createRouter(): Promise<Router> {
   await router.post('/api/auth/password', auth.handleChangePassword)
   await router.post('/api/auth/email', auth.handleChangeEmail)
 
+  // Scheduled-jobs tick — for an external cron (Lambda schedule / EventBridge).
+  // Gated by ANALYTICS_JOBS_SECRET; disabled (403) when no secret is set.
+  await router.post('/api/jobs/tick', async (req: any) => {
+    const secret = process.env.ANALYTICS_JOBS_SECRET
+    if (!secret || req.headers.get('x-jobs-secret') !== secret) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+    }
+    const result = await import('./lib/scheduler').then(s => s.runDueJobs())
+    return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  })
+
   // Collection endpoints
   await router.post('/collect', collect.handleCollect)
   await router.post('/t', collect.handleCollect)
