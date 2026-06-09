@@ -7,6 +7,7 @@ import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
+import { sendEmail } from '../lib/email'
 
 /**
  * POST /api/sites/{siteId}/uptime
@@ -180,4 +181,103 @@ catch (error) {
     console.error('Delete uptime monitor error:', error)
     return errorResponse('Failed to delete uptime monitor')
   }
+}
+
+/** Probe a URL with a timeout; up = expected status (or any 2xx/3xx). */
+async function probeUrl(url: string, timeoutMs: number, expectedStatus?: number): Promise<{ up: boolean, httpStatus: number, responseTime: number }> {
+  const start = Date.now()
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, redirect: 'follow' })
+    const up = expectedStatus ? res.status === expectedStatus : (res.status >= 200 && res.status < 400)
+    return { up, httpStatus: res.status, responseTime: Date.now() - start }
+  }
+catch {
+    return { up: false, httpStatus: 0, responseTime: Date.now() - start }
+  }
+finally {
+    clearTimeout(t)
+  }
+}
+
+async function probeAndRecord(siteId: string, m: any): Promise<void> {
+  const r = await probeUrl(m.url, (m.timeout || 30) * 1000, m.expectedStatus)
+  const nowIso = new Date().toISOString()
+  const status = r.up ? 'up' : 'down'
+  const wasDown = m.status === 'down'
+
+  await dynamodb.putItem({
+    TableName: TABLE_NAME,
+    Item: marshall({
+      pk: `UPTIME_CHECK#${siteId}#${m.id}`,
+      sk: `CHECK#${nowIso}`,
+      status,
+      httpStatus: r.httpStatus,
+      responseTime: r.responseTime,
+      timestamp: nowIso,
+      ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
+    }),
+  })
+
+  await dynamodb.updateItem({
+    TableName: TABLE_NAME,
+    Key: { pk: { S: `SITE#${siteId}` }, sk: { S: `UPTIME#${m.id}` } },
+    UpdateExpression: 'SET #s = :s, lastChecked = :now, lastResponseTime = :rt',
+    ExpressionAttributeNames: { '#s': 'status' },
+    ExpressionAttributeValues: { ':s': { S: status }, ':now': { S: nowIso }, ':rt': { N: String(r.responseTime) } },
+  })
+
+  // Notify once on a down transition (up -> down).
+  if (status === 'down' && !wasDown) {
+    const msg = `Uptime alert: ${m.name || m.url} is DOWN (HTTP ${r.httpStatus || 'timeout'})`
+    if (m.alertEmail)
+      await sendEmail({ to: m.alertEmail, subject: `[Uptime] ${m.name || m.url} is down`, text: msg })
+    if (m.alertWebhook) {
+      try {
+        await fetch(m.alertWebhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ monitor: m.name || m.url, url: m.url, status, httpStatus: r.httpStatus, at: nowIso }) })
+      }
+catch (e) {
+        console.error('Uptime webhook failed:', (e as Error).message)
+      }
+    }
+  }
+}
+
+/** Probe every active monitor whose interval has elapsed (scheduled job, #91/#90). */
+export async function runUptimeChecks(): Promise<number> {
+  const sites = await dynamodb.query({
+    TableName: TABLE_NAME,
+    KeyConditionExpression: 'pk = :pk',
+    ExpressionAttributeValues: { ':pk': { S: 'SITES' } },
+  }) as { Items?: any[] }
+
+  let probed = 0
+  for (const raw of (sites.Items || [])) {
+    const site = unmarshall(raw)
+    const siteId = site.siteId || site.id
+    if (!siteId)
+      continue
+    const mons = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :p)',
+      ExpressionAttributeValues: { ':pk': { S: `SITE#${siteId}` }, ':p': { S: 'UPTIME#' } },
+    }) as { Items?: any[] }
+    for (const mraw of (mons.Items || [])) {
+      const m = unmarshall(mraw)
+      if (m.isActive === false)
+        continue
+      const intervalMs = (m.interval || 60) * 1000
+      if (m.lastChecked && Date.now() - new Date(m.lastChecked).getTime() < intervalMs)
+        continue
+      try {
+        await probeAndRecord(siteId, m)
+        probed++
+      }
+catch (e) {
+        console.error(`[jobs] uptime probe ${m.id} failed:`, (e as Error).message)
+      }
+    }
+  }
+  return probed
 }

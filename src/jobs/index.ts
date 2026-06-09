@@ -7,6 +7,7 @@
  */
 import { registerJob } from '../lib/scheduler'
 import { evaluateAllSitesErrorAlerts } from '../handlers/errors'
+import { runUptimeChecks } from '../handlers/uptime'
 
 let bootstrapped = false
 
@@ -33,6 +34,19 @@ export function bootstrapJobs(): void {
       const n = await evaluateAllSitesErrorAlerts()
       if (n > 0)
         console.log(`[jobs] error-alerts: ${n} alert(s) triggered`)
+    },
+  })
+
+  // Uptime checks — probe each due monitor's URL and record up/down + latency,
+  // notifying on a down transition (#91). Runs every minute; each monitor is
+  // probed on its own configured interval.
+  registerJob({
+    name: 'uptime-checks',
+    intervalMs: 60_000,
+    run: async () => {
+      const n = await runUptimeChecks()
+      if (n > 0)
+        console.log(`[jobs] uptime-checks: probed ${n} monitor(s)`)
     },
   })
 
