@@ -7,11 +7,12 @@
  * repeated polls (e.g. the summary card every ~15s) reuse the result instead of
  * re-scanning.
  *
- * Safety: gated behind ANALYTICS_READ_CACHE=true (default OFF, behavior
- * unchanged), only caches successful (200) responses, and ALWAYS falls back to
+ * Safety: on by default with short TTLs (#96) — set ANALYTICS_READ_CACHE=false
+ * to opt out. Only caches successful (200) responses, and ALWAYS falls back to
  * the real handler on a cache miss — a missing/expired entry never yields wrong
  * or empty data. The cache is the existing in-memory generic cache (per warm
- * process; resets on cold start).
+ * process; resets on cold start). Freshness-critical endpoints (realtime,
+ * live view, error triage statuses) are deliberately not wrapped.
  */
 
 import { getFromCache, setInCache } from '../../utils/cache'
@@ -22,9 +23,9 @@ interface CachedResponse {
   headers: Record<string, string>
 }
 
-/** Whether the read-through cache is enabled (env-gated, default off). */
+/** Whether the read-through cache is enabled (default on; opt out with ANALYTICS_READ_CACHE=false). */
 export function readCacheEnabled(): boolean {
-  return process.env.ANALYTICS_READ_CACHE === 'true'
+  return process.env.ANALYTICS_READ_CACHE !== 'false'
 }
 
 /**

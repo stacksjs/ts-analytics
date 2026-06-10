@@ -184,23 +184,23 @@ export async function createRouter(): Promise<Router> {
   // Stats & Analytics
   await router.get('/api/sites/{siteId}/stats', (req: any) => withReadCache(req, 'stats', 30_000, () => stats.handleGetStats(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/realtime', (req: any) => stats.handleGetRealtime(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/pages', (req: any) => stats.handleGetPages(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/referrers', (req: any) => stats.handleGetReferrers(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/devices', (req: any) => stats.handleGetDevices(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/browsers', (req: any) => stats.handleGetBrowsers(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/countries', (req: any) => stats.handleGetCountries(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/regions', (req: any) => stats.handleGetRegions(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/cities', (req: any) => stats.handleGetCities(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/pages', (req: any) => withReadCache(req, 'pages', 60_000, () => stats.handleGetPages(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/referrers', (req: any) => withReadCache(req, 'referrers', 60_000, () => stats.handleGetReferrers(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/devices', (req: any) => withReadCache(req, 'devices', 60_000, () => stats.handleGetDevices(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/browsers', (req: any) => withReadCache(req, 'browsers', 60_000, () => stats.handleGetBrowsers(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/countries', (req: any) => withReadCache(req, 'countries', 60_000, () => stats.handleGetCountries(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/regions', (req: any) => withReadCache(req, 'regions', 60_000, () => stats.handleGetRegions(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/cities', (req: any) => withReadCache(req, 'cities', 60_000, () => stats.handleGetCities(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/timeseries', (req: any) => withReadCache(req, 'timeseries', 60_000, () => stats.handleGetTimeSeries(req, req.params.siteId)))
-  await router.get('/api/sites/{siteId}/events', (req: any) => stats.handleGetEvents(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/event-properties', (req: any) => stats.handleGetEventProperties(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/clicks', (req: any) => stats.handleGetClicks(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/engagement', (req: any) => stats.handleGetEngagement(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/campaigns', (req: any) => stats.handleGetCampaigns(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/comparison', (req: any) => stats.handleGetComparison(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/events', (req: any) => withReadCache(req, 'events', 60_000, () => stats.handleGetEvents(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/event-properties', (req: any) => withReadCache(req, 'event-properties', 60_000, () => stats.handleGetEventProperties(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/clicks', (req: any) => withReadCache(req, 'clicks', 60_000, () => stats.handleGetClicks(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/engagement', (req: any) => withReadCache(req, 'engagement', 60_000, () => stats.handleGetEngagement(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/campaigns', (req: any) => withReadCache(req, 'campaigns', 60_000, () => stats.handleGetCampaigns(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/comparison', (req: any) => withReadCache(req, 'comparison', 60_000, () => stats.handleGetComparison(req, req.params.siteId)))
 
   // Goals
-  await router.get('/api/sites/{siteId}/goals/stats', (req: any) => goals.handleGetGoalStats(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/goals/stats', (req: any) => withReadCache(req, 'goals-stats', 60_000, () => goals.handleGetGoalStats(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/goals', (req: any) => goals.handleGetGoals(req, req.params.siteId))
   await router.post('/api/sites/{siteId}/goals', (req: any) => goals.handleCreateGoal(req, req.params.siteId))
   await router.put('/api/sites/{siteId}/goals/{goalId}', (req: any) => goals.handleUpdateGoal(req, req.params.siteId, req.params.goalId))
@@ -209,8 +209,8 @@ export async function createRouter(): Promise<Router> {
   // Sessions
   await router.get('/api/sites/{siteId}/sessions', (req: any) => sessions.handleGetSessions(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/sessions/{sessionId}', (req: any) => sessions.handleGetSessionDetail(req, req.params.siteId, req.params.sessionId))
-  await router.get('/api/sites/{siteId}/flow', (req: any) => sessions.handleGetUserFlow(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/entry-exit', (req: any) => sessions.handleGetEntryExitPages(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/flow', (req: any) => withReadCache(req, 'flow', 60_000, () => sessions.handleGetUserFlow(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/entry-exit', (req: any) => withReadCache(req, 'entry-exit', 60_000, () => sessions.handleGetEntryExitPages(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/live', (req: any) => sessions.handleGetLiveView(req, req.params.siteId))
 
   // Heatmaps
@@ -223,9 +223,9 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/sites/{siteId}/errors/statuses', (req: any) => errors.handleGetErrorStatuses(req, req.params.siteId))
   await router.post('/api/sites/{siteId}/errors/status', (req: any) => errors.handleUpdateErrorStatus(req, req.params.siteId))
   await router.post('/api/sites/{siteId}/errors/assign', (req: any) => errors.handleAssignError(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/errors/timeseries', (req: any) => errors.handleGetErrorTimeseries(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/errors/comparison', (req: any) => errors.handleGetErrorComparison(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/errors/groups', (req: any) => errors.handleGetErrorGroups(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/errors/timeseries', (req: any) => withReadCache(req, 'errors-timeseries', 60_000, () => errors.handleGetErrorTimeseries(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/errors/comparison', (req: any) => withReadCache(req, 'errors-comparison', 60_000, () => errors.handleGetErrorComparison(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/errors/groups', (req: any) => withReadCache(req, 'errors-groups', 60_000, () => errors.handleGetErrorGroups(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/errors/detail', (req: any) => {
     const id = new URL(req.url).searchParams.get('id') || ''
     return errors.handleGetErrorDetail(req, req.params.siteId, id)
@@ -300,7 +300,7 @@ export async function createRouter(): Promise<Router> {
   await router.post('/api/sites/{siteId}/gdpr/delete', (req: any) => data.handleGdprDelete(req, req.params.siteId))
 
   // Insights
-  await router.get('/api/sites/{siteId}/insights', (req: any) => data.handleGetInsights(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/insights', (req: any) => withReadCache(req, 'insights', 120_000, () => data.handleGetInsights(req, req.params.siteId)))
 
   // Revenue
   await router.get('/api/sites/{siteId}/revenue', (req: any) => misc.handleGetRevenue(req, req.params.siteId))

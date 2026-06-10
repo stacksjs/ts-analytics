@@ -22,7 +22,12 @@ describe('withReadCache', () => {
     delete process.env.ANALYTICS_READ_CACHE
   })
 
+  it('is enabled by default (#96)', () => {
+    expect(readCacheEnabled()).toBe(true)
+  })
+
   it('passes through (computes every call) when disabled', async () => {
+    process.env.ANALYTICS_READ_CACHE = 'false'
     let calls = 0
     const compute = async () => { calls++; return json({ n: calls }) }
     await withReadCache(req(), 'stats', 1000, compute)
