@@ -9,6 +9,64 @@ const newDomain = state('')
 const createError = state(null)
 const creating = state(false)
 
+// Project-hub state (#61): search, recents, and last-selected persistence —
+// keyed per authenticated user so shared machines don't leak selections.
+const searchQuery = state('')
+const userScope = state('anon')
+
+function storageKey(name: string): string {
+  return `tsa:${name}:${userScope()}`
+}
+
+async function loadUserScope(): Promise<void> {
+  try {
+    const res = await fetch(dashboard.apiPath(`${dashboard.apiEndpoint()}/api/auth/me`))
+    if (res.ok) {
+      const data = await res.json()
+      if (data.user && data.user.id) userScope.set(data.user.id)
+    }
+  } catch (_e) {
+    // unauthenticated → anon scope
+  }
+}
+
+function readRecentIds(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(storageKey('recent')) || '[]')
+  } catch (_e) {
+    return []
+  }
+}
+
+function rememberSite(id) {
+  try {
+    localStorage.setItem(storageKey('lastSite'), id)
+    const recent = [id, ...readRecentIds().filter((r) => r !== id)].slice(0, 3)
+    localStorage.setItem(storageKey('recent'), JSON.stringify(recent))
+  } catch (_e) {
+    // storage unavailable (private mode) — selection just won't persist
+  }
+}
+
+const filteredSites = derived(() => {
+  const q = searchQuery().trim().toLowerCase()
+  if (!q) return sites()
+  return sites().filter((s) => {
+    const name = (s.name || '').toLowerCase()
+    const domain = ((s.domains && s.domains[0]) || '').toLowerCase()
+    return name.includes(q) || domain.includes(q) || String(s.id).toLowerCase().includes(q)
+  })
+})
+
+const recentSites = derived(() => {
+  // touch userScope so recents recompute once /me resolves
+  userScope()
+  const ids = readRecentIds()
+  return ids
+    .map((id) => sites().find((s) => s.id === id))
+    .filter((s) => !!s)
+})
+
 // Build the /api/sites URL at call time via the store (resolves the endpoint
 // lazily). Capturing window.API_ENDPOINT at eval time gets the origin fallback,
 // because the layout sets window.ANALYTICS_API_ENDPOINT after components init.
@@ -59,6 +117,7 @@ async function handleCreate(e) {
     if (data.site) {
       // Store is the source of truth for siteId so store-bound panels/chart pick
       // up the new site; the controller still orchestrates the shell + fetches.
+      rememberSite(data.site.id)
       dashboard.siteId.set(data.site.id)
       if (window.selectSite) window.selectSite(data.site.id, data.site.name)
     }
@@ -70,9 +129,27 @@ async function handleCreate(e) {
 }
 
 function pickSite(id, label) {
+  rememberSite(id)
   // Store is the source of truth for siteId — the shell effect below reacts to it.
   dashboard.siteId.set(id)
   if (window.selectSite) window.selectSite(id, label)
+}
+
+// Survive reloads (#61): with no site in the URL/store, restore the user's
+// last-selected project — but only if it's still in their list (deleted or
+// revoked projects fall back to the selector).
+function restoreLastSite(): boolean {
+  if (dashboard.siteId()) return false
+  let last = ''
+  try {
+    last = localStorage.getItem(storageKey('lastSite')) || ''
+  } catch (_e) {
+    return false
+  }
+  const site = sites().find((s) => s.id === last)
+  if (!site) return false
+  pickSite(site.id, site.name || '')
+  return true
 }
 
 // Show the dashboard when a site is selected, the selector otherwise.
@@ -98,8 +175,13 @@ onMount(() => {
   // the top-level effect's first run happens before the root is attached, so on a
   // no-siteId load it would otherwise leave the selector hidden (black page).
   applyShellVisibility()
-  fetchSites()
   window.fetchSites = fetchSites
+  const boot = async () => {
+    await loadUserScope()
+    await fetchSites()
+    restoreLastSite()
+  }
+  boot()
 })
 </script>
 
@@ -140,9 +222,26 @@ onMount(() => {
         <p class="text-xs text-muted mt-2">Create your first site above to start tracking analytics</p>
       </div>
 
+      <div x-show="recentSites().length > 0 && !searchQuery()" class="site-list-section">
+        <h3 class="section-label">Recent</h3>
+        <button x-for="site in recentSites" class="site-card" @click="pickSite(site.id, site.name || '')">
+          <div class="site-icon">
+            <Icon name="clock" size="24" />
+          </div>
+          <div class="site-info">
+            <span class="site-name" x-text="site.name || 'Unnamed'"></span>
+            <span class="site-domain" x-text="site.domains?.[0] || site.id"></span>
+          </div>
+          <Icon name="chevron-right" size="20" class="site-arrow" />
+        </button>
+      </div>
+
       <div x-show="sites().length > 0" class="site-list-section">
-        <h3 class="section-label">Your Sites</h3>
-        <button x-for="site in sites" class="site-card" @click="pickSite(site.id, site.name || '')">
+        <h3 class="section-label">Your Projects</h3>
+        <input x-show="sites().length > 4" type="text" placeholder="Search projects…"
+               x-value="searchQuery()" @input="searchQuery.set($event.target.value)"
+               class="form-input site-search" />
+        <button x-for="site in filteredSites" class="site-card" @click="pickSite(site.id, site.name || '')">
           <div class="site-icon">
             <Icon name="globe" size="24" />
           </div>
@@ -152,6 +251,7 @@ onMount(() => {
           </div>
           <Icon name="chevron-right" size="20" class="site-arrow" />
         </button>
+        <p x-show="searchQuery() && filteredSites().length === 0" class="text-xs text-muted mt-2">No projects match "<span x-text="searchQuery()"></span>"</p>
       </div>
     </div>
   </div>
@@ -264,6 +364,10 @@ onMount(() => {
 
 .site-list-section {
   width: 100%;
+}
+.site-search {
+  width: 100%;
+  margin-bottom: 0.75rem;
 }
 .site-card {
   display: flex;
