@@ -328,9 +328,13 @@ export async function handleScript(request: Request): Promise<Response> {
   // /errors/collect (Sentry-style), not the public /collect.
   const errorIngestKey = minimal ? '' : await getOrCreateIngestKey(siteId).catch(() => '')
 
+  // ?stealth=true → beacons go to the shorter /t path instead of /collect,
+  // which generic blocklists target. Pair with a first-party proxy (#85).
+  const stealthMode = query.stealth === 'true'
+
   let script = minimal
     ? generateMinimalTrackingScript({ siteId, apiEndpoint })
-    : generateTrackingScript({ siteId, apiEndpoint, trackLinkClicks: true, trackSpaRoutes: true, trackEngagement: true, errorIngestKey })
+    : generateTrackingScript({ siteId, apiEndpoint, trackLinkClicks: true, trackSpaRoutes: true, trackEngagement: true, errorIngestKey, stealthMode })
 
   // Raw-JS variant (for the `<script src=".../script.js">` one-liner): strip the
   // HTML comment + <script> wrapper so the response is loadable JavaScript. The

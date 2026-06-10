@@ -28,6 +28,19 @@ function fetchSnippet(): void {
   const open: string = ['<', 'script defer src="', apiUrl('/script.js'), '">'].join('')
   const close: string = ['<', '/script>'].join('')
   installSnippet.set(open + close)
+  // Blocker-resilient variant (#85): beacons go to the short /t path.
+  const stealthOpen: string = ['<', 'script defer src="', apiUrl('/script.js'), '?stealth=true">'].join('')
+  stealthSnippet.set(stealthOpen + close)
+}
+
+const stealthSnippet = state<string>('')
+const stealthCopied = state<boolean>(false)
+
+function copyStealthSnippet(): void {
+  if (!stealthSnippet()) return
+  navigator.clipboard.writeText(stealthSnippet())
+  stealthCopied.set(true)
+  setTimeout(() => stealthCopied.set(false), 2000)
 }
 
 function copySnippet(): void {
@@ -524,6 +537,17 @@ onMount(() => {
     <p x-show="!installSnippet()" class="text-xs text-muted italic mt-2">Loading snippet…</p>
     <p x-show="verifyResult() === 'pass'" class="text-xs text-success mt-2">Test event received — ingestion is working end to end.</p>
     <p x-show="verifyResult() === 'fail'" class="text-xs text-error mt-2">No event received. Check that the API is reachable from your browser, then try again.</p>
+    <div class="mt-4 pt-3 border-t border-border">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium text-muted">Ad-blocker resilient variant</span>
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="copyStealthSnippet()">
+          <span x-show="!stealthCopied()">Copy stealth snippet</span>
+          <span x-show="stealthCopied()" class="text-success">Copied!</span>
+        </button>
+      </div>
+      <p class="text-xs text-muted mb-2">Sends beacons to a short, unlisted path that generic blocklists miss. For full resilience, serve it from your own domain — see the <a class="text-primary underline" href="https://github.com/stacksjs/ts-analytics/blob/main/docs/guide/tracking-script.md#ad-blocker-resilience-first-party-proxy" target="_blank" rel="noopener">first-party proxy guide</a>.</p>
+      <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed" x-text="stealthSnippet()"></pre>
+    </div>
   </div>
 
   <div x-show="!loading() && !error()" class="panel mb-4">

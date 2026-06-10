@@ -39,6 +39,67 @@ curl -i -X OPTIONS https://your-analytics-host/collect \
 
 A `204` with `Access-Control-Allow-Origin: *` means cross-domain installs will work.
 
+## Ad-Blocker Resilience (First-Party Proxy)
+
+Some blocklists drop requests to third-party analytics hosts or to paths like `/collect`. Two layers of defense:
+
+**1. Stealth endpoint.** Add `?stealth=true` to the script URL and beacons post to the short `/t` path instead of `/collect`:
+
+```html
+<script defer src="https://your-analytics-host/api/sites/YOUR_SITE_ID/script.js?stealth=true"></script>
+```
+
+**2. First-party proxy (strongest).** Serve both the script and the beacon path from *your own domain*, so there is no third-party request to block. Forward two routes to the analytics host:
+
+| Path on your domain | Proxies to |
+|---|---|
+| `/stats.js` | `https://your-analytics-host/api/sites/YOUR_SITE_ID/script.js?stealth=true&api=https://yourdomain.com` |
+| `/t` | `https://your-analytics-host/t` |
+
+The `api=` parameter bakes your domain into the script as the beacon target. If you use error tracking, also forward `/errors/collect`.
+
+Then install with a same-origin tag:
+
+```html
+<script defer src="https://yourdomain.com/stats.js"></script>
+```
+
+**nginx**
+
+```nginx
+location = /stats.js {
+  proxy_pass https://your-analytics-host/api/sites/YOUR_SITE_ID/script.js?stealth=true&api=https://yourdomain.com;
+}
+location = /t {
+  proxy_pass https://your-analytics-host/t;
+}
+```
+
+**Cloudflare Worker**
+
+```js
+export default {
+  async fetch(req) {
+    const url = new URL(req.url)
+    const upstream = 'https://your-analytics-host'
+    if (url.pathname === '/stats.js')
+      return fetch(`${upstream}/api/sites/YOUR_SITE_ID/script.js?stealth=true&api=${url.origin}`)
+    if (url.pathname === '/t')
+      return fetch(`${upstream}/t`, req)
+    return fetch(req)
+  },
+}
+```
+
+**Netlify (`_redirects`)**
+
+```
+/stats.js  https://your-analytics-host/api/sites/YOUR_SITE_ID/script.js?stealth=true&api=https://yourdomain.com  200
+/t         https://your-analytics-host/t                                                                        200
+```
+
+Make sure the proxy forwards `OPTIONS` requests and the client IP (`X-Forwarded-For`), or visitor geolocation and unique counting will see the proxy's address instead.
+
 ## Adding to Your Website
 
 ### Static HTML
