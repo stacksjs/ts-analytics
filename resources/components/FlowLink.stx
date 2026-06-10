@@ -14,9 +14,11 @@ const { source, target, value } = withDefaults(defineProps<FlowLinkProps>(), {
 })
 </script>
 
+<template>
 <div class="flex items-center gap-2 py-1.5 px-2 bg-bg-2 rounded mb-1.5 text-xs">
   <span class="text-text max-w-[100px] overflow-hidden text-ellipsis whitespace-nowrap">{{ source }}</span>
   <span class="text-muted shrink-0">→</span>
   <span class="text-text max-w-[100px] overflow-hidden text-ellipsis whitespace-nowrap">{{ target }}</span>
   <span class="text-accent font-medium ml-auto">{{ value }}x</span>
 </div>
+</template>

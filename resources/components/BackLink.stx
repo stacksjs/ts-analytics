@@ -12,7 +12,9 @@ const { href, text } = withDefaults(defineProps<BackLinkProps>(), {
 })
 </script>
 
+<template>
 <a href="{{ href }}" class="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline mb-4">
   <Icon name="chevron-left" size="16" />
   {{ text }}
 </a>
+</template>

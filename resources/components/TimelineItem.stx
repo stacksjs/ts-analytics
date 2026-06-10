@@ -33,12 +33,13 @@ function buildContent(t: string, d: Record<string, any>): string {
 const content = buildContent(type, data)
 </script>
 
+<template>
 <div class="flex items-start gap-3 py-2 border-b border-border timeline-item">
   <span class="text-[0.6875rem] font-medium uppercase py-0.5 px-1.5 rounded-sm shrink-0 timeline-type {{ type }}">{{ type }}</span>
   <div class="flex-1 text-[0.8125rem] text-text break-words">{{ content }}</div>
   <span class="text-[0.6875rem] text-muted shrink-0">{{ timeStr }}</span>
 </div>
-
+</template>
 <style>
 .timeline-item:last-child {
   border-bottom: none;

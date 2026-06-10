@@ -12,18 +12,19 @@ const { title, iconPath, subtitle } = withDefaults(defineProps<PageHeaderProps>(
   iconPath: '',
   subtitle: '',
 })
+
+const iconHidden = iconPath ? '' : 'hidden'
+const subtitleHidden = subtitle ? '' : 'hidden'
 </script>
 
+<template>
 <header class="mb-6">
   <h1 class="flex items-center gap-3 text-2xl font-semibold text-white">
-    @if (iconPath)
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        {!! iconPath !!}
-      </svg>
-    @endif
+    <svg class="w-6 h-6 {{ iconHidden }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {!! iconPath !!}
+    </svg>
     {{ title }}
   </h1>
-  @if (subtitle)
-    <p class="text-gray-400 mt-2">{{ subtitle }}</p>
-  @endif
+  <p class="text-gray-400 mt-2 {{ subtitleHidden }}">{{ subtitle }}</p>
 </header>
+</template>

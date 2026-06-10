@@ -25,21 +25,22 @@ const { metric, value, samples, rating, goodPct, needsImprovementPct, poorPct } 
 )
 
 const showBar = samples > 0
+
+const barHidden = showBar ? '' : 'hidden'
 </script>
 
+<template>
 <div class="vital-card">
   <div class="text-xs text-muted uppercase tracking-wide mb-1">{{ metric }}</div>
   <div class="text-2xl font-semibold text-text mb-1 vital-value {{ rating }}">{{ value }}</div>
   <div class="text-[0.6875rem] text-muted mb-2">{{ samples }} samples</div>
-  @if (showBar)
-    <div class="flex h-1.5 rounded-sm overflow-hidden bg-bg-3 vital-bar">
-      <div class="good" style="width: {{ goodPct }}%"></div>
-      <div class="needs-improvement" style="width: {{ needsImprovementPct }}%"></div>
-      <div class="poor" style="width: {{ poorPct }}%"></div>
-    </div>
-  @endif
+  <div class="flex h-1.5 rounded-sm overflow-hidden bg-bg-3 vital-bar {{ barHidden }}">
+    <div class="good" style="width: {{ goodPct }}%"></div>
+    <div class="needs-improvement" style="width: {{ needsImprovementPct }}%"></div>
+    <div class="poor" style="width: {{ poorPct }}%"></div>
+  </div>
 </div>
-
+</template>
 <style>
 .vital-value.good { color: #22c55e; }
 .vital-value.needs-improvement { color: #f59e0b; }

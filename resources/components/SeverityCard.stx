@@ -14,11 +14,12 @@ const { severity, count, label } = withDefaults(defineProps<SeverityCardProps>()
 })
 </script>
 
+<template>
 <div class="py-3 px-4 rounded-lg text-center min-w-[80px] severity-card {{ severity }}">
   <div class="text-xl font-semibold text-text">{{ count }}</div>
   <div class="text-[0.6875rem] text-muted uppercase">{{ label }}</div>
 </div>
-
+</template>
 <style>
 .severity-card.critical {
   background: rgba(239, 68, 68, 0.1);

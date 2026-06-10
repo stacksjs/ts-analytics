@@ -38,8 +38,11 @@ const duration = formatDuration(session.duration)
 const browser = session.browser || 'Unknown'
 const country = session.country || 'Unknown'
 const isBounce = !!session.isBounce
+
+const bounceHidden = isBounce ? '' : 'hidden'
 </script>
 
+<template>
 <script client>
 function selectSession(id) {
   window.dispatchEvent(new CustomEvent('session-select', { detail: { id } }))
@@ -56,8 +59,7 @@ function selectSession(id) {
     <span>{{ duration }}</span>
     <span>{{ browser }}</span>
     <span>{{ country }}</span>
-    @if (isBounce)
-      <span class="text-warning font-medium">Bounced</span>
-    @endif
+    <span class="text-warning font-medium {{ bounceHidden }}">Bounced</span>
   </div>
 </div>
+</template>

@@ -20,6 +20,7 @@ const domain = site.domains?.[0] || site.id || ''
 const siteId = site.id || ''
 </script>
 
+<template>
 <script client>
 function selectSite(id, label) {
   window.dispatchEvent(new CustomEvent('site-select', { detail: { id, name: label } }))
@@ -39,7 +40,7 @@ function selectSite(id, label) {
   </div>
   <Icon name="chevron-right" size="20" class="arrow text-muted shrink-0 transition-transform duration-150" />
 </button>
-
+</template>
 <style>
 .site-card:hover .arrow {
   transform: translateX(2px);

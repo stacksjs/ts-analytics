@@ -24,6 +24,7 @@ const conversions = goal.conversions || 0
 const value = goal.totalValue ? `$${goal.totalValue.toFixed(2)}` : '-'
 </script>
 
+<template>
 <script client>
 function dispatchGoal(action, e) {
   const id = e.currentTarget.getAttribute('data-goal-id') || ''
@@ -43,7 +44,7 @@ function dispatchGoal(action, e) {
     <button class="py-1 px-2 text-xs rounded border-none cursor-pointer bg-transparent text-muted delete-btn" data-goal-id="{{ goalId }}" @click="(e) => dispatchGoal('delete', e)">Delete</button>
   </td>
 </tr>
-
+</template>
 <style>
 .goal-type-badge.pageview {
   background: rgba(59, 130, 246, 0.1);

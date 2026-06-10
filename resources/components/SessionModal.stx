@@ -7,6 +7,7 @@
  */
 </script>
 
+<template>
 <div id="session-modal-template" class="stx-template" hidden>
   <div class="modal-content max-w-[1000px]">
     <div class="modal-header">
@@ -74,7 +75,7 @@
 <div id="timeline-error-content" class="stx-template" hidden>
   <span class="text-error"></span>
 </div>
-
+</template>
 <style>
 .heatmap-container {
   position: relative;

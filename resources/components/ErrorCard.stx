@@ -46,8 +46,13 @@ const lastSeenText = error.lastSeen ? new Date(error.lastSeen).toLocaleString() 
 const eventCount = error.count ?? 0
 const eventSuffix = eventCount === 1 ? '' : 's'
 const pageSuffix = pathsCount === 1 ? '' : 's'
+
+const resolveHidden = status !== 'resolved' ? '' : 'hidden'
+const ignoreHidden = status !== 'ignored' ? '' : 'hidden'
+const reopenHidden = status !== 'new' ? '' : 'hidden'
 </script>
 
+<template>
 <script client>
 function dispatchAction(action, e) {
   e.preventDefault()
@@ -75,19 +80,13 @@ function dispatchAction(action, e) {
       <span>{{ pathsCount }} page{{ pageSuffix }}</span>
     </div>
     <div class="flex gap-2" @click.stop>
-      @if (status !== 'resolved')
-        <button class="btn py-1 px-2 text-[0.6875rem] btn-primary" data-error-id="{{ errorId }}" @click="(e) => dispatchAction('resolved', e)">✓ Resolve</button>
-      @endif
-      @if (status !== 'ignored')
-        <button class="btn py-1 px-2 text-[0.6875rem] btn-secondary" data-error-id="{{ errorId }}" @click="(e) => dispatchAction('ignored', e)">Ignore</button>
-      @endif
-      @if (status !== 'new')
-        <button class="btn py-1 px-2 text-[0.6875rem] btn-secondary" data-error-id="{{ errorId }}" @click="(e) => dispatchAction('new', e)">Reopen</button>
-      @endif
+      <button class="btn py-1 px-2 text-[0.6875rem] btn-primary {{ resolveHidden }}" data-error-id="{{ errorId }}" @click="(e) => dispatchAction('resolved', e)">✓ Resolve</button>
+      <button class="btn py-1 px-2 text-[0.6875rem] btn-secondary {{ ignoreHidden }}" data-error-id="{{ errorId }}" @click="(e) => dispatchAction('ignored', e)">Ignore</button>
+      <button class="btn py-1 px-2 text-[0.6875rem] btn-secondary {{ reopenHidden }}" data-error-id="{{ errorId }}" @click="(e) => dispatchAction('new', e)">Reopen</button>
     </div>
   </a>
 </div>
-
+</template>
 <style>
 .error-card.resolved { opacity: 0.6; }
 .error-card.ignored { opacity: 0.5; }
