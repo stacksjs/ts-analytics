@@ -6,7 +6,6 @@ import {
   generateId,
   hashVisitorId,
   getDailySalt,
-  type AnalyticsEvent,
 } from '../index'
 import type { Session as SessionType } from '../../src/types'
 import {
@@ -18,13 +17,12 @@ import {
   HeatmapScroll,
 } from '../../src/models/orm'
 import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
-import { getSQSProducer, isSQSEnabled } from '../lib/sqs'
 import { checkAndRecordConversions } from '../lib/goals'
 import { getSession, setSession } from '../utils/cache'
 import { parseUserAgent, isBot } from '../utils/user-agent'
 import { getCountryFromHeaders, getCountryFromIP, getRegionFromHeaders, getCityFromHeaders, parseReferrerSource, isSpamReferrer } from '../utils/geolocation'
 import { jsonResponse, errorResponse } from '../utils/response'
-import { getLambdaEvent, getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
+import { getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
 import { ensureSiteExists } from './misc'
 
 /**
@@ -98,85 +96,15 @@ catch {
     // Ensure site exists (auto-create if first event)
     await ensureSiteExists(payload.s, parsedUrlForSite.hostname)
 
-    const event = getLambdaEvent(request)
     const ip = getClientIP(request)
     const headers = getHeaders(request)
 
-    // SQS Fast Path - Queue events for async processing
-    if (isSQSEnabled()) {
-      try {
-        const producer = await getSQSProducer()
-        if (producer) {
-          const timestamp = new Date()
-          const salt = getDailySalt()
-          const visitorId = await hashVisitorId(ip, userAgent, payload.s, salt)
-
-          const deviceInfo = parseUserAgent(userAgent)
-          const browser = payload.br || deviceInfo.browser
-          const referrerSource = parseReferrerSource(payload.r)
-
-          let parsedUrl: URL
-          try {
-            parsedUrl = new URL(payload.u)
-          }
-catch {
-            return jsonResponse({ error: 'Invalid URL' }, 400)
-          }
-
-          const country = getCountryFromHeaders(headers)
-          const region = getRegionFromHeaders(headers)
-          const city = getCityFromHeaders(headers)
-
-          const analyticsEvent: AnalyticsEvent = {
-            type: payload.e === 'pageview' ? 'pageview' : 'event',
-            siteId: payload.s,
-            timestamp: timestamp.toISOString(),
-            data: {
-              id: generateId(),
-              siteId: payload.s,
-              visitorId,
-              sessionId: payload.sid,
-              path: parsedUrl.pathname,
-              hostname: parsedUrl.hostname,
-              title: payload.t,
-              referrer: payload.r,
-              referrerSource,
-              ...extractUtm(parsedUrl),
-              deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
-              browser,
-              os: deviceInfo.os,
-              country,
-              region,
-              city,
-              screenWidth: payload.sw,
-              screenHeight: payload.sh,
-              // Entry-page flag (#87): true only when no session is known yet.
-              // The fast path checks the in-memory cache only (no DB read);
-              // a cold process may overcount entries — acceptable until the
-              // SQS path is finished or removed (#97).
-              isUnique: !getSession(`${payload.s}:${payload.sid}`),
-              isBounce: !getSession(`${payload.s}:${payload.sid}`),
-              timestamp,
-              ...(payload.e === 'event' && payload.p && {
-                name: payload.p.name || 'unnamed',
-                value: payload.p.value,
-                properties: payload.p,
-              }),
-            },
-          }
-
-          await producer.sendEvent(analyticsEvent)
-          console.log(`[Collect] Queued ${payload.e} event to SQS for site ${payload.s}`)
-
-          return new Response(null, { status: 204 })
-        }
-      }
-catch (sqsError) {
-        console.error('[Collect] SQS send failed, falling back to direct write:', sqsError)
-      }
-    }
-
-    // Direct Write Path
+    // Ingest is cleanly direct (#97). The old SQS "fast path" was removed: it
+    // intercepted every event type but coerced clicks/engagement/vitals into
+    // EVENT# items and skipped session creation entirely, silently breaking
+    // bounce rates and session-derived breakdowns whenever it was enabled.
+    // The sqs-buffering library + deploy/sqs-consumer-handler.ts remain as
+    // standalone opt-in infrastructure for spike-buffered pipelines.
     console.log(`[Collect] IP: ${ip}, UA: ${userAgent?.substring(0, 50)}...`)
     const salt = getDailySalt()
     const visitorId = await hashVisitorId(ip, userAgent, payload.s, salt)
