@@ -35,6 +35,7 @@ const TAB_TITLES: Record<string, string> = {
   errors: 'Errors',
   insights: 'Insights',
   settings: 'Settings',
+  account: 'Account',
 }
 
 const tabs: NavTab[] = [

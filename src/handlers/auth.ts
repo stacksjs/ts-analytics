@@ -8,7 +8,7 @@
 import { dynamodb, TABLE_NAME, marshall, unmarshall } from '../lib/dynamodb'
 import { htmlResponse, jsonResponse, errorResponse } from '../utils/response'
 import { sendEmail, appBaseUrl } from '../lib/email'
-import { acceptInvites } from '../lib/membership'
+import { acceptInvites, addMembership } from '../lib/membership'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -58,6 +58,26 @@ export async function createOAuthUser(email: string, name: string, emailVerified
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * Login-CSRF defense for session-establishing form POSTs (#1/#2).
+ *
+ * The auth forms accept CORS-safe encodings, so SameSite=Lax can't stop a
+ * cross-site page from auto-submitting one and having the browser STORE the
+ * returned Set-Cookie (login-CSRF / forced-logout). We reject only requests
+ * the browser positively marks as cross-site via Sec-Fetch-Site — same-origin
+ * forms (including those relayed by the dev proxy, which forwards the header)
+ * send `same-origin`/`same-site`; absent metadata (old browsers) is allowed so
+ * we never block a legitimate sign-in. The JSON API twins are already
+ * preflight-protected by their application/json requirement.
+ */
+export function crossSiteFormPost(request: Request): boolean {
+  return (request.headers.get('sec-fetch-site') || '') === 'cross-site'
+}
+
+function csrfReject(): Response {
+  return new Response(null, { status: 302, headers: { Location: '/login?error=csrf' } })
+}
 
 /** Validate sign-up / credential input. Returns an error message, or null if valid. */
 export function validateCredentials(email: string, password: string): string | null {
@@ -234,7 +254,7 @@ catch {
     const user = await getUserByEmail(email)
     if (user) {
       const token = await createToken('RESET', user.userId, 3600)
-      const link = `${appBaseUrl()}/reset-password?token=${token}`
+      const link = `${appBaseUrl()}/reset?token=${token}`
       await sendEmail({
         to: email,
         subject: 'Reset your password',
@@ -742,6 +762,7 @@ function loginFallbackHtml(error: string): string {
  * POST /login — authenticate and create session
  */
 export async function handleLogin(request: Request): Promise<Response> {
+  if (crossSiteFormPost(request)) return csrfReject()
   try {
     const contentType = request.headers.get('content-type') || ''
     let email = ''
@@ -815,6 +836,8 @@ catch (error) {
  * POST /logout — destroy session and clear cookie
  */
 export async function handleLogout(request: Request): Promise<Response> {
+  // Forced-logout CSRF guard (#2): don't clear the cookie on a cross-site POST.
+  if (crossSiteFormPost(request)) return new Response(null, { status: 302, headers: { Location: '/dashboard' } })
   const token = getSessionToken(request)
   if (token) {
     try {
@@ -876,6 +899,9 @@ export async function assignUnownedSites(): Promise<void> {
             ':gsi1sk': { S: site.sk },
           },
         })
+        // Also grant the membership the authz guard checks (#114) — ownerId
+        // alone left the admin able to see but not open backfilled sites.
+        await addMembership(userId, site.siteId || site.id, 'owner').catch(() => {})
         console.log(`[auth] Assigned site ${site.siteId || site.id} to ${adminEmail}`)
       }
     }
@@ -894,6 +920,7 @@ catch (error) {
 export async function handleSignupForm(request: Request): Promise<Response> {
   const back = (code: string): Response =>
     new Response(null, { status: 302, headers: { Location: `/signup?error=${code}` } })
+  if (crossSiteFormPost(request)) return back('csrf')
   try {
     const formData = await request.formData()
     const name = (formData.get('name') as string || '').trim()
@@ -925,6 +952,7 @@ catch (error) {
  * to the sent state (never reveals whether the account exists).
  */
 export async function handleForgotForm(request: Request): Promise<Response> {
+  if (crossSiteFormPost(request)) return csrfReject()
   try {
     const formData = await request.formData()
     const email = (formData.get('email') as string || '').trim().toLowerCase()
@@ -952,6 +980,7 @@ catch (error) {
  * single-use token, set the new password, revoke existing sessions.
  */
 export async function handleResetForm(request: Request): Promise<Response> {
+  if (crossSiteFormPost(request)) return csrfReject()
   try {
     const formData = await request.formData()
     const token = formData.get('token') as string || ''

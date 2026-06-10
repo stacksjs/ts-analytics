@@ -11,11 +11,26 @@
  * visitors load it without a session.
  */
 import { getSessionFromRequest } from './auth'
-import { getMembership, roleAtLeast, type Role } from '../lib/membership'
+import { getMembership, addMembership, roleAtLeast, type Role } from '../lib/membership'
+import { dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { jsonResponse } from '../utils/response'
 
 const SITE_PATH = /^\/api\/(?:sites|p)\/([^/]+)\//
 const PUBLIC_SUFFIX = /\/(?:script|script\.js)$/
+
+/** Whether the SITES record for `siteId` names `userId` as its owner. */
+async function ownsSite(userId: string, siteId: string): Promise<boolean> {
+  try {
+    const res = await dynamodb.getItem({
+      TableName: TABLE_NAME,
+      Key: { pk: { S: 'SITES' }, sk: { S: `SITE#${siteId}` } },
+    }) as { Item?: Record<string, any> }
+    return !!res.Item && unmarshall(res.Item).ownerId === userId
+  }
+  catch {
+    return false
+  }
+}
 
 /**
  * The project id a path is scoped to, or null if the path is not a guarded
@@ -55,7 +70,15 @@ export async function siteAuthGuard(req: Request): Promise<Response | null> {
   const session = await getSessionFromRequest(req)
   if (!session) return jsonResponse({ error: 'Authentication required' }, 401)
 
-  const role = await getMembership(session.userId, siteId)
+  // Fall back to the site record's ownerId when no membership row exists, so
+  // sites that predate the membership model (legacy installs, tracker
+  // auto-created sites later claimed, ADMIN_EMAIL backfill) remain openable by
+  // their owner (#114 regression). Self-healing: backfill the membership.
+  let role = await getMembership(session.userId, siteId)
+  if (!role && await ownsSite(session.userId, siteId)) {
+    await addMembership(session.userId, siteId, 'owner').catch(() => {})
+    role = 'owner'
+  }
   if (!role) return jsonResponse({ error: 'You do not have access to this project' }, 403)
 
   if (!roleAtLeast(role, requiredRole((req as { method?: string }).method || 'GET', path))) {

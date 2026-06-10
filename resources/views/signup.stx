@@ -49,6 +49,8 @@ export const error: string = props.error || ''
     <div class="bg-[var(--error-bg)] text-[var(--error-text)] border border-[var(--error-border)] py-3 px-4 rounded-lg mb-6 text-sm">Please fill in all fields</div>
     @elseif(error === 'server')
     <div class="bg-[var(--error-bg)] text-[var(--error-text)] border border-[var(--error-border)] py-3 px-4 rounded-lg mb-6 text-sm">An error occurred. Please try again.</div>
+    @elseif(error === 'csrf')
+    <div class="bg-[var(--error-bg)] text-[var(--error-text)] border border-[var(--error-border)] py-3 px-4 rounded-lg mb-6 text-sm">Security check failed — please submit the form again from this page.</div>
     @endif
 
     <form method="POST" action="/signup">

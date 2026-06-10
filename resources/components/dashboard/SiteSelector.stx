@@ -78,7 +78,10 @@ async function fetchSites() {
   loading.set(true)
   error.set(null)
   try {
-    const res = await fetch(sitesUrl())
+    const res = await fetch(sitesUrl(), { credentials: 'include' })
+    // Session expired/revoked mid-session (enforcement only 401s here) → go to
+    // login rather than showing a broken hub (#6).
+    if (res.status === 401) { window.location.replace('/login'); return }
     if (!res.ok) throw new Error('Failed to fetch')
     const data = await res.json()
     sites.set(data.sites || [])
@@ -140,10 +143,10 @@ function pickSite(id, label) {
 // revoked projects fall back to the selector).
 function restoreLastSite(): boolean {
   if (dashboard.siteId()) return false
-  // Only auto-restore on the hub itself — restoring (via selectSite) rewrites
-  // the URL to /dashboard, which would yank the user off project-independent
-  // pages like /dashboard/account.
-  if (window.location.pathname !== '/dashboard') return false
+  // Don't auto-restore on project-independent pages like /dashboard/account —
+  // restoring (via selectSite) rewrites the URL to /dashboard and would yank
+  // the user off the page. Deep tab links still restore the last project.
+  if (window.location.pathname === '/dashboard/account') return false
   let last = ''
   try {
     last = localStorage.getItem(storageKey('lastSite')) || ''

@@ -54,6 +54,26 @@ export async function handleCreateSite(request: Request, ownerId?: string): Prom
     })
 
     if (existing.Item) {
+      const existingSite = unmarshall(existing.Item)
+      // Claim an ownerless site instead of 409ing (#114 regression): the
+      // tracking snippet auto-creates ownerless SITES rows via /collect, so a
+      // user creating that project in the dashboard should adopt it (attach
+      // ownerId + owner membership) rather than be blocked out of their data.
+      if (ownerId && !existingSite.ownerId) {
+        await dynamodb.updateItem({
+          TableName: TABLE_NAME,
+          Key: { pk: { S: 'SITES' }, sk: { S: `SITE#${siteId}` } },
+          UpdateExpression: 'SET ownerId = :o, gsi1pk = :gp, gsi1sk = :gs, updatedAt = :now',
+          ExpressionAttributeValues: {
+            ':o': { S: ownerId },
+            ':gp': { S: `OWNER#${ownerId}` },
+            ':gs': { S: `SITE#${siteId}` },
+            ':now': { S: now },
+          },
+        })
+        await addMembership(ownerId, siteId, 'owner')
+        return jsonResponse({ site: { ...existingSite, id: siteId, ownerId }, claimed: true }, 200)
+      }
       return jsonResponse({ error: 'Site already exists', siteId }, 409)
     }
 

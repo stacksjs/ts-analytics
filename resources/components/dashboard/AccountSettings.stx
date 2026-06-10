@@ -30,21 +30,33 @@ async function loadMe(): Promise<void> {
     name.set(data.user.name || '')
     emailVerified.set(!!data.user.emailVerified)
     plan.set(data.user.plan || 'free')
+    // Keep the shared identity (header) in sync — same contract the layout
+    // session gate established, so a name/email change reflects immediately.
+    ;(window as { CURRENT_USER?: unknown }).CURRENT_USER = data.user
+    document.dispatchEvent(new CustomEvent('tsa:user', { detail: data.user }))
   } catch (_e: unknown) {
     // the layout gate already handles the unauthenticated case
   }
 }
 
-async function authPost(path: string, method: string, body: Record<string, string>): Promise<{ ok: boolean, error?: string }> {
+async function authPost(path: string, method: string, body: Record<string, string>): Promise<{ ok: boolean, error?: string, user?: { email?: string } }> {
   const res: Response = await fetch(apiBase() + path, {
     method,
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify(body),
   })
-  if (res.ok) return { ok: true }
-  const data: { error?: string } = await res.json().catch(() => ({}))
+  const data: { error?: string, user?: { email?: string } } = await res.json().catch(() => ({}))
+  if (res.ok) return { ok: true, user: data.user }
   return { ok: false, error: data.error || 'Request failed' }
+}
+
+// Broadcast an identity change so the header (and anything else on the shared
+// tsa:user contract) updates immediately — no reload, no follow-up fetch race.
+function broadcastUser(user: { email?: string } | undefined): void {
+  if (!user) return
+  ;(window as { CURRENT_USER?: unknown }).CURRENT_USER = user
+  document.dispatchEvent(new CustomEvent('tsa:user', { detail: user }))
 }
 
 async function saveProfile(e: Event): Promise<void> {
@@ -73,8 +85,10 @@ async function changeEmail(e: Event): Promise<void> {
   const r = await authPost('/api/auth/email', 'POST', { email: newEmail(), password: emailPassword() })
   if (r.ok) {
     emailMsg.set('Email updated — check your inbox to verify it.')
+    email.set(newEmail())
+    emailVerified.set(false)
     newEmail.set(''); emailPassword.set('')
-    loadMe()
+    broadcastUser(r.user || { email: email() })
   } else {
     emailErr.set(r.error || 'Failed to change email')
   }

@@ -134,8 +134,10 @@ catch (e) {}
 const cachedStats = loadCachedStats()
 let stats = cachedStats || { realtime: 0, sessions: 0, people: 0, views: 0, avgTime: '00:00', bounceRate: 0, events: 0 }
 
-// Valid tab ids (used for URL validation; tab chrome lives in DashboardHeader)
-const validTabs = ['dashboard', 'live', 'sessions', 'funnels', 'flow', 'vitals', 'errors', 'insights', 'settings']
+// Valid tab ids (used for URL validation; tab chrome lives in DashboardHeader).
+// 'account' is project-independent — listed so getTabFromUrl/switchTab don't
+// coerce its URL to /dashboard, but the bootstrap below skips its data fetch.
+const validTabs = ['dashboard', 'live', 'sessions', 'funnels', 'flow', 'vitals', 'errors', 'insights', 'settings', 'account']
 
 // Theme is owned by DashboardHeader (isDark state + data-theme effect + storage).
 
@@ -328,7 +330,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Shell visibility is reactive (SiteSelector effect on the store siteId) and the
   // layout's inline pre-paint sets the initial state. This bootstrap only kicks
   // off the data fetch + refresh loop for a site loaded directly via the URL.
-  if (siteId) {
+  // The account page is project-independent — skip it so its URL isn't rewritten
+  // to /dashboard and no per-site fetch/refresh runs (#3).
+  if (siteId && window.location.pathname !== '/dashboard/account') {
     const initialTab = getTabFromUrl()
     switchTab(initialTab, false)
 

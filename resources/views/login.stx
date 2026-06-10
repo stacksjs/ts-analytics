@@ -50,6 +50,8 @@ export const reset: string = props.reset || ''
     <div class="bg-[var(--error-bg)] text-[var(--error-text)] border border-[var(--error-border)] py-3 px-4 rounded-lg mb-6 text-sm">Social sign-in failed. Please try again or use your password.</div>
     @elseif(error === 'oauth-unverified-email')
     <div class="bg-[var(--error-bg)] text-[var(--error-text)] border border-[var(--error-border)] py-3 px-4 rounded-lg mb-6 text-sm">Your email is not verified with that provider, so it can't be linked to an existing account.</div>
+    @elseif(error === 'csrf')
+    <div class="bg-[var(--error-bg)] text-[var(--error-text)] border border-[var(--error-border)] py-3 px-4 rounded-lg mb-6 text-sm">Security check failed — please submit the form again from this page.</div>
     @endif
 
     @if(reset === '1')
