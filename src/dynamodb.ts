@@ -335,9 +335,8 @@ export function determinePeriod(startDate: Date, endDate: Date): AggregationPeri
 }
 
 /**
- * Get daily salt for visitor ID hashing (rotates daily for privacy)
+ * Get daily salt for visitor ID hashing (rotates daily for privacy).
+ * Secret-seeded so visitor hashes cannot be reproduced without the server
+ * secret (#88) — see src/lib/salt.ts.
  */
-export function getDailySalt(): string {
-  const today = new Date().toISOString().slice(0, 10)
-  return `analytics-${today}`
-}
+export { getDailySalt } from './lib/salt'

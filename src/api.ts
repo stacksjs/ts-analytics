@@ -21,6 +21,7 @@ import {
   type IPGeoResult,
   lookupFromHeaders,
 } from './geolocation'
+import { getDailySalt } from './lib/salt'
 
 // ============================================================================
 // Types
@@ -167,11 +168,10 @@ export class AnalyticsAPI {
   }
 
   /**
-   * Get daily rotating salt for visitor ID hashing
+   * Get daily rotating salt for visitor ID hashing (secret-seeded, #88)
    */
   private getDailySalt(): string {
-    const today = new Date().toISOString().slice(0, 10)
-    return `analytics-salt-${today}`
+    return getDailySalt()
   }
 
   /**
