@@ -5,9 +5,8 @@
  * `/api/p/{siteId}/*` endpoint must belong to the authenticated user. Applied
  * as a single global middleware (see router.use) so no handler is missed.
  *
- * Gated by ANALYTICS_REQUIRE_AUTH so it can ship ahead of the SPA login flow:
- *   - unset/false → no-op (existing behaviour, dashboard keeps working)
- *   - "true"      → enforce session + project membership
+ * Account-first by default (#114): enforcement is ON unless
+ * ANALYTICS_REQUIRE_AUTH=false (kiosk/legacy single-tenant installs).
  * The public tracker script (`/script`, `/script.js`) is always exempt — site
  * visitors load it without a session.
  */
@@ -28,9 +27,9 @@ export function guardedSiteId(path: string): string | null {
   return m ? m[1] : null
 }
 
-/** Whether enforcement is active (env-gated for safe rollout). */
+/** Whether enforcement is active (default ON; opt out with ANALYTICS_REQUIRE_AUTH=false). */
 export function authRequired(): boolean {
-  return process.env.ANALYTICS_REQUIRE_AUTH === 'true'
+  return process.env.ANALYTICS_REQUIRE_AUTH !== 'false'
 }
 
 /**

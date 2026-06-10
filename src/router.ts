@@ -166,13 +166,21 @@ export async function createRouter(): Promise<Router> {
     return errors.handleCollectError(req, auth.siteId, auth.keyId)
   })
 
-  // Sites list and creation (pass ownerId from session if authenticated)
+  // Sites list and creation — account-scoped (#114). With enforcement on
+  // (the default), no session → 401; the all-sites fallback only survives in
+  // explicit ANALYTICS_REQUIRE_AUTH=false installs.
   await router.get('/api/sites', async (req: any) => {
     const session = await auth.getSessionFromRequest(req)
+    if (!session && authz.authRequired()) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), { status: 401, headers: { 'Content-Type': 'application/json' } })
+    }
     return misc.handleGetSites(req, session?.userId)
   })
   await router.post('/api/sites', async (req: any) => {
     const session = await auth.getSessionFromRequest(req)
+    if (!session && authz.authRequired()) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), { status: 401, headers: { 'Content-Type': 'application/json' } })
+    }
     return misc.handleCreateSite(req, session?.userId)
   })
   await router.delete('/api/sites/{siteId}', async (req: any) => {
@@ -335,9 +343,21 @@ export async function createRouter(): Promise<Router> {
     return errors.handleCollectError(req, auth.siteId, auth.keyId)
   })
 
-  // Sites list (stealth)
-  await router.get('/api/projects', misc.handleGetSites)
-  await router.post('/api/projects', misc.handleCreateSite)
+  // Sites list (stealth) — same account scoping as /api/sites (#114)
+  await router.get('/api/projects', async (req: any) => {
+    const session = await auth.getSessionFromRequest(req)
+    if (!session && authz.authRequired()) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), { status: 401, headers: { 'Content-Type': 'application/json' } })
+    }
+    return misc.handleGetSites(req, session?.userId)
+  })
+  await router.post('/api/projects', async (req: any) => {
+    const session = await auth.getSessionFromRequest(req)
+    if (!session && authz.authRequired()) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), { status: 401, headers: { 'Content-Type': 'application/json' } })
+    }
+    return misc.handleCreateSite(req, session?.userId)
+  })
 
   // Share link validation (stealth)
   await router.get('/api/link/{token}', (req: any) => sharing.handleGetSharedDashboard(req, req.params.token))
