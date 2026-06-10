@@ -6,8 +6,9 @@ import { dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { parseDateRange, formatDuration } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getReferrerSourceChannel } from '../utils/geolocation'
-import { parseFilters, matchesFilters } from '../utils/filters'
+import { parseFilters, matchesFilters, hasFilters } from '../utils/filters'
 import { getQueryParams } from '../../deploy/lambda-adapter'
+import { readDayRollups, fullyCoveredDays, isCompleteDay } from '../lib/rollups'
 
 /**
  * GET /api/sites/{siteId}/stats
@@ -18,27 +19,59 @@ export async function handleGetStats(request: Request, siteId: string): Promise<
     const { startDate, endDate } = parseDateRange(query)
     const startDateStr = startDate.toISOString().slice(0, 10)
     const endDateStr = endDate.toISOString().slice(0, 10)
+    const filters = parseFilters(query)
 
-    // Query pageviews for the date range
-    const pageviewsResult = await dynamodb.query({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':start': { S: `PAGEVIEW#${startDate.toISOString()}` },
-        ':end': { S: `PAGEVIEW#${endDate.toISOString()}` },
-      },
-    }) as { Items?: any[]; Count?: number }
+    // Pre-aggregation (#94): without filters, complete past days are served
+    // from ROLLUP#DAY# items and raw events are touched only for the live
+    // remainder (today / un-rolled days). Filters can't be answered from
+    // rollups, so a filtered request takes the raw path.
+    const rolled: { day: string, views: number, visitors: number, sessions: number, bounces: number, totalDuration: number, events: number }[] = []
+    let rawWindowStart = startDate
+    if (!hasFilters(filters)) {
+      const eligible = fullyCoveredDays(startDate, endDate).filter(d => isCompleteDay(d))
+      if (eligible.length > 0) {
+        const rollups = await readDayRollups(siteId, eligible[0], eligible[eligible.length - 1])
+        // Use the contiguous covered prefix so one raw range query handles the
+        // rest; a mid-range gap simply ends the prefix and stays raw.
+        for (const day of eligible) {
+          const r = rollups.get(day)
+          if (!r)
+            break
+          rolled.push(r)
+        }
+        if (rolled.length > 0) {
+          const next = new Date(`${rolled[rolled.length - 1].day}T00:00:00.000Z`)
+          next.setUTCDate(next.getUTCDate() + 1)
+          rawWindowStart = next
+        }
+      }
+    }
 
-    // Query sessions for the date range
-    const sessionsResult = await dynamodb.query({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[]; Count?: number }
+    // Query pageviews for the (remaining) raw window
+    const pageviewsResult = rawWindowStart <= endDate
+      ? await dynamodb.query({
+          TableName: TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+          ExpressionAttributeValues: {
+            ':pk': { S: `SITE#${siteId}` },
+            ':start': { S: `PAGEVIEW#${rawWindowStart.toISOString()}` },
+            ':end': { S: `PAGEVIEW#${endDate.toISOString()}` },
+          },
+        }) as { Items?: any[], Count?: number }
+      : { Items: [] }
+
+    // Query sessions for the raw window (sessions are id-keyed, so this scans
+    // SESSION# items; the rollup prefix above keeps this to the live window)
+    const sessionsResult = rawWindowStart <= endDate
+      ? await dynamodb.query({
+          TableName: TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+          ExpressionAttributeValues: {
+            ':pk': { S: `SITE#${siteId}` },
+            ':prefix': { S: 'SESSION#' },
+          },
+        }) as { Items?: any[], Count?: number }
+      : { Items: [] }
 
     // Query realtime visitors (last 2 minutes)
     const realtimeCutoff = new Date(Date.now() - 2 * 60 * 1000)
@@ -54,22 +87,30 @@ export async function handleGetStats(request: Request, siteId: string): Promise<
     const realtimePageviews = (realtimeResult.Items || []).map(unmarshall)
     const realtimeVisitors = new Set(realtimePageviews.map(pv => pv.visitorId)).size
 
-    const filters = parseFilters(query)
     const pageviews = (pageviewsResult.Items || []).map(unmarshall).filter((pv: any) => matchesFilters(pv, filters))
-    const sessions = (sessionsResult.Items || []).map(unmarshall).filter(s => {
+    const sessions = (sessionsResult.Items || []).map(unmarshall).filter((s) => {
       const sessionStart = new Date(s.startedAt)
-      return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
+      return sessionStart >= rawWindowStart && sessionStart <= endDate && matchesFilters(s, filters)
     })
 
-    // Calculate stats
-    const uniqueVisitors = new Set(pageviews.map((pv: any) => pv.visitorId)).size
-    const totalViews = pageviews.length
-    const totalSessions = sessions.length
-    const bounces = sessions.filter(s => s.isBounce).length
+    // Raw-window stats
+    const rawVisitors = new Set(pageviews.map((pv: any) => pv.visitorId)).size
+    const rawViews = pageviews.length
+    const rawSessions = sessions.length
+    const rawBounces = sessions.filter(s => s.isBounce).length
+    const rawDuration = sessions.reduce((sum, s) => sum + (s.duration || 0), 0)
+    const rawEvents = sessions.reduce((sum, s) => sum + (s.eventCount || 0), 0)
+
+    // Combine with rollup days. Note: `people` across rolled days sums daily
+    // uniques (a returning visitor counts once per day) — Fathom semantics.
+    const totalViews = rawViews + rolled.reduce((sum, r) => sum + r.views, 0)
+    const uniqueVisitors = rawVisitors + rolled.reduce((sum, r) => sum + r.visitors, 0)
+    const totalSessions = rawSessions + rolled.reduce((sum, r) => sum + r.sessions, 0)
+    const bounces = rawBounces + rolled.reduce((sum, r) => sum + r.bounces, 0)
+    const totalDuration = rawDuration + rolled.reduce((sum, r) => sum + r.totalDuration, 0)
+    const totalEvents = rawEvents + rolled.reduce((sum, r) => sum + r.events, 0)
     const bounceRate = totalSessions > 0 ? Math.round((bounces / totalSessions) * 100) : 0
-    const totalDuration = sessions.reduce((sum, s) => sum + (s.duration || 0), 0)
     const avgDuration = totalSessions > 0 ? Math.round(totalDuration / totalSessions) : 0
-    const totalEvents = sessions.reduce((sum, s) => sum + (s.eventCount || 0), 0)
 
     return jsonResponse({
       realtime: realtimeVisitors,
@@ -541,16 +582,43 @@ export async function handleGetTimeSeries(request: Request, siteId: string): Pro
     const { startDate, endDate } = parseDateRange(query)
     const period = query.period || 'day'
 
-    // Query pageviews
-    const result = await dynamodb.query({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':start': { S: `PAGEVIEW#${startDate.toISOString()}` },
-        ':end': { S: `PAGEVIEW#${endDate.toISOString()}` },
-      },
-    }) as { Items?: any[] }
+    // Pre-aggregation (#94): for day/month periods, complete past days come
+    // from ROLLUP#DAY# items; raw pageviews are queried only from the first
+    // un-rolled day onward (usually just today). Hour/minute periods are
+    // short ranges and stay raw. Month buckets sum daily uniques.
+    const rollupByDay = new Map<string, { views: number, visitors: number }>()
+    let rawWindowStart = startDate
+    if (period === 'day' || period === 'month') {
+      const eligible = fullyCoveredDays(startDate, endDate).filter(d => isCompleteDay(d))
+      if (eligible.length > 0) {
+        const rollups = await readDayRollups(siteId, eligible[0], eligible[eligible.length - 1])
+        for (const day of eligible) {
+          const r = rollups.get(day)
+          if (!r)
+            break
+          rollupByDay.set(day, { views: r.views, visitors: r.visitors })
+        }
+        if (rollupByDay.size > 0) {
+          const lastRolled = [...rollupByDay.keys()].pop()!
+          const next = new Date(`${lastRolled}T00:00:00.000Z`)
+          next.setUTCDate(next.getUTCDate() + 1)
+          rawWindowStart = next
+        }
+      }
+    }
+
+    // Query pageviews for the (remaining) raw window
+    const result = rawWindowStart <= endDate
+      ? await dynamodb.query({
+          TableName: TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+          ExpressionAttributeValues: {
+            ':pk': { S: `SITE#${siteId}` },
+            ':start': { S: `PAGEVIEW#${rawWindowStart.toISOString()}` },
+            ':end': { S: `PAGEVIEW#${endDate.toISOString()}` },
+          },
+        }) as { Items?: any[] }
+      : { Items: [] }
 
     const pageviews = (result.Items || []).map(unmarshall)
 
@@ -609,10 +677,22 @@ else {
       }
     }
 
+    // Fold rollup days into their buckets. A day-bucket is either rolled or
+    // raw (the raw window starts after the last rolled day); a month-bucket
+    // can mix both, so its visitors are summed daily uniques.
+    const rollupBuckets: Record<string, { views: number, visitors: number }> = {}
+    for (const [day, r] of rollupByDay) {
+      const key = period === 'month' ? `${day.slice(0, 7)}-01T00:00:00.000Z` : `${day}T00:00:00.000Z`
+      if (!rollupBuckets[key])
+        rollupBuckets[key] = { views: 0, visitors: 0 }
+      rollupBuckets[key].views += r.views
+      rollupBuckets[key].visitors += r.visitors
+    }
+
     const timeSeries = allBuckets.map(bucket => ({
       timestamp: bucket,
-      views: bucketMap[bucket]?.views || 0,
-      visitors: bucketMap[bucket]?.visitors.size || 0,
+      views: (bucketMap[bucket]?.views || 0) + (rollupBuckets[bucket]?.views || 0),
+      visitors: (bucketMap[bucket]?.visitors.size || 0) + (rollupBuckets[bucket]?.visitors || 0),
     }))
 
     return jsonResponse({ timeSeries })

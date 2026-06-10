@@ -10,6 +10,7 @@ import { evaluateAllSitesErrorAlerts } from '../handlers/errors'
 import { runUptimeChecks } from '../handlers/uptime'
 import { sendDueEmailDigests } from '../handlers/alerts'
 import { processWebhookDeliveries } from '../handlers/webhooks'
+import { runDailyRollups } from '../lib/rollups'
 
 let bootstrapped = false
 
@@ -74,6 +75,19 @@ export function bootstrapJobs(): void {
       const n = await processWebhookDeliveries()
       if (n > 0)
         console.log(`[jobs] webhook-delivery: processed ${n} delivery(s)`)
+    },
+  })
+
+  // Daily rollups — pre-aggregate each site's complete days so /stats and
+  // /timeseries read O(buckets) instead of re-scanning raw events (#94).
+  // Hourly cadence: idempotent, so most runs are no-ops once days are covered.
+  registerJob({
+    name: 'daily-rollups',
+    intervalMs: 60 * 60_000,
+    run: async () => {
+      const n = await runDailyRollups()
+      if (n > 0)
+        console.log(`[jobs] daily-rollups: wrote ${n} day rollup(s)`)
     },
   })
 }
