@@ -150,8 +150,12 @@ catch {
               city,
               screenWidth: payload.sw,
               screenHeight: payload.sh,
-              isUnique: true,
-              isBounce: true,
+              // Entry-page flag (#87): true only when no session is known yet.
+              // The fast path checks the in-memory cache only (no DB read);
+              // a cold process may overcount entries — acceptable until the
+              // SQS path is finished or removed (#97).
+              isUnique: !getSession(`${payload.s}:${payload.sid}`),
+              isBounce: !getSession(`${payload.s}:${payload.sid}`),
               timestamp,
               ...(payload.e === 'event' && payload.p && {
                 name: payload.p.name || 'unnamed',

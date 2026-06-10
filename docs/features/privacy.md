@@ -41,6 +41,24 @@ What is collected:
 - Browser family (not fingerprints)
 - Referrer domain (not full URL)
 
+## How Unique Visitors Are Counted
+
+A **unique visitor** is a daily-salted hash:
+
+```
+visitorId = SHA-256(ip, userAgent, siteId, salt)
+salt      = HMAC-SHA256(ANALYTICS_SALT_SECRET, YYYY-MM-DD)
+```
+
+Properties that follow from this definition:
+
+- **No cookies, no stored identifiers** — the hash is computed per event and the inputs are discarded.
+- **Tabs and repeat sessions don't double-count**: the same person on the same day always produces the same hash, and every report deduplicates by it.
+- **The salt rotates daily and is secret-seeded**, so hashes cannot be reproduced (or correlated across days) without the server secret. This is deliberate: a visitor returning on a different day counts as a new daily unique — multi-day "people" totals are **sums of daily uniques** (the same model Fathom uses). Cross-day deduplication is impossible by design, which is what makes the visitor id non-tracking.
+- **Within a single day**, counts are exact uniques.
+
+All reports — summary, time series, and every breakdown — count visitors by deduplicating this same hash, so numbers are consistent across panels.
+
 ## Path Exclusion
 
 Exclude sensitive pages from tracking:
