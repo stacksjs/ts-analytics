@@ -25,6 +25,22 @@ A privacy-first analytics toolkit for web applications, powered by DynamoDB sing
 bun add @stacksjs/analytics
 ```
 
+## Integrate on Your Site (the 3-step recipe)
+
+The validated pattern for adding ts-analytics to any site (docs sites included):
+
+1. **Create a project** in the dashboard (or let the first event auto-create it), then copy the one-liner from **Settings → Installation**:
+
+   ```html
+   <script defer src="https://your-analytics-host/api/sites/YOUR_SITE_ID/script.js"></script>
+   ```
+
+   It captures page views, SPA route changes, link & outbound clicks, engagement time, web vitals, and JS errors — no cookies, no consent banner needed.
+
+2. **Verify** with the *Verify installation* button in Settings (fires a real event through `/collect` and confirms the round trip), or just visit your site and watch the dashboard.
+
+3. **Optional hardening**: append `?stealth=true` for the unlisted beacon path, or serve it first-party from your own domain — see the [ad-blocker resilience guide](docs/guide/tracking-script.md#ad-blocker-resilience-first-party-proxy). Error tracking without analytics: grab the DSN + SDK snippet from the same Settings page.
+
 ## Quick Start
 
 ### 1. Set Up the Analytics Store
