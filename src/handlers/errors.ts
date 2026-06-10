@@ -1178,6 +1178,17 @@ async function notifyAlert(alert: any, trigger: any): Promise<void> {
   if (alert.email) {
     await sendEmail({ to: alert.email, subject: `[Alert] ${alert.name}`, text: msg })
   }
+  // Site-level webhook subscriptions to alert.triggered go through the signed
+  // delivery queue (#92); alert.webhookUrl below is the alert's own direct URL.
+  if (alert.siteId) {
+    void enqueueWebhookEvent(alert.siteId, 'alert.triggered', {
+      alert: alert.name,
+      metric: alert.metric,
+      value: trigger.currentValue,
+      threshold: alert.threshold,
+      triggeredAt: trigger.triggeredAt,
+    }).catch((e: Error) => console.error('Alert webhook enqueue failed:', e.message))
+  }
   if (alert.webhookUrl) {
     try {
       await fetch(alert.webhookUrl, {

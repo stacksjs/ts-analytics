@@ -349,10 +349,10 @@ function showWebhookModal(): void {
       <div class="mb-4">
         <label class="text-xs font-medium text-muted mb-1 block">Events</label>
         <div class="flex flex-wrap gap-3 mt-2">
-          <label class="flex items-center gap-1 text-[0.8125rem] text-text cursor-pointer"><input type="checkbox" name="event_pageview" checked /> Page View</label>
-          <label class="flex items-center gap-1 text-[0.8125rem] text-text cursor-pointer"><input type="checkbox" name="event_session" /> Session</label>
-          <label class="flex items-center gap-1 text-[0.8125rem] text-text cursor-pointer"><input type="checkbox" name="event_error" /> Error</label>
-          <label class="flex items-center gap-1 text-[0.8125rem] text-text cursor-pointer"><input type="checkbox" name="event_goal" /> Goal Conversion</label>
+          <label class="flex items-center gap-1 text-[0.8125rem] text-text cursor-pointer"><input type="checkbox" name="event_error" checked /> Error</label>
+          <label class="flex items-center gap-1 text-[0.8125rem] text-text cursor-pointer"><input type="checkbox" name="event_alert" /> Alert triggered</label>
+          <label class="flex items-center gap-1 text-[0.8125rem] text-muted cursor-not-allowed"><input type="checkbox" disabled /> Page View (coming soon)</label>
+          <label class="flex items-center gap-1 text-[0.8125rem] text-muted cursor-not-allowed"><input type="checkbox" disabled /> Goal Conversion (coming soon)</label>
         </div>
       </div>
     `,
@@ -360,10 +360,8 @@ function showWebhookModal(): void {
     onSubmit: async () => {
       const data: Record<string, string> = Modal.getFormData()
       const events: string[] = []
-      if (data.event_pageview) events.push('pageview')
-      if (data.event_session) events.push('session')
       if (data.event_error) events.push('error')
-      if (data.event_goal) events.push('goal')
+      if (data.event_alert) events.push('alert.triggered')
       await fetch(apiUrl('/webhooks'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
