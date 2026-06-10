@@ -40,6 +40,44 @@ function copySnippet(): void {
 const verifying = state<boolean>(false)
 const verifyResult = state<string>('') // '' | 'pass' | 'fail'
 
+// Error-tracking DSN (#63): the second Settings essential next to the script
+// tag — fetched on its own so a hiccup elsewhere can't blank it.
+const dsn = state<string>('')
+const dsnCopied = state<boolean>(false)
+const sdkSnippet = state<string>('')
+const sdkCopied = state<boolean>(false)
+
+async function fetchDsn(): Promise<void> {
+  try {
+    const res: Response = await fetch(apiUrl('/dsn'))
+    const data: { dsn?: string } = await res.json()
+    if (!data.dsn) return
+    dsn.set(data.dsn)
+    // Build the tags from parts — literal script-tag text in this source would
+    // corrupt the stx inlined bundle.
+    const base: string = (window as { API_ENDPOINT?: string }).API_ENDPOINT || window.location.origin
+    const sdkTag: string = ['<', 'script src="', base, '/sdk.js">', '<', '/script>'].join('')
+    const initTag: string = ['<', 'script>', 'TSA.init({ dsn: \'', data.dsn, '\' })', '<', '/script>'].join('')
+    sdkSnippet.set(sdkTag + '\n' + initTag)
+  } catch (_e: unknown) {
+    // panel shows its loading line until a retry succeeds
+  }
+}
+
+function copyDsn(): void {
+  if (!dsn()) return
+  navigator.clipboard.writeText(dsn())
+  dsnCopied.set(true)
+  setTimeout(() => dsnCopied.set(false), 2000)
+}
+
+function copySdkSnippet(): void {
+  if (!sdkSnippet()) return
+  navigator.clipboard.writeText(sdkSnippet())
+  sdkCopied.set(true)
+  setTimeout(() => sdkCopied.set(false), 2000)
+}
+
 // Verify installation (#84): fire a synthetic pageview through the public
 // /collect endpoint (exactly what the tracking script does), then ask the API
 // whether it landed — proving the full ingest round-trip pass/fail.
@@ -454,6 +492,7 @@ async function saveRetention(value: string): Promise<void> {
 onMount(() => {
   fetchSettings()
   fetchSnippet()
+  fetchDsn()
 })
 </script>
 
@@ -479,6 +518,32 @@ onMount(() => {
     <p x-show="!installSnippet()" class="text-xs text-muted italic mt-2">Loading snippet…</p>
     <p x-show="verifyResult() === 'pass'" class="text-xs text-success mt-2">Test event received — ingestion is working end to end.</p>
     <p x-show="verifyResult() === 'fail'" class="text-xs text-error mt-2">No event received. Check that the API is reachable from your browser, then try again.</p>
+  </div>
+
+  <div x-show="!loading() && !error()" class="panel mb-4">
+    <div class="panel-header">
+      <h4 class="panel-title">Error Tracking</h4>
+      <div class="flex items-center gap-2">
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="copyDsn()">
+          <span x-show="!dsnCopied()">Copy DSN</span>
+          <span x-show="dsnCopied()" class="text-success">Copied!</span>
+        </button>
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="copySdkSnippet()">
+          <span x-show="!sdkCopied()">Copy snippet</span>
+          <span x-show="sdkCopied()" class="text-success">Copied!</span>
+        </button>
+      </div>
+    </div>
+    <p class="text-xs text-muted mb-3">The analytics snippet above already reports uncaught errors. Use this DSN with the standalone SDK when you want error tracking without analytics, or richer capture (breadcrumbs, releases, <code class="text-text">captureException</code>) in your app code.</p>
+    <div class="mb-3">
+      <label class="text-xs font-medium text-muted mb-1 block">DSN</label>
+      <code class="block bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text break-all font-mono" x-text="dsn()"></code>
+    </div>
+    <div>
+      <label class="text-xs font-medium text-muted mb-1 block">SDK snippet</label>
+      <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed" x-text="sdkSnippet()"></pre>
+    </div>
+    <p x-show="!dsn()" class="text-xs text-muted italic mt-2">Loading DSN…</p>
   </div>
 
   <div x-show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
