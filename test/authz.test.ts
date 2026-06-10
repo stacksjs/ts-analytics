@@ -21,6 +21,38 @@ describe('guardedSiteId', () => {
   })
 })
 
+// #69 — every error READ/triage endpoint must resolve to a guarded site id so
+// the membership middleware applies; triage writes must demand editor.
+describe('error endpoints are guarded (#69)', () => {
+  const reads = [
+    '/api/sites/acme/errors',
+    '/api/sites/acme/errors/statuses',
+    '/api/sites/acme/errors/timeseries',
+    '/api/sites/acme/errors/comparison',
+    '/api/sites/acme/errors/groups',
+    '/api/sites/acme/errors/detail',
+    '/api/sites/acme/errors/err_123',
+    '/api/sites/acme/errors/alerts',
+    '/api/p/acme/issues',
+    '/api/p/acme/issues/states',
+    '/api/p/acme/issues/err_123',
+  ]
+
+  it('every error read route is membership-guarded at viewer', () => {
+    for (const path of reads) {
+      expect(guardedSiteId(path)).toBe('acme')
+      expect(requiredRole('GET', path)).toBe('viewer')
+    }
+  })
+
+  it('triage writes are guarded and demand editor', () => {
+    for (const path of ['/api/sites/acme/errors/status', '/api/sites/acme/errors/assign', '/api/p/acme/issues/state']) {
+      expect(guardedSiteId(path)).toBe('acme')
+      expect(requiredRole('POST', path)).toBe('editor')
+    }
+  })
+})
+
 describe('requiredRole', () => {
   it('reads only need viewer', () => {
     expect(requiredRole('GET', '/api/sites/a/stats')).toBe('viewer')
