@@ -146,10 +146,15 @@ catch {
  * GET /api/auth/me — return the currently authenticated user.
  */
 export async function handleMe(request: Request): Promise<Response> {
+  // The 401 carries the enforcement mode so the SPA gate (#115) knows whether
+  // to bounce to /login or stay open (ANALYTICS_REQUIRE_AUTH=false installs).
+  // Same expression as authz.authRequired() — importing it here would create
+  // an auth ↔ authz module cycle.
+  const requireAuth = process.env.ANALYTICS_REQUIRE_AUTH !== 'false'
   const session = await getSessionFromRequest(request)
-  if (!session) return errorResponse('Not authenticated', 401)
+  if (!session) return jsonResponse({ error: 'Not authenticated', requireAuth }, 401)
   const user = await getUserById(session.userId)
-  if (!user) return errorResponse('Not authenticated', 401)
+  if (!user) return jsonResponse({ error: 'Not authenticated', requireAuth }, 401)
   return jsonResponse({ user: publicUser(user) })
 }
 

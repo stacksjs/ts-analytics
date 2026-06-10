@@ -12,7 +12,8 @@
   (function() {
     var params = new URLSearchParams(window.location.search);
     var siteId = params.get('siteId');
-    if (siteId) {
+    // The account page is project-independent (#115) — always show the shell there.
+    if (siteId || window.location.pathname === '/dashboard/account') {
       var s = document.createElement('style');
       s.textContent = '#dashboard{display:flex!important}#site-selector{display:none!important}';
       (document.head || document.documentElement).appendChild(s);
@@ -21,6 +22,34 @@
 </script>
 
 <script>window.ANALYTICS_API_ENDPOINT = {{ $env.STX_PUBLIC_API_ENDPOINT || '' }};</script>
+
+<script>
+  // Account-first session gate (#115): the dashboard never renders without a
+  // signed-in user. A 401 from /api/auth/me redirects to /login — unless the
+  // server reports enforcement is off (ANALYTICS_REQUIRE_AUTH=false installs).
+  // Network errors fail open: an unreachable API shouldn't lock the shell.
+  (function() {
+    var api = window.ANALYTICS_API_ENDPOINT || '';
+    fetch(api + '/api/auth/me', { credentials: 'include' })
+      .then(function(r) {
+        if (r.status === 401) {
+          return r.json().then(function(body) {
+            if (!body || body.requireAuth !== false) window.location.replace('/login');
+            return null;
+          });
+        }
+        return r.ok ? r.json() : null;
+      })
+      .then(function(data) {
+        if (data && data.user) {
+          window.CURRENT_USER = data.user;
+          document.dispatchEvent(new CustomEvent('tsa:user', { detail: data.user }));
+        }
+      })
+      .catch(function() {});
+  })();
+</script>
+
 <script src="/assets/functions/composables.ts"></script>
 <script src="/assets/functions/dashboard.ts"></script>
 

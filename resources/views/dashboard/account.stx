@@ -1,0 +1,10 @@
+{{-- Account Page - profile, password, email, sessions (#115) --}}
+@layout('dashboard')
+
+@section('title')
+Account
+@endsection
+
+@section('content')
+<account-settings />
+@endsection

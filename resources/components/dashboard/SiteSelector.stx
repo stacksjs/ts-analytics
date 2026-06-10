@@ -140,6 +140,10 @@ function pickSite(id, label) {
 // revoked projects fall back to the selector).
 function restoreLastSite(): boolean {
   if (dashboard.siteId()) return false
+  // Only auto-restore on the hub itself — restoring (via selectSite) rewrites
+  // the URL to /dashboard, which would yank the user off project-independent
+  // pages like /dashboard/account.
+  if (window.location.pathname !== '/dashboard') return false
   let last = ''
   try {
     last = localStorage.getItem(storageKey('lastSite')) || ''
@@ -157,7 +161,8 @@ function restoreLastSite(): boolean {
 // this stays authoritative across SPA transitions. (No literal tag text in this
 // comment — it would corrupt stx's component block parsing.)
 function applyShellVisibility() {
-  const hasSite = !!dashboard.siteId()
+  // The account page is project-independent (#115): always show the shell there.
+  const hasSite = !!dashboard.siteId() || window.location.pathname === '/dashboard/account'
   const sel = document.getElementById('site-selector')
   const dash = document.getElementById('dashboard')
   if (sel) sel.style.setProperty('display', hasSite ? 'none' : 'flex', 'important')

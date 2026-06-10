@@ -15,6 +15,15 @@ const siteName = state<string>('Analytics Dashboard')
 const isDark = state<boolean>(preferredDark())
 const siteId = state<string>('')
 
+// Signed-in identity (#115): the layout's session gate stashes the user on
+// window and broadcasts tsa:user — cover both orders (gate may resolve
+// before or after this component mounts).
+const userEmail = state<string>('')
+
+function adoptUser(u: { email?: string } | undefined): void {
+  if (u && u.email) userEmail.set(u.email)
+}
+
 // Document titles per tab (mirrors the controller's old tabTitles map).
 const TAB_TITLES: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -90,6 +99,9 @@ onMount(() => {
   siteId.set(new URLSearchParams(window.location.search).get('siteId') || '')
   dashboard.currentTab.set(detectCurrentTab())
 
+  adoptUser((window as { CURRENT_USER?: { email?: string } }).CURRENT_USER)
+  document.addEventListener('tsa:user', (e: Event) => adoptUser((e as CustomEvent).detail))
+
   window.headerSetSiteName = (name: string) => siteName.set(name || 'Analytics Dashboard')
   window.dashboardHeader = {
     toggleTheme,
@@ -151,6 +163,10 @@ provide('dashboardHeader', {
       <Icon name="moon" size="20" id="moon-icon" x-show="isDark()" />
       <Icon name="sun" size="20" id="sun-icon" x-show="!isDark()" />
     </button>
+    <a x-href="'/dashboard/account' + (siteId() ? '?siteId=' + encodeURIComponent(siteId()) : '')" x-show="userEmail()" class="flex items-center gap-1.5 icon-btn no-underline" title="Account settings" data-stx-prefetch>
+      <Icon name="user" size="18" />
+      <span class="text-xs text-muted max-w-[160px] truncate hidden md:inline" x-text="userEmail()"></span>
+    </a>
     <form method="POST" action="/logout" class="inline">
       <button type="submit" class="icon-btn hover:text-error" title="Logout">
         <Icon name="log-out" size="20" />

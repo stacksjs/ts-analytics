@@ -1,0 +1,153 @@
+<script client>
+// Account settings (#115) — name / password / email management on top of the
+// existing /api/auth endpoints, plus sign-out-everywhere.
+const apiBase = (): string => (window as { ANALYTICS_API_ENDPOINT?: string }).ANALYTICS_API_ENDPOINT || ''
+
+const email = state<string>('')
+const name = state<string>('')
+const emailVerified = state<boolean>(false)
+const plan = state<string>('free')
+
+const profileMsg = state<string>('')
+const profileErr = state<string>('')
+const passwordMsg = state<string>('')
+const passwordErr = state<string>('')
+const emailMsg = state<string>('')
+const emailErr = state<string>('')
+
+const currentPassword = state<string>('')
+const newPassword = state<string>('')
+const newEmail = state<string>('')
+const emailPassword = state<string>('')
+
+async function loadMe(): Promise<void> {
+  try {
+    const res: Response = await fetch(apiBase() + '/api/auth/me', { credentials: 'include' })
+    if (!res.ok) return
+    const data: { user?: { email?: string, name?: string, emailVerified?: boolean, plan?: string } } = await res.json()
+    if (!data.user) return
+    email.set(data.user.email || '')
+    name.set(data.user.name || '')
+    emailVerified.set(!!data.user.emailVerified)
+    plan.set(data.user.plan || 'free')
+  } catch (_e: unknown) {
+    // the layout gate already handles the unauthenticated case
+  }
+}
+
+async function authPost(path: string, method: string, body: Record<string, string>): Promise<{ ok: boolean, error?: string }> {
+  const res: Response = await fetch(apiBase() + path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  if (res.ok) return { ok: true }
+  const data: { error?: string } = await res.json().catch(() => ({}))
+  return { ok: false, error: data.error || 'Request failed' }
+}
+
+async function saveProfile(e: Event): Promise<void> {
+  e.preventDefault()
+  profileMsg.set(''); profileErr.set('')
+  const r = await authPost('/api/auth/profile', 'PUT', { name: name() })
+  if (r.ok) profileMsg.set('Name updated.')
+  else profileErr.set(r.error || 'Failed to update name')
+}
+
+async function changePassword(e: Event): Promise<void> {
+  e.preventDefault()
+  passwordMsg.set(''); passwordErr.set('')
+  const r = await authPost('/api/auth/password', 'POST', { currentPassword: currentPassword(), newPassword: newPassword() })
+  if (r.ok) {
+    passwordMsg.set('Password changed.')
+    currentPassword.set(''); newPassword.set('')
+  } else {
+    passwordErr.set(r.error || 'Failed to change password')
+  }
+}
+
+async function changeEmail(e: Event): Promise<void> {
+  e.preventDefault()
+  emailMsg.set(''); emailErr.set('')
+  const r = await authPost('/api/auth/email', 'POST', { email: newEmail(), password: emailPassword() })
+  if (r.ok) {
+    emailMsg.set('Email updated — check your inbox to verify it.')
+    newEmail.set(''); emailPassword.set('')
+    loadMe()
+  } else {
+    emailErr.set(r.error || 'Failed to change email')
+  }
+}
+
+async function logoutAll(): Promise<void> {
+  await fetch(apiBase() + '/api/auth/logout-all', { method: 'POST', credentials: 'include' })
+  window.location.href = '/login'
+}
+
+onMount(() => {
+  loadMe()
+})
+</script>
+
+<div class="col-span-full max-w-[640px]">
+  <h3 class="text-base font-semibold text-text mb-1">Account</h3>
+  <p class="text-xs text-muted mb-6">
+    Signed in as <span class="text-text" x-text="email()"></span>
+    <span class="text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide bg-bg-3 text-text-2 ml-1" x-text="plan()"></span>
+    <span x-show="!emailVerified()" class="text-warning ml-1">— email not verified</span>
+  </p>
+
+  <div class="panel mb-4">
+    <div class="panel-title mb-2">Profile</div>
+    <form @submit="saveProfile($event)" class="flex gap-2 items-end">
+      <div class="flex-1">
+        <label class="text-xs font-medium text-muted mb-1 block">Name</label>
+        <input type="text" class="form-input w-full" x-value="name()" @input="name.set($event.target.value)" />
+      </div>
+      <button type="submit" class="btn btn-primary text-[0.8125rem] py-2 px-4">Save</button>
+    </form>
+    <p x-show="profileMsg()" class="text-xs text-success mt-2" x-text="profileMsg()"></p>
+    <p x-show="profileErr()" class="text-xs text-error mt-2" x-text="profileErr()"></p>
+  </div>
+
+  <div class="panel mb-4">
+    <div class="panel-title mb-2">Change password</div>
+    <form @submit="changePassword($event)" class="flex flex-col gap-3">
+      <div>
+        <label class="text-xs font-medium text-muted mb-1 block">Current password</label>
+        <input type="password" class="form-input w-full" autocomplete="current-password" x-value="currentPassword()" @input="currentPassword.set($event.target.value)" />
+      </div>
+      <div>
+        <label class="text-xs font-medium text-muted mb-1 block">New password (min 8 characters)</label>
+        <input type="password" class="form-input w-full" autocomplete="new-password" x-value="newPassword()" @input="newPassword.set($event.target.value)" />
+      </div>
+      <button type="submit" class="btn btn-primary text-[0.8125rem] py-2 px-4 self-start">Change password</button>
+    </form>
+    <p x-show="passwordMsg()" class="text-xs text-success mt-2" x-text="passwordMsg()"></p>
+    <p x-show="passwordErr()" class="text-xs text-error mt-2" x-text="passwordErr()"></p>
+  </div>
+
+  <div class="panel mb-4">
+    <div class="panel-title mb-2">Change email</div>
+    <form @submit="changeEmail($event)" class="flex flex-col gap-3">
+      <div>
+        <label class="text-xs font-medium text-muted mb-1 block">New email</label>
+        <input type="email" class="form-input w-full" autocomplete="email" x-value="newEmail()" @input="newEmail.set($event.target.value)" />
+      </div>
+      <div>
+        <label class="text-xs font-medium text-muted mb-1 block">Confirm with your password</label>
+        <input type="password" class="form-input w-full" autocomplete="current-password" x-value="emailPassword()" @input="emailPassword.set($event.target.value)" />
+      </div>
+      <button type="submit" class="btn btn-primary text-[0.8125rem] py-2 px-4 self-start">Change email</button>
+    </form>
+    <p x-show="emailMsg()" class="text-xs text-success mt-2" x-text="emailMsg()"></p>
+    <p x-show="emailErr()" class="text-xs text-error mt-2" x-text="emailErr()"></p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title mb-2">Sessions</div>
+    <p class="text-xs text-muted mb-3">Sign out of every device, including this one.</p>
+    <button class="btn btn-secondary text-[0.8125rem] py-2 px-4 hover:text-error" @click="logoutAll()">Sign out everywhere</button>
+  </div>
+</div>
