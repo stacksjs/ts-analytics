@@ -879,3 +879,97 @@ catch (error) {
     console.error('[auth] Site assignment error:', error)
   }
 }
+
+// ── Account-first form pages (#113) ─────────────────────────────────────────
+
+/**
+ * POST /signup — HTML form variant of handleSignup: create the account, start
+ * a session, land in the (empty) project hub. Errors redirect back with a code.
+ */
+export async function handleSignupForm(request: Request): Promise<Response> {
+  const back = (code: string): Response =>
+    new Response(null, { status: 302, headers: { Location: `/signup?error=${code}` } })
+  try {
+    const formData = await request.formData()
+    const name = (formData.get('name') as string || '').trim()
+    const email = (formData.get('email') as string || '').trim().toLowerCase()
+    const password = formData.get('password') as string || ''
+
+    const invalid = validateCredentials(email, password)
+    if (invalid) return back(invalid.includes('valid email') ? 'email' : invalid.includes('8 characters') ? 'password' : 'missing')
+    if (await getUserByEmail(email)) return back('exists')
+
+    const user = await createUser(email, password, name)
+    await acceptInvites(user.userId, user.email)
+    await sendVerificationEmail(user.userId, user.email)
+    const token = await createSession(user.userId, user.email)
+
+    return new Response(null, {
+      status: 302,
+      headers: { Location: '/dashboard', 'Set-Cookie': sessionCookie(token) },
+    })
+  }
+catch (error) {
+    console.error('Signup form error:', error)
+    return back('server')
+  }
+}
+
+/**
+ * POST /forgot — HTML form variant of handleForgotPassword. Always redirects
+ * to the sent state (never reveals whether the account exists).
+ */
+export async function handleForgotForm(request: Request): Promise<Response> {
+  try {
+    const formData = await request.formData()
+    const email = (formData.get('email') as string || '').trim().toLowerCase()
+    if (email && EMAIL_RE.test(email)) {
+      const user = await getUserByEmail(email)
+      if (user) {
+        const token = await createToken('RESET', user.userId, 3600)
+        const link = `${appBaseUrl()}/reset?token=${token}`
+        await sendEmail({
+          to: email,
+          subject: 'Reset your password',
+          text: `Reset your password by visiting: ${link}\n\nThis link expires in 1 hour. If you didn't request this, you can ignore this email.`,
+        })
+      }
+    }
+  }
+catch (error) {
+    console.error('Forgot form error:', error)
+  }
+  return new Response(null, { status: 302, headers: { Location: '/forgot?sent=1' } })
+}
+
+/**
+ * POST /reset — HTML form variant of handleResetPassword: consume the
+ * single-use token, set the new password, revoke existing sessions.
+ */
+export async function handleResetForm(request: Request): Promise<Response> {
+  try {
+    const formData = await request.formData()
+    const token = formData.get('token') as string || ''
+    const password = formData.get('password') as string || ''
+
+    if (!token) return new Response(null, { status: 302, headers: { Location: '/forgot' } })
+    if (!password || password.length < 8) {
+      return new Response(null, { status: 302, headers: { Location: `/reset?token=${encodeURIComponent(token)}&error=password` } })
+    }
+
+    const userId = await consumeToken('RESET', token)
+    if (!userId) {
+      return new Response(null, { status: 302, headers: { Location: '/forgot?error=expired' } })
+    }
+
+    const hash = await Bun.password.hash(password, 'argon2id')
+    await updateUserFields(userId, { passwordHash: hash })
+    await invalidateUserSessions(userId)
+
+    return new Response(null, { status: 302, headers: { Location: '/login?reset=1' } })
+  }
+catch (error) {
+    console.error('Reset form error:', error)
+    return new Response(null, { status: 302, headers: { Location: '/forgot?error=server' } })
+  }
+}

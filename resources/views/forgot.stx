@@ -1,0 +1,59 @@
+<script server>
+export const sent: string = props.sent || ''
+export const error: string = props.error || ''
+</script>
+
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset password — Analytics</title>
+  <style>
+    :root, [data-theme="dark"] {
+      --bg: #0f1117;
+      --bg2: #1a1d27;
+      --bg3: #252830;
+      --text: #e4e6eb;
+      --text2: #8b8fa3;
+      --border: #2d3040;
+      --accent: #6366f1;
+      --accent-hover: #5558e6;
+      --error-bg: #3b1219;
+      --error-text: #f87171;
+      --error-border: #5c2130;
+      --success-text: #34d399;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    .submit-btn:hover { background: var(--accent-hover); }
+    .form-input:focus { border-color: var(--accent); }
+    .form-input::placeholder { color: var(--text2); }
+  </style>
+</head>
+<body class="font-sans bg-bg text-text min-h-screen flex items-center justify-center">
+  <div class="bg-bg-2 border border-border rounded-xl p-10 w-full max-w-[400px] m-4">
+    <h1 class="text-2xl mb-2">Reset your password</h1>
+    <p class="text-text-2 text-sm mb-8">We'll email you a single-use reset link</p>
+
+    @if(sent === '1')
+    <div class="border border-border bg-bg-3 py-3 px-4 rounded-lg mb-6 text-sm text-[var(--success-text)]">If an account exists for that address, a reset link is on its way. It expires in 1 hour.</div>
+    @endif
+    @if(error === 'expired')
+    <div class="bg-[var(--error-bg)] text-[var(--error-text)] border border-[var(--error-border)] py-3 px-4 rounded-lg mb-6 text-sm">That reset link is invalid or has expired — request a new one below.</div>
+    @elseif(error === 'server')
+    <div class="bg-[var(--error-bg)] text-[var(--error-text)] border border-[var(--error-border)] py-3 px-4 rounded-lg mb-6 text-sm">An error occurred. Please try again.</div>
+    @endif
+
+    <form method="POST" action="/forgot">
+      <div class="mb-5">
+        <label for="email" class="block text-sm font-medium mb-1.5 text-text-2">Email</label>
+        <input type="email" id="email" name="email" required autocomplete="email" autofocus
+          class="form-input w-full py-2.5 px-3.5 bg-bg-3 border border-border rounded-lg text-text text-[0.9375rem] outline-none transition-colors duration-150">
+      </div>
+      <button type="submit" class="submit-btn w-full py-3 bg-accent text-white border-none rounded-lg text-[0.9375rem] font-semibold cursor-pointer transition-colors duration-150 mt-2">Send reset link</button>
+    </form>
+
+    <p class="text-text-2 text-sm text-center mt-6"><a href="/login" class="text-accent no-underline">Back to sign in</a></p>
+  </div>
+</body>
+</html>

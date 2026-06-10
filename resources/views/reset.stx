@@ -1,0 +1,54 @@
+<script server>
+export const token: string = props.token || ''
+export const error: string = props.error || ''
+</script>
+
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Choose a new password — Analytics</title>
+  <style>
+    :root, [data-theme="dark"] {
+      --bg: #0f1117;
+      --bg2: #1a1d27;
+      --bg3: #252830;
+      --text: #e4e6eb;
+      --text2: #8b8fa3;
+      --border: #2d3040;
+      --accent: #6366f1;
+      --accent-hover: #5558e6;
+      --error-bg: #3b1219;
+      --error-text: #f87171;
+      --error-border: #5c2130;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    .submit-btn:hover { background: var(--accent-hover); }
+    .form-input:focus { border-color: var(--accent); }
+    .form-input::placeholder { color: var(--text2); }
+  </style>
+</head>
+<body class="font-sans bg-bg text-text min-h-screen flex items-center justify-center">
+  <div class="bg-bg-2 border border-border rounded-xl p-10 w-full max-w-[400px] m-4">
+    <h1 class="text-2xl mb-2">Choose a new password</h1>
+    <p class="text-text-2 text-sm mb-8">This signs you out everywhere else</p>
+
+    @if(error === 'password')
+    <div class="bg-[var(--error-bg)] text-[var(--error-text)] border border-[var(--error-border)] py-3 px-4 rounded-lg mb-6 text-sm">Password must be at least 8 characters</div>
+    @endif
+
+    <form method="POST" action="/reset">
+      <input type="hidden" name="token" value="{{ token }}">
+      <div class="mb-5">
+        <label for="password" class="block text-sm font-medium mb-1.5 text-text-2">New password</label>
+        <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password" autofocus placeholder="At least 8 characters"
+          class="form-input w-full py-2.5 px-3.5 bg-bg-3 border border-border rounded-lg text-text text-[0.9375rem] outline-none transition-colors duration-150">
+      </div>
+      <button type="submit" class="submit-btn w-full py-3 bg-accent text-white border-none rounded-lg text-[0.9375rem] font-semibold cursor-pointer transition-colors duration-150 mt-2">Set new password</button>
+    </form>
+
+    <p class="text-text-2 text-sm text-center mt-6"><a href="/login" class="text-accent no-underline">Back to sign in</a></p>
+  </div>
+</body>
+</html>
