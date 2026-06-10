@@ -285,6 +285,44 @@ catch (error) {
 }
 
 /**
+ * GET /api/sites/{siteId}/verify-install (#84)
+ *
+ * Installation check: did any pageview land for this site in the last few
+ * minutes? The Settings "Verify installation" button fires a synthetic
+ * pageview through the public /collect endpoint, then calls this to confirm
+ * the full ingest round-trip (HTTP → handler → DynamoDB → read-back).
+ */
+export async function handleVerifyInstall(_request: Request, siteId: string): Promise<Response> {
+  try {
+    const now = new Date()
+    const windowStart = new Date(now.getTime() - 5 * 60_000)
+
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `PAGEVIEW#${windowStart.toISOString()}` },
+        ':end': { S: `PAGEVIEW#${now.toISOString()}~` },
+      },
+      Select: 'COUNT',
+    }) as { Count?: number }
+
+    const recentEvents = result.Count || 0
+    return jsonResponse({
+      verified: recentEvents > 0,
+      recentEvents,
+      windowMinutes: 5,
+      checkedAt: now.toISOString(),
+    })
+  }
+catch (error) {
+    console.error('Verify install error:', error)
+    return errorResponse('Failed to verify installation')
+  }
+}
+
+/**
  * GET /api/sites/{siteId}/revenue
  */
 export async function handleGetRevenue(request: Request, siteId: string): Promise<Response> {

@@ -304,6 +304,7 @@ export async function createRouter(): Promise<Router> {
 
   // Revenue
   await router.get('/api/sites/{siteId}/revenue', (req: any) => misc.handleGetRevenue(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/verify-install', (req: any) => misc.handleVerifyInstall(req, req.params.siteId))
 
   // Share Links
   await router.post('/api/sites/{siteId}/share', (req: any) => sharing.handleCreateShareLink(req, req.params.siteId))

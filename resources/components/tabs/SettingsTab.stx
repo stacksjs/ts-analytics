@@ -37,6 +37,41 @@ function copySnippet(): void {
   setTimeout(() => snippetCopied.set(false), 2000)
 }
 
+const verifying = state<boolean>(false)
+const verifyResult = state<string>('') // '' | 'pass' | 'fail'
+
+// Verify installation (#84): fire a synthetic pageview through the public
+// /collect endpoint (exactly what the tracking script does), then ask the API
+// whether it landed — proving the full ingest round-trip pass/fail.
+async function verifyInstall(): Promise<void> {
+  if (verifying() || !siteId()) return
+  verifying.set(true)
+  verifyResult.set('')
+  try {
+    const base: string = (window as { API_ENDPOINT?: string }).API_ENDPOINT || ''
+    const post: Response = await fetch(base + '/collect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        s: siteId(),
+        e: 'pageview',
+        u: 'https://' + siteId() + '/__verify-install',
+        t: 'Installation test',
+        sid: 'verify-' + Math.random().toString(36).slice(2),
+      }),
+    })
+    if (!post.ok) throw new Error('collect rejected')
+    await new Promise((resolve: (v?: unknown) => void) => setTimeout(resolve, 1200))
+    const res: Response = await fetch(apiUrl('/verify-install'))
+    const data: { verified?: boolean } = await res.json()
+    verifyResult.set(data.verified ? 'pass' : 'fail')
+  } catch (_e: unknown) {
+    verifyResult.set('fail')
+  } finally {
+    verifying.set(false)
+  }
+}
+
 async function fetchSettings(): Promise<void> {
   if (!siteId()) { loading.set(false); return }
   loading.set(true)
@@ -428,14 +463,22 @@ onMount(() => {
   <div x-show="!loading() && !error()" class="panel mb-4">
     <div class="panel-header">
       <h4 class="panel-title">Installation</h4>
-      <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="copySnippet()">
-        <span x-show="!snippetCopied()">Copy snippet</span>
-        <span x-show="snippetCopied()" class="text-success">Copied!</span>
-      </button>
+      <div class="flex items-center gap-2">
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="verifyInstall()" x-class="{ 'opacity-60': verifying() }">
+          <span x-show="!verifying()">Verify installation</span>
+          <span x-show="verifying()">Verifying…</span>
+        </button>
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="copySnippet()">
+          <span x-show="!snippetCopied()">Copy snippet</span>
+          <span x-show="snippetCopied()" class="text-success">Copied!</span>
+        </button>
+      </div>
     </div>
     <p class="text-xs text-muted mb-3">Paste this into the <code class="text-text">&lt;head&gt;</code> of every page you want to track (site <code class="text-text" x-text="siteId()"></code>). It captures page views, SPA route changes, link clicks, engagement, web vitals, and errors.</p>
     <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed" x-text="installSnippet()"></pre>
     <p x-show="!installSnippet()" class="text-xs text-muted italic mt-2">Loading snippet…</p>
+    <p x-show="verifyResult() === 'pass'" class="text-xs text-success mt-2">Test event received — ingestion is working end to end.</p>
+    <p x-show="verifyResult() === 'fail'" class="text-xs text-error mt-2">No event received. Check that the API is reachable from your browser, then try again.</p>
   </div>
 
   <div x-show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
