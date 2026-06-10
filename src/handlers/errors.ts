@@ -13,6 +13,7 @@ import { getMembership } from '../lib/membership'
 import { recordEventWithinQuota } from '../lib/quota'
 import { sendEmail } from '../lib/email'
 import { enqueueWebhookEvent } from './webhooks'
+import { symbolicateStack, storeSourceMap, listSourceMaps } from '../lib/sourcemaps'
 
 /** Max error events per minute per ingest key (429 beyond this). */
 const ERROR_INGEST_LIMIT = Number(process.env.ANALYTICS_ERROR_RATE_LIMIT) || 300
@@ -583,6 +584,13 @@ export async function handleGetErrorDetail(_request: Request, siteId: string, er
     const lastSeen = group?.lastSeen || latest.timestamp
     const trend = firstSeen && lastSeen ? getErrorTrend(firstSeen, lastSeen, count) : 'stable'
 
+    // Symbolicate the minified stack against the release's uploaded source
+    // maps (#74); null when no maps match — the UI then shows the raw stack.
+    let symbolicatedStack: string | null = null
+    if (latest.stack && latest.release) {
+      symbolicatedStack = await symbolicateStack(siteId, latest.release, latest.stack).catch(() => null)
+    }
+
     return jsonResponse({
       error: {
         fingerprint: decodedId,
@@ -605,6 +613,8 @@ export async function handleGetErrorDetail(_request: Request, siteId: string, er
         latestOccurrence: latest.id ? {
           id: latest.id,
           stack: latest.stack,
+          symbolicatedStack,
+          release: latest.release || '',
           source: latest.source,
           line: latest.line,
           col: latest.col,
@@ -1210,4 +1220,44 @@ catch (e) {
     }
   }
   return total
+}
+
+// ── Source maps (#74) ───────────────────────────────────────────────────────
+
+/**
+ * POST /api/sites/{siteId}/sourcemaps — upload a map for (release, file).
+ * Body: { release, file, map } where map is the JSON string (or object).
+ * Editor-gated by the global authz middleware like every per-project write.
+ */
+export async function handleUploadSourceMap(request: Request, siteId: string): Promise<Response> {
+  try {
+    const body = await request.json() as { release?: string, file?: string, map?: unknown }
+    if (!body.release || !body.file || !body.map) {
+      return jsonResponse({ error: 'Missing required fields: release, file, map' }, 400)
+    }
+    const mapJson = typeof body.map === 'string' ? body.map : JSON.stringify(body.map)
+    const result = await storeSourceMap(siteId, String(body.release), String(body.file), mapJson)
+    return jsonResponse({ ok: true, release: body.release, ...result }, 201)
+  }
+catch (error) {
+    const msg = (error as Error).message || 'Failed to store source map'
+    const userFacing = msg.includes('too large') || msg.includes('Not a valid source map')
+    console.error('Upload source map error:', error)
+    return jsonResponse({ error: userFacing ? msg : 'Failed to store source map' }, userFacing ? 400 : 500)
+  }
+}
+
+/**
+ * GET /api/sites/{siteId}/sourcemaps[?release=] — list uploaded maps.
+ */
+export async function handleListSourceMaps(request: Request, siteId: string): Promise<Response> {
+  try {
+    const query = getQueryParams(request)
+    const maps = await listSourceMaps(siteId, query.release)
+    return jsonResponse({ sourcemaps: maps })
+  }
+catch (error) {
+    console.error('List source maps error:', error)
+    return errorResponse('Failed to list source maps')
+  }
 }

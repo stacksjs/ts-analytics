@@ -233,6 +233,8 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/sites/{siteId}/errors/alerts', (req: any) => errors.handleGetErrorAlerts(req, req.params.siteId))
   await router.post('/api/sites/{siteId}/errors/alerts', (req: any) => errors.handleCreateErrorAlert(req, req.params.siteId))
   await router.post('/api/sites/{siteId}/errors/alerts/evaluate', (req: any) => errors.handleEvaluateErrorAlerts(req, req.params.siteId))
+  await router.post('/api/sites/{siteId}/sourcemaps', (req: any) => errors.handleUploadSourceMap(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/sourcemaps', (req: any) => errors.handleListSourceMaps(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/errors/{errorId}', (req: any) => errors.handleGetErrorDetail(req, req.params.siteId, req.params.errorId))
 
   // Performance & Vitals

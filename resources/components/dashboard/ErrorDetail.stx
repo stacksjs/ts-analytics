@@ -116,10 +116,17 @@ finally {
       </div>
     </div>
 
-    <!-- Stack trace -->
+    <!-- Stack trace: prefers the server-symbolicated stack (#74) -->
     <div class="panel mb-6">
-      <div class="panel-title mb-2">Stack trace</div>
-      <pre class="text-xs text-text-2 overflow-x-auto whitespace-pre-wrap break-words bg-bg-3 rounded-md p-3 m-0" x-text="latest().stack || 'No stack trace captured'"></pre>
+      <div class="flex items-center gap-2 mb-2">
+        <div class="panel-title m-0">Stack trace</div>
+        <span x-show="latest().symbolicatedStack" class="text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide border border-success text-success">Symbolicated</span>
+      </div>
+      <pre class="text-xs text-text-2 overflow-x-auto whitespace-pre-wrap break-words bg-bg-3 rounded-md p-3 m-0" x-text="latest().symbolicatedStack || latest().stack || 'No stack trace captured'"></pre>
+      <details x-show="latest().symbolicatedStack" class="mt-2">
+        <summary class="text-[0.6875rem] text-muted cursor-pointer">Show raw (minified) stack</summary>
+        <pre class="text-xs text-text-2 overflow-x-auto whitespace-pre-wrap break-words bg-bg-3 rounded-md p-3 mt-2 mb-0" x-text="latest().stack"></pre>
+      </details>
     </div>
 
     <!-- Breadcrumbs -->
