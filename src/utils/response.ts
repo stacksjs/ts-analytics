@@ -54,6 +54,26 @@ export function jsResponse(body: string, headers: Record<string, string> = {}): 
 }
 
 /**
+ * CORS preflight response for the public collect endpoints (#86).
+ *
+ * Cross-domain installs preflight every beacon: the tracker posts JSON
+ * (non-simple content type) and the error SDK adds X-Analytics-Token, so the
+ * browser sends OPTIONS first. Without this, preflights 404 and the browser
+ * silently drops the POST.
+ */
+export function preflightResponse(): Response {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, X-Analytics-Token',
+      'Access-Control-Max-Age': '86400',
+    },
+  })
+}
+
+/**
  * Create an error response
  */
 export function errorResponse(message: string, statusCode = 500): Response {

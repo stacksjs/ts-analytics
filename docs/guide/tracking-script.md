@@ -22,6 +22,23 @@ const script = generateInlineTrackingScript({
 // Complete script wrapped in <script> tags
 ```
 
+## Cross-Domain Installs (CORS)
+
+The tracking script and error SDK work when your site (`https://app.example.com`) posts to an analytics API on a different origin (`https://analytics.example.com`). Because beacons are sent as JSON — and the error SDK adds an `X-Analytics-Token` header — browsers send a CORS preflight (`OPTIONS`) before each cross-origin request.
+
+The API handles this out of the box: every collect endpoint (`/collect`, `/t`, `/p`, `/errors/collect`, `/issues/report`) answers preflights with `Access-Control-Allow-Origin: *`, allows the `Content-Type` and `X-Analytics-Token` headers, and caches the preflight for 24 hours. No configuration is needed — but if you put a proxy or CDN in front of the API, make sure it forwards `OPTIONS` requests and does not strip `Access-Control-*` response headers.
+
+To confirm, from your site's origin run:
+
+```bash
+curl -i -X OPTIONS https://your-analytics-host/collect \
+  -H 'Origin: https://app.example.com' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: content-type'
+```
+
+A `204` with `Access-Control-Allow-Origin: *` means cross-domain installs will work.
+
 ## Adding to Your Website
 
 ### Static HTML

@@ -148,7 +148,8 @@ export async function handleLambdaEvent(
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Analytics-Token',
+        'Access-Control-Max-Age': '86400',
       },
       body: '',
     }

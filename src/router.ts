@@ -6,6 +6,7 @@
  */
 
 import { Router } from '@stacksjs/bun-router'
+import { preflightResponse } from './utils/response'
 
 // Import handlers
 import * as stats from './handlers/stats'
@@ -141,9 +142,14 @@ export async function createRouter(): Promise<Router> {
     return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } })
   })
 
-  // Collection endpoints
+  // Collection endpoints. Cross-domain installs preflight every beacon (JSON
+  // content type; the error SDK also sends X-Analytics-Token), so each public
+  // collect endpoint answers OPTIONS (#86).
   await router.post('/collect', collect.handleCollect)
   await router.post('/t', collect.handleCollect)
+  for (const path of ['/collect', '/t', '/p', '/errors/collect', '/issues/report']) {
+    await router.options(path, () => preflightResponse())
+  }
 
   // Error collection (SDK endpoint with token auth)
   await router.post('/errors/collect', async (req: any) => {
