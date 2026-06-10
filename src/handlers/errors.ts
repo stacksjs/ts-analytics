@@ -28,82 +28,64 @@ export async function handleGetErrors(request: Request, siteId: string): Promise
     const limit = Math.min(Number(query.limit) || 50, 200)
     const status = query.status // 'open', 'resolved', 'ignored', 'all'
 
-    const result = await dynamodb.query({
+    // Issue list reads ERROR_GROUP# rollups maintained at ingest (#83) instead
+    // of scanning raw occurrences — one bounded query per dashboard load, and
+    // counts survive the raw events' 30-day TTL. An issue is listed when its
+    // active window overlaps the requested range; `count` is the group's
+    // lifetime total (Sentry semantics), not occurrences-in-range.
+    const groups: any[] = []
+    let lastKey: Record<string, any> | undefined
+    do {
+      const page = await dynamodb.query({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+        ExpressionAttributeValues: {
+          ':pk': { S: `SITE#${siteId}` },
+          ':prefix': { S: 'ERROR_GROUP#' },
+        },
+        ExclusiveStartKey: lastKey,
+      }) as { Items?: any[], LastEvaluatedKey?: Record<string, any> }
+      groups.push(...(page.Items || []).map(unmarshall))
+      lastKey = page.LastEvaluatedKey
+    } while (lastKey && groups.length < 5000)
+
+    // Triage state lives in ERROR_STATUS# (same partition) — join it in so the
+    // status filter reflects resolves/ignores, which raw items never carried.
+    const statusByFingerprint: Record<string, string> = {}
+    const statusResult = await dynamodb.query({
       TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${siteId}` },
-        ':start': { S: `ERROR#${startDate.toISOString()}` },
-        ':end': { S: `ERROR#${endDate.toISOString()}` },
+        ':prefix': { S: 'ERROR_STATUS#' },
       },
-      ScanIndexForward: false,
-      Limit: limit * 2,
     }) as { Items?: any[] }
-
-    let errors = (result.Items || []).map(unmarshall)
-
-    // Filter by status if specified
-    if (status && status !== 'all') {
-      errors = errors.filter(e => (e.status || 'open') === status)
+    for (const raw of (statusResult.Items || [])) {
+      const s = unmarshall(raw)
+      if (s.errorId) statusByFingerprint[s.errorId] = s.status || 'open'
     }
 
-    // Group errors by fingerprint (preferred) or message
-    const errorGroups: Record<string, {
-      message: string
-      count: number
-      firstSeen: string
-      lastSeen: string
-      browsers: Set<string>
-      urls: Set<string>
-      status: string
-      category: string
-      errorId: string
-      fingerprint: string
-    }> = {}
+    const startIso = startDate.toISOString()
+    const endIso = endDate.toISOString()
 
-    for (const error of errors) {
-      const key = error.fingerprint || error.message || 'Unknown error'
-      const message = error.message || 'Unknown error'
-      if (!errorGroups[key]) {
-        const category = error.category || categorizeError(message, error.errorType, error.framework)
-        errorGroups[key] = {
-          message,
-          count: 0,
-          firstSeen: error.timestamp,
-          lastSeen: error.timestamp,
-          browsers: new Set(),
-          urls: new Set(),
-          status: error.status || 'open',
-          category,
-          errorId: error.errorId || error.id,
-          fingerprint: error.fingerprint || getErrorFingerprint(message, error.stack, error.framework),
+    const groupedErrors = groups
+      .filter(g => g.fingerprint && g.lastSeen >= startIso && g.firstSeen <= endIso)
+      .map((g) => {
+        const issueStatus = statusByFingerprint[g.fingerprint] || g.status || 'open'
+        return {
+          errorId: g.fingerprint,
+          message: g.message || 'Unknown error',
+          count: Number(g.count) || 0,
+          firstSeen: g.firstSeen,
+          lastSeen: g.lastSeen,
+          browsers: (g.browsers as string[] | undefined) || [],
+          status: issueStatus,
+          category: g.category || 'unknown',
+          severity: getErrorSeverity(g.category || 'unknown', Number(g.count) || 0),
+          fingerprint: g.fingerprint,
         }
-      }
-      errorGroups[key].count++
-      if (error.timestamp < errorGroups[key].firstSeen) {
-        errorGroups[key].firstSeen = error.timestamp
-      }
-      if (error.timestamp > errorGroups[key].lastSeen) {
-        errorGroups[key].lastSeen = error.timestamp
-      }
-      if (error.browser) errorGroups[key].browsers.add(error.browser)
-      if (error.url) errorGroups[key].urls.add(error.url)
-    }
-
-    const groupedErrors = Object.entries(errorGroups)
-      .map(([_key, data]) => ({
-        errorId: data.fingerprint,
-        message: data.message,
-        count: data.count,
-        firstSeen: data.firstSeen,
-        lastSeen: data.lastSeen,
-        browsers: Array.from(data.browsers),
-        affectedUrls: Array.from(data.urls).slice(0, 5),
-        status: data.status,
-        category: data.category,
-        severity: getErrorSeverity(data.category, data.count),
-        fingerprint: data.fingerprint,
-      }))
+      })
+      .filter(g => !status || status === 'all' ? true : g.status === status)
       .sort((a, b) => b.count - a.count)
       .slice(0, limit)
 
@@ -111,8 +93,8 @@ export async function handleGetErrors(request: Request, siteId: string): Promise
       errors: groupedErrors,
       total: groupedErrors.length,
       dateRange: {
-        start: startDate.toISOString(),
-        end: endDate.toISOString(),
+        start: startIso,
+        end: endIso,
       },
     })
   }
@@ -381,7 +363,10 @@ catch { return body.url || '' } })(),
       sk: { S: `ERROR_GROUP#${fingerprint}` },
     }
 
-    // Upsert error group with atomic counters
+    // Upsert error group with atomic counters. Browser names accumulate as a
+    // string set so the issue list can read them off the rollup (#83) — low
+    // cardinality, so the item stays small.
+    const groupBrowser = String(body.browser || '').slice(0, 50)
     await dynamodb.updateItem({
       TableName: TABLE_NAME,
       Key: groupKey,
@@ -396,7 +381,7 @@ catch { return body.url || '' } })(),
         'firstRelease = if_not_exists(firstRelease, :rel)',
         'lastRelease = :rel',
         '#status = if_not_exists(#status, :open)',
-      ].join(', '),
+      ].join(', ') + (groupBrowser ? ' ADD browsers :br' : ''),
       ExpressionAttributeNames: {
         '#count': 'count',
         '#status': 'status',
@@ -411,6 +396,7 @@ catch { return body.url || '' } })(),
         ':sid': { S: siteId },
         ':open': { S: 'open' },
         ':rel': { S: body.release || 'unknown' },
+        ...(groupBrowser ? { ':br': { SS: [groupBrowser] } } : {}),
       },
     })
 

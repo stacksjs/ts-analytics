@@ -794,6 +794,8 @@ function unmarshallValue(value: any): any {
   if ('N' in value) return Number(value.N)
   if ('BOOL' in value) return value.BOOL
   if ('NULL' in value) return null
+  if ('SS' in value) return [...value.SS]
+  if ('NS' in value) return value.NS.map(Number)
   if ('L' in value) return value.L.map(unmarshallValue)
   if ('M' in value) return unmarshall(value.M)
   return value
