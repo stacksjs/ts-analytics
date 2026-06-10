@@ -8,6 +8,7 @@ import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 import { generateApiKey } from './api-keys'
 import { addMembership, getUserMemberships, getMembership, getSiteMembers, removeMembership } from '../lib/membership'
+import { getUserPlan, planLimits } from '../lib/plans'
 import { generateId } from '../index'
 
 /**
@@ -31,6 +32,17 @@ export async function handleCreateSite(request: Request, ownerId?: string): Prom
     const siteId = body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
     const domains = body.domains || (body.domain ? [body.domain] : [])
     const now = new Date().toISOString()
+
+    // Plan limit (#62): cap owned projects per account.
+    if (ownerId) {
+      const limits = planLimits(await getUserPlan(ownerId))
+      if (limits.maxProjects > 0) {
+        const owned = (await getUserMemberships(ownerId)).filter(m => m.role === 'owner').length
+        if (owned >= limits.maxProjects) {
+          return jsonResponse({ error: `Project limit reached (${limits.maxProjects} on your plan)` }, 403)
+        }
+      }
+    }
 
     // Check if site already exists
     const existing = await dynamodb.getItem({
@@ -166,7 +178,7 @@ catch (error) {
 /**
  * Ensure a site exists (auto-create if not) - used by collect handler
  */
-export async function ensureSiteExists(siteId: string, hostname?: string, ownerId?: string): Promise<void> {
+export async function ensureSiteExists(siteId: string, hostname?: string, ownerId?: string): Promise<Record<string, any> | null> {
   try {
     // Check if site exists
     const existing = await dynamodb.getItem({
@@ -176,6 +188,10 @@ export async function ensureSiteExists(siteId: string, hostname?: string, ownerI
         sk: { S: `SITE#${siteId}` },
       },
     })
+
+    if (existing.Item) {
+      return unmarshall(existing.Item)
+    }
 
     if (!existing.Item) {
       const now = new Date().toISOString()
@@ -205,11 +221,14 @@ export async function ensureSiteExists(siteId: string, hostname?: string, ownerI
         Item: marshall(siteItem),
       })
       console.log(`[ensureSiteExists] Auto-created site: ${siteId}`)
+      return siteItem
     }
+    return null
   }
 catch (error) {
     // Log but don't fail - site creation is best-effort
     console.error('[ensureSiteExists] Error:', error)
+    return null
   }
 }
 

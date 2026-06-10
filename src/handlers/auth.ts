@@ -364,8 +364,8 @@ async function getUserById(userId: string): Promise<any | null> {
 }
 
 /** Shape a user record for API responses (never leaks the password hash). */
-function publicUser(u: any): { userId: string; email: string; name: string; emailVerified: boolean } {
-  return { userId: u.userId, email: u.email, name: u.name || '', emailVerified: !!u.emailVerified }
+function publicUser(u: any): { userId: string; email: string; name: string; emailVerified: boolean; plan: string } {
+  return { userId: u.userId, email: u.email, name: u.name || '', emailVerified: !!u.emailVerified, plan: u.plan || 'free' }
 }
 
 /** Patch fields on a user record. */

@@ -6,6 +6,7 @@ import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
+import { getUserPlan, planLimits } from '../lib/plans'
 
 /**
  * GET /api/sites/{siteId}/export
@@ -108,11 +109,30 @@ export async function handleUpdateRetentionSettings(request: Request, siteId: st
   try {
     const body = await request.json() as Record<string, any>
 
+    // Plan limit (#62): retention is clamped to the owning account's plan.
+    let retentionDays = body.retentionDays || 365
+    try {
+      const siteRes = await dynamodb.getItem({
+        TableName: TABLE_NAME,
+        Key: { pk: { S: 'SITES' }, sk: { S: `SITE#${siteId}` } },
+      }) as { Item?: Record<string, any> }
+      const ownerId = siteRes.Item ? unmarshall(siteRes.Item).ownerId : undefined
+      if (ownerId) {
+        const limits = planLimits(await getUserPlan(ownerId))
+        if (limits.retentionDays > 0 && retentionDays > limits.retentionDays) {
+          retentionDays = limits.retentionDays
+        }
+      }
+    }
+    catch {
+      // clamp is best-effort; the requested value stands if the lookup fails
+    }
+
     const settings = {
       pk: `SITE#${siteId}`,
       sk: 'RETENTION_SETTINGS',
       siteId,
-      retentionDays: body.retentionDays || 365,
+      retentionDays,
       autoDelete: body.autoDelete ?? true,
       anonymizeAfterDays: body.anonymizeAfterDays || 90,
       updatedAt: new Date().toISOString(),

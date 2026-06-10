@@ -17,6 +17,7 @@ import {
   HeatmapScroll,
 } from '../../src/models/orm'
 import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
+import { accountEventWithinQuota } from '../lib/plans'
 import { checkAndRecordConversions } from '../lib/goals'
 import { getSession, setSession } from '../utils/cache'
 import { parseUserAgent, isBot } from '../utils/user-agent'
@@ -94,7 +95,14 @@ catch {
     }
 
     // Ensure site exists (auto-create if first event)
-    await ensureSiteExists(payload.s, parsedUrlForSite.hostname)
+    const site = await ensureSiteExists(payload.s, parsedUrlForSite.hostname)
+
+    // Account plan quota (#62): events across all of an owner's projects count
+    // against the owner's monthly plan limit. Unowned (auto-created) sites and
+    // quota errors fail open — a billing glitch never drops events.
+    if (site?.ownerId && !(await accountEventWithinQuota(site.ownerId))) {
+      return jsonResponse({ error: 'Monthly event quota exceeded for this account' }, 429)
+    }
 
     const ip = getClientIP(request)
     const headers = getHeaders(request)
