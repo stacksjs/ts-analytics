@@ -1,5 +1,14 @@
 // ============================================================================
-// Analytics API Handlers
+// ⚠️ LEGACY — NOT the live request path (#95)
+// ============================================================================
+// This layer is built on the IN-MEMORY AnalyticsStore and is kept only for
+// backwards compatibility of the published library API. Nothing here serves
+// the bundled server or dashboard.
+//
+// The source of truth for the real API is:
+//   src/router.ts  +  src/handlers/*   (DynamoDB-backed, served by server/)
+//
+// Add new endpoints THERE. Do not extend this file.
 // ============================================================================
 // HTTP handlers for analytics endpoints, designed to work with any server framework
 // (Bun, Express, Hono, AWS Lambda, Cloudflare Workers, etc.)

@@ -5,6 +5,14 @@
 // Designed for DynamoDB single-table pattern with efficient access patterns
 //
 // Types are defined in ./types.ts and models in ./models/
+//
+// MIXED FILE (#95) -- what is live vs legacy:
+//   LIVE   generateTrackingScript / generateMinimalTrackingScript -- the served
+//          tracker (src/handlers/views.ts handleScript builds /script.js here).
+//   LEGACY AnalyticsStore / AnalyticsQueryAPI / AggregationPipeline /
+//          AnalyticsAggregator -- the in-memory layer behind src/api.ts; not
+//          used by the live server. The real request path is src/router.ts +
+//          src/handlers/* (DynamoDB); daily pre-aggregation is src/lib/rollups.ts.
 // ============================================================================
 
 // Import types from types.ts for internal use

@@ -1,4 +1,10 @@
 // ============================================================================
+// LEGACY -- NOT the live request path (#95)
+// ============================================================================
+// Built on the in-memory legacy layer (src/api.ts). Kept for backwards
+// compatibility of the published library API only. The live API is
+// src/router.ts + src/handlers/* -- add new functionality there.
+// ============================================================================
 // Stacks Framework Integration
 // ============================================================================
 // Integration with the Stacks framework analytics system

@@ -84,6 +84,17 @@ import { createLambdaHandler } from '@stacksjs/analytics'
 export const handler = createLambdaHandler(api, executeCommand)
 ```
 
+## Architecture: Source of Truth
+
+The repository has two API layers — only one is live:
+
+| Layer | Status | Where |
+|---|---|---|
+| **Live server** | ✅ source of truth | `src/router.ts` + `src/handlers/*` (DynamoDB-backed), served by `server/index.ts`; jobs in `src/jobs/`, pre-aggregation in `src/lib/rollups.ts` |
+| Legacy library | ⚠️ compatibility only | `src/api.ts`, `src/stacks-integration.ts`, and the in-memory `AnalyticsStore`/`AnalyticsQueryAPI`/`AggregationPipeline` classes in `src/Analytics.ts` |
+
+New endpoints and features belong in `src/router.ts` + `src/handlers/`. The legacy layer is kept so existing imports of the published package keep compiling; it does not serve the bundled server or dashboard. (`generateTrackingScript` in `src/Analytics.ts` **is** live — it builds the served `/script.js`.)
+
 ## Core Concepts
 
 ### Analytics Store
