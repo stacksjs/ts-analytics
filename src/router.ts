@@ -30,6 +30,7 @@ import * as collect from './handlers/collect'
 import * as misc from './handlers/misc'
 import * as auth from './handlers/auth'
 import * as authz from './handlers/authz'
+import * as oauth from './handlers/oauth'
 
 /**
  * Stealth API path mapping
@@ -130,6 +131,8 @@ export async function createRouter(): Promise<Router> {
   await router.put('/api/auth/profile', auth.handleUpdateProfile)
   await router.post('/api/auth/password', auth.handleChangePassword)
   await router.post('/api/auth/email', auth.handleChangeEmail)
+  await router.get('/api/auth/oauth/{provider}', (req: any) => oauth.handleOAuthStart(req, req.params.provider))
+  await router.get('/api/auth/oauth/{provider}/callback', (req: any) => oauth.handleOAuthCallback(req, req.params.provider))
 
   // Scheduled-jobs tick — for an external cron (Lambda schedule / EventBridge).
   // Gated by ANALYTICS_JOBS_SECRET; disabled (403) when no secret is set.

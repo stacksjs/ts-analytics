@@ -45,6 +45,18 @@ async function createUser(email: string, password: string, name = ''): Promise<{
   return { userId, email: email.toLowerCase(), name }
 }
 
+/**
+ * Create an account from a verified OAuth profile (#53). No usable password —
+ * a random one is hashed so password login stays possible only via reset.
+ */
+export async function createOAuthUser(email: string, name: string, emailVerified: boolean): Promise<{ userId: string, email: string }> {
+  const user = await createUser(email, crypto.randomUUID() + crypto.randomUUID(), name)
+  if (emailVerified) {
+    await updateUserFields(user.userId, { emailVerified: true })
+  }
+  return { userId: user.userId, email: user.email }
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** Validate sign-up / credential input. Returns an error message, or null if valid. */
@@ -58,7 +70,7 @@ export function validateCredentials(email: string, password: string): string | n
 const SESSION_MAX_AGE = SESSION_TTL_DAYS * 86400
 
 /** Build the session Set-Cookie header (Secure in production). */
-function sessionCookie(token: string, maxAge: number = SESSION_MAX_AGE): string {
+export function sessionCookie(token: string, maxAge: number = SESSION_MAX_AGE): string {
   const secure = process.env.NODE_ENV === 'production' ? ' Secure;' : ''
   return `${SESSION_COOKIE}=${token}; HttpOnly;${secure} SameSite=Lax; Path=/; Max-Age=${maxAge}`
 }
@@ -369,7 +381,7 @@ function publicUser(u: any): { userId: string; email: string; name: string; emai
 }
 
 /** Patch fields on a user record. */
-async function updateUserFields(userId: string, fields: Record<string, string | boolean>): Promise<void> {
+export async function updateUserFields(userId: string, fields: Record<string, string | boolean>): Promise<void> {
   const keys = Object.keys(fields)
   if (keys.length === 0) return
   const names: Record<string, string> = { '#u': 'updatedAt' }
@@ -437,7 +449,7 @@ async function sendVerificationEmail(userId: string, email: string): Promise<voi
 /**
  * Create a session in DynamoDB with TTL
  */
-async function createSession(userId: string, email: string): Promise<string> {
+export async function createSession(userId: string, email: string): Promise<string> {
   const token = crypto.randomUUID()
   const now = new Date()
   const ttl = Math.floor(now.getTime() / 1000) + (SESSION_TTL_DAYS * 86400)
