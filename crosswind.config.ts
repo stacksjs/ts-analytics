@@ -12,25 +12,21 @@ export default {
   minify: false,
   theme: {
     extend: {
+      // Flat keys only — crosswind 0.2.4 silently drops the DEFAULT variant of
+      // nested color objects (bg-bg/text-text/bg-accent never generate).
       colors: {
-        bg: {
-          DEFAULT: 'var(--bg)',
-          2: 'var(--bg2)',
-          3: 'var(--bg3)',
-        },
-        text: {
-          DEFAULT: 'var(--text)',
-          2: 'var(--text2)',
-        },
-        muted: 'var(--muted)',
-        border: 'var(--border)',
-        accent: {
-          DEFAULT: 'var(--accent)',
-          2: 'var(--accent2)',
-        },
-        success: 'var(--success)',
-        warning: 'var(--warning)',
-        error: 'var(--error)',
+        'bg': 'var(--bg)',
+        'bg-2': 'var(--bg2)',
+        'bg-3': 'var(--bg3)',
+        'text': 'var(--text)',
+        'text-2': 'var(--text2)',
+        'muted': 'var(--muted)',
+        'border': 'var(--border)',
+        'accent': 'var(--accent)',
+        'accent-2': 'var(--accent2)',
+        'success': 'var(--success)',
+        'warning': 'var(--warning)',
+        'error': 'var(--error)',
       },
     },
   },

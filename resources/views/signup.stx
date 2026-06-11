@@ -15,6 +15,7 @@ export const error: string = props.error || ''
       --bg3: #252830;
       --text: #e4e6eb;
       --text2: #8b8fa3;
+      --muted: #8b8fa3;
       --border: #2d3040;
       --accent: #6366f1;
       --accent-hover: #5558e6;
