@@ -78,6 +78,10 @@ function handleBack(): void {
 }
 
 function tabHref(tab: NavTab): string {
+  // Read the local signal (x-href tracks it reactively; it does not track the
+  // store accessor). The mirror effect below keeps this fed from the store —
+  // which pickSite updates without firing a navigation event — so the links
+  // recompute when a site is picked and never drop the siteId.
   const sid: string = siteId()
   return tab.href + (sid ? `?siteId=${encodeURIComponent(sid)}` : '')
 }
@@ -96,8 +100,19 @@ effect(() => {
   document.title = `${TAB_TITLES[dashboard.currentTab()] || 'Dashboard'} - Analytics`
 })
 
+// Mirror the store's siteId into the header-local copy used by the settings /
+// account links, so they recompute when a site is picked from the selector
+// (pickSite sets the store but fires no navigation event).
+effect(() => {
+  siteId.set(dashboard.siteId())
+})
+
 onMount(() => {
-  siteId.set(new URLSearchParams(window.location.search).get('siteId') || '')
+  // Seed the store from a deep-linked URL (?siteId=…) so a fresh load of any
+  // sub-page populates the source of truth; an empty param leaves the store
+  // alone so the selector's last-site restore isn't clobbered.
+  const urlSiteId: string = new URLSearchParams(window.location.search).get('siteId') || ''
+  if (urlSiteId) dashboard.siteId.set(urlSiteId)
   dashboard.currentTab.set(detectCurrentTab())
 
   adoptUser((window as { CURRENT_USER?: { email?: string } }).CURRENT_USER)
@@ -141,7 +156,7 @@ provide('dashboardHeader', {
     <button class="icon-btn" @click="handleBack()" title="Back to sites">
       <Icon name="chevron-left" size="20" />
     </button>
-    <span id="current-site-name" class="font-semibold text-base text-text">{{ siteName() }}</span>
+    <span id="current-site-name" class="font-semibold text-base text-text" x-text="siteName()"></span>
   </div>
 
   <nav id="header-nav" class="header-nav flex gap-1 flex-wrap justify-center">
