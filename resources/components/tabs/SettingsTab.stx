@@ -542,7 +542,7 @@ onMount(() => {
         </button>
       </div>
     </div>
-    <p class="text-xs text-muted mb-2">Paste this one line into the <code class="text-text">&lt;head&gt;</code> of every page you want to track (site <code class="text-text" x-text="siteId()"></code>). No cookies, no consent banner needed — visitors are never personally identified.</p>
+    <p class="text-xs text-muted mb-2">Paste this one line into the <code class="text-text">&lt;head&gt;</code> of every page you want to track (site <code class="text-text">{{ siteId() }}</code>). No cookies, no consent banner needed — visitors are never personally identified.</p>
     <div class="flex flex-wrap gap-1.5 mb-3">
       <span class="text-[0.6875rem] px-2 py-0.5 rounded-full bg-bg border border-border text-muted">Page views</span>
       <span class="text-[0.6875rem] px-2 py-0.5 rounded-full bg-bg border border-border text-muted">SPA route changes</span>
@@ -551,7 +551,7 @@ onMount(() => {
       <span class="text-[0.6875rem] px-2 py-0.5 rounded-full bg-bg border border-border text-muted">Web vitals</span>
       <span class="text-[0.6875rem] px-2 py-0.5 rounded-full bg-bg border border-border text-muted">JS errors</span>
     </div>
-    <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed" x-text="installSnippet()"></pre>
+    <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed">{{ installSnippet() }}</pre>
     <p x-show="!installSnippet()" class="text-xs text-muted italic mt-2">Loading snippet…</p>
     <p x-show="verifyResult() === 'pass'" class="text-xs text-success mt-2">Test event received — ingestion is working end to end.</p>
     <p x-show="verifyResult() === 'fail'" class="text-xs text-error mt-2">No event received. Check that the API is reachable from your browser, then try again.</p>
@@ -564,7 +564,7 @@ onMount(() => {
         </button>
       </div>
       <p class="text-xs text-muted mb-2">Sends beacons to a short, unlisted path that generic blocklists miss. For full resilience, serve it from your own domain — see the <a class="text-primary underline" href="https://github.com/stacksjs/ts-analytics/blob/main/docs/guide/tracking-script.md#ad-blocker-resilience-first-party-proxy" target="_blank" rel="noopener">first-party proxy guide</a>.</p>
-      <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed" x-text="stealthSnippet()"></pre>
+      <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed">{{ stealthSnippet() }}</pre>
     </div>
   </div>
 
@@ -580,17 +580,17 @@ onMount(() => {
           <span x-show="!sdkCopied()">Copy snippet</span>
           <span x-show="sdkCopied()" class="text-success">Copied!</span>
         </button>
-        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2 hover:text-error" @click="regenerateDsn()" x-disabled="regeneratingDsn()" x-text="regeneratingDsn() ? 'Regenerating…' : 'Regenerate key'"></button>
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2 hover:text-error" @click="regenerateDsn()" x-disabled="regeneratingDsn()">{{ regeneratingDsn() ? 'Regenerating…' : 'Regenerate key' }}</button>
       </div>
     </div>
     <p class="text-xs text-muted mb-3">The analytics snippet above already reports uncaught errors. Use this DSN with the standalone SDK when you want error tracking without analytics, or richer capture (breadcrumbs, releases, <code class="text-text">captureException</code>) in your app code.</p>
     <div class="mb-3">
       <label class="text-xs font-medium text-muted mb-1 block">DSN</label>
-      <code class="block bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text break-all font-mono" x-text="dsn()"></code>
+      <code class="block bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text break-all font-mono">{{ dsn() }}</code>
     </div>
     <div>
       <label class="text-xs font-medium text-muted mb-1 block">SDK snippet</label>
-      <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed" x-text="sdkSnippet()"></pre>
+      <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed">{{ sdkSnippet() }}</pre>
     </div>
     <p x-show="!dsn()" class="text-xs text-muted italic mt-2">Loading DSN…</p>
   </div>
@@ -619,8 +619,8 @@ onMount(() => {
         <div class="flex flex-col gap-2">
           <div x-show="settings().apiKey" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
-              <div class="text-[0.8125rem] font-medium text-text" x-text="settings().apiKey ? settings().apiKey.name : ''"></div>
-              <code class="text-[0.6875rem] text-muted break-all" x-text="settings().apiKey ? settings().apiKey.key : ''"></code>
+              <div class="text-[0.8125rem] font-medium text-text">{{ settings().apiKey ? settings().apiKey.name : '' }}</div>
+              <code class="text-[0.6875rem] text-muted break-all">{{ settings().apiKey ? settings().apiKey.key : '' }}</code>
             </div>
             <div class="flex items-center gap-1">
               <button class="icon-btn" @click="copyApiKey()" title="Copy key">
@@ -643,8 +643,8 @@ onMount(() => {
           <p x-show="settings().alerts.length === 0" class="text-xs text-muted italic">No alerts configured.</p>
           <div x-for="alert in settings.alerts" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
-              <div class="text-[0.8125rem] font-medium text-text" x-text="alert.metric"></div>
-              <div class="text-[0.6875rem] text-muted" x-text="'Threshold: ' + alert.threshold + ' → ' + alert.email"></div>
+              <div class="text-[0.8125rem] font-medium text-text">{{ alert.metric }}</div>
+              <div class="text-[0.6875rem] text-muted">{{ 'Threshold: ' + alert.threshold + ' → ' + alert.email }}</div>
             </div>
             <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteAlert(alert.id)" title="Delete">×</button>
           </div>
@@ -661,8 +661,8 @@ onMount(() => {
           <p x-show="settings().emailReports.length === 0" class="text-xs text-muted italic">No email reports scheduled.</p>
           <div x-for="report in settings.emailReports" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
-              <div class="text-[0.8125rem] font-medium text-text" x-text="report.email"></div>
-              <div class="text-[0.6875rem] text-muted" x-text="report.frequency"></div>
+              <div class="text-[0.8125rem] font-medium text-text">{{ report.email }}</div>
+              <div class="text-[0.6875rem] text-muted">{{ report.frequency }}</div>
             </div>
             <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteEmailReport(report.id)" title="Delete">×</button>
           </div>
@@ -679,8 +679,8 @@ onMount(() => {
           <p x-show="settings().uptimeMonitors.length === 0" class="text-xs text-muted italic">No uptime monitors configured.</p>
           <div x-for="monitor in settings.uptimeMonitors" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
-              <code class="text-[0.6875rem] text-muted break-all" x-text="monitor.url"></code>
-              <div class="text-[0.6875rem] text-muted" x-text="'Every ' + monitor.interval + 'min • ' + (monitor.status || 'Pending')"></div>
+              <code class="text-[0.6875rem] text-muted break-all">{{ monitor.url }}</code>
+              <div class="text-[0.6875rem] text-muted">{{ 'Every ' + monitor.interval + 'min • ' + (monitor.status || 'Pending') }}</div>
             </div>
             <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteUptimeMonitor(monitor.id)" title="Delete">×</button>
           </div>
@@ -700,8 +700,8 @@ onMount(() => {
           <p x-show="settings().teamMembers.length === 0" class="text-xs text-muted italic">No team members added.</p>
           <div x-for="member in settings.teamMembers" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
-              <div class="text-[0.8125rem] font-medium text-text" x-text="member.email"></div>
-              <div class="text-[0.6875rem] text-muted" x-text="member.role"></div>
+              <div class="text-[0.8125rem] font-medium text-text">{{ member.email }}</div>
+              <div class="text-[0.6875rem] text-muted">{{ member.role }}</div>
             </div>
             <button class="icon-btn hover:bg-error/15 hover:text-error" @click="removeTeamMember(member.id)" title="Remove">×</button>
           </div>
@@ -718,8 +718,8 @@ onMount(() => {
           <p x-show="settings().webhooks.length === 0" class="text-xs text-muted italic">No webhooks configured.</p>
           <div x-for="webhook in settings.webhooks" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
-              <code class="text-[0.6875rem] text-muted break-all" x-text="webhook.url"></code>
-              <div class="text-[0.6875rem] text-muted" x-text="(webhook.events || []).join(', ')"></div>
+              <code class="text-[0.6875rem] text-muted break-all">{{ webhook.url }}</code>
+              <div class="text-[0.6875rem] text-muted">{{ (webhook.events || []).join(', ') }}</div>
             </div>
             <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteWebhook(webhook.id)" title="Delete">×</button>
           </div>
@@ -736,8 +736,8 @@ onMount(() => {
           <p x-show="settings().perfBudgets.length === 0" class="text-xs text-muted italic">No performance budgets set.</p>
           <div x-for="budget in settings.perfBudgets" class="flex justify-between items-center p-2 bg-bg rounded">
             <div class="flex-1 min-w-0">
-              <div class="text-[0.8125rem] font-medium text-text" x-text="budget.metric"></div>
-              <div class="text-[0.6875rem] text-muted" x-text="'Threshold: ' + budget.threshold + (budget.metric === 'CLS' ? '' : 'ms')"></div>
+              <div class="text-[0.8125rem] font-medium text-text">{{ budget.metric }}</div>
+              <div class="text-[0.6875rem] text-muted">{{ 'Threshold: ' + budget.threshold + (budget.metric === 'CLS' ? '' : 'ms') }}</div>
             </div>
             <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deletePerfBudget(budget.id)" title="Delete">×</button>
           </div>

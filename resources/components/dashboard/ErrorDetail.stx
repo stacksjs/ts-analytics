@@ -83,16 +83,16 @@ finally {
   </a>
 
   <div x-show="loading()" class="text-center text-muted py-12">Loading issue…</div>
-  <div x-show="!loading() && loadError()" class="text-center text-error py-12" x-text="loadError()"></div>
+  <div x-show="!loading() && loadError()" class="text-center text-error py-12">{{ loadError() }}</div>
 
   <div x-show="!loading() && !loadError()">
     <!-- Header -->
     <div class="flex items-start justify-between gap-4 mb-4">
-      <h1 class="text-lg font-semibold text-text break-words" x-text="issue().message"></h1>
+      <h1 class="text-lg font-semibold text-text break-words">{{ issue().message }}</h1>
       <div class="flex gap-2 shrink-0">
-        <span class="text-[0.625rem] font-semibold py-0.5 px-2 rounded uppercase tracking-wide border" x-class="statusColor()" x-text="statusLabel()"></span>
-        <span class="text-[0.625rem] font-semibold py-0.5 px-2 rounded uppercase tracking-wide border border-border text-text-2" x-text="severityLabel()"></span>
-        <span x-show="issue().status === 'open' && issue().trend" class="text-[0.625rem] font-semibold py-0.5 px-2 rounded uppercase tracking-wide border border-border text-text-2" x-text="issue().trend"></span>
+        <span class="text-[0.625rem] font-semibold py-0.5 px-2 rounded uppercase tracking-wide border" x-class="statusColor()">{{ statusLabel() }}</span>
+        <span class="text-[0.625rem] font-semibold py-0.5 px-2 rounded uppercase tracking-wide border border-border text-text-2">{{ severityLabel() }}</span>
+        <span x-show="issue().status === 'open' && issue().trend" class="text-[0.625rem] font-semibold py-0.5 px-2 rounded uppercase tracking-wide border border-border text-text-2">{{ issue().trend }}</span>
       </div>
     </div>
 
@@ -100,19 +100,19 @@ finally {
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
       <div class="panel py-3">
         <div class="text-xs text-muted">Events</div>
-        <div class="text-base font-semibold text-text" x-text="fmtNum(issue().count)"></div>
+        <div class="text-base font-semibold text-text">{{ fmtNum(issue().count) }}</div>
       </div>
       <div class="panel py-3">
         <div class="text-xs text-muted">Affected</div>
-        <div class="text-base font-semibold text-text" x-text="fmtNum(issue().affectedVisitors)"></div>
+        <div class="text-base font-semibold text-text">{{ fmtNum(issue().affectedVisitors) }}</div>
       </div>
       <div class="panel py-3">
         <div class="text-xs text-muted">First seen</div>
-        <div class="text-[0.8125rem] font-medium text-text" x-text="when(issue().firstSeen)"></div>
+        <div class="text-[0.8125rem] font-medium text-text">{{ when(issue().firstSeen) }}</div>
       </div>
       <div class="panel py-3">
         <div class="text-xs text-muted">Last seen</div>
-        <div class="text-[0.8125rem] font-medium text-text" x-text="when(issue().lastSeen)"></div>
+        <div class="text-[0.8125rem] font-medium text-text">{{ when(issue().lastSeen) }}</div>
       </div>
     </div>
 
@@ -122,10 +122,10 @@ finally {
         <div class="panel-title m-0">Stack trace</div>
         <span x-show="latest().symbolicatedStack" class="text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide border border-success text-success">Symbolicated</span>
       </div>
-      <pre class="text-xs text-text-2 overflow-x-auto whitespace-pre-wrap break-words bg-bg-3 rounded-md p-3 m-0" x-text="latest().symbolicatedStack || latest().stack || 'No stack trace captured'"></pre>
+      <pre class="text-xs text-text-2 overflow-x-auto whitespace-pre-wrap break-words bg-bg-3 rounded-md p-3 m-0">{{ latest().symbolicatedStack || latest().stack || 'No stack trace captured' }}</pre>
       <details x-show="latest().symbolicatedStack" class="mt-2">
         <summary class="text-[0.6875rem] text-muted cursor-pointer">Show raw (minified) stack</summary>
-        <pre class="text-xs text-text-2 overflow-x-auto whitespace-pre-wrap break-words bg-bg-3 rounded-md p-3 mt-2 mb-0" x-text="latest().stack"></pre>
+        <pre class="text-xs text-text-2 overflow-x-auto whitespace-pre-wrap break-words bg-bg-3 rounded-md p-3 mt-2 mb-0">{{ latest().stack }}</pre>
       </details>
     </div>
 
@@ -134,8 +134,8 @@ finally {
       <div class="panel-title mb-2">Breadcrumbs</div>
       <div class="flex flex-col gap-1">
         <div x-for="c in breadcrumbs" class="flex items-center gap-2 text-xs border-b border-bg-3 py-1.5 last:border-0">
-          <span class="text-muted font-mono shrink-0 w-28 truncate" x-text="c.category || 'log'"></span>
-          <span class="text-text-2 truncate" x-text="c.message || ''"></span>
+          <span class="text-muted font-mono shrink-0 w-28 truncate">{{ c.category || 'log' }}</span>
+          <span class="text-text-2 truncate">{{ c.message || '' }}</span>
         </div>
       </div>
     </div>
@@ -154,10 +154,10 @@ finally {
         </thead>
         <tbody>
           <tr x-for="o in occurrences" class="border-b border-bg-3">
-            <td class="py-1.5 text-text-2 whitespace-nowrap" x-text="when(o.timestamp)"></td>
-            <td class="py-1.5 text-text-2" x-text="o.browser || '—'"></td>
-            <td class="py-1.5 text-text-2" x-text="o.os || '—'"></td>
-            <td class="py-1.5 text-text-2 truncate max-w-[24rem]" x-text="o.url || '—'"></td>
+            <td class="py-1.5 text-text-2 whitespace-nowrap">{{ when(o.timestamp) }}</td>
+            <td class="py-1.5 text-text-2">{{ o.browser || '—' }}</td>
+            <td class="py-1.5 text-text-2">{{ o.os || '—' }}</td>
+            <td class="py-1.5 text-text-2 truncate max-w-[24rem]">{{ o.url || '—' }}</td>
           </tr>
         </tbody>
       </table>
@@ -167,7 +167,7 @@ finally {
     <div x-show="browsers().length > 0" class="panel">
       <div class="panel-title mb-2">Affected browsers</div>
       <div class="flex flex-wrap gap-2">
-        <span x-for="b in browsers" class="text-xs text-text-2 border border-border rounded px-2 py-0.5" x-text="b"></span>
+        <span x-for="b in browsers" class="text-xs text-text-2 border border-border rounded px-2 py-0.5">{{ b }}</span>
       </div>
     </div>
   </div>

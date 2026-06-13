@@ -205,7 +205,7 @@ onMount(() => {
 
     <div x-show="!loading() && error()" class="site-status">
       <Icon name="alert-triangle" size="32" class="text-error" style="opacity:0.7;margin-bottom:0.75rem" />
-      <p x-text="error()"></p>
+      <p>{{ error() }}</p>
       <button class="retry-btn" @click="fetchSites()">Retry</button>
     </div>
 
@@ -219,9 +219,9 @@ onMount(() => {
           <input type="text" placeholder="Domain (optional)"
                  x-value="newDomain()" @input="newDomain.set($event.target.value)"
                  class="form-input" />
-          <button type="submit" class="create-btn" x-disabled="creating()" x-text="creating() ? 'Creating...' : 'Create'"></button>
+          <button type="submit" class="create-btn" x-disabled="creating()">{{ creating() ? 'Creating...' : 'Create' }}</button>
         </form>
-        <p x-show="createError()" class="create-error" x-text="createError()"></p>
+        <p x-show="createError()" class="create-error">{{ createError() }}</p>
       </div>
 
       <div x-show="sites().length === 0" class="site-empty">
@@ -237,8 +237,8 @@ onMount(() => {
             <Icon name="clock" size="24" />
           </div>
           <div class="site-info">
-            <span class="site-name" x-text="site.name || 'Unnamed'"></span>
-            <span class="site-domain" x-text="site.domains?.[0] || site.id"></span>
+            <span class="site-name">{{ site.name || 'Unnamed' }}</span>
+            <span class="site-domain">{{ site.domains?.[0] || site.id }}</span>
           </div>
           <Icon name="chevron-right" size="20" class="site-arrow" />
         </button>
@@ -254,12 +254,12 @@ onMount(() => {
             <Icon name="globe" size="24" />
           </div>
           <div class="site-info">
-            <span class="site-name" x-text="site.name || 'Unnamed'"></span>
-            <span class="site-domain" x-text="site.domains?.[0] || site.id"></span>
+            <span class="site-name">{{ site.name || 'Unnamed' }}</span>
+            <span class="site-domain">{{ site.domains?.[0] || site.id }}</span>
           </div>
           <Icon name="chevron-right" size="20" class="site-arrow" />
         </button>
-        <p x-show="searchQuery() && filteredSites().length === 0" class="text-xs text-muted mt-2">No projects match "<span x-text="searchQuery()"></span>"</p>
+        <p x-show="searchQuery() && filteredSites().length === 0" class="text-xs text-muted mt-2">No projects match "<span>{{ searchQuery() }}</span>"</p>
       </div>
     </div>
   </div>

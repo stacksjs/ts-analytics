@@ -74,21 +74,21 @@ effect(() => {
 
   <div x-show="eventChips().length > 0" class="flex flex-wrap gap-2 mb-3">
     <span x-for="chip in eventChips" class="inline-flex items-center gap-1 rounded-full bg-bg-3 px-2 py-0.5 text-[0.6875rem] text-muted">
-      <span x-text="chip.name"></span>
-      <span class="font-medium text-text" x-text="fmtNum(chip.count)"></span>
+      <span>{{ chip.name }}</span>
+      <span class="font-medium text-text">{{ fmtNum(chip.count) }}</span>
     </span>
   </div>
 
   <div class="flex flex-col gap-3">
     <div x-for="r in rows" @loading="loading()" class="flex flex-col gap-1">
       <div class="flex justify-between items-center gap-2">
-        <span class="text-[0.8125rem] text-text font-medium truncate" x-text="rowLabel(r)"></span>
-        <span class="text-xs text-muted shrink-0 ml-2" x-text="fmtNum(r.count)"></span>
+        <span class="text-[0.8125rem] text-text font-medium truncate">{{ rowLabel(r) }}</span>
+        <span class="text-xs text-muted shrink-0 ml-2">{{ fmtNum(r.count) }}</span>
       </div>
       <div class="h-1.5 bg-bg-3 rounded-sm overflow-hidden">
         <div class="h-full bg-accent rounded-sm transition-[width] duration-300" x-style="'width: ' + barWidth(r.count ? r.count : 0) + '%'"></div>
       </div>
-      <div class="text-[0.6875rem] text-muted text-right" x-text="fmtNum(r.visitors) + ' visitors'"></div>
+      <div class="text-[0.6875rem] text-muted text-right">{{ fmtNum(r.visitors) + ' visitors' }}</div>
     </div>
     <div @for-loading class="text-center text-muted py-4 text-[0.8125rem]">Loading...</div>
     <div @for-empty class="text-center text-muted py-4 text-[0.8125rem]">No event properties tracked yet</div>

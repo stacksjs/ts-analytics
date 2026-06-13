@@ -140,14 +140,14 @@ onMount(() => {
     <div x-show="!loading() && !error() && sessions().length === 0" class="empty-state">No sessions recorded yet.</div>
     <div x-for="session in sessions" class="session-card" @click="viewSession(session.sessionId || session.id)">
       <div class="flex justify-between items-center mb-2">
-        <span class="font-medium text-text" x-text="session.entryPage || session.entryPath || '/'"></span>
-        <span class="text-xs text-muted" x-text="timeAgo(session.startTime || session.startedAt)"></span>
+        <span class="font-medium text-text">{{ session.entryPage || session.entryPath || '/' }}</span>
+        <span class="text-xs text-muted">{{ timeAgo(session.startTime || session.startedAt) }}</span>
       </div>
       <div class="flex gap-4 text-xs text-muted">
-        <span x-text="(session.pageViews || session.pageViewCount || 1) + ' page' + ((session.pageViews || session.pageViewCount || 1) !== 1 ? 's' : '')"></span>
-        <span x-class="bouncedClass(session)" x-text="(session.bounced || session.isBounce) ? 'Bounced' : formatDuration(session.duration)"></span>
-        <span x-text="session.browser || 'Unknown'"></span>
-        <span x-text="session.country || 'Unknown'"></span>
+        <span>{{ (session.pageViews || session.pageViewCount || 1) + ' page' + ((session.pageViews || session.pageViewCount || 1) !== 1 ? 's' : '') }}</span>
+        <span x-class="bouncedClass(session)">{{ (session.bounced || session.isBounce) ? 'Bounced' : formatDuration(session.duration) }}</span>
+        <span>{{ session.browser || 'Unknown' }}</span>
+        <span>{{ session.country || 'Unknown' }}</span>
       </div>
     </div>
   </div>

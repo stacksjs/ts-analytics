@@ -62,13 +62,13 @@ effect(() => {
   <div class="flex flex-col gap-3">
     <div x-for="ch in channels" @loading="loading()" class="flex flex-col gap-1">
       <div class="flex justify-between items-center">
-        <span class="text-[0.8125rem] text-text font-medium" x-text="ch.channel"></span>
-        <span class="text-xs text-muted shrink-0 ml-2" x-text="pct(ch.visitors ? ch.visitors : 0) + '%'"></span>
+        <span class="text-[0.8125rem] text-text font-medium">{{ ch.channel }}</span>
+        <span class="text-xs text-muted shrink-0 ml-2">{{ pct(ch.visitors ? ch.visitors : 0) + '%' }}</span>
       </div>
       <div class="h-1.5 bg-bg-3 rounded-sm overflow-hidden">
         <div class="h-full bg-accent rounded-sm transition-[width] duration-300" x-style="'width: ' + pct(ch.visitors ? ch.visitors : 0) + '%'"></div>
       </div>
-      <div class="text-[0.6875rem] text-muted text-right" x-text="fmtNum(ch.visitors) + ' visitors'"></div>
+      <div class="text-[0.6875rem] text-muted text-right">{{ fmtNum(ch.visitors) + ' visitors' }}</div>
     </div>
     <div @for-loading class="text-center text-muted py-4 text-[0.8125rem]">Loading...</div>
     <div @for-empty class="text-center text-muted py-4 text-[0.8125rem]">No channel data</div>

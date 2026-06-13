@@ -181,12 +181,12 @@ effect(() => {
       <table class="data-table w-full">
         <thead>
           <tr>
-            <th x-for="key in columnKeys" class="text-left p-3 text-muted font-medium text-sm border-b border-border" x-text="formatKey(key)"></th>
+            <th x-for="key in columnKeys" class="text-left p-3 text-muted font-medium text-sm border-b border-border">{{ formatKey(key) }}</th>
           </tr>
         </thead>
         <tbody>
           <tr x-for="item in paginatedData" class="hover:bg-bg-3">
-            <td x-for="key in columnKeys" class="p-3 text-sm border-b border-bg-3" x-text="formatValue(item[key], key)"></td>
+            <td x-for="key in columnKeys" class="p-3 text-sm border-b border-bg-3">{{ formatValue(item[key], key) }}</td>
           </tr>
         </tbody>
       </table>

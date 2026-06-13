@@ -60,13 +60,13 @@ onMount(() => {
   <div class="flex flex-col gap-3">
     <div x-for="event in events" @loading="loading()" class="flex flex-col gap-1">
       <div class="flex justify-between items-center">
-        <span class="text-[0.8125rem] text-text font-medium truncate" x-text="event.name"></span>
-        <span class="text-xs text-muted shrink-0 ml-2" x-text="getPercentage(event.count ? event.count : 0) + '%'"></span>
+        <span class="text-[0.8125rem] text-text font-medium truncate">{{ event.name }}</span>
+        <span class="text-xs text-muted shrink-0 ml-2">{{ getPercentage(event.count ? event.count : 0) + '%' }}</span>
       </div>
       <div class="h-1.5 bg-bg-3 rounded-sm overflow-hidden">
         <div class="h-full bg-accent rounded-sm transition-[width] duration-300" x-style="'width: ' + getBarWidth(event.count ? event.count : 0) + '%'"></div>
       </div>
-      <div class="text-[0.6875rem] text-muted text-right" x-text="fmt(event.count)"></div>
+      <div class="text-[0.6875rem] text-muted text-right">{{ fmt(event.count) }}</div>
     </div>
     <div @for-loading class="text-center text-muted py-4 text-[0.8125rem]">Loading...</div>
     <div @for-empty class="text-center text-muted py-4 text-[0.8125rem]">No custom events tracked</div>

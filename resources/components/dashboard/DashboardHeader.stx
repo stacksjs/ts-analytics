@@ -156,7 +156,7 @@ provide('dashboardHeader', {
     <button class="icon-btn" @click="handleBack()" title="Back to sites">
       <Icon name="chevron-left" size="20" />
     </button>
-    <span id="current-site-name" class="font-semibold text-base text-text" x-text="siteName()"></span>
+    <span id="current-site-name" class="font-semibold text-base text-text">{{ siteName() }}</span>
   </div>
 
   <nav id="header-nav" class="header-nav flex gap-1 flex-wrap justify-center">
@@ -165,7 +165,7 @@ provide('dashboardHeader', {
        x-href="tabHref(tab)"
        x-data-tab="tab.id"
        data-stx-prefetch
-       x-text="tab.label"></a>
+>{{ tab.label }}</a>
   </nav>
 
   <div class="flex items-center gap-2">
@@ -181,7 +181,7 @@ provide('dashboardHeader', {
     </button>
     <a x-href="'/dashboard/account' + (siteId() ? '?siteId=' + encodeURIComponent(siteId()) : '')" x-show="userEmail()" class="flex items-center gap-1.5 icon-btn no-underline" title="Account settings" data-stx-prefetch>
       <Icon name="user" size="18" />
-      <span class="text-xs text-muted max-w-[160px] truncate hidden md:inline" x-text="userEmail()"></span>
+      <span class="text-xs text-muted max-w-[160px] truncate hidden md:inline">{{ userEmail() }}</span>
     </a>
     <form method="POST" action="/logout" class="inline">
       <button type="submit" class="icon-btn hover:text-error" title="Logout">

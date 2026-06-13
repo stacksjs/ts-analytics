@@ -38,13 +38,13 @@ onMount(() => {
       <tr x-for="page in analytics.pages" @loading="analytics.loading()">
         <td class="cell-name" :title="page.path">
           <a x-href="page.path" target="_blank" rel="noopener" class="inline-flex items-center gap-1 hover:text-accent">
-            <span x-text="page.path"></span>
+            <span>{{ page.path }}</span>
             <Icon name="external-link" size="10" class="opacity-50" />
           </a>
         </td>
-        <td class="cell-value" x-text="fmt(page.entries)"></td>
-        <td class="cell-value" x-text="fmt(page.visitors)"></td>
-        <td class="cell-value" x-text="fmt(page.views)"></td>
+        <td class="cell-value">{{ fmt(page.entries) }}</td>
+        <td class="cell-value">{{ fmt(page.visitors) }}</td>
+        <td class="cell-value">{{ fmt(page.views) }}</td>
       </tr>
       <tr @for-loading>
         <td colspan="4" class="text-center text-muted py-4">Loading...</td>

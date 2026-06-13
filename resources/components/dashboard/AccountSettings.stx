@@ -107,8 +107,8 @@ onMount(() => {
 <div class="col-span-full max-w-[640px]">
   <h3 class="text-base font-semibold text-text mb-1">Account</h3>
   <p class="text-xs text-muted mb-6">
-    Signed in as <span class="text-text" x-text="email()"></span>
-    <span class="text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide bg-bg-3 text-text-2 ml-1" x-text="plan()"></span>
+    Signed in as <span class="text-text">{{ email() }}</span>
+    <span class="text-[0.625rem] font-semibold py-0.5 px-[7px] rounded uppercase tracking-wide bg-bg-3 text-text-2 ml-1">{{ plan() }}</span>
     <span x-show="!emailVerified()" class="text-warning ml-1">— email not verified</span>
   </p>
 
@@ -121,8 +121,8 @@ onMount(() => {
       </div>
       <button type="submit" class="btn btn-primary text-[0.8125rem] py-2 px-4">Save</button>
     </form>
-    <p x-show="profileMsg()" class="text-xs text-success mt-2" x-text="profileMsg()"></p>
-    <p x-show="profileErr()" class="text-xs text-error mt-2" x-text="profileErr()"></p>
+    <p x-show="profileMsg()" class="text-xs text-success mt-2">{{ profileMsg() }}</p>
+    <p x-show="profileErr()" class="text-xs text-error mt-2">{{ profileErr() }}</p>
   </div>
 
   <div class="panel mb-4">
@@ -138,8 +138,8 @@ onMount(() => {
       </div>
       <button type="submit" class="btn btn-primary text-[0.8125rem] py-2 px-4 self-start">Change password</button>
     </form>
-    <p x-show="passwordMsg()" class="text-xs text-success mt-2" x-text="passwordMsg()"></p>
-    <p x-show="passwordErr()" class="text-xs text-error mt-2" x-text="passwordErr()"></p>
+    <p x-show="passwordMsg()" class="text-xs text-success mt-2">{{ passwordMsg() }}</p>
+    <p x-show="passwordErr()" class="text-xs text-error mt-2">{{ passwordErr() }}</p>
   </div>
 
   <div class="panel mb-4">
@@ -155,8 +155,8 @@ onMount(() => {
       </div>
       <button type="submit" class="btn btn-primary text-[0.8125rem] py-2 px-4 self-start">Change email</button>
     </form>
-    <p x-show="emailMsg()" class="text-xs text-success mt-2" x-text="emailMsg()"></p>
-    <p x-show="emailErr()" class="text-xs text-error mt-2" x-text="emailErr()"></p>
+    <p x-show="emailMsg()" class="text-xs text-success mt-2">{{ emailMsg() }}</p>
+    <p x-show="emailErr()" class="text-xs text-error mt-2">{{ emailErr() }}</p>
   </div>
 
   <div class="panel">
