@@ -64,7 +64,7 @@
     "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "@cwcss/crosswind": "^0.2.4",
+    "@cwcss/crosswind": "^0.2.6",
     "@stacksjs/bun-router": "^0.0.16",
     "@stacksjs/components": "^0.2.67",
     "@stacksjs/stx": "^0.2.70",
