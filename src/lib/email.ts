@@ -15,7 +15,11 @@ export interface EmailMessage {
 
 /** Base URL used to build links in emails (falls back to localhost in dev). */
 export function appBaseUrl(): string {
-  return process.env.ANALYTICS_APP_URL || process.env.STX_PUBLIC_API_ENDPOINT || 'http://localhost:3000'
+  // Dev fallback points at the dashboard, which proxies /api to this server —
+  // follows DASHBOARD_PORT (default 2026) so reset/verify/OAuth links resolve.
+  return process.env.ANALYTICS_APP_URL
+    || process.env.STX_PUBLIC_API_ENDPOINT
+    || `http://localhost:${process.env.DASHBOARD_PORT || '2026'}`
 }
 
 async function deliver(msg: EmailMessage): Promise<void> {

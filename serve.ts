@@ -5,19 +5,29 @@
  * Uses bun-plugin-stx/serve for page rendering, SPA routing, and asset
  * serving. The API server (server/) runs separately; API and auth-form
  * requests are PROXIED to it (#116) so the whole app is same-origin in dev —
- * session cookies flow without any CORS/credentials configuration. Set
- * ANALYTICS_API_PROXY to override the upstream (default localhost:3001).
+ * session cookies flow without any CORS/credentials configuration.
+ *
+ * Ports (set in .env): DASHBOARD_PORT (this server, default 2026) and PORT (the
+ * API server it proxies to, default 2027). ANALYTICS_API_PROXY overrides the
+ * upstream URL for split-domain deployments.
  */
 
 import { serve } from 'bun-plugin-stx/serve'
 
+// Dashboard (frontend) port. Precedence: --port flag > DASHBOARD_PORT env >
+// default 2026. Set DASHBOARD_PORT in .env to avoid conflicts with other apps.
 const args = process.argv.slice(2)
 const portIdx = args.indexOf('--port')
-const port = portIdx >= 0 && args[portIdx + 1] ? Number(args[portIdx + 1]) : 3000
+const port = portIdx >= 0 && args[portIdx + 1]
+  ? Number(args[portIdx + 1])
+  : Number(process.env.DASHBOARD_PORT) || 2026
 
+// API upstream the dashboard proxies to. Defaults to the local API server on
+// its PORT (default 2027), so changing the backend port here needs no extra
+// config. ANALYTICS_API_PROXY overrides it (e.g. a split-domain deployment).
 const API_UPSTREAM = process.env.ANALYTICS_API_PROXY
   || process.env.STX_PUBLIC_API_ENDPOINT
-  || 'http://localhost:3001'
+  || `http://localhost:${process.env.PORT || '2027'}`
 
 // Paths owned by the API server. The auth pages (/login, /signup, …) render
 // as stx views on GET — only their form POSTs proxy through.

@@ -10,8 +10,9 @@ import { assignUnownedSites } from '../src/handlers/auth'
 import { bootstrapJobs } from '../src/jobs'
 import { startScheduler } from '../src/lib/scheduler'
 
-// Configuration from environment
-const PORT = Number.parseInt(process.env.PORT || '3001', 10)
+// Configuration from environment. PORT (default 2027) is the API port; the
+// dashboard's dev proxy targets it. Set it in .env to avoid local conflicts.
+const PORT = Number.parseInt(process.env.PORT || '2027', 10)
 
 console.log(`Starting ts-analytics API server...`)
 console.log(`Table: ${process.env.ANALYTICS_TABLE_NAME || 'ts-analytics'}`)
