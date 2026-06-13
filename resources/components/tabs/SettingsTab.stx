@@ -22,14 +22,16 @@ const installSnippet = state<string>('')
 const snippetCopied = state<boolean>(false)
 
 function fetchSnippet(): void {
-  // One-line install: the served /script.js derives site + api from its own src URL.
-  // Build the tag from parts so the literal opening/closing script-tag text never
-  // appears in this component's source (that would corrupt the stx inlined bundle).
-  const open: string = ['<', 'script defer src="', apiUrl('/script.js'), '">'].join('')
+  // Fathom/Plausible-style one-liner: one shared, cacheable /script.js for every
+  // site, identified by a data-site attribute (the script derives the API from
+  // its own origin). Build the tag from parts so the literal opening/closing
+  // script-tag text never appears in this source (it would corrupt the bundle).
+  const base: string = (window as { API_ENDPOINT?: string }).API_ENDPOINT || window.location.origin
   const close: string = ['<', '/script>'].join('')
+  const open: string = ['<', 'script defer data-site="', siteId(), '" src="', base, '/script.js">'].join('')
   installSnippet.set(open + close)
   // Blocker-resilient variant (#85): beacons go to the short /t path.
-  const stealthOpen: string = ['<', 'script defer src="', apiUrl('/script.js'), '?stealth=true">'].join('')
+  const stealthOpen: string = ['<', 'script defer data-site="', siteId(), '" src="', base, '/script.js?stealth=true">'].join('')
   stealthSnippet.set(stealthOpen + close)
 }
 
@@ -59,6 +61,7 @@ const dsn = state<string>('')
 const dsnCopied = state<boolean>(false)
 const sdkSnippet = state<string>('')
 const sdkCopied = state<boolean>(false)
+const regeneratingDsn = state<boolean>(false)
 
 async function fetchDsn(): Promise<void> {
   try {
@@ -82,6 +85,21 @@ function copyDsn(): void {
   navigator.clipboard.writeText(dsn())
   dsnCopied.set(true)
   setTimeout(() => dsnCopied.set(false), 2000)
+}
+
+// Rotate the error-tracking ingest key (Sentry-style). Leaves the general read
+// key intact; refreshes the DSN + SDK snippet from the freshly-minted key.
+function regenerateDsn(): void {
+  Modal.confirm('Regenerate the error-tracking key? The current DSN stops accepting errors immediately.', async () => {
+    if (regeneratingDsn()) return
+    regeneratingDsn.set(true)
+    try {
+      await fetch(apiUrl('/dsn/regenerate'), { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      await fetchDsn()
+    } finally {
+      regeneratingDsn.set(false)
+    }
+  })
 }
 
 function copySdkSnippet(): void {
@@ -562,6 +580,7 @@ onMount(() => {
           <span x-show="!sdkCopied()">Copy snippet</span>
           <span x-show="sdkCopied()" class="text-success">Copied!</span>
         </button>
+        <button class="btn btn-secondary text-[0.6875rem] py-1 px-2 hover:text-error" @click="regenerateDsn()" x-disabled="regeneratingDsn()" x-text="regeneratingDsn() ? 'Regenerating…' : 'Regenerate key'"></button>
       </div>
     </div>
     <p class="text-xs text-muted mb-3">The analytics snippet above already reports uncaught errors. Use this DSN with the standalone SDK when you want error tracking without analytics, or richer capture (breadcrumbs, releases, <code class="text-text">captureException</code>) in your app code.</p>

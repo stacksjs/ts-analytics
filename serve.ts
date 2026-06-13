@@ -32,7 +32,7 @@ const API_UPSTREAM = process.env.ANALYTICS_API_PROXY
 // Paths owned by the API server. The auth pages (/login, /signup, …) render
 // as stx views on GET — only their form POSTs proxy through.
 const API_PREFIXES = ['/api/', '/errors/collect', '/issues/report']
-const API_EXACT = ['/collect', '/t', '/p', '/sdk.js', '/health']
+const API_EXACT = ['/collect', '/t', '/p', '/sdk.js', '/script.js', '/health']
 const AUTH_FORM_PATHS = ['/login', '/logout', '/signup', '/forgot', '/reset']
 
 function shouldProxy(method: string, pathname: string): boolean {

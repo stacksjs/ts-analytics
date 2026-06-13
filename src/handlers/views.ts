@@ -351,6 +351,44 @@ export async function handleScript(request: Request): Promise<Response> {
 }
 
 /**
+ * GET /script.js — the shared, cacheable analytics tracker (Fathom/Plausible
+ * style). One file for every site: the site is identified at runtime by the
+ * tag's `data-site` attribute and the collect endpoint is the script's own
+ * origin (the IIFE reads `currentScript.dataset.site` / `.src`). No per-site
+ * key is baked in, so it stays cacheable across sites; uncaught errors fall
+ * back to the public /collect as `error` events. For Sentry-style error
+ * tracking with a private DSN, use /sdk.js + the project's DSN instead.
+ *
+ *   <script defer data-site="SITE_ID" src="https://your-host/script.js"></script>
+ */
+export function handleSharedScript(request: Request): Response {
+  const query = getQueryParams(request)
+  const event = getLambdaEvent(request)
+  const url = new URL(request.url)
+
+  const apiEndpoint = query.api
+    || (event?.requestContext?.domainName ? `https://${event.requestContext.domainName}` : url.origin)
+  const stealthMode = query.stealth === 'true'
+
+  // No siteId / ingest key baked in — both are resolved from the visitor's tag
+  // at runtime, which is what keeps this one script shared and cacheable.
+  const script = generateTrackingScript({
+    siteId: '',
+    apiEndpoint,
+    trackLinkClicks: true,
+    trackSpaRoutes: true,
+    trackEngagement: true,
+    errorIngestKey: '',
+    stealthMode,
+  })
+    .replace(/^<!--[\s\S]*?-->\s*/, '')
+    .replace(/^<script[^>]*>\s*/, '')
+    .replace(/\s*<\/script>\s*$/, '')
+
+  return jsResponse(script)
+}
+
+/**
  * GET /sdk.js — the standalone error-tracking SDK (configure with TSA.init({dsn})).
  */
 export function handleErrorSdk(): Response {

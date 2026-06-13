@@ -18,14 +18,15 @@ function showOnboarding(): boolean {
 }
 
 function trackingSnippet(): string {
-  // Build BOTH tags from parts so no literal script-tag text appears in this
-  // component's source. A literal opening or closing tag corrupts stx's
-  // script-block parser (it emits this block raw, leaking TS), and a literal
-  // closing tag also terminates the inlined block in the browser.
+  // Fathom/Plausible-style one-liner: a single shared, cacheable /script.js for
+  // every site, with the site in a data-site attribute. Build the tag from parts
+  // so no literal script-tag text appears in this component's source — a literal
+  // opening/closing tag corrupts stx's script-block parser and would terminate
+  // the inlined block in the browser.
   const open = ['<', 'script'].join('')
   const close = ['<', '/script>'].join('')
-  const url = `${dashboard.apiEndpoint()}/sites/${dashboard.siteId()}/script`
-  return `${open} src="${url}" defer>${close}`
+  const origin = dashboard.apiEndpoint() || window.location.origin
+  return `${open} defer data-site="${dashboard.siteId()}" src="${origin}/script.js">${close}`
 }
 
 // The onboarding replaces the dashboard body, so hide #main-content while shown.

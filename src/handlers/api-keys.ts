@@ -189,6 +189,49 @@ catch (error) {
 }
 
 /**
+ * POST /api/sites/{siteId}/dsn/regenerate — rotate ONLY the error-tracking
+ * ingest key (the one behind the DSN), Sentry-style. The read/general API key
+ * is left intact, so rotating a leaked DSN doesn't break dashboard API access.
+ * Returns the fresh DSN + ingest key.
+ */
+export async function handleRegenerateIngestKey(request: Request, siteId: string): Promise<Response> {
+  try {
+    const result = await dynamodb.query({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: { ':pk': { S: `SITE#${siteId}` }, ':prefix': { S: 'API_KEY#' } },
+    }) as { Items?: any[] }
+
+    // Delete only ingest-only keys (error-tracking, never read) — leave the
+    // general read key alone.
+    for (const item of result.Items || []) {
+      const record = unmarshall(item)
+      const perms: string[] = Array.isArray(record.permissions) ? record.permissions : []
+      if (!perms.includes('error-tracking') || perms.includes('read')) continue
+      tokenCache.delete(`${record.key}:error-tracking`)
+      await dynamodb.deleteItem({
+        TableName: TABLE_NAME,
+        Key: marshall({ pk: `SITE#${siteId}`, sk: `API_KEY#${record.id}` }),
+      })
+    }
+
+    // Mint a fresh ingest-only key and return the rebuilt DSN.
+    const key = await getOrCreateIngestKey(siteId)
+    const origin = new URL(request.url).origin
+    return jsonResponse({
+      dsn: buildDsn(origin, siteId, key),
+      ingestKey: key,
+      endpoint: `${origin}/errors/collect`,
+      siteId,
+    })
+  }
+catch (error) {
+    console.error('Regenerate ingest key error:', error)
+    return errorResponse('Failed to regenerate error-tracking key')
+  }
+}
+
+/**
  * GET /api/sites/{siteId}/api-keys
  * Returns the single API key for the site
  */

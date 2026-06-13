@@ -287,6 +287,7 @@ export async function createRouter(): Promise<Router> {
 
   // API Keys
   await router.get('/api/sites/{siteId}/dsn', (req: any) => apiKeys.handleGetDsn(req, req.params.siteId))
+  await router.post('/api/sites/{siteId}/dsn/regenerate', (req: any) => apiKeys.handleRegenerateIngestKey(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/api-keys', (req: any) => apiKeys.handleGetApiKey(req, req.params.siteId))
   await router.post('/api/sites/{siteId}/api-keys/regenerate', (req: any) => apiKeys.handleRegenerateApiKey(req, req.params.siteId))
 
@@ -488,6 +489,11 @@ export async function createRouter(): Promise<Router> {
   // Raw-JS variant for the `<script src=".../script.js">` one-liner install.
   await router.get('/api/sites/{siteId}/script.js', (req: any) => {
     return import('./handlers/views').then(v => v.handleScript(req))
+  })
+  // Shared analytics tracker (Fathom-style): one cacheable file for all sites;
+  // the site comes from the tag's data-site attribute, the endpoint from origin.
+  await router.get('/script.js', (req: any) => {
+    return import('./handlers/views').then(v => v.handleSharedScript(req))
   })
   // Standalone error-tracking SDK (Sentry-style): configure with TSA.init({dsn}).
   await router.get('/sdk.js', () => import('./handlers/views').then(v => v.handleErrorSdk()))
