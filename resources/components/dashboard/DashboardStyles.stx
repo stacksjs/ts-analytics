@@ -42,6 +42,27 @@
   --accent2: #4f46e5;
 }
 
+/* ===== @stacksjs/components palette bridge ===== */
+/* crosswind 0.2.4 hardcodes the stock Tailwind palette (blue/neutral/…) and
+   ignores theme-config overrides for those names, so library components render
+   stock blue instead of our indigo. Map the library's color utilities onto this
+   app's themed CSS vars here. The app never uses raw blue-*/neutral-*/gray-NNN
+   utilities itself, so these overrides are collision-free. */
+.bg-blue-500, .bg-blue-600 { background-color: var(--accent) !important; }
+.hover\:bg-blue-600:hover { background-color: var(--accent2) !important; }
+.text-blue-500, .text-blue-600 { color: var(--accent) !important; }
+.border-blue-400, .border-blue-500 { border-color: var(--accent) !important; }
+.hover\:bg-blue-50:hover { background-color: color-mix(in srgb, var(--accent) 12%, transparent) !important; }
+.ring-blue-500, .focus\:ring-blue-500:focus { --tw-ring-color: var(--accent) !important; }
+.bg-neutral-100, .bg-neutral-200 { background-color: var(--bg3) !important; }
+.hover\:bg-neutral-100:hover, .hover\:bg-neutral-300:hover { background-color: var(--bg2) !important; }
+.text-neutral-700, .text-neutral-900 { color: var(--text) !important; }
+.text-gray-300, .text-gray-700 { color: var(--text2) !important; }
+.text-gray-400, .text-gray-600 { color: var(--muted) !important; }
+.bg-red-500, .bg-red-600 { background-color: var(--error) !important; }
+.bg-green-500, .bg-green-600 { background-color: var(--success) !important; }
+.bg-yellow-500, .bg-yellow-600 { background-color: var(--warning) !important; }
+
 /* ===== Base Resets ===== */
 
 *, *::before, *::after {
