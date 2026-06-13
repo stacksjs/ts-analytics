@@ -40,7 +40,7 @@ effect(() => {
   <Icon name="bar-chart-2" size="48" class="text-warning mb-4 mx-auto" />
   <h3 class="mb-2 text-warning">No analytics data yet</h3>
   <p class="text-text-2 mb-4">Add the tracking script to your website to start collecting data.</p>
-  <code id="tracking-script" class="block bg-bg p-4 rounded-md text-xs mt-4 text-accent-2 break-all text-left" x-text="trackingSnippet()"></code>
+  <code id="tracking-script" class="block bg-bg p-4 rounded-md text-xs mt-4 text-accent-2 break-all text-left">{{ trackingSnippet() }}</code>
   <div class="flex items-start gap-4 text-left mt-6 pt-6 border-t border-border">
     <div class="bg-accent text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-semibold flex-shrink-0">1</div>
     <div class="flex-1">

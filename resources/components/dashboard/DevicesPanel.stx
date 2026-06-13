@@ -54,10 +54,10 @@ onMount(() => {
           <svg class="text-muted shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(device.type)"/>
           </svg>
-          <span x-text="capitalize(device.type ? device.type : 'Unknown')"></span>
+          <span>{{ capitalize(device.type ? device.type : 'Unknown') }}</span>
         </td>
-        <td class="cell-value" x-text="fmt(device.visitors)"></td>
-        <td class="cell-value" x-text="(device.percentage ? device.percentage : 0) + '%'"></td>
+        <td class="cell-value">{{ fmt(device.visitors) }}</td>
+        <td class="cell-value">{{ (device.percentage ? device.percentage : 0) + '%' }}</td>
       </tr>
       <tr @for-loading>
         <td colspan="3" class="text-center text-muted py-4">Loading...</td>

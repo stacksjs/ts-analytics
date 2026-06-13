@@ -66,9 +66,9 @@
   "dependencies": {
     "@cwcss/crosswind": "^0.2.6",
     "@stacksjs/bun-router": "^0.0.16",
-    "@stacksjs/components": "^0.2.67",
-    "@stacksjs/stx": "^0.2.70",
-    "bun-plugin-stx": "^0.2.70",
+    "@stacksjs/components": "^0.2.72",
+    "@stacksjs/stx": "^0.2.72",
+    "bun-plugin-stx": "^0.2.72",
     "bun-query-builder": "^0.1.13",
     "dynamodb-tooling": "^0.3.2",
     "ts-countries": "^0.1.2"

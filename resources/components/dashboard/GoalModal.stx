@@ -128,10 +128,10 @@ onMount(() => {
 
 <div x-show="showModal()" class="modal-overlay" @click.self="closeModal">
   <div class="modal-content bg-bg-2 max-w-[420px] p-6">
-    <h3 class="text-lg font-semibold text-text mb-6" x-text="modalTitle()"></h3>
+    <h3 class="text-lg font-semibold text-text mb-6">{{ modalTitle() }}</h3>
 
     <form @submit="handleSubmit">
-      <div x-show="error()" class="error-message" x-text="error()"></div>
+      <div x-show="error()" class="error-message">{{ error() }}</div>
 
       <label class="block mb-4 text-[0.8125rem] text-text-2">
         Name
@@ -200,7 +200,7 @@ onMount(() => {
         <button type="button" class="btn btn-secondary" @click="closeModal" x-disabled="saving()">
           Cancel
         </button>
-        <button type="submit" class="btn btn-primary" x-disabled="saving()" x-text="saving() ? 'Saving...' : 'Save Goal'"></button>
+        <button type="submit" class="btn btn-primary" x-disabled="saving()">{{ saving() ? 'Saving...' : 'Save Goal' }}</button>
       </div>
     </form>
   </div>

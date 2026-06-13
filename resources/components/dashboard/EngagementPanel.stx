@@ -61,11 +61,11 @@ effect(() => {
   <div class="flex gap-8 mb-4">
     <div class="flex flex-col">
       <span class="text-[0.6875rem] uppercase tracking-wide text-muted">Avg. time on page</span>
-      <span class="text-lg font-semibold text-text" x-text="fmtTime(avgSeconds())"></span>
+      <span class="text-lg font-semibold text-text">{{ fmtTime(avgSeconds()) }}</span>
     </div>
     <div class="flex flex-col">
       <span class="text-[0.6875rem] uppercase tracking-wide text-muted">Avg. scroll depth</span>
-      <span class="text-lg font-semibold text-text" x-text="avgScroll() + '%'"></span>
+      <span class="text-lg font-semibold text-text">{{ avgScroll() + '%' }}</span>
     </div>
   </div>
 
@@ -79,9 +79,9 @@ effect(() => {
     </thead>
     <tbody>
       <tr x-for="p in pages" @loading="loading()">
-        <td class="cell-name truncate" x-text="p.path"></td>
-        <td class="cell-value" x-text="fmtTime(p.avgSeconds)"></td>
-        <td class="cell-value" x-text="p.avgScrollDepth + '%'"></td>
+        <td class="cell-name truncate">{{ p.path }}</td>
+        <td class="cell-value">{{ fmtTime(p.avgSeconds) }}</td>
+        <td class="cell-value">{{ p.avgScrollDepth + '%' }}</td>
       </tr>
       <tr @for-loading>
         <td colspan="3" class="text-center text-muted py-4">Loading...</td>

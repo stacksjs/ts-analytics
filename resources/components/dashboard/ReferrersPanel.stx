@@ -83,13 +83,13 @@ onMount(() => {
               class="align-middle rounded-sm"
               @error="e => e.target.style.display = 'none'"
             />
-            <span x-text="ref.source ? ref.source : 'Direct'"></span>
+            <span>{{ ref.source ? ref.source : 'Direct' }}</span>
             <Icon name="external-link" size="10" class="opacity-50" />
           </a>
-          <span x-show="!isExternalLink(ref.source ? ref.source : 'Direct')" x-text="ref.source ? ref.source : 'Direct'"></span>
+          <span x-show="!isExternalLink(ref.source ? ref.source : 'Direct')">{{ ref.source ? ref.source : 'Direct' }}</span>
         </td>
-        <td class="cell-value" x-text="fmt(ref.visitors)"></td>
-        <td class="cell-value" x-text="fmt(ref.views)"></td>
+        <td class="cell-value">{{ fmt(ref.visitors) }}</td>
+        <td class="cell-value">{{ fmt(ref.views) }}</td>
       </tr>
       <tr @for-loading>
         <td colspan="3" class="text-center text-muted py-4">Loading...</td>

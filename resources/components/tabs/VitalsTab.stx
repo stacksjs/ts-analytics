@@ -67,18 +67,18 @@ onMount(() => {
       <h4 class="text-sm font-semibold text-error mb-2">Performance Budget Violations</h4>
       <div class="flex flex-col gap-2">
         <div x-for="v in violations" class="text-[0.8125rem] flex gap-2 items-center">
-          <span class="font-semibold text-text" x-text="v.metric"></span>
-          <span class="text-error" x-text="v.currentValue + (v.metric === 'CLS' ? '' : 'ms')"></span>
-          <span class="text-muted" x-text="'(exceeds ' + v.threshold + (v.metric === 'CLS' ? '' : 'ms') + ' by ' + v.exceededBy + (v.metric === 'CLS' ? '' : 'ms') + ')'"></span>
+          <span class="font-semibold text-text">{{ v.metric }}</span>
+          <span class="text-error">{{ v.currentValue + (v.metric === 'CLS' ? '' : 'ms') }}</span>
+          <span class="text-muted">{{ '(exceeds ' + v.threshold + (v.metric === 'CLS' ? '' : 'ms') + ' by ' + v.exceededBy + (v.metric === 'CLS' ? '' : 'ms') + ')' }}</span>
         </div>
       </div>
     </div>
 
     <div class="vitals-grid">
       <div x-for="v in vitals" class="vital-card">
-        <div class="text-xs font-semibold text-muted uppercase tracking-wider mb-1" x-text="v.metric"></div>
-        <div x-class="vitalValueClass(v)" x-text="v.samples > 0 ? formatValue(v.metric, v.p75) : '—'"></div>
-        <div class="text-[0.6875rem] text-muted mb-2" x-text="(v.samples || 0) + ' samples'"></div>
+        <div class="text-xs font-semibold text-muted uppercase tracking-wider mb-1">{{ v.metric }}</div>
+        <div x-class="vitalValueClass(v)">{{ v.samples > 0 ? formatValue(v.metric, v.p75) : '—' }}</div>
+        <div class="text-[0.6875rem] text-muted mb-2">{{ (v.samples || 0) + ' samples' }}</div>
         <div x-show="v.samples > 0" class="h-1 rounded-sm flex overflow-hidden bg-bg">
           <div class="good" x-style="'width: ' + v.good + '%'"></div>
           <div class="needs-improvement" x-style="'width: ' + v.needsImprovement + '%'"></div>
