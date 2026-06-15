@@ -54,6 +54,18 @@
 <script src="/assets/functions/dashboard.ts"></script>
 
 <div id="dashboard" class="min-h-screen flex flex-col" style="display:none">
+  {{-- Crosswind class-safelist sentinel.
+       The per-page crosswind generator only emits CSS for classes it sees in
+       the RENDERED HTML — static class="" attributes and x-class string/object
+       literals. Shortcuts applied purely via x-class FUNCTION return values
+       (e.g. rangeBtnClass(), tab-btn toggles, status-driven badge/card classes)
+       are invisible to it, so their rules never generate and the elements
+       render unstyled. The config's `safelist` does NOT expand shortcut names,
+       so we list those dynamic-only shortcuts here as real static classes —
+       one occurrence per page (this layout wraps all 22 dashboard views) is
+       enough to force every rule to generate. Hidden; never displayed. --}}
+  <div hidden aria-hidden="true" class="date-range-btn date-range-btn-active tab-btn tab-btn-active badge badge-success badge-warning badge-error badge-info btn-danger session-card error-card vital-card"></div>
+
   <dashboard-header />
 
   @yield('controls')
