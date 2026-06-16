@@ -25,6 +25,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./stx": {
+      "types": "./dist/integrations/stx.d.ts",
+      "import": "./dist/integrations/stx.js"
+    },
     "./*": {
       "import": "./dist/*"
     }

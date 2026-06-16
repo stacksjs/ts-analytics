@@ -18,3 +18,10 @@ export {
   type CloudflareHandlerOptions,
   type StorageAdapter,
 } from './cloudflare'
+
+export {
+  type StxHeadScript,
+  tsAnalytics,
+  type TsAnalyticsOptions,
+  tsAnalyticsTag,
+} from './stx'
