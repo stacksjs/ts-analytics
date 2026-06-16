@@ -46,6 +46,15 @@ await serve({
   port,
   layoutsDir: 'resources/layouts',
   partialsDir: 'resources/components',
+  // Absolute componentsDir so stx's tag resolver searches (and recursively
+  // walks) resources/components — finding subdir components like
+  // <site-selector> → components/dashboard/SiteSelector.stx. stx only auto-adds
+  // resources/components to the search frontier when `options.root` is set, and
+  // serve() does not propagate it; a *relative* componentsDir resolves against
+  // the importing file's dir (the layout), not the project root. Absolute fixes
+  // both. (Replaces the removed stx-app-components.plugin.ts workaround; see
+  // stacksjs/stx — resources/components should be searched without needing root.)
+  componentsDir: `${import.meta.dir}/resources/components`,
   onRequest: async (req) => {
     const url = new URL(req.url)
     if (!shouldProxy(req.method, url.pathname))
