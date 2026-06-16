@@ -41,6 +41,31 @@ The validated pattern for adding ts-analytics to any site (docs sites included):
 
 3. **Optional hardening**: append `?stealth=true` for the unlisted beacon path, or serve it first-party from your own domain — see the [ad-blocker resilience guide](docs/guide/tracking-script.md#ad-blocker-resilience-first-party-proxy). Error tracking without analytics: grab the DSN + SDK snippet from the same Settings page.
 
+### stx framework (one config line)
+
+On an [stx](https://github.com/stacksjs/stx) app there's no `index.html` to paste a snippet into. Add the plugin and your app ID — that's the whole install (mirrors `nuxt-fathom`):
+
+```ts
+// stx.config.ts
+export default {
+  plugins: ['@stacksjs/ts-analytics'],
+  analytics: {
+    appId: 'YOUR_APP_ID',
+    // apiEndpoint defaults to '/api/analytics' (events POST to `${apiEndpoint}/collect`)
+  },
+}
+```
+
+It injects the SPA-aware tracker before `</head>` on every server-rendered page — pageviews fire on the first load **and** on client-side (`<StxLink>`) navigations, since the tracker patches `history.pushState`.
+
+You can also pass options inline: `plugins: [['@stacksjs/ts-analytics', { appId: 'YOUR_APP_ID' }]]`.
+
+Notes:
+
+- **The plugin is the package's default export**, so `plugins: ['@stacksjs/ts-analytics']` resolves to it directly. Non-stx code should use the **named** exports (`import { Analytics } from '@stacksjs/ts-analytics'`).
+- **It owns the `analytics` config key** and is mutually exclusive with stx's native single-driver analytics — if you've set `analytics.driver` to a native provider (`fathom`, `plausible`, …), ts-analytics backs off (and logs a warning).
+- **Mount a collector** for `${apiEndpoint}/collect` (e.g. `mountAnalyticsRoutes` / `createBunRouter` from this package), or point `apiEndpoint` at a hosted ts-analytics instance — otherwise beacons hit a 404.
+
 ## Quick Start
 
 ### 1. Set Up the Analytics Store

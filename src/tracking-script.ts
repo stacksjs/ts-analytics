@@ -187,10 +187,14 @@ function buildScript(config: TrackingScriptConfig): string {
 }
 
 function buildConfigSection(config: TrackingScriptConfig): string {
+  // JSON.stringify the string values (matching excludePaths below) so a quote,
+  // backslash, or newline in siteId/apiEndpoint can't break out of the literal
+  // and corrupt the whole inline tracker. (A literal `</script>` still has to be
+  // rejected upstream — the HTML parser closes <script> regardless of JS context.)
   return `// Configuration
 var CONFIG = {
-  siteId: '${config.siteId}',
-  endpoint: '${config.apiEndpoint}/collect',
+  siteId: ${JSON.stringify(config.siteId)},
+  endpoint: ${JSON.stringify(`${config.apiEndpoint}/collect`)},
   honorDnt: ${config.honorDnt ?? true},
   sessionTimeout: ${(config.sessionTimeout ?? 30) * 60 * 1000},
   debug: ${config.debug ?? false},

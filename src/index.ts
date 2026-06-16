@@ -363,3 +363,8 @@ export {
   lookupFromHeaders,
   lookupIP,
 } from './geolocation'
+
+// stx integration. The plugin is the package's DEFAULT export so stx resolves
+// `plugins: ['@stacksjs/ts-analytics']` to it directly (no subpath). Config is
+// read from the top-level `analytics: { appId }` key. See ./integrations/stx.
+export { default, type StxAnalyticsConfig, stxPlugin } from './integrations/stx'

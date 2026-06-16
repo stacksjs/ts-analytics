@@ -42,6 +42,7 @@
   "scripts": {
     "analytics": "bun ./bin/cli.ts",
     "build": "bun build.ts",
+    "build:site": "bun build-site.ts",
     "preview": "bun preview.ts",
     "dev": "bun --watch serve.ts",
     "dev:server": "bun --watch ./server/index.ts",

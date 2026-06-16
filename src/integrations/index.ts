@@ -18,3 +18,8 @@ export {
   type CloudflareHandlerOptions,
   type StorageAdapter,
 } from './cloudflare'
+
+export {
+  default as stxPlugin,
+  type StxAnalyticsConfig,
+} from './stx'
