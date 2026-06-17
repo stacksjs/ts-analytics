@@ -33,7 +33,7 @@
     "bin",
     "build.ts",
     "serve.ts",
-    "stx.config.ts",
+    "config/stx.ts",
     "**/*.stx",
     "**/*.d.ts"
   ],
