@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
 /**
- * Serves the static `dist/` build locally for testing before deploying
- * to Netlify / Vercel / S3. Plain file server, no processing.
+ * Serves the static site build (`dist-site/`, produced by `bun run build:site`)
+ * locally for testing before deploying to Netlify / Vercel / S3. Plain file
+ * server, no processing. (The npm library build lives in `dist/` — see build.ts.)
  *
  * Usage: bun run preview
  */
 
 const port = Number(process.argv[2]) || 3001
-const distDir = 'dist'
+const distDir = 'dist-site'
 
 Bun.serve({
   port,
