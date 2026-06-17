@@ -3,7 +3,7 @@
  * DashboardStyles Component
  *
  * CSS variables for theming and base styles for the dashboard.
- * Component classes are now Crosswind shortcuts (see crosswind.config.ts).
+ * Component classes are now Crosswind shortcuts (see config/crosswind.ts).
  * Only styles that can't be expressed as utility classes remain here.
  */
 </script>

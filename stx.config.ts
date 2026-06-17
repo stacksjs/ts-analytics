@@ -26,7 +26,7 @@ export default {
     },
   },
 
-  css: './crosswind.config.ts',
+  css: './config/crosswind.ts',
 
   ssr: true,
 
