@@ -29,6 +29,10 @@
       "types": "./dist/integrations/stx.d.ts",
       "import": "./dist/integrations/stx.js"
     },
+    "./nuxt": {
+      "types": "./dist/integrations/nuxt.d.ts",
+      "import": "./dist/integrations/nuxt.js"
+    },
     "./*": {
       "import": "./dist/*"
     }
@@ -80,7 +84,21 @@
   },
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.3",
+    "@nuxt/kit": "^3.13.0",
+    "@nuxt/schema": "^3.13.0",
     "better-dx": "^0.2.15"
+  },
+  "peerDependencies": {
+    "@nuxt/kit": "^3.0.0",
+    "@nuxt/schema": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@nuxt/kit": {
+      "optional": true
+    },
+    "@nuxt/schema": {
+      "optional": true
+    }
   },
   "git-hooks": {
     "pre-commit": {
