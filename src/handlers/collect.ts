@@ -43,6 +43,29 @@ function isValidSessionId(value: unknown): value is string {
 }
 
 /**
+ * Whether an event should be dropped per the configured exclusions: IPs by
+ * exact match, paths by regex (falling back to exact match if the pattern is
+ * invalid). Lets deployments exclude internal traffic / admin paths (#159).
+ */
+function isExcluded(ip: string, path: string, ips?: string[], paths?: string[]): boolean {
+  if (ips && ips.length > 0 && ips.includes(ip))
+    return true
+  if (paths) {
+    for (const pattern of paths) {
+      try {
+        if (new RegExp(pattern).test(path))
+          return true
+      }
+      catch {
+        if (pattern === path)
+          return true
+      }
+    }
+  }
+  return false
+}
+
+/**
  * Keep only valid scroll buckets (integer depth 0-100 → finite ms), so a crafted
  * payload can't bloat the item — and, since keys are bounded to 0-100, the
  * cross-request merge in HeatmapScroll.upsert stays bounded too (#150).
@@ -147,6 +170,12 @@ catch {
         status: 429,
         headers: { 'Content-Type': 'application/json', 'Retry-After': '60' },
       })
+    }
+
+    // Honor configured IP/path exclusions (internal traffic, admin paths) (#159).
+    const tracking = getConfig().tracking
+    if (isExcluded(ip, parsedUrlForSite.pathname, tracking.excludedIps, tracking.excludedPaths)) {
+      return new Response(null, { status: 204 })
     }
 
     const headers = getHeaders(request)

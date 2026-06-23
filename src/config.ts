@@ -117,6 +117,10 @@ export interface AnalyticsConfig {
     trackHashChanges: boolean
     /** Track outbound link clicks */
     trackOutboundLinks: boolean
+    /** IPs whose events are dropped at ingest (exact match). */
+    excludedIps?: string[]
+    /** Path patterns (regex) whose events are dropped at ingest. */
+    excludedPaths?: string[]
   }
 
   /** API settings */
@@ -261,6 +265,8 @@ export const defaultConfig: AnalyticsConfig = {
     trackDeviceType: true,
     trackHashChanges: false,
     trackOutboundLinks: true,
+    excludedIps: [],
+    excludedPaths: [],
   },
 
   api: {
