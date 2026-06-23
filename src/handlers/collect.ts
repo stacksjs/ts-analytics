@@ -4,10 +4,12 @@
 
 import {
   generateId,
+  generateSessionId,
   hashVisitorId,
   getDailySalt,
 } from '../index'
 import type { Session as SessionType } from '../../src/types'
+import { randomToken } from '../lib/crypto-random'
 import {
   PageView as PageViewModel,
   Session as SessionModel,
@@ -25,6 +27,32 @@ import { getCountryFromHeaders, getCountryFromIP, getRegionFromHeaders, getCityF
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
 import { ensureSiteExists } from './misc'
+
+/**
+ * A client-supplied session id is only trusted if it looks like one our tracker
+ * emits — otherwise a missing id collapses every hit to SESSION#undefined and a
+ * crafted id can corrupt session counts / keys (#147).
+ */
+function isValidSessionId(value: unknown): value is string {
+  return typeof value === 'string' && /^[\w-]{6,64}$/.test(value)
+}
+
+/**
+ * Keep only valid scroll buckets (integer depth 0-100 → finite ms), so a crafted
+ * payload can't bloat the item — and, since keys are bounded to 0-100, the
+ * cross-request merge in HeatmapScroll.upsert stays bounded too (#150).
+ */
+function clampScrollDepths(depths: unknown): Record<number, number> {
+  const out: Record<number, number> = {}
+  if (!depths || typeof depths !== 'object')
+    return out
+  for (const [k, v] of Object.entries(depths as Record<string, unknown>)) {
+    const d = Number(k)
+    if (Number.isInteger(d) && d >= 0 && d <= 100 && typeof v === 'number' && Number.isFinite(v))
+      out[d] = Math.max(0, Math.min(v, 24 * 60 * 60 * 1000))
+  }
+  return out
+}
 
 /**
  * Extract UTM parameters and ad click IDs from a request URL.
@@ -115,7 +143,13 @@ catch {
     // standalone opt-in infrastructure for spike-buffered pipelines.
     console.log(`[Collect] IP: ${ip}, UA: ${userAgent?.substring(0, 50)}...`)
     const salt = getDailySalt()
-    const visitorId = await hashVisitorId(ip, userAgent, payload.s, salt)
+    // When neither IP nor UA carries any signal, hashVisitorId would collapse
+    // every such hit to one identical hash — under-counting uniques and letting a
+    // client hide by omitting both. Use a per-hit anonymous id instead (#148).
+    const hasVisitorSignal = (!!ip && ip !== 'unknown') || (!!userAgent && userAgent !== 'unknown')
+    const visitorId = hasVisitorSignal
+      ? await hashVisitorId(ip, userAgent, payload.s, salt)
+      : `anon_${randomToken(24)}`
 
     let parsedUrl: URL
     try {
@@ -126,7 +160,9 @@ catch {
     }
 
     const timestamp = new Date()
-    const sessionId = payload.sid
+    // Reject a missing/malformed client session id (would collapse to
+    // SESSION#undefined / allow crafted keys); mint a server-side one (#147).
+    const sessionId = isValidSessionId(payload.sid) ? payload.sid : generateSessionId()
 
     const sessionKey = `${payload.s}:${sessionId}`
     let session = getSession(sessionKey)
@@ -266,10 +302,16 @@ else if (payload.e === 'event') {
       const eventValue = typeof props.value === 'number' ? props.value : undefined
 
       // Keep only primitive custom props; exclude the reserved name/value keys.
+      // Cap the count and string length so a crafted payload can't bloat the
+      // item toward the DynamoDB 400KB limit (#134).
+      const MAX_PROPS = 50
+      const MAX_PROP_LEN = 1024
       const customProps: Record<string, string | number | boolean> = {}
       for (const [k, v] of Object.entries(props)) {
         if (k === 'name' || k === 'value') continue
-        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') customProps[k] = v
+        if (Object.keys(customProps).length >= MAX_PROPS) break
+        if (typeof v === 'string') customProps[k.slice(0, 256)] = v.slice(0, MAX_PROP_LEN)
+        else if (typeof v === 'number' || typeof v === 'boolean') customProps[k.slice(0, 256)] = v
       }
 
       await CustomEventModel.record({
@@ -433,13 +475,16 @@ else if (payload.e === 'hm_move') {
       const deviceInfo = parseUserAgent(userAgent)
 
       if (props.points && Array.isArray(props.points) && props.points.length > 0) {
+        // Cap points so one request can't exceed the DynamoDB 400KB item limit
+        // (write failures / amplification DoS) (#149).
+        const MAX_POINTS = 500
         await HeatmapMovement.record({
           id: generateId(),
           siteId: payload.s,
           sessionId,
           visitorId,
           path: payload.u,
-          points: props.points,
+          points: props.points.slice(0, MAX_POINTS),
           viewportWidth: props.vw || 0,
           viewportHeight: props.vh || 0,
           deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
@@ -458,7 +503,7 @@ else if (payload.e === 'hm_scroll') {
         visitorId,
         path: payload.u,
         maxScrollDepth: props.maxDepth || 0,
-        scrollDepths: props.depths || {},
+        scrollDepths: clampScrollDepths(props.depths),
         documentHeight: props.docHeight || 0,
         viewportHeight: props.vh || 0,
         deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
