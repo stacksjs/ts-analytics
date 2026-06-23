@@ -172,12 +172,24 @@ export interface Insight {
   severity: string
 }
 
-export interface ComparisonStats {
-  thisWeekViews: number
-  lastWeekViews: number
-  change: number
+export interface ComparisonPeriodStats {
+  visitors: number
+  views: number
   sessions: number
   bounceRate: number
+  avgDuration: number
+}
+
+/** Shape returned by GET /comparison: the selected range vs the period before. */
+export interface ComparisonStats {
+  current: ComparisonPeriodStats
+  previous: ComparisonPeriodStats
+  /** Percentage change (current vs previous) per metric. */
+  changes: ComparisonPeriodStats
+  periods?: {
+    current: { start: string, end: string }
+    previous: { start: string, end: string }
+  }
 }
 
 export interface Referrer {

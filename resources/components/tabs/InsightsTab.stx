@@ -21,8 +21,8 @@ function getIconPath(type: string): string {
   return iconTypes[type] || iconTypes.traffic
 }
 
-function changeClass(stats: ComparisonStats): string {
-  return stats.change > 0 ? 'text-xs font-semibold mt-1 text-success' : 'text-xs font-semibold mt-1 text-error'
+function changeClass(change: number): string {
+  return change >= 0 ? 'text-xs font-semibold mt-1 text-success' : 'text-xs font-semibold mt-1 text-error'
 }
 
 function insightIconClass(insight: Insight): string {
@@ -69,22 +69,25 @@ onMount(() => {
   <div x-show="!loading() && !error()">
     <div x-show="comparisonStats()" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
       <div class="stat-card text-center">
-        <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().thisWeekViews | fmt }}</div>
-        <div class="text-xs text-muted">Views This Week</div>
-        <div x-show="comparisonStats().change !== 0" x-class="changeClass(comparisonStats())">
-          {{ comparisonStats().change > 0 ? '+' : '' }}{{ comparisonStats().change }}%
+        <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().current.views | fmt }}</div>
+        <div class="text-xs text-muted">Views This Period</div>
+        <div x-show="comparisonStats().changes.views !== 0" x-class="changeClass(comparisonStats().changes.views)">
+          {{ comparisonStats().changes.views > 0 ? '+' : '' }}{{ comparisonStats().changes.views }}%
         </div>
       </div>
       <div class="stat-card text-center">
-        <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().lastWeekViews | fmt }}</div>
-        <div class="text-xs text-muted">Views Last Week</div>
+        <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().previous.views | fmt }}</div>
+        <div class="text-xs text-muted">Views Previous Period</div>
       </div>
       <div class="stat-card text-center">
-        <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().sessions ? comparisonStats().sessions : 0 }}</div>
+        <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().current.sessions }}</div>
         <div class="text-xs text-muted">Sessions</div>
+        <div x-show="comparisonStats().changes.sessions !== 0" x-class="changeClass(comparisonStats().changes.sessions)">
+          {{ comparisonStats().changes.sessions > 0 ? '+' : '' }}{{ comparisonStats().changes.sessions }}%
+        </div>
       </div>
       <div class="stat-card text-center">
-        <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().bounceRate ? comparisonStats().bounceRate : 0 }}%</div>
+        <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().current.bounceRate }}%</div>
         <div class="text-xs text-muted">Bounce Rate</div>
       </div>
     </div>
