@@ -5,8 +5,13 @@
 import { generateId } from '../index'
 import { randomToken } from '../lib/crypto-random'
 import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
+import { rateLimitAllow } from '../lib/rate-limit'
 import { jsonResponse, errorResponse } from '../utils/response'
-import { getQueryParams } from '../../deploy/lambda-adapter'
+import { getClientIP, getQueryParams } from '../../deploy/lambda-adapter'
+
+/** Max key-validation cache MISSES per minute per IP — throttles brute-forcing
+ * of unknown keys without affecting legit clients (their valid key is cached). */
+const KEY_VALIDATION_LIMIT_PER_MIN = 60
 
 /**
  * Generate a secure API key
@@ -48,6 +53,13 @@ export async function handleValidateApiKey(
   const cached = tokenCache.get(`${token}:${requiredPermission}`)
   if (cached && cached.expires > Date.now()) {
     return cached.result
+  }
+
+  // Only cache MISSES reach here. Brute-force tries many distinct keys (all
+  // misses), so rate-limiting misses per IP throttles enumeration while legit
+  // clients (reusing one valid, cached key) are unaffected (#158).
+  if (!rateLimitAllow(`keyauth:${getClientIP(request)}`, KEY_VALIDATION_LIMIT_PER_MIN, 60_000)) {
+    return { valid: false }
   }
 
   try {

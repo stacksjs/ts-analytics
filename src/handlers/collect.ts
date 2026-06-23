@@ -10,6 +10,7 @@ import {
 } from '../index'
 import type { Session as SessionType } from '../../src/types'
 import { randomToken } from '../lib/crypto-random'
+import { rateLimitAllow } from '../lib/rate-limit'
 import {
   PageView as PageViewModel,
   Session as SessionModel,
@@ -27,6 +28,9 @@ import { getCountryFromHeaders, getCountryFromIP, getRegionFromHeaders, getCityF
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
 import { ensureSiteExists } from './misc'
+
+/** Max ingest requests per minute per IP on /collect + /t (429 beyond this). */
+const COLLECT_RATE_LIMIT_PER_MIN = 1200
 
 /**
  * A client-supplied session id is only trusted if it looks like one our tracker
@@ -133,6 +137,17 @@ catch {
     }
 
     const ip = getClientIP(request)
+
+    // Per-IP rate limit on the public ingest endpoint to cap event-spam / DoS
+    // (#158). Deliberately generous (20/s) so heavy SPA usage and shared NAT
+    // aren't throttled while single-source floods are. In-memory per process.
+    if (!rateLimitAllow(`collect:${ip}`, COLLECT_RATE_LIMIT_PER_MIN, 60_000)) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '60' },
+      })
+    }
+
     const headers = getHeaders(request)
 
     // Ingest is cleanly direct (#97). The old SQS "fast path" was removed: it
