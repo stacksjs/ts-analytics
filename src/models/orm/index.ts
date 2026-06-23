@@ -37,6 +37,7 @@
 
 import { Model, configureModels, DynamoDBClient, createClient } from 'bun-query-builder/dynamodb'
 import type { DeviceType } from '../../types'
+import { getConfig, getTtlForEntity } from '../../config'
 
 // ============================================================================
 // Configuration
@@ -169,6 +170,9 @@ export class PageView extends Model {
       gsi1sk: `PATH#${data.path}`,
       timestamp: timestamp.toISOString(),
       _et: 'PageView',
+      // Raw-event TTL so visitor-hash/path/referrer/geo/UTM rows expire per the
+      // configured retention instead of living forever (#143).
+      ttl: getTtlForEntity(getConfig(), 'raw'),
     }
 
     const client = createClient({
@@ -383,6 +387,7 @@ export class Session extends Model {
       startedAt: data.startedAt instanceof Date ? data.startedAt.toISOString() : data.startedAt,
       endedAt: data.endedAt instanceof Date ? data.endedAt.toISOString() : data.endedAt,
       _et: 'Session',
+      ttl: getTtlForEntity(getConfig(), 'raw'),
     }
 
     const client = createClient({
@@ -451,6 +456,7 @@ export class Session extends Model {
       startedAt: data.startedAt instanceof Date ? data.startedAt.toISOString() : data.startedAt,
       endedAt: data.endedAt instanceof Date ? data.endedAt.toISOString() : data.endedAt,
       _et: 'Session',
+      ttl: getTtlForEntity(getConfig(), 'raw'),
     }
     const client = createClient({
       region: process.env.AWS_REGION || 'us-east-1',
@@ -688,6 +694,7 @@ export class CustomEvent extends Model {
       gsi1sk: `EVENT#${data.name}`,
       timestamp: timestamp.toISOString(),
       _et: 'CustomEvent',
+      ttl: getTtlForEntity(getConfig(), 'raw'),
     }
 
     // Serialize properties as JSON string
