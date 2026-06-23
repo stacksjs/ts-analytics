@@ -199,6 +199,14 @@ catch (e) {
         session.isBounce = false
         const startedAt = session.startedAt instanceof Date ? session.startedAt : new Date(session.startedAt)
         session.duration = timestamp.getTime() - startedAt.getTime()
+        // Atomic increment so concurrent pageviews don't lose the count (#161).
+        await SessionModel.incrementMetrics(payload.s, sessionId, {
+          incPageViews: 1,
+          exitPath: parsedUrl.pathname,
+          endedAt: timestamp,
+          duration: session.duration,
+          isBounce: false,
+        })
       }
 else {
         session = {
@@ -223,9 +231,20 @@ else {
           startedAt: timestamp,
           endedAt: timestamp,
         }
+        // Conditional create; if a concurrent request already created this
+        // session, count this pageview atomically instead of clobbering it (#161).
+        const created = await SessionModel.createIfAbsent(session)
+        if (!created) {
+          await SessionModel.incrementMetrics(payload.s, sessionId, {
+            incPageViews: 1,
+            exitPath: parsedUrl.pathname,
+            endedAt: timestamp,
+            duration: 0,
+            isBounce: false,
+          })
+        }
       }
 
-      await SessionModel.upsert(session)
       setSession(sessionKey, session)
 
       await checkAndRecordConversions(
@@ -272,7 +291,12 @@ else if (payload.e === 'event') {
         const startedAt = session.startedAt instanceof Date ? session.startedAt : new Date(session.startedAt)
         session.duration = timestamp.getTime() - startedAt.getTime()
 
-        await SessionModel.upsert(session)
+        // Atomic increment so concurrent events don't lose the count (#161).
+        await SessionModel.incrementMetrics(payload.s, sessionId, {
+          incEvents: 1,
+          endedAt: timestamp,
+          duration: session.duration,
+        })
         setSession(sessionKey, session)
       }
 
@@ -309,7 +333,12 @@ else if (payload.e === 'outbound') {
         const startedAt = session.startedAt instanceof Date ? session.startedAt : new Date(session.startedAt)
         session.duration = timestamp.getTime() - startedAt.getTime()
 
-        await SessionModel.upsert(session)
+        // Atomic increment so concurrent events don't lose the count (#161).
+        await SessionModel.incrementMetrics(payload.s, sessionId, {
+          incEvents: 1,
+          endedAt: timestamp,
+          duration: session.duration,
+        })
         setSession(sessionKey, session)
       }
     }
@@ -344,7 +373,12 @@ else if (payload.e === 'click') {
         const startedAt = session.startedAt instanceof Date ? session.startedAt : new Date(session.startedAt)
         session.duration = timestamp.getTime() - startedAt.getTime()
 
-        await SessionModel.upsert(session)
+        // Atomic increment so concurrent events don't lose the count (#161).
+        await SessionModel.incrementMetrics(payload.s, sessionId, {
+          incEvents: 1,
+          endedAt: timestamp,
+          duration: session.duration,
+        })
         setSession(sessionKey, session)
       }
     }

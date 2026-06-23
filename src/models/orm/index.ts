@@ -437,6 +437,111 @@ export class Session extends Model {
 
     return this
   }
+
+  /**
+   * Create the session only if it does not already exist. Returns false when a
+   * concurrent request already created it, so the caller can fall back to an
+   * atomic increment instead of overwriting its counts (#161).
+   */
+  static async createIfAbsent(data: SessionData): Promise<boolean> {
+    const item = {
+      ...data,
+      pk: `SITE#${data.siteId}`,
+      sk: `SESSION#${data.id}`,
+      startedAt: data.startedAt instanceof Date ? data.startedAt.toISOString() : data.startedAt,
+      endedAt: data.endedAt instanceof Date ? data.endedAt.toISOString() : data.endedAt,
+      _et: 'Session',
+    }
+    const client = createClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    })
+    try {
+      await client.putItem({
+        TableName: getTableName(),
+        Item: marshall(item),
+        ConditionExpression: 'attribute_not_exists(pk)',
+      })
+      return true
+    }
+    catch (e: any) {
+      if (e?.name === 'ConditionalCheckFailedException')
+        return false
+      throw e
+    }
+  }
+
+  /**
+   * Atomically increment session counters and update last-activity fields via a
+   * DynamoDB UpdateExpression (ADD for counters, SET for the rest). Unlike a
+   * read-modify-write putItem, concurrent pageviews/events can't lose each
+   * other's increments (#161). Only touches an already-existing session — the
+   * `attribute_exists` guard avoids recreating a partial row if it has expired.
+   */
+  static async incrementMetrics(siteId: string, id: string, updates: {
+    incPageViews?: number
+    incEvents?: number
+    exitPath?: string
+    endedAt?: Date | string
+    duration?: number
+    isBounce?: boolean
+  }): Promise<void> {
+    const setParts: string[] = []
+    const addParts: string[] = []
+    const names: Record<string, string> = {}
+    const values: Record<string, any> = {}
+    const field = (attr: string, key: string, value: unknown, op: 'SET' | 'ADD'): void => {
+      names[`#${key}`] = attr
+      values[`:${key}`] = marshallValue(value)
+      if (op === 'ADD')
+        addParts.push(`#${key} :${key}`)
+      else
+        setParts.push(`#${key} = :${key}`)
+    }
+    if (updates.incPageViews)
+      field('pageViewCount', 'pv', updates.incPageViews, 'ADD')
+    if (updates.incEvents)
+      field('eventCount', 'ev', updates.incEvents, 'ADD')
+    if (updates.exitPath !== undefined)
+      field('exitPath', 'ep', updates.exitPath, 'SET')
+    if (updates.endedAt !== undefined)
+      field('endedAt', 'ea', updates.endedAt instanceof Date ? updates.endedAt.toISOString() : updates.endedAt, 'SET')
+    if (updates.duration !== undefined)
+      field('duration', 'du', updates.duration, 'SET')
+    if (updates.isBounce !== undefined)
+      field('isBounce', 'bo', updates.isBounce, 'SET')
+
+    const clauses: string[] = []
+    if (setParts.length > 0)
+      clauses.push(`SET ${setParts.join(', ')}`)
+    if (addParts.length > 0)
+      clauses.push(`ADD ${addParts.join(', ')}`)
+    if (clauses.length === 0)
+      return
+
+    const client = createClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    })
+    try {
+      await client.updateItem({
+        TableName: getTableName(),
+        Key: {
+          pk: { S: `SITE#${siteId}` },
+          sk: { S: `SESSION#${id}` },
+        },
+        UpdateExpression: clauses.join(' '),
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values,
+        ConditionExpression: 'attribute_exists(pk)',
+      })
+    }
+    catch (e: any) {
+      // Session vanished between read and write (expiry/race) — skip rather than
+      // recreate a partial row missing entryPath/startedAt/dimensions.
+      if (e?.name === 'ConditionalCheckFailedException')
+        return
+      throw e
+    }
+  }
 }
 
 interface SessionData {
