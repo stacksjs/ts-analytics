@@ -8,7 +8,7 @@ import { jsonResponse, errorResponse } from '../utils/response'
 import { getReferrerSourceChannel } from '../utils/geolocation'
 import { parseFilters, matchesFilters, hasFilters } from '../utils/filters'
 import { getQueryParams } from '../../deploy/lambda-adapter'
-import { readDayRollups, fullyCoveredDays, isCompleteDay } from '../lib/rollups'
+import { readDayRollups, fullyCoveredDays, isSettledDay } from '../lib/rollups'
 
 /**
  * GET /api/sites/{siteId}/stats
@@ -28,7 +28,9 @@ export async function handleGetStats(request: Request, siteId: string): Promise<
     const rolled: { day: string, views: number, visitors: number, sessions: number, bounces: number, totalDuration: number, events: number }[] = []
     let rawWindowStart = startDate
     if (!hasFilters(filters)) {
-      const eligible = fullyCoveredDays(startDate, endDate).filter(d => isCompleteDay(d))
+      // Serve only SETTLED days from rollups; the most-recent complete day stays
+      // on the raw path so late-arriving events aren't dropped (#162).
+      const eligible = fullyCoveredDays(startDate, endDate).filter(d => isSettledDay(d))
       if (eligible.length > 0) {
         const rollups = await readDayRollups(siteId, eligible[0], eligible[eligible.length - 1])
         // Use the contiguous covered prefix so one raw range query handles the
@@ -589,7 +591,9 @@ export async function handleGetTimeSeries(request: Request, siteId: string): Pro
     const rollupByDay = new Map<string, { views: number, visitors: number }>()
     let rawWindowStart = startDate
     if (period === 'day' || period === 'month') {
-      const eligible = fullyCoveredDays(startDate, endDate).filter(d => isCompleteDay(d))
+      // Serve only SETTLED days from rollups; the most-recent complete day stays
+      // on the raw path so late-arriving events aren't dropped (#162).
+      const eligible = fullyCoveredDays(startDate, endDate).filter(d => isSettledDay(d))
       if (eligible.length > 0) {
         const rollups = await readDayRollups(siteId, eligible[0], eligible[eligible.length - 1])
         for (const day of eligible) {

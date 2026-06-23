@@ -48,6 +48,20 @@ export function isCompleteDay(day: string, now: Date = new Date()): boolean {
 }
 
 /**
+ * A day "settles" ROLLUP_SETTLE_DAYS after it completes. Only settled days may
+ * be SERVED from a rollup — the most-recent complete day(s) stay on the live raw
+ * path, so late-arriving events for an already-rolled day (unload beacons near
+ * the midnight boundary, retries, clock skew) are counted immediately instead of
+ * being silently dropped (#162). The rollup job recomputes the trailing window,
+ * so longer-tail late events are folded in before a day becomes settled. Pure.
+ */
+export const ROLLUP_SETTLE_DAYS = 1
+export function isSettledDay(day: string, now: Date = new Date()): boolean {
+  const cutoff = new Date(now.getTime() - ROLLUP_SETTLE_DAYS * 24 * 60 * 60 * 1000)
+  return day < cutoff.toISOString().slice(0, 10)
+}
+
+/**
  * Days whose full 24h window lies inside [start, end] — only these may be
  * served from a full-day rollup; partial first/last days must stay on the raw
  * path or counts would include hours outside the range. Pure — unit tested.
@@ -156,8 +170,11 @@ export async function readDayRollups(siteId: string, startDay: string, endDay: s
 }
 
 /**
- * Ensure rollups exist for the last `daysBack` complete days of a site.
- * Idempotent — existing rollups are skipped. Returns how many were written.
+ * Recompute rollups for the last `daysBack` complete days of a site. Recomputing
+ * the whole trailing window (rather than skipping existing rollups) folds in
+ * events that arrived late for an already-rolled day, so they aren't silently
+ * dropped (#162). Rollups are deterministic from raw events, so re-runs are
+ * safe. Returns how many were written.
  */
 export async function ensureDayRollups(siteId: string, daysBack = 3): Promise<number> {
   const now = new Date()
@@ -167,11 +184,8 @@ export async function ensureDayRollups(siteId: string, daysBack = 3): Promise<nu
   if (wanted.length === 0)
     return 0
 
-  const existing = await readDayRollups(siteId, wanted[0], wanted[wanted.length - 1])
   let written = 0
   for (const day of wanted) {
-    if (existing.has(day))
-      continue
     const rollup = await computeDayRollup(siteId, day)
     await writeDayRollup(siteId, rollup)
     written++
