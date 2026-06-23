@@ -97,10 +97,10 @@ export function generateTrackingSnippet(config: Pick<TrackingScriptConfig, 'site
 (function(w,d,s,a){
   w.sa=w.sa||function(){(w.sa.q=w.sa.q||[]).push(arguments)};
   var f=d.getElementsByTagName(s)[0],j=d.createElement(s);
-  j.async=1;j.src='${config.apiEndpoint}/sites/${config.siteId}/tracker.js';
+  j.async=1;j.src=${JSON.stringify(`${config.apiEndpoint}/sites/${config.siteId}/tracker.js`)};
   f.parentNode.insertBefore(j,f);
 })(window,document,'script');
-sa('init','${config.siteId}');
+sa('init',${JSON.stringify(config.siteId)});
 </script>`
 }
 
@@ -110,7 +110,7 @@ sa('init','${config.siteId}');
 export function generateInlineTrackingScript(config: TrackingScriptConfig): string {
   return `<script>
 ${generateFullTrackingScript(config)}
-sa('init','${config.siteId}');
+sa('init',${JSON.stringify(config.siteId)});
 </script>`
 }
 
@@ -883,7 +883,9 @@ export function generateMinimalTrackingScript(config: Pick<TrackingScriptConfig,
   const endpoint = config.stealthMode ? '/t' : '/collect'
   const parts: string[] = []
   parts.push('(function(){')
-  parts.push('var s=\'' + config.siteId + '\',e=\'' + config.apiEndpoint + endpoint + '\';')
+  // JSON.stringify so a quote/backslash/newline in siteId/apiEndpoint can't
+  // break out of the string literal and inject JS into every tracked page.
+  parts.push('var s=' + JSON.stringify(config.siteId) + ',e=' + JSON.stringify(config.apiEndpoint + endpoint) + ';')
   if (config.honorDnt) {
     parts.push('if(navigator.doNotTrack===\'1\')return;')
   }
@@ -905,15 +907,15 @@ export function generateGA4StyleScript(config: TrackingScriptConfig): string {
   return `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', '${config.siteId}', {
+gtag('config', ${JSON.stringify(config.siteId)}, {
   send_page_view: ${config.autoPageView !== false},
-  cookie_domain: '${config.cookieDomain || 'auto'}'
+  cookie_domain: ${JSON.stringify(config.cookieDomain || 'auto')}
 });
 
 // Custom analytics layer
 (function(){
-  var endpoint = '${config.apiEndpoint}/collect';
-  var siteId = '${config.siteId}';
+  var endpoint = ${JSON.stringify(`${config.apiEndpoint}/collect`)};
+  var siteId = ${JSON.stringify(config.siteId)};
 
   function processDataLayer() {
     while (dataLayer.length > 0) {
