@@ -42,6 +42,29 @@ export function getCountryFromHeaders(headers: Record<string, string> | undefine
 /**
  * Get country from IP address using geolocation services
  */
+/**
+ * Reduce an IP's precision before it leaves the system (e.g. to a third-party
+ * geo API), per config.privacy.ipAnonymization (#144). 'partial' drops the host
+ * portion (IPv4 /24, IPv6 /48) — still country-accurate; 'full' drops it
+ * entirely; 'none' passes through.
+ */
+export function anonymizeIp(ip: string, mode: string = 'partial'): string {
+  if (!ip || mode === 'none')
+    return ip
+  if (mode === 'full')
+    return ''
+  if (ip.includes(':')) {
+    const parts = ip.split(':')
+    return `${parts.slice(0, 3).join(':')}::`
+  }
+  const octets = ip.split('.')
+  if (octets.length === 4) {
+    octets[3] = '0'
+    return octets.join('.')
+  }
+  return ip
+}
+
 export async function getCountryFromIP(ip: string): Promise<string | undefined> {
   if (!ip || ip === 'unknown' || ip === '127.0.0.1' || ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('172.')) {
     return undefined
@@ -53,7 +76,8 @@ export async function getCountryFromIP(ip: string): Promise<string | undefined> 
     return cached.country
   }
 
-  // Try multiple geolocation services
+  // HTTPS-only geolocation services — the plaintext-HTTP ip-api.com provider was
+  // removed so visitor IPs never traverse the network in the clear (#144).
   const services = [
     // ipapi.co - HTTPS, free tier 1000/day
     async () => {
@@ -65,16 +89,6 @@ export async function getCountryFromIP(ip: string): Promise<string | undefined> 
       const data = await response.json() as { country_name?: string; error?: boolean }
       if (data.error) return null
       return data.country_name
-    },
-    // ip-api.com - HTTP only, 45/min
-    async () => {
-      const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country`, {
-        signal: AbortSignal.timeout(2000),
-      })
-      if (!response.ok) return null
-      const data = await response.json() as { status: string; country?: string }
-      if (data.status !== 'success') return null
-      return data.country
     },
   ]
 

@@ -7,6 +7,7 @@ import {
   generateSessionId,
   hashVisitorId,
   getDailySalt,
+  getConfig,
 } from '../index'
 import type { Session as SessionType } from '../../src/types'
 import { randomToken } from '../lib/crypto-random'
@@ -24,7 +25,7 @@ import { accountEventWithinQuota } from '../lib/plans'
 import { checkAndRecordConversions } from '../lib/goals'
 import { getSession, setSession } from '../utils/cache'
 import { parseUserAgent, isBot } from '../utils/user-agent'
-import { getCountryFromHeaders, getCountryFromIP, getRegionFromHeaders, getCityFromHeaders, parseReferrerSource, isSpamReferrer } from '../utils/geolocation'
+import { getCountryFromHeaders, getCountryFromIP, getRegionFromHeaders, getCityFromHeaders, parseReferrerSource, isSpamReferrer, anonymizeIp } from '../utils/geolocation'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
 import { ensureSiteExists } from './misc'
@@ -213,8 +214,12 @@ catch (e) {
       const referrerSource = parseReferrerSource(payload.r)
 
       let country = getCountryFromHeaders(headers)
-      if (!country) {
-        country = await getCountryFromIP(ip)
+      // Only fall back to a third-party geo lookup when geolocation is enabled
+      // (off by default) and send an anonymized IP per config (#144).
+      if (!country && getConfig().privacy.collectGeolocation) {
+        const geoIp = anonymizeIp(ip, getConfig().privacy.ipAnonymization)
+        if (geoIp)
+          country = await getCountryFromIP(geoIp)
       }
       const region = getRegionFromHeaders(headers)
       const city = getCityFromHeaders(headers)
