@@ -3,20 +3,16 @@
  */
 
 import { generateId } from '../index'
+import { randomToken } from '../lib/crypto-random'
 import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 
 /**
- * Generate a secure share token
+ * Generate a secure share token (CSPRNG so tokens aren't guessable — #130).
  */
 function generateShareToken(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  let token = ''
-  for (let i = 0; i < 24; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return token
+  return randomToken(24)
 }
 
 /**

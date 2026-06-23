@@ -3,6 +3,7 @@
  */
 
 import { generateId } from '../index'
+import { randomToken } from '../lib/crypto-random'
 import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
@@ -11,12 +12,8 @@ import { getQueryParams } from '../../deploy/lambda-adapter'
  * Generate a secure API key
  */
 export function generateApiKey(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  let key = 'ak_'
-  for (let i = 0; i < 32; i++) {
-    key += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return key
+  // CSPRNG so keys aren't guessable/enumerable (#130).
+  return `ak_${randomToken(32)}`
 }
 
 /**

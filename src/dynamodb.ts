@@ -7,6 +7,7 @@
 
 import type { AnalyticsConfig } from './config'
 import { getConfig } from './config'
+import { randomToken } from './lib/crypto-random'
 import type { AggregationPeriod, AnalyticsEntityType, AnalyticsKeyPatterns } from './types'
 
 // Re-export dynamodb-tooling utilities when available
@@ -264,7 +265,8 @@ export function buildTimeRangeQuery(
  */
 export function generateId(): string {
   const timestamp = Date.now().toString(36)
-  const random = Math.random().toString(36).substring(2, 10)
+  // CSPRNG suffix so ids aren't predictable (#130); still time-prefixed + unique.
+  const random = randomToken(8, '0123456789abcdefghijklmnopqrstuvwxyz')
   return `${timestamp}${random}`
 }
 
