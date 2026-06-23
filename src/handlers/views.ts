@@ -5,7 +5,7 @@
  * Falls back to STX processing for local development.
  */
 
-import { generateTrackingScript, generateMinimalTrackingScript } from '../index'
+import { generateTrackingScript, generateMinimalTrackingScript, getConfig } from '../index'
 import { generateErrorSdk } from '../error-sdk'
 import { htmlResponse, jsResponse } from '../utils/response'
 import { getQueryParams, getLambdaEvent } from '../../deploy/lambda-adapter'
@@ -332,9 +332,12 @@ export async function handleScript(request: Request): Promise<Response> {
   // which generic blocklists target. Pair with a first-party proxy (#85).
   const stealthMode = query.stealth === 'true'
 
+  // Honor the configured DNT/GPC opt-out (defaults on) — the served scripts
+  // previously dropped this, so the privacy promise wasn't kept (#142).
+  const honorDnt = getConfig().privacy.honorDnt
   let script = minimal
-    ? generateMinimalTrackingScript({ siteId, apiEndpoint })
-    : generateTrackingScript({ siteId, apiEndpoint, trackLinkClicks: true, trackSpaRoutes: true, trackEngagement: true, errorIngestKey, stealthMode })
+    ? generateMinimalTrackingScript({ siteId, apiEndpoint, honorDnt })
+    : generateTrackingScript({ siteId, apiEndpoint, honorDnt, trackLinkClicks: true, trackSpaRoutes: true, trackEngagement: true, errorIngestKey, stealthMode })
 
   // Raw-JS variant (for the `<script src=".../script.js">` one-liner): strip the
   // HTML comment + <script> wrapper so the response is loadable JavaScript. The
@@ -375,6 +378,7 @@ export function handleSharedScript(request: Request): Response {
   const script = generateTrackingScript({
     siteId: '',
     apiEndpoint,
+    honorDnt: getConfig().privacy.honorDnt,
     trackLinkClicks: true,
     trackSpaRoutes: true,
     trackEngagement: true,

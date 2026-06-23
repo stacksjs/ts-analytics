@@ -235,8 +235,8 @@ function log() {
 }
 
 function shouldTrack() {
-  if (CONFIG.honorDnt && navigator.doNotTrack === '1') {
-    log('DNT enabled, not tracking');
+  if (CONFIG.honorDnt && (navigator.doNotTrack === '1' || navigator.globalPrivacyControl === true)) {
+    log('DNT/GPC enabled, not tracking');
     return false;
   }
 
@@ -887,7 +887,7 @@ export function generateMinimalTrackingScript(config: Pick<TrackingScriptConfig,
   // break out of the string literal and inject JS into every tracked page.
   parts.push('var s=' + JSON.stringify(config.siteId) + ',e=' + JSON.stringify(config.apiEndpoint + endpoint) + ';')
   if (config.honorDnt) {
-    parts.push('if(navigator.doNotTrack===\'1\')return;')
+    parts.push('if(navigator.doNotTrack===\'1\'||navigator.globalPrivacyControl===true)return;')
   }
   parts.push('var sid=sessionStorage.getItem(\'sa_s\')||Math.random().toString(36).slice(2);')
   parts.push('sessionStorage.setItem(\'sa_s\',sid);')

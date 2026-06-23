@@ -3243,7 +3243,7 @@ catch (e){}
   var d=document,w=window,n=navigator,s=d.currentScript;
   var site=s.dataset.site,api=s.dataset.api;
   if((!site||!api)&&s.src){try{var su=new URL(s.src);if(!api)api=su.origin;var sm=su.pathname.match(/\\/sites\\/([^/]+)\\/script/);if(!site&&sm)site=sm[1];}catch(_e){}}
-  ${options.honorDnt ? 'if(n.doNotTrack==="1")return;' : ''}
+  ${options.honorDnt ? 'if(n.doNotTrack==="1"||n.globalPrivacyControl===true)return;' : ''}
   var q=[],sk='_tsa_sid',sid;try{sid=sessionStorage.getItem(sk)}
 catch (e){}if(!sid){sid=Math.random().toString(36).slice(2);try{sessionStorage.setItem(sk,sid)}
 catch (e){}}
