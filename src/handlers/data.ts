@@ -2,7 +2,7 @@
  * Data export, GDPR, and retention handlers
  */
 
-import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
+import { dynamodb, TABLE_NAME, unmarshall, marshall, queryAllItems } from '../lib/dynamodb'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
@@ -163,36 +163,24 @@ export async function handleGdprExport(request: Request, siteId: string): Promis
       return jsonResponse({ error: 'Missing required parameter: visitorId' }, 400)
     }
 
-    // Query all data for this visitor
+    // Query the visitor's rows from the main table. The old pageviews query hit
+    // a visitor-keyed GSI ('gsi1' / VISITOR#) that doesn't exist — the live GSI
+    // is keyed SITE#…#DATE#… — so it always returned nothing (#140). Filter the
+    // site partition by visitorId instead, paginated so nothing truncates.
+    const byPrefix = (prefix: string) => queryAllItems({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      FilterExpression: 'visitorId = :visitorId',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':prefix': { S: prefix },
+        ':visitorId': { S: visitorId },
+      },
+    })
     const [pageviews, sessions, events] = await Promise.all([
-      dynamodb.query({
-        TableName: TABLE_NAME,
-        IndexName: 'gsi1',
-        KeyConditionExpression: 'gsi1pk = :pk',
-        ExpressionAttributeValues: {
-          ':pk': { S: `VISITOR#${visitorId}` },
-        },
-      }),
-      dynamodb.query({
-        TableName: TABLE_NAME,
-        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-        FilterExpression: 'visitorId = :visitorId',
-        ExpressionAttributeValues: {
-          ':pk': { S: `SITE#${siteId}` },
-          ':prefix': { S: 'SESSION#' },
-          ':visitorId': { S: visitorId },
-        },
-      }),
-      dynamodb.query({
-        TableName: TABLE_NAME,
-        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-        FilterExpression: 'visitorId = :visitorId',
-        ExpressionAttributeValues: {
-          ':pk': { S: `SITE#${siteId}` },
-          ':prefix': { S: 'EVENT#' },
-          ':visitorId': { S: visitorId },
-        },
-      }),
+      byPrefix('PAGEVIEW#'),
+      byPrefix('SESSION#'),
+      byPrefix('EVENT#'),
     ])
 
     return jsonResponse({
@@ -214,7 +202,7 @@ catch (error) {
 /**
  * POST /api/sites/{siteId}/gdpr/delete
  */
-export async function handleGdprDelete(request: Request, _siteId: string): Promise<Response> {
+export async function handleGdprDelete(request: Request, siteId: string): Promise<Response> {
   try {
     const body = await request.json() as Record<string, any>
     const visitorId = body.visitorId
@@ -223,17 +211,21 @@ export async function handleGdprDelete(request: Request, _siteId: string): Promi
       return jsonResponse({ error: 'Missing required field: visitorId' }, 400)
     }
 
-    // Query all items for this visitor
-    const result = await dynamodb.query({
+    // Find every row in this site's partition belonging to the visitor, across
+    // ALL record types. The old code queried a visitor-keyed GSI that never
+    // existed, so it deleted nothing while reporting success (#140). Cookieless
+    // daily-salting means a visitorId maps to roughly one day's worth of data.
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
-      IndexName: 'gsi1',
-      KeyConditionExpression: 'gsi1pk = :pk',
+      KeyConditionExpression: 'pk = :pk',
+      FilterExpression: 'visitorId = :visitorId',
       ExpressionAttributeValues: {
-        ':pk': { S: `VISITOR#${visitorId}` },
+        ':pk': { S: `SITE#${siteId}` },
+        ':visitorId': { S: visitorId },
       },
-    }) as { Items?: any[] }
+    })
 
-    const items = (result.Items || []).map(unmarshall)
+    const items = result.Items.map(unmarshall)
 
     // Delete all items
     let deletedCount = 0
