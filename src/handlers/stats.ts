@@ -2,7 +2,7 @@
  * Statistics handlers
  */
 
-import { dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
+import { queryAllItems, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { parseDateRange, formatDuration } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getReferrerSourceChannel } from '../utils/geolocation'
@@ -51,7 +51,7 @@ export async function handleGetStats(request: Request, siteId: string): Promise<
 
     // Query pageviews for the (remaining) raw window
     const pageviewsResult = rawWindowStart <= endDate
-      ? await dynamodb.query({
+      ? await queryAllItems({
           TableName: TABLE_NAME,
           KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
           ExpressionAttributeValues: {
@@ -65,7 +65,7 @@ export async function handleGetStats(request: Request, siteId: string): Promise<
     // Query sessions for the raw window (sessions are id-keyed, so this scans
     // SESSION# items; the rollup prefix above keeps this to the live window)
     const sessionsResult = rawWindowStart <= endDate
-      ? await dynamodb.query({
+      ? await queryAllItems({
           TableName: TABLE_NAME,
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
           ExpressionAttributeValues: {
@@ -77,7 +77,7 @@ export async function handleGetStats(request: Request, siteId: string): Promise<
 
     // Query realtime visitors (last 2 minutes)
     const realtimeCutoff = new Date(Date.now() - 2 * 60 * 1000)
-    const realtimeResult = await dynamodb.query({
+    const realtimeResult = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
@@ -142,7 +142,7 @@ export async function handleGetRealtime(request: Request, siteId: string): Promi
     const cutoff = new Date(Date.now() - minutes * 60 * 1000)
 
     // Query recent pageviews
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
@@ -193,7 +193,7 @@ export async function handleGetPages(request: Request, siteId: string): Promise<
     const limit = Math.min(Number(query.limit) || 10, 100)
 
     // Query pageviews
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
@@ -247,7 +247,7 @@ export async function handleGetReferrers(request: Request, siteId: string): Prom
     const limit = Math.min(Number(query.limit) || 10, 100)
 
     // Query sessions
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
@@ -316,7 +316,7 @@ export async function handleGetDevices(request: Request, siteId: string): Promis
     const { startDate, endDate } = parseDateRange(query)
 
     // Query sessions
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
@@ -382,7 +382,7 @@ export async function handleGetBrowsers(request: Request, siteId: string): Promi
     const limit = Math.min(Number(query.limit) || 10, 100)
 
     // Query sessions
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
@@ -434,7 +434,7 @@ export async function handleGetCountries(request: Request, siteId: string): Prom
     const limit = Math.min(Number(query.limit) || 10, 100)
 
     // Query sessions
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
@@ -481,7 +481,7 @@ export async function handleGetRegions(request: Request, siteId: string): Promis
     const filters = parseFilters(query)
 
     // Query sessions
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
@@ -533,7 +533,7 @@ export async function handleGetCities(request: Request, siteId: string): Promise
     const filters = parseFilters(query)
 
     // Query sessions
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
@@ -613,7 +613,7 @@ export async function handleGetTimeSeries(request: Request, siteId: string): Pro
 
     // Query pageviews for the (remaining) raw window
     const result = rawWindowStart <= endDate
-      ? await dynamodb.query({
+      ? await queryAllItems({
           TableName: TABLE_NAME,
           KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
           ExpressionAttributeValues: {
@@ -717,7 +717,7 @@ export async function handleGetEvents(request: Request, siteId: string): Promise
     const limit = Math.min(Number(query.limit) || 10, 100)
 
     // Query custom events
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
@@ -818,7 +818,7 @@ export async function handleGetEventProperties(request: Request, siteId: string)
     const eventFilter = query.event
     const filters = parseFilters(query)
 
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
@@ -860,7 +860,7 @@ export async function handleGetClicks(request: Request, siteId: string): Promise
     const kindFilter = query.kind
 
     // Query link clicks
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
@@ -918,7 +918,7 @@ export async function handleGetEngagement(request: Request, siteId: string): Pro
     const limit = Math.min(Number(query.limit) || 20, 100)
 
     // Query engagement samples
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
@@ -984,7 +984,7 @@ export async function handleGetCampaigns(request: Request, siteId: string): Prom
     const limit = Math.min(Number(query.limit) || 10, 100)
 
     // Query sessions with UTM data
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
@@ -1043,7 +1043,7 @@ export async function handleGetComparison(request: Request, siteId: string): Pro
 
     // Helper to get stats for a period
     async function getStatsForPeriod(start: Date, end: Date) {
-      const pageviewsResult = await dynamodb.query({
+      const pageviewsResult = await queryAllItems({
         TableName: TABLE_NAME,
         KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
         ExpressionAttributeValues: {
@@ -1053,7 +1053,7 @@ export async function handleGetComparison(request: Request, siteId: string): Pro
         },
       }) as { Items?: any[] }
 
-      const sessionsResult = await dynamodb.query({
+      const sessionsResult = await queryAllItems({
         TableName: TABLE_NAME,
         KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
         ExpressionAttributeValues: {

@@ -101,6 +101,41 @@ export async function paginatedQuery<T>(
 }
 
 /**
+ * Query every page of a key condition and return the raw (still-marshalled)
+ * items. Drop-in for `dynamodb.query(...)` at call sites that read `.Items` and
+ * `.map(unmarshall)` themselves, but it no longer silently truncates at
+ * DynamoDB's 1MB page limit (#151). A high safety cap guards against pathological
+ * partitions and is logged when hit — never a silent drop.
+ */
+export async function queryAllItems(
+  params: {
+    TableName: string
+    KeyConditionExpression: string
+    ExpressionAttributeValues: Record<string, unknown>
+    ExpressionAttributeNames?: Record<string, string>
+    FilterExpression?: string
+    Limit?: number
+    ScanIndexForward?: boolean
+    IndexName?: string
+  },
+  cap = 100_000,
+): Promise<{ Items: any[], Count: number }> {
+  const items: any[] = []
+  let lastKey: Record<string, any> | undefined
+  do {
+    const page = await dynamodb.query({ ...params, ExclusiveStartKey: lastKey }) as { Items?: any[], LastEvaluatedKey?: Record<string, any> }
+    if (page.Items)
+      items.push(...page.Items)
+    lastKey = page.LastEvaluatedKey
+    if (items.length >= cap) {
+      console.warn(`[queryAllItems] hit ${cap}-item cap (table ${String(params.TableName)}) — results truncated; counts may undercount`)
+      break
+    }
+  } while (lastKey)
+  return { Items: items, Count: items.length }
+}
+
+/**
  * Batch get items from DynamoDB
  */
 export async function batchGet<T>(
