@@ -380,8 +380,10 @@ export async function handleGetRevenue(request: Request, siteId: string): Promis
       },
     }) as { Items?: any[] }
 
+    // Stored custom-event fields are `value` and `name` (not revenue/eventName),
+    // so the old filter matched nothing and revenue was always 0 (#141).
     const events = (result.Items || []).map(unmarshall)
-      .filter(e => e.revenue !== undefined || e.eventName === 'purchase' || e.eventName === 'conversion')
+      .filter(e => typeof e.value === 'number' || e.name === 'purchase' || e.name === 'conversion')
 
     // Calculate revenue metrics
     let totalRevenue = 0
@@ -390,7 +392,7 @@ export async function handleGetRevenue(request: Request, siteId: string): Promis
     const revenueBySource: Record<string, number> = {}
 
     for (const event of events) {
-      const revenue = event.revenue || event.value || 0
+      const revenue = typeof event.value === 'number' ? event.value : 0
       totalRevenue += revenue
       transactionCount++
 

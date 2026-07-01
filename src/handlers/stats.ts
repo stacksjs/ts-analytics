@@ -731,14 +731,17 @@ export async function handleGetEvents(request: Request, siteId: string): Promise
     const events = (result.Items || []).map(unmarshall).filter(e => matchesFilters(e, filters))
 
     // Aggregate by event name
-    const eventStats: Record<string, { count: number; visitors: Set<string> }> = {}
+    const eventStats: Record<string, { count: number; visitors: Set<string>; value: number }> = {}
     for (const e of events) {
       const name = e.name || 'unknown'
       if (!eventStats[name]) {
-        eventStats[name] = { count: 0, visitors: new Set() }
+        eventStats[name] = { count: 0, visitors: new Set(), value: 0 }
       }
       eventStats[name].count++
       eventStats[name].visitors.add(e.visitorId)
+      // Sum the event value so revenue/valued events report a total (#132).
+      if (typeof e.value === 'number')
+        eventStats[name].value += e.value
     }
 
     const eventsList = Object.entries(eventStats)
@@ -746,6 +749,7 @@ export async function handleGetEvents(request: Request, siteId: string): Promise
         name,
         count: stats.count,
         visitors: stats.visitors.size,
+        value: stats.value,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, limit)

@@ -395,7 +395,7 @@ else if (payload.e === 'event') {
         payload.s,
         visitorId,
         sessionId,
-        { path: parsedUrl.pathname, eventName },
+        { path: parsedUrl.pathname, eventName, eventValue },
         {
           referrerSource: session?.referrerSource,
           utmSource: session?.utmSource,

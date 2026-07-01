@@ -32,6 +32,12 @@ catch (err) {
 export interface GoalMatchContext {
   path: string
   eventName?: string
+  /**
+   * The triggering event's value — used as the conversion value for
+   * variable-price goals (e.g. a purchase), falling back to the goal's static
+   * value when the event carries none (#132).
+   */
+  eventValue?: number
   sessionDurationMinutes?: number
 }
 
@@ -125,7 +131,9 @@ export async function checkAndRecordConversions(
           goalId: goal.id,
           visitorId,
           sessionId,
-          value: goal.value,
+          // Use the event's actual value for variable-price goals; fall back to
+          // the goal's configured static value otherwise (#132).
+          value: context.eventValue ?? goal.value,
           path: context.path,
           referrerSource: metadata.referrerSource,
           utmSource: metadata.utmSource,
