@@ -13,11 +13,15 @@
   // Must NOT use document.write: after load it reopens and wipes everything
   // (nulled the body during SPA nav). Append a style node instead.
   (function() {
+    // An explicit "back to projects" click suppresses the auto-restore — show the
+    // selector, not the dashboard shell, even if a last-site is remembered.
+    var pickProject = false;
+    try { pickProject = !!sessionStorage.getItem('tsa:pickProject'); } catch (e) {}
     // Deep-links (error-detail, external/alert) may still carry ?siteId=; honor
     // it. Otherwise fall back to a remembered last-site in localStorage.
-    var hasSite = window.location.pathname === '/dashboard/account'
-      || !!new URLSearchParams(window.location.search).get('siteId');
-    if (!hasSite) {
+    var hasSite = !pickProject && (window.location.pathname === '/dashboard/account'
+      || !!new URLSearchParams(window.location.search).get('siteId'));
+    if (!hasSite && !pickProject) {
       try {
         for (var i = 0; i < localStorage.length; i++) {
           var k = localStorage.key(i);

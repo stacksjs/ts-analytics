@@ -71,6 +71,9 @@ function handleBack(): void {
   // store-bound components reset, then navigate straight to the selector at '/'.
   // Direct navigation (not browser-back) so it works on deep-links + refreshes.
   dashboard.siteId.set('')
+  // Explicit exit: suppress the selector's ONE auto-restore so it doesn't
+  // immediately bounce back to the last site. Cleared by restoreLastSite.
+  try { sessionStorage.setItem('tsa:pickProject', '1') } catch (_e) {}
   navigate('/', true)
 }
 

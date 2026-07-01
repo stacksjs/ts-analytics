@@ -142,6 +142,15 @@ function pickSite(id, label) {
 // last-selected project — but only if it's still in their list (deleted or
 // revoked projects fall back to the selector).
 function restoreLastSite(): boolean {
+  // Honor an explicit "back to projects" (the header Projects button): skip the
+  // one auto-restore so the user isn't bounced straight back to the last site.
+  // One-shot flag, cleared on read.
+  try {
+    if (sessionStorage.getItem('tsa:pickProject')) {
+      sessionStorage.removeItem('tsa:pickProject')
+      return false
+    }
+  } catch (_e) {}
   if (dashboard.siteId()) return false
   // Don't auto-restore on project-independent pages like /dashboard/account —
   // restoring (via selectSite) rewrites the URL to /dashboard and would yank
