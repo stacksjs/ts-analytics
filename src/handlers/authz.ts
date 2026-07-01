@@ -11,6 +11,7 @@
  * visitors load it without a session.
  */
 import { getSessionFromRequest } from './auth'
+import { handleValidateApiKey } from './api-keys'
 import { getMembership, addMembership, roleAtLeast, type Role } from '../lib/membership'
 import { dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { jsonResponse } from '../utils/response'
@@ -66,6 +67,17 @@ export async function siteAuthGuard(req: Request): Promise<Response | null> {
   const path = new URL(req.url).pathname
   const siteId = guardedSiteId(path)
   if (!siteId) return null
+
+  // Programmatic read API (#154): a valid `read` API key scoped to this site
+  // authorizes read-only access without a session. Only for read methods — a
+  // read key can never mutate; writes still require a session with editor/admin.
+  const method = (req as { method?: string }).method || 'GET'
+  const presentsKey = !!(req.headers.get('X-Analytics-Token') || req.headers.get('Authorization'))
+  if (presentsKey && (method === 'GET' || method === 'HEAD' || method === 'OPTIONS')) {
+    const key = await handleValidateApiKey(req, 'read')
+    if (key.valid && key.siteId === siteId)
+      return null
+  }
 
   const session = await getSessionFromRequest(req)
   if (!session) return jsonResponse({ error: 'Authentication required' }, 401)
