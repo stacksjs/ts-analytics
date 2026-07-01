@@ -6,8 +6,7 @@
  * export default defineNuxtConfig({
  *   modules: ['@stacksjs/ts-analytics/nuxt'],
  *   tsAnalytics: {
- *     appId: 'APP_ID',
- *     apiEndpoint: 'https://analytics.example.com',
+ *     appId: 'APP_ID',   // that's it — the endpoint is baked in (Fathom-style)
  *   },
  * })
  * ```
@@ -19,7 +18,8 @@
  * router wiring), link clicks, engagement, Core Web Vitals and JS errors,
  * POSTing them to `<apiEndpoint>/collect`. It derives the collector from its own
  * `src` origin and the App ID from `data-site`, so the only config a host app
- * supplies is `appId` + `apiEndpoint`.
+ * supplies is `appId` (the endpoint is baked in; override via `apiEndpoint` or
+ * the `TS_ANALYTICS_ENDPOINT` env var).
  *
  * For custom events, the auto-imported `useTsAnalytics()` composable wraps the
  * tracker's global (`window.fathom`, Fathom-API compatible).
@@ -29,7 +29,7 @@
  */
 import type { Nuxt, NuxtModule } from '@nuxt/schema'
 import { addImports, createResolver, defineNuxtModule } from '@nuxt/kit'
-import { tsAnalytics, type TsAnalyticsOptions } from './stx'
+import { resolveApiEndpoint, tsAnalytics, type TsAnalyticsOptions } from './stx'
 
 export interface TsAnalyticsNuxtOptions extends TsAnalyticsOptions {
   /** Set false to skip injecting the tracker (e.g. in local dev). Default: true. */
@@ -47,11 +47,11 @@ const tsAnalyticsNuxtModule: NuxtModule<TsAnalyticsNuxtOptions> = defineNuxtModu
     if (options.enabled === false)
       return
 
-    // tsAnalytics() returns [] when appId/apiEndpoint are missing — so a
-    // half-configured env never injects a broken tag.
+    // tsAnalytics() returns [] when appId is missing — so a half-configured env
+    // never injects a broken tag.
     const scripts = tsAnalytics(options)
     if (scripts.length === 0) {
-      console.warn('[ts-analytics] module skipped — `appId` and `apiEndpoint` are required in nuxt.config `tsAnalytics`.')
+      console.warn('[ts-analytics] module skipped — `appId` is required in nuxt.config `tsAnalytics`.')
       return
     }
 
@@ -62,7 +62,7 @@ const tsAnalyticsNuxtModule: NuxtModule<TsAnalyticsNuxtOptions> = defineNuxtModu
     // Surface non-secret config for the composable / debugging.
     ;(nuxt.options.runtimeConfig.public as Record<string, unknown>).tsAnalytics = {
       appId: options.appId,
-      apiEndpoint: options.apiEndpoint,
+      apiEndpoint: resolveApiEndpoint(options.apiEndpoint),
     }
 
     // Auto-import useTsAnalytics() for custom events.

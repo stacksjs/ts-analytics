@@ -19,7 +19,7 @@
  *   app: {
  *     head: {
  *       script: [
- *         ...tsAnalytics({ appId: 'my-app', apiEndpoint: 'https://analytics.example.com' }),
+ *         ...tsAnalytics({ appId: 'my-app' }),   // endpoint is baked in
  *       ],
  *     },
  *   },
@@ -34,6 +34,38 @@
  * (push a tag onto the document head).
  */
 
+import { randomToken } from '../lib/crypto-random'
+
+/**
+ * Default ts-analytics API origin — where `/script.js` is served and events are
+ * collected. Baked in (Fathom-style) so host apps supply *only* an App ID.
+ *
+ * Endpoint resolution order: an explicit `apiEndpoint` option → the
+ * `TS_ANALYTICS_ENDPOINT` env var → this constant. Set this to your production
+ * ts-analytics host so deployed apps need zero endpoint config.
+ */
+export const DEFAULT_API_ENDPOINT = 'http://localhost:2027'
+
+/** Resolve the API origin from an explicit override, env, then the default. */
+export function resolveApiEndpoint(explicit?: string): string {
+  const raw = (explicit ?? process.env.TS_ANALYTICS_ENDPOINT ?? DEFAULT_API_ENDPOINT).trim()
+  return raw.replace(/\/+$/, '')
+}
+
+/**
+ * Generate a long, unguessable App ID (Fathom-style `data-site`). Run once per
+ * site and paste the result into your config — the backend auto-provisions the
+ * site on its first event, so nothing else is needed.
+ *
+ * ```ts
+ * import { generateAppId } from '@stacksjs/ts-analytics/stx'
+ * console.log(generateAppId()) // 32 url-safe chars
+ * ```
+ */
+export function generateAppId(length = 32): string {
+  return randomToken(length)
+}
+
 /** A stx head `<script>` entry — an item of the config `app.head.script` array. */
 export interface StxHeadScript {
   src?: string
@@ -46,14 +78,20 @@ export interface StxHeadScript {
 }
 
 export interface TsAnalyticsOptions {
-  /** Your ts-analytics **App ID** (rendered as the tracker's `data-site`). */
+  /**
+   * Your ts-analytics **App ID** — rendered as the tracker's `data-site`. A long,
+   * unguessable random string (see {@link generateAppId}); the backend
+   * auto-provisions the site on its first event, so no pre-registration needed.
+   */
   appId: string
   /**
-   * Origin of your ts-analytics API — where `/script.js` is served and where
-   * the tracker POSTs pageviews/events. e.g. `'https://analytics.example.com'`,
-   * or `'http://localhost:2027'` in dev. Trailing slashes are trimmed.
+   * Origin of your ts-analytics API — where `/script.js` is served and where the
+   * tracker POSTs. **Optional**: defaults to the `TS_ANALYTICS_ENDPOINT` env var,
+   * then {@link DEFAULT_API_ENDPOINT}. Set this only for a one-off override — the
+   * point is that host apps supply *just* an App ID (Fathom-style). Trailing
+   * slashes are trimmed.
    */
-  apiEndpoint: string
+  apiEndpoint?: string
   /** Path of the shared tracker script. Default `'/script.js'`. */
   scriptPath?: string
   /** Load the tracker in stealth mode (appends `?stealth=true`). Default false. */
@@ -70,11 +108,12 @@ export interface TsAnalyticsOptions {
  */
 export function tsAnalytics(options: TsAnalyticsOptions): StxHeadScript[] {
   const appId = options?.appId?.trim()
-  const apiEndpoint = options?.apiEndpoint?.trim()
-  if (!appId || !apiEndpoint)
+  if (!appId)
     return []
 
-  const origin = apiEndpoint.replace(/\/+$/, '')
+  const origin = resolveApiEndpoint(options?.apiEndpoint)
+  if (!origin)
+    return []
   const rawPath = options.scriptPath ?? '/script.js'
   const path = rawPath.startsWith('/') ? rawPath : `/${rawPath}`
   const src = `${origin}${path}${options.stealth ? '?stealth=true' : ''}`
