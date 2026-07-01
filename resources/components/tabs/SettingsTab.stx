@@ -18,20 +18,63 @@ const settings = state<SiteSettings>({
 const loading = state<boolean>(true)
 const error = state<string | null>(null)
 const copied = state<boolean>(false)
-const installSnippet = state<string>('')
 const snippetCopied = state<boolean>(false)
 
-function fetchSnippet(): void {
-  // Fathom/Plausible-style one-liner: one shared, cacheable /script.js for every
-  // site, identified by a data-site attribute (the script derives the API from
-  // its own origin). Build the tag from parts so the literal opening/closing
-  // script-tag text never appears in this source (it would corrupt the bundle).
-  const base: string = (window as { API_ENDPOINT?: string }).API_ENDPOINT || window.location.origin
+// Framework picker for the install instructions — show one snippet at a time
+// instead of dumping every variant at once. Each renders from the site's App ID.
+const framework = state<string>('html')
+
+function apiBase(): string {
+  return (window as { API_ENDPOINT?: string }).API_ENDPOINT || window.location.origin
+}
+
+// Build the install snippet for a framework from the site's App ID. The literal
+// script-tag text is assembled from parts so it never appears verbatim in this
+// source (it would corrupt the stx bundle).
+function snippetFor(fw: string): string {
+  const id: string = siteId()
+  if (!id) return ''
+  if (fw === 'nuxt') {
+    return [
+      '// nuxt.config.ts',
+      'export default defineNuxtConfig({',
+      '  modules: [\'@stacksjs/ts-analytics/nuxt\'],',
+      '  tsAnalytics: { appId: \'' + id + '\' },',
+      '})',
+    ].join('\n')
+  }
+  if (fw === 'stx') {
+    return [
+      '// stx.config.ts',
+      'import { tsAnalytics } from \'@stacksjs/ts-analytics/stx\'',
+      '',
+      'export default {',
+      '  app: { head: { script: [',
+      '    ...tsAnalytics({ appId: \'' + id + '\' }),',
+      '  ] } },',
+      '}',
+    ].join('\n')
+  }
   const close: string = ['<', '/script>'].join('')
-  const open: string = ['<', 'script defer data-site="', siteId(), '" src="', base, '/script.js">'].join('')
-  installSnippet.set(open + close)
-  // Blocker-resilient variant (#85): beacons go to the short /t path.
-  const stealthOpen: string = ['<', 'script defer data-site="', siteId(), '" src="', base, '/script.js?stealth=true">'].join('')
+  const open: string = ['<', 'script defer data-site="', id, '" src="', apiBase(), '/script.js">'].join('')
+  return open + close
+}
+
+function currentSnippet(): string {
+  return snippetFor(framework())
+}
+
+function copyAppId(): void {
+  if (!siteId()) return
+  navigator.clipboard.writeText(siteId())
+  copied.set(true)
+  setTimeout(() => copied.set(false), 2000)
+}
+
+function fetchSnippet(): void {
+  // Blocker-resilient variant (#85): beacons go to the short /t path (HTML only).
+  const close: string = ['<', '/script>'].join('')
+  const stealthOpen: string = ['<', 'script defer data-site="', siteId(), '" src="', apiBase(), '/script.js?stealth=true">'].join('')
   stealthSnippet.set(stealthOpen + close)
 }
 
@@ -46,8 +89,9 @@ function copyStealthSnippet(): void {
 }
 
 function copySnippet(): void {
-  if (!installSnippet()) return
-  navigator.clipboard.writeText(installSnippet())
+  const snippet: string = currentSnippet()
+  if (!snippet) return
+  navigator.clipboard.writeText(snippet)
   snippetCopied.set(true)
   setTimeout(() => snippetCopied.set(false), 2000)
 }
@@ -542,7 +586,32 @@ onMount(() => {
         </button>
       </div>
     </div>
-    <p class="text-xs text-muted mb-2">Paste this one line into the <code class="text-text">&lt;head&gt;</code> of every page you want to track (site <code class="text-text">{{ siteId() }}</code>). No cookies, no consent banner needed — visitors are never personally identified.</p>
+    <!-- App ID — the one value you paste into any app -->
+    <div class="flex items-center gap-2 mb-4 flex-wrap">
+      <span class="text-xs font-medium text-muted shrink-0">App ID</span>
+      <code class="text-[0.8125rem] font-mono text-text bg-bg border border-border rounded-md px-2 py-1 break-all">{{ siteId() }}</code>
+      <button class="btn btn-secondary text-[0.6875rem] py-1 px-2 shrink-0" @click="copyAppId()">
+        <span x-show="!copied()">Copy</span>
+        <span x-show="copied()" class="text-success">Copied!</span>
+      </button>
+    </div>
+
+    <!-- Framework picker — one instruction at a time -->
+    <div class="flex items-center gap-2 mb-2">
+      <label class="text-xs font-medium text-muted">Framework</label>
+      <select x-model="framework" class="form-input text-xs py-1 px-2 w-auto">
+        <option value="html">HTML</option>
+        <option value="nuxt">Nuxt</option>
+        <option value="stx">stx / Stacks</option>
+      </select>
+    </div>
+
+    <p class="text-xs text-muted mb-3">
+      <span x-show="framework() === 'html'">Paste this into the <code class="text-text">&lt;head&gt;</code> of every page you want to track. No cookies, no consent banner — visitors are never personally identified.</span>
+      <span x-show="framework() === 'nuxt'">Install <code class="text-text">@stacksjs/ts-analytics</code>, then add the module to <code class="text-text">nuxt.config.ts</code> — the tracker loads on every page automatically.</span>
+      <span x-show="framework() === 'stx'">Install <code class="text-text">@stacksjs/ts-analytics</code>, then spread it into your stx config's <code class="text-text">app.head.script</code>. The endpoint is baked in.</span>
+    </p>
+
     <div class="flex flex-wrap gap-1.5 mb-3">
       <span class="text-[0.6875rem] px-2 py-0.5 rounded-full bg-bg border border-border text-muted">Page views</span>
       <span class="text-[0.6875rem] px-2 py-0.5 rounded-full bg-bg border border-border text-muted">SPA route changes</span>
@@ -551,11 +620,11 @@ onMount(() => {
       <span class="text-[0.6875rem] px-2 py-0.5 rounded-full bg-bg border border-border text-muted">Web vitals</span>
       <span class="text-[0.6875rem] px-2 py-0.5 rounded-full bg-bg border border-border text-muted">JS errors</span>
     </div>
-    <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed">{{ installSnippet() }}</pre>
-    <p x-show="!installSnippet()" class="text-xs text-muted italic mt-2">Loading snippet…</p>
+    <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed">{{ currentSnippet() }}</pre>
+    <p x-show="!currentSnippet()" class="text-xs text-muted italic mt-2">Loading…</p>
     <p x-show="verifyResult() === 'pass'" class="text-xs text-success mt-2">Test event received — ingestion is working end to end.</p>
     <p x-show="verifyResult() === 'fail'" class="text-xs text-error mt-2">No event received. Check that the API is reachable from your browser, then try again.</p>
-    <div class="mt-4 pt-3 border-t border-border">
+    <div x-show="framework() === 'html'" class="mt-4 pt-3 border-t border-border">
       <div class="flex items-center justify-between mb-2">
         <span class="text-xs font-medium text-muted">Ad-blocker resilient variant</span>
         <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="copyStealthSnippet()">
