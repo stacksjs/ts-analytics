@@ -67,14 +67,11 @@ function toggleTheme(): void {
 
 // Named handleBack (not goBack) to avoid shadowing stx's injected goBack global.
 function handleBack(): void {
-  // Clear the source-of-truth siteId so store-bound components reset; the
-  // controller still handles shell visibility + history.
+  // Return to the projects / site list. Clear the source-of-truth siteId so
+  // store-bound components reset, then navigate straight to the selector at '/'.
+  // Direct navigation (not browser-back) so it works on deep-links + refreshes.
   dashboard.siteId.set('')
-  if (window.goBack) {
-    window.goBack()
-  } else {
-    navigate('/', true)
-  }
+  navigate('/', true)
 }
 
 function tabHref(tab: NavTab): string {
@@ -153,8 +150,9 @@ provide('dashboardHeader', {
 
 <header class="flex items-center justify-between py-3 px-6 bg-bg-2 border-b border-border gap-4">
   <div class="flex items-center gap-3">
-    <button class="icon-btn" @click="handleBack()" title="Back to sites">
-      <Icon name="chevron-left" size="20" />
+    <button class="btn btn-secondary gap-1.5 py-1.5 px-3 text-[0.8125rem] shrink-0" @click="handleBack()" title="Back to your projects">
+      <Icon name="chevron-left" size="16" />
+      Projects
     </button>
     <span id="current-site-name" class="font-semibold text-base text-text">{{ siteName() }}</span>
   </div>
