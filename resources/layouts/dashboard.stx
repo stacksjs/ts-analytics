@@ -5,15 +5,27 @@
 <site-selector />
 
 <script>
-  // Show the dashboard immediately when a siteId is in the URL (pre-paint).
-  // Must NOT use document.write: after the document has loaded it reopens and
-  // wipes everything, which nulled the body element during SPA navigation (every
-  // tab swap broke the page). Append a style node instead.
+  // Show the dashboard shell immediately (pre-paint) when the user has a
+  // remembered site, so a refresh doesn't flash the selector. The selected site
+  // now lives in localStorage (tsa:lastSite:<scope>), not the URL — scan for any
+  // non-empty last-site key. The reactive applyShellVisibility corrects the edge
+  // case where the remembered site was deleted.
+  // Must NOT use document.write: after load it reopens and wipes everything
+  // (nulled the body during SPA nav). Append a style node instead.
   (function() {
-    var params = new URLSearchParams(window.location.search);
-    var siteId = params.get('siteId');
-    // The account page is project-independent (#115) — always show the shell there.
-    if (siteId || window.location.pathname === '/dashboard/account') {
+    // Deep-links (error-detail, external/alert) may still carry ?siteId=; honor
+    // it. Otherwise fall back to a remembered last-site in localStorage.
+    var hasSite = window.location.pathname === '/dashboard/account'
+      || !!new URLSearchParams(window.location.search).get('siteId');
+    if (!hasSite) {
+      try {
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.indexOf('tsa:lastSite:') === 0 && localStorage.getItem(k)) { hasSite = true; break; }
+        }
+      } catch (e) {}
+    }
+    if (hasSite) {
       var s = document.createElement('style');
       s.textContent = '#dashboard{display:flex!important}#site-selector{display:none!important}';
       (document.head || document.documentElement).appendChild(s);

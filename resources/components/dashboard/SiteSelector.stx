@@ -155,7 +155,10 @@ function restoreLastSite(): boolean {
   }
   const site = sites().find((s) => s.id === last)
   if (!site) return false
-  pickSite(site.id, site.name || '')
+  // Seed the restored site in place — no navigation — so a refresh on a sub-tab
+  // (e.g. /dashboard/sessions) stays put instead of bouncing to /dashboard.
+  dashboard.siteId.set(site.id)
+  if (window.selectSite) window.selectSite(site.id, site.name || '', false)
   return true
 }
 

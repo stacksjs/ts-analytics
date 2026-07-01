@@ -144,7 +144,7 @@ const validTabs = ['dashboard', 'live', 'sessions', 'funnels', 'flow', 'vitals',
 // Site management — fetchSites/renderSiteSelector/createSite handled by SiteSelector.stx component
 
 
-function selectSite(id: string, name: string) {
+function selectSite(id: string, name: string, navigateToDashboard = true) {
   siteId = id
   window.siteId = id
   siteName = name || 'Analytics Dashboard'
@@ -152,9 +152,13 @@ function selectSite(id: string, name: string) {
   // pickSite). Update the header name through its reactive setter.
   if (window.headerSetSiteName) window.headerSetSiteName(siteName)
 
-  const url = new URL(`${window.location.origin}/dashboard`)
-  url.searchParams.set('siteId', id)
-  window.history.pushState({ tab: 'dashboard', siteId: id }, '', url)
+  // The selected site lives in state (window.siteId) + localStorage, not the URL
+  // — so the URL stays clean (/dashboard). Only navigate to the dashboard root
+  // when the user actively picks a site; a refresh-restore seeds in place so it
+  // stays on the current sub-tab.
+  if (navigateToDashboard) {
+    window.history.pushState({ tab: 'dashboard' }, '', `${window.location.origin}/dashboard`)
+  }
 
   const cached = loadCachedStats()
   if (cached) {
@@ -286,7 +290,9 @@ function updateUrlForTab(tab: string, replace = false) {
   const url = new URL(window.location.href)
   const basePath = tab === 'dashboard' ? '/dashboard' : `/dashboard/${tab}`
   url.pathname = basePath
-  if (siteId) url.searchParams.set('siteId', siteId)
+  // Site lives in state/localStorage, not the URL — keep tab URLs clean and
+  // strip any stale ?siteId that arrived via a deep-link.
+  url.searchParams.delete('siteId')
   url.searchParams.delete('tab')
 
   if (replace) {

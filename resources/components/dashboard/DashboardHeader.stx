@@ -75,12 +75,9 @@ function handleBack(): void {
 }
 
 function tabHref(tab: NavTab): string {
-  // Read the local signal (x-href tracks it reactively; it does not track the
-  // store accessor). The mirror effect below keeps this fed from the store —
-  // which pickSite updates without firing a navigation event — so the links
-  // recompute when a site is picked and never drop the siteId.
-  const sid: string = siteId()
-  return tab.href + (sid ? `?siteId=${encodeURIComponent(sid)}` : '')
+  // The selected site is held in state + localStorage, not the URL, so tab links
+  // stay clean (/dashboard/…). The dashboard store persists across SPA navigation.
+  return tab.href
 }
 
 function tabClass(tab: NavTab): string {
@@ -105,9 +102,9 @@ effect(() => {
 })
 
 onMount(() => {
-  // Seed the store from a deep-linked URL (?siteId=…) so a fresh load of any
-  // sub-page populates the source of truth; an empty param leaves the store
-  // alone so the selector's last-site restore isn't clobbered.
+  // Normal navigation uses clean URLs and the site is restored from localStorage
+  // by the selector. But still HONOR a ?siteId= when one is present — deep-links
+  // (error-detail pages, external/alert links, old bookmarks) rely on it.
   const urlSiteId: string = new URLSearchParams(window.location.search).get('siteId') || ''
   if (urlSiteId) dashboard.siteId.set(urlSiteId)
   dashboard.currentTab.set(detectCurrentTab())
@@ -122,12 +119,17 @@ onMount(() => {
     isDarkTheme: () => isDark(),
   }
 
-  // Sync the active tab + siteId from the URL after SPA navigation or history nav.
+  // Sync the active tab from the path after SPA navigation / history nav. Adopt a
+  // ?siteId= if a deep-link carries one, but NEVER clear the store when it's
+  // absent — clean navigation must keep the selected site (else every tab switch
+  // would drop it).
   const syncFromUrl = (): void => {
-    const urlSiteId = new URLSearchParams(window.location.search).get('siteId') || ''
     dashboard.currentTab.set(detectCurrentTab())
-    dashboard.siteId.set(urlSiteId)
-    siteId.set(urlSiteId)
+    const urlSiteId = new URLSearchParams(window.location.search).get('siteId') || ''
+    if (urlSiteId) {
+      dashboard.siteId.set(urlSiteId)
+      siteId.set(urlSiteId)
+    }
   }
   window.addEventListener('stx:navigate', syncFromUrl)
   window.addEventListener('popstate', syncFromUrl)
@@ -167,7 +169,7 @@ provide('dashboardHeader', {
   </nav>
 
   <div class="flex items-center gap-2">
-    <a x-href="'/dashboard/settings' + (siteId() ? '?siteId=' + encodeURIComponent(siteId()) : '')"
+    <a x-href="'/dashboard/settings'"
        x-class="dashboard.currentTab() === 'settings' ? 'icon-btn text-accent' : 'icon-btn'"
        title="Project settings"
        data-stx-prefetch>
@@ -177,7 +179,7 @@ provide('dashboardHeader', {
       <Icon name="moon" size="20" id="moon-icon" x-show="isDark()" />
       <Icon name="sun" size="20" id="sun-icon" x-show="!isDark()" />
     </button>
-    <a x-href="'/dashboard/account' + (siteId() ? '?siteId=' + encodeURIComponent(siteId()) : '')" x-show="userEmail()" class="flex items-center gap-1.5 icon-btn no-underline" title="Account settings" data-stx-prefetch>
+    <a x-href="'/dashboard/account'" x-show="userEmail()" class="flex items-center gap-1.5 icon-btn no-underline" title="Account settings" data-stx-prefetch>
       <Icon name="user" size="18" />
       <span class="text-xs text-muted max-w-[160px] truncate hidden md:inline">{{ userEmail() }}</span>
     </a>
