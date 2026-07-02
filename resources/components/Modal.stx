@@ -81,6 +81,10 @@ function alertModal(alertTitle: string, message: string): void {
 const Modal = { open, close, handleSubmit, getFormData, confirm, alert: alertModal }
 
 provide('Modal', Modal)
+// useModal() resolves `window.Modal` (with a no-op fallback), and provide()/
+// inject() alone doesn't reach that composable — so without exposing it here
+// every Modal.open()/confirm() silently does nothing.
+window.Modal = Modal
 
 onMount(() => {
   const handleEsc = (e: KeyboardEvent): void => {

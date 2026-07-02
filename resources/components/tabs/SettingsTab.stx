@@ -666,7 +666,7 @@ effect(() => {
     <button type="button" x-class="settingsTabClass('install')" @click="settingsTab.set('install')">Installation</button>
     <button type="button" x-class="settingsTabClass('access')" @click="settingsTab.set('access')">Access</button>
     <button type="button" x-class="settingsTabClass('alerts')" @click="settingsTab.set('alerts')">Alerts &amp; Monitoring</button>
-    <button type="button" x-class="settingsTabClass('data')" @click="settingsTab.set('data')">Data</button>
+    <button type="button" x-class="settingsTabClass('data')" @click="settingsTab.set('data')">Manage</button>
   </div>
 
   <!-- Installation tab -->
