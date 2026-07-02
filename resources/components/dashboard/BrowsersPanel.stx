@@ -16,13 +16,6 @@ onMount(() => {
   window.refreshBrowsersPanel = () => analytics.fetchSection('browsers')
 })
 
-// Fathom-style proportional row bar: percent of the list max (min 2% so tiny
-// values still paint a sliver). Drives the td.cell-name::before pill width.
-function barPct(items, v) {
-  let max = 0
-  for (const it of (items || [])) max = Math.max(max, it.visitors || 0)
-  return max > 0 ? Math.max(2, Math.round(((v || 0) / max) * 100)) : 0
-}
 </script>
 
 <div class="panel">
@@ -43,7 +36,7 @@ function barPct(items, v) {
     </thead>
     <tbody>
       <tr x-for="browser in analytics.browsers" @loading="analytics.loading()">
-        <td class="cell-name" x-style="'--bar: ' + barPct(analytics.browsers(), browser.visitors) + '%'">{{ browser.name ? browser.name : 'Unknown' }}</td>
+        <td class="cell-name"><span class="row-fill" x-style="'width: ' + (browser._bar ? browser._bar : 0) + '%'"></span>{{ browser.name ? browser.name : 'Unknown' }}</td>
         <td class="cell-value">{{ fmt(browser.visitors) }}</td>
         <td class="cell-value">{{ (browser.percentage ? browser.percentage : 0) + '%' }}</td>
       </tr>

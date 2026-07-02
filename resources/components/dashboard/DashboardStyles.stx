@@ -185,23 +185,23 @@ td.name, .cell-name {
   font-weight: 500;
 }
 
-/* Fathom-style proportional row bars: panels set a per-row --bar percentage
-   (of the column max) on the name cell; this paints a soft rounded pill over
-   it. The fill is a translucent accent tint so text stays readable and the
-   same rule works in both themes (lavender on light, dim indigo on dark). */
+/* Fathom-style proportional row bars: panels precompute each row's share of
+   the column max (item._bar) and bind it as the row-fill span's width. The
+   fill is a translucent accent tint so text stays readable and the same rule
+   works in both themes (lavender on light, dim indigo on dark). */
 td.cell-name {
   position: relative;
 }
-td.cell-name::before {
-  content: '';
+td.cell-name .row-fill {
   position: absolute;
   left: 0;
   top: 3px;
   bottom: 3px;
-  width: var(--bar, 0%);
+  width: 0;
   background: var(--bar-fill, rgba(99, 102, 241, 0.14));
   border-radius: 6px;
   pointer-events: none;
+  transition: width 0.3s ease;
 }
 td.value, .cell-value {
   color: var(--text2);

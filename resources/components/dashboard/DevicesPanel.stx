@@ -31,13 +31,6 @@ onMount(() => {
   window.refreshDevicesPanel = () => analytics.fetchSection('devices')
 })
 
-// Fathom-style proportional row bar: percent of the list max (min 2% so tiny
-// values still paint a sliver). Drives the td.cell-name::before pill width.
-function barPct(items, v) {
-  let max = 0
-  for (const it of (items || [])) max = Math.max(max, it.visitors || 0)
-  return max > 0 ? Math.max(2, Math.round(((v || 0) / max) * 100)) : 0
-}
 </script>
 
 <div class="panel">
@@ -58,7 +51,8 @@ function barPct(items, v) {
     </thead>
     <tbody>
       <tr x-for="device in analytics.devices" @loading="analytics.loading()">
-        <td class="cell-name flex items-center gap-1.5" x-style="'--bar: ' + barPct(analytics.devices(), device.visitors) + '%'">
+        <td class="cell-name flex items-center gap-1.5">
+          <span class="row-fill" x-style="'width: ' + (device._bar ? device._bar : 0) + '%'"></span>
           <svg class="text-muted shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(device.type)"/>
           </svg>

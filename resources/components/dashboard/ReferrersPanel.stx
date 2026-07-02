@@ -41,7 +41,13 @@ async function fetchReferrers() {
   try {
     const res = await fetch(dashboard.apiUrlWithDates('/referrers'))
     const data = await res.json()
-    referrers.set((data.referrers || []).slice(0, 10))
+    const rows = (data.referrers || []).slice(0, 10)
+    // Precompute the Fathom-style bar width (% of the column max, min 2%) —
+    // the row-fill span binds it via a plain x-style width.
+    let max = 0
+    for (const r of rows) max = Math.max(max, r.visitors || 0)
+    for (const r of rows) r._bar = max > 0 ? Math.max(2, Math.round(((r.visitors || 0) / max) * 100)) : 0
+    referrers.set(rows)
   } catch (e) {
     console.error('Failed to fetch referrers:', e)
   } finally {
@@ -54,13 +60,6 @@ onMount(() => {
   window.refreshReferrersPanel = fetchReferrers
 })
 
-// Fathom-style proportional row bar: percent of the list max (min 2% so tiny
-// values still paint a sliver). Drives the td.cell-name::before pill width.
-function barPct(items, v) {
-  let max = 0
-  for (const it of (items || [])) max = Math.max(max, it.visitors || 0)
-  return max > 0 ? Math.max(2, Math.round(((v || 0) / max) * 100)) : 0
-}
 </script>
 
 <div class="panel">
@@ -81,7 +80,8 @@ function barPct(items, v) {
     </thead>
     <tbody>
       <tr x-for="ref in referrers" @loading="loading()">
-        <td class="cell-name" x-style="'--bar: ' + barPct(referrers(), ref.visitors) + '%'">
+        <td class="cell-name">
+          <span class="row-fill" x-style="'width: ' + (ref._bar ? ref._bar : 0) + '%'"></span>
           <a x-show="isExternalLink(ref.source ? ref.source : 'Direct')"
              x-href="getHref(ref.source)"
              target="_blank"
