@@ -126,7 +126,9 @@ defineStore('dashboard', () => {
       return ''
     }
 
-    return `?start=${start.toISOString()}&end=${now.toISOString()}&period=${range}`
+    // The API's parseDateRange reads startDate/endDate — `start`/`end` were
+    // silently ignored, so store-driven fetches always got the default 30 days.
+    return `?startDate=${start.toISOString()}&endDate=${now.toISOString()}&period=${range}`
   }
 
   // Active filters as query params (e.g. &country=US&device=mobile)

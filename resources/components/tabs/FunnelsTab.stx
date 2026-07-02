@@ -1,8 +1,14 @@
 <script client>
 import type { Funnel, FunnelAnalysisStep, FunnelAnalysis } from '../../types/analytics'
-import { useSiteApi, useModal } from '@composables'
+import { useModal } from '@composables'
 
-const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi()
+// Reactive store-backed API helpers: window.siteId (what useSiteApi reads) is
+// empty on a clean-URL reload until the selector restores the last site, so
+// read the dashboard store signal and fetch from an effect instead of onMount.
+const dashboard = useStore('dashboard')
+const _siteId = (): string => dashboard.siteId()
+const _apiUrl = (path: string): string => dashboard.apiUrl(path)
+const _dateParams = (): string => dashboard.dateParams()
 const Modal = useModal()
 
 const funnels = state<Funnel[]>([])
@@ -159,8 +165,14 @@ provide('backToFunnels', backToFunnels)
 window.__addFunnelStep = addFunnelStep
 window.__removeFunnelStep = removeFunnelStep
 
-onMount(() => {
+// Fetch once the site is known (and refetch when the date range changes) —
+// on reload the id arrives asynchronously via the selector's restore.
+effect(() => {
+  if (!_siteId()) { loading.set(false); return }
   fetchFunnels()
+})
+
+onMount(() => {
   return () => {
     delete window.__addFunnelStep
     delete window.__removeFunnelStep

@@ -1,8 +1,12 @@
 <script client>
 import type { LiveActivity } from '../../types/analytics'
-import { useSiteApi } from '@composables'
 
-const { siteId: _siteId, apiUrl: _apiUrl } = useSiteApi()
+// Reactive store-backed API helpers: window.siteId (what useSiteApi reads) is
+// empty on a clean-URL reload until the selector restores the last site, so
+// read the dashboard store signal and fetch from an effect instead of onMount.
+const dashboard = useStore('dashboard')
+const _siteId = (): string => dashboard.siteId()
+const _apiUrl = (path: string): string => dashboard.apiUrl(path)
 
 const activities = state<LiveActivity[]>([])
 const loading = state<boolean>(true)
@@ -32,8 +36,14 @@ function timeAgo(ts: string | null): string {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
-onMount(() => {
+// Fetch once the site is known (and refetch when the date range changes) —
+// on reload the id arrives asynchronously via the selector's restore.
+effect(() => {
+  if (!_siteId()) { loading.set(false); return }
   fetchLive()
+})
+
+onMount(() => {
   const interval = setInterval(fetchLive, 5000)
   return () => clearInterval(interval)
 })

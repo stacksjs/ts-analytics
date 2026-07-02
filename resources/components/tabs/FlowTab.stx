@@ -1,8 +1,12 @@
 <script client>
 import type { FlowData } from '../../types/analytics'
-import { useSiteApi } from '@composables'
 
-const { siteId: _siteId, apiUrlWithDates } = useSiteApi()
+// Reactive store-backed API helpers: window.siteId (what useSiteApi reads) is
+// empty on a clean-URL reload until the selector restores the last site, so
+// read the dashboard store signal and fetch from an effect instead of onMount.
+const dashboard = useStore('dashboard')
+const _siteId = (): string => dashboard.siteId()
+const apiUrlWithDates = (path: string): string => dashboard.apiUrlWithDates(path)
 
 const flowData = state<FlowData | null>(null)
 const loading = state<boolean>(true)
@@ -32,7 +36,10 @@ async function fetchFlow(): Promise<void> {
   }
 }
 
-onMount(() => {
+// Fetch once the site is known (and refetch when the date range changes) —
+// on reload the id arrives asynchronously via the selector's restore.
+effect(() => {
+  if (!_siteId()) { loading.set(false); return }
   fetchFlow()
 })
 </script>

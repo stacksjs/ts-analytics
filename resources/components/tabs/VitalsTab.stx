@@ -1,8 +1,13 @@
 <script client>
 import type { Vital, BudgetViolation } from '../../types/analytics'
-import { useSiteApi } from '@composables'
 
-const { siteId: _siteId, apiUrl: _apiUrl, dateParams: _dateParams } = useSiteApi()
+// Reactive store-backed API helpers: window.siteId (what useSiteApi reads) is
+// empty on a clean-URL reload until the selector restores the last site, so
+// read the dashboard store signal and fetch from an effect instead of onMount.
+const dashboard = useStore('dashboard')
+const _siteId = (): string => dashboard.siteId()
+const _apiUrl = (path: string): string => dashboard.apiUrl(path)
+const _dateParams = (): string => dashboard.dateParams()
 
 const vitals = state<Vital[]>([])
 const violations = state<BudgetViolation[]>([])
@@ -30,7 +35,9 @@ async function fetchVitals(): Promise<void> {
 }
 
 function getRating(v: Vital | null): string {
-  if (!v || v.samples === 0) return ''
+  // `samples` can be undefined (not 0) for metrics with no data — a strict
+  // === 0 check let those fall through and rate as 'needs-improvement'.
+  if (!v || !(v.samples > 0)) return ''
   if ((v.good || 0) >= 75) return 'good'
   if ((v.poor || 0) >= 25) return 'poor'
   return 'needs-improvement'
@@ -45,7 +52,10 @@ function formatValue(metric: string, value: number): string {
   return `${value}ms`
 }
 
-onMount(() => {
+// Fetch once the site is known (and refetch when the date range changes) —
+// on reload the id arrives asynchronously via the selector's restore.
+effect(() => {
+  if (!_siteId()) { loading.set(false); return }
   fetchVitals()
 })
 </script>
@@ -79,7 +89,7 @@ onMount(() => {
         <div class="text-xs font-semibold text-muted uppercase tracking-wider mb-1">{{ v.metric }}</div>
         <div x-class="vitalValueClass(v)">{{ v.samples > 0 ? formatValue(v.metric, v.p75) : '—' }}</div>
         <div class="text-[0.6875rem] text-muted mb-2">{{ (v.samples || 0) + ' samples' }}</div>
-        <div x-show="v.samples > 0" class="h-1 rounded-sm flex overflow-hidden bg-bg">
+        <div x-show="v.samples > 0" class="vital-bar h-1 rounded-sm flex overflow-hidden bg-bg">
           <div class="good" x-style="'width: ' + v.good + '%'"></div>
           <div class="needs-improvement" x-style="'width: ' + v.needsImprovement + '%'"></div>
           <div class="poor" x-style="'width: ' + v.poor + '%'"></div>
@@ -104,7 +114,10 @@ onMount(() => {
 .vital-value.needs-improvement { color: var(--warning); }
 .vital-value.poor { color: var(--error); }
 
-.good { background: var(--success); }
-.needs-improvement { background: var(--warning); }
-.poor { background: var(--error); }
+/* Scoped to the distribution bar — the bare `.needs-improvement { background }`
+   selectors also matched the value div (which carries the rating class for its
+   text color), painting it as a solid orange block. */
+.vital-bar .good { background: var(--success); }
+.vital-bar .needs-improvement { background: var(--warning); }
+.vital-bar .poor { background: var(--error); }
 </style>
