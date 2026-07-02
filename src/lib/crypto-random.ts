@@ -26,3 +26,16 @@ export function randomToken(length: number, chars: string = DEFAULT_CHARS): stri
   }
   return out
 }
+
+/**
+ * Site / App IDs — short, unambiguous, Fathom-style (`WOLZMJDL`). Uppercase +
+ * digits with the ambiguous chars (0/O/1/I) removed, so an id is easy to eyeball
+ * in DynamoDB and logs. 8 chars over a 32-char alphabet ≈ 1e12 combinations —
+ * plenty of headroom for site ids while staying short.
+ */
+const APP_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+/** A short, random, unguessable App ID (default 8 chars). */
+export function generateAppId(length: number = 8): string {
+  return randomToken(length, APP_ID_CHARS)
+}

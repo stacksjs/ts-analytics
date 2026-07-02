@@ -34,7 +34,17 @@
  * (push a tag onto the document head).
  */
 
-import { randomToken } from '../lib/crypto-random'
+/**
+ * Generate a short, unguessable App ID (Fathom-style `data-site`, 8 chars). Run
+ * once per site and paste the result into your config — the backend
+ * auto-provisions the site on its first event, so nothing else is needed.
+ *
+ * ```ts
+ * import { generateAppId } from '@stacksjs/ts-analytics/stx'
+ * console.log(generateAppId()) // e.g. 'K7MN4PQR'
+ * ```
+ */
+export { generateAppId } from '../lib/crypto-random'
 
 /**
  * Default ts-analytics API origin — where `/script.js` is served and events are
@@ -50,20 +60,6 @@ export const DEFAULT_API_ENDPOINT = 'http://localhost:2027'
 export function resolveApiEndpoint(explicit?: string): string {
   const raw = (explicit ?? process.env.TS_ANALYTICS_ENDPOINT ?? DEFAULT_API_ENDPOINT).trim()
   return raw.replace(/\/+$/, '')
-}
-
-/**
- * Generate a long, unguessable App ID (Fathom-style `data-site`). Run once per
- * site and paste the result into your config — the backend auto-provisions the
- * site on its first event, so nothing else is needed.
- *
- * ```ts
- * import { generateAppId } from '@stacksjs/ts-analytics/stx'
- * console.log(generateAppId()) // 32 url-safe chars
- * ```
- */
-export function generateAppId(length = 32): string {
-  return randomToken(length)
 }
 
 /** A stx head `<script>` entry — an item of the config `app.head.script` array. */

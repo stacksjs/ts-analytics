@@ -10,6 +10,7 @@ import { generateApiKey } from './api-keys'
 import { addMembership, getUserMemberships, getMembership, getSiteMembers, removeMembership } from '../lib/membership'
 import { getUserPlan, planLimits } from '../lib/plans'
 import { generateId } from '../index'
+import { generateAppId } from '../lib/crypto-random'
 
 /**
  * GET /health
@@ -29,7 +30,6 @@ export async function handleCreateSite(request: Request, ownerId?: string): Prom
       return jsonResponse({ error: 'Site name is required' }, 400)
     }
 
-    const siteId = body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
     const domains = body.domains || (body.domain ? [body.domain] : [])
     const now = new Date().toISOString()
 
@@ -44,38 +44,41 @@ export async function handleCreateSite(request: Request, ownerId?: string): Prom
       }
     }
 
-    // Check if site already exists
-    const existing = await dynamodb.getItem({
-      TableName: TABLE_NAME,
-      Key: {
-        pk: { S: 'SITES' },
-        sk: { S: `SITE#${siteId}` },
-      },
-    })
-
-    if (existing.Item) {
-      const existingSite = unmarshall(existing.Item)
-      // Claim an ownerless site instead of 409ing (#114 regression): the
-      // tracking snippet auto-creates ownerless SITES rows via /collect, so a
-      // user creating that project in the dashboard should adopt it (attach
-      // ownerId + owner membership) rather than be blocked out of their data.
-      if (ownerId && !existingSite.ownerId) {
-        await dynamodb.updateItem({
-          TableName: TABLE_NAME,
-          Key: { pk: { S: 'SITES' }, sk: { S: `SITE#${siteId}` } },
-          UpdateExpression: 'SET ownerId = :o, gsi1pk = :gp, gsi1sk = :gs, updatedAt = :now',
-          ExpressionAttributeValues: {
-            ':o': { S: ownerId },
-            ':gp': { S: `OWNER#${ownerId}` },
-            ':gs': { S: `SITE#${siteId}` },
-            ':now': { S: now },
-          },
-        })
-        await addMembership(ownerId, siteId, 'owner')
-        return jsonResponse({ site: { ...existingSite, id: siteId, ownerId }, claimed: true }, 200)
+    // Adopt an ownerless site the tracker auto-created under a readable id
+    // (legacy #114 flow): the tracking snippet auto-creates ownerless SITES rows
+    // via /collect, so a user creating that project by the same name should adopt
+    // it (attach ownerId + membership) rather than be blocked out of their data.
+    // Match on the name's slug; brand-new sites get a random App ID below.
+    const slug = body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    if (slug) {
+      const existing = await dynamodb.getItem({
+        TableName: TABLE_NAME,
+        Key: { pk: { S: 'SITES' }, sk: { S: `SITE#${slug}` } },
+      })
+      if (existing.Item) {
+        const existingSite = unmarshall(existing.Item)
+        if (ownerId && !existingSite.ownerId) {
+          await dynamodb.updateItem({
+            TableName: TABLE_NAME,
+            Key: { pk: { S: 'SITES' }, sk: { S: `SITE#${slug}` } },
+            UpdateExpression: 'SET ownerId = :o, gsi1pk = :gp, gsi1sk = :gs, updatedAt = :now',
+            ExpressionAttributeValues: {
+              ':o': { S: ownerId },
+              ':gp': { S: `OWNER#${ownerId}` },
+              ':gs': { S: `SITE#${slug}` },
+              ':now': { S: now },
+            },
+          })
+          await addMembership(ownerId, slug, 'owner')
+          return jsonResponse({ site: { ...existingSite, id: slug, ownerId }, claimed: true }, 200)
+        }
+        // Already owned → fall through and create a fresh site with a random id
+        // (names aren't unique now that ids are random, Fathom-style).
       }
-      return jsonResponse({ error: 'Site already exists', siteId }, 409)
     }
+
+    // Brand-new site: a short, random, unguessable App ID (Fathom-style, ~8 chars).
+    const siteId = generateAppId()
 
     // Create the site
     const siteItem: Record<string, unknown> = {
