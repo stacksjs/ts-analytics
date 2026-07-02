@@ -565,10 +565,62 @@ async function saveRetention(value: string): Promise<void> {
   settings.set({ ...settings(), retentionDays: days })
 }
 
+// Delete site (owner-only) — type-to-confirm with the site name (App ID fallback).
+const siteName = state<string>('')
+const deleteConfirm = state<string>('')
+const deleting = state<boolean>(false)
+const deleteError = state<string | null>(null)
+
+async function fetchSiteName(): Promise<void> {
+  try {
+    const res: Response = await fetch(`${apiBase()}/api/sites`, { credentials: 'include' })
+    if (!res.ok) return
+    const data: { sites?: { id: string, name?: string }[] } = await res.json()
+    const site = (data.sites || []).find(s => s.id === siteId())
+    if (site && site.name) siteName.set(site.name)
+  }
+  catch (_e) {
+    // leave empty — the confirm falls back to the App ID
+  }
+}
+
+// What the user must type to confirm — the site name, or the App ID if unnamed.
+function deleteChallenge(): string {
+  return siteName() || siteId()
+}
+
+function canDelete(): boolean {
+  return !deleting() && deleteConfirm().trim() === deleteChallenge()
+}
+
+async function deleteSite(): Promise<void> {
+  if (!canDelete()) return
+  deleting.set(true)
+  deleteError.set(null)
+  try {
+    const res: Response = await fetch(apiUrl(''), { method: 'DELETE', credentials: 'include' })
+    if (!res.ok) {
+      const data: { error?: string } = await res.json().catch(() => ({}))
+      deleteError.set(data.error || 'Failed to delete site')
+      deleting.set(false)
+      return
+    }
+    // Deleted — suppress last-site restore and return to the project list.
+    try { sessionStorage.setItem('tsa:pickProject', '1') }
+    catch (_e) {}
+    window.location.href = '/'
+  }
+  catch (_e) {
+    deleteError.set('Failed to delete site')
+    deleting.set(false)
+  }
+}
+
 onMount(() => {
   fetchSettings()
   fetchSnippet()
   fetchDsn()
+  fetchSiteName()
 })
 </script>
 
@@ -844,6 +896,22 @@ onMount(() => {
             <button class="btn btn-secondary" @click="gdprExport()">Export Data (GDPR)</button>
             <button class="btn btn-danger" @click="gdprDelete()">Delete Visitor Data</button>
           </div>
+        </div>
+      </div>
+
+      <div class="panel md:col-span-2 border border-error">
+        <div class="panel-header">
+          <h4 class="panel-title text-error">Delete this site</h4>
+        </div>
+        <p class="text-xs text-muted mb-3">Permanently deletes <code class="text-text">{{ deleteChallenge() }}</code> and <strong class="text-text">all</strong> of its data — pageviews, sessions, events, errors, API keys. This can't be undone.</p>
+        <label class="text-xs font-medium text-muted mb-1 block">Type <code class="text-text">{{ deleteChallenge() }}</code> to confirm</label>
+        <input type="text" class="form-input max-w-[20rem] mb-3" x-value="deleteConfirm()" @input="deleteConfirm.set($event.target.value)" :placeholder="deleteChallenge()" autocomplete="off" spellcheck="false" />
+        <div class="flex items-center gap-3">
+          <button class="btn btn-danger" x-disabled="!canDelete()" @click="deleteSite()">
+            <span x-show="!deleting()">Delete site</span>
+            <span x-show="deleting()">Deleting…</span>
+          </button>
+          <span x-show="deleteError()" class="text-xs text-error">{{ deleteError() }}</span>
         </div>
       </div>
     </div>
