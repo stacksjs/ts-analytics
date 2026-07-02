@@ -22,8 +22,12 @@ const pageSize: number = 50
 
 const urlParams: URLSearchParams = new URLSearchParams(window.location.search)
 const API: string = window.ANALYTICS_API_ENDPOINT || window.ANALYTICS_API || urlParams.get('api') || window.location.origin
-const SITE_ID: string = urlParams.get('siteId') || window.ANALYTICS_SITE_ID || ''
 const USE_STEALTH: boolean = urlParams.get('stealth') !== 'false'
+
+// The site lives in the dashboard store (clean URLs — no ?siteId=). Reading it
+// once from the URL here meant an empty id on load (GET /api/p//links → 404),
+// fired before the selector restored the last site. Read the reactive signal.
+const dashboard = useStore('dashboard')
 
 const sectionAttr: string | undefined = document.currentScript?.closest('[data-section]')?.dataset.section
 const pathMatch: RegExpMatchArray | null = window.location.pathname.match(/\/dashboard\/(.+)/)
@@ -76,12 +80,12 @@ const columnKeys = derived((): string[] => {
   return data.length > 0 ? Object.keys(data[0]) : []
 })
 
-const backHref = `/dashboard?siteId=${SITE_ID}`
+const backHref = '/dashboard'
 
-async function loadData(): Promise<void> {
+async function loadData(siteId: string): Promise<void> {
   loading.set(true)
   try {
-    const res: Response = await fetch(apiPath(`${API}/api/sites/${SITE_ID}/${SECTION}`))
+    const res: Response = await fetch(apiPath(`${API}/api/sites/${siteId}/${SECTION}`))
     if (!res.ok) throw new Error('Failed to load')
     const data: Record<string, DataItem[]> = await res.json()
     const items: DataItem[] = data[SECTION] || data.eventProperties || data.clicks || data.engagement || data.pages || data.referrers || data.browsers || data.countries || data.campaigns || data.events || data.goals || []
@@ -130,7 +134,15 @@ function formatValue(value: string | number | null, key: string): string {
 
 onMount(() => {
   document.title = `${sectionConfig.title} - Analytics`
-  loadData()
+})
+
+// Load once the site is known — on a clean-URL reload the id arrives
+// asynchronously (the selector restores it), so react to it instead of firing
+// on mount with an empty id.
+effect(() => {
+  const id: string = dashboard.siteId()
+  if (!id) return
+  loadData(id)
 })
 
 effect(() => {
