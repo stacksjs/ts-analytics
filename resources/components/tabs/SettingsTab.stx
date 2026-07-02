@@ -1,8 +1,18 @@
 <script client>
 import type { ApiKey, SiteSettings } from '../../types/analytics'
-import { useSiteApi, useModal } from '@composables'
+import { useModal } from '@composables'
 
-const { siteId, apiUrl } = useSiteApi()
+// window.siteId (what useSiteApi reads) is a plain global that's empty on a
+// clean-URL reload until the selector restores the last site — so a {{ }} bound
+// to it never updates, and fetches fire with an empty id (/api/sites//…, 405).
+// Read the reactive store signal instead, and build API URLs from it.
+const dashboard = useStore('dashboard')
+function siteId(): string {
+  return dashboard.siteId()
+}
+function apiUrl(path: string): string {
+  return dashboard.apiPath(`${dashboard.apiEndpoint()}/api/sites/${siteId()}${path}`)
+}
 const Modal = useModal()
 
 const settings = state<SiteSettings>({
@@ -636,7 +646,11 @@ function showDeleteModal(): void {
   })
 }
 
-onMount(() => {
+// Fetch once the site is known. On a clean-URL reload the id arrives
+// asynchronously (the selector restores it), so react to it rather than firing
+// on mount with an empty id.
+effect(() => {
+  if (!siteId()) return
   fetchSettings()
   fetchSnippet()
   fetchDsn()
