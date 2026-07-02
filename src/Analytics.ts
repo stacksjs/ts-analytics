@@ -3327,7 +3327,7 @@ catch (e){}
       else{var h=a.getAttribute('href')||'';if(h.charAt(0)==='#')return;kind='internal';}
     }else return;
     t('click',{url:a.href,kind:kind,text:(a.innerText||a.textContent||'').replace(/\\s+/g,' ').trim().slice(0,200)},true);
-  });`
+  },true);`
     : ''}
   ${options.trackEngagement
     ? `
