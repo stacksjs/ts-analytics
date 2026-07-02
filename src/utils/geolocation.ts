@@ -17,6 +17,27 @@ export const COUNTRY_NAMES: Record<string, string> = {
   TR: 'Turkey', UA: 'Ukraine', RO: 'Romania', HU: 'Hungary',
 }
 
+// Reverse lookup: display name → ISO code (countries are stored by display
+// name when COUNTRY_NAMES knows them, bare ISO code otherwise).
+const NAME_TO_CODE: Record<string, string> = Object.fromEntries(
+  Object.entries(COUNTRY_NAMES).map(([code, name]) => [name, code]),
+)
+
+/** ISO-3166 alpha-2 code for a stored country value (name or code). */
+export function countryCodeOf(nameOrCode: string): string | undefined {
+  if (/^[A-Z]{2}$/i.test(nameOrCode))
+    return nameOrCode.toUpperCase()
+  return NAME_TO_CODE[nameOrCode]
+}
+
+/** Emoji flag (regional indicator pair) for an ISO alpha-2 code — Fathom-style. */
+export function countryFlagEmoji(code: string): string {
+  if (!/^[A-Z]{2}$/i.test(code))
+    return ''
+  const cc = code.toUpperCase()
+  return String.fromCodePoint(0x1F1E6 + cc.charCodeAt(0) - 65, 0x1F1E6 + cc.charCodeAt(1) - 65)
+}
+
 // IP geolocation cache (in-memory, resets on cold start)
 const ipGeoCache = new Map<string, { country: string; expires: number }>()
 

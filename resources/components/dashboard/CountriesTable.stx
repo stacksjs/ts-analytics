@@ -49,7 +49,7 @@ function getFlag(name: string): string {
     <tbody>
       <tr x-for="country in countries" @loading="loading()">
         <td class="cell-name flex items-center gap-1.5">
-          <span class="text-base">{{ getFlag(country.name ? country.name : country.code) }}</span>
+          <span class="text-base">{{ country.flag ? country.flag : getFlag(country.name ? country.name : country.code) }}</span>
           {{ country.name ? country.name : (country.code ? country.code : 'Unknown') }}
         </td>
         <td class="cell-value">{{ (country.visitors ? country.visitors : 0) | fmt }}</td>

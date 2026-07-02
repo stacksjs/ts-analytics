@@ -5,7 +5,7 @@
 import { queryAllItems, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { parseDateRange, formatDuration } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
-import { getReferrerSourceChannel } from '../utils/geolocation'
+import { countryCodeOf, countryFlagEmoji, getReferrerSourceChannel } from '../utils/geolocation'
 import { parseFilters, matchesFilters, hasFilters } from '../utils/filters'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 import { readDayRollups, fullyCoveredDays, isSettledDay } from '../lib/rollups'
@@ -514,7 +514,12 @@ export async function handleGetCountries(request: Request, siteId: string): Prom
     }
 
     const countries = Object.entries(countryStats)
-      .map(([name, visitors]) => ({ name, code: '', flag: '', visitors: visitors.size }))
+      .map(([name, visitors]) => {
+        // Emoji flag from the ISO code (Fathom/GA-style) — stored values are
+        // display names (reverse-mapped) or bare ISO codes.
+        const code = countryCodeOf(name) || ''
+        return { name, code, flag: code ? countryFlagEmoji(code) : '', visitors: visitors.size }
+      })
       .sort((a, b) => b.visitors - a.visitors)
       .slice(0, limit)
 
