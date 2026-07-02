@@ -26,6 +26,8 @@
   --success: #10b981;
   --warning: #f59e0b;
   --error: #ef4444;
+  /* proportional row-bar fill (Fathom-style panels) */
+  --bar-fill: rgba(99, 102, 241, 0.16);
 }
 
 /* Light Theme */
@@ -40,6 +42,8 @@
   --border-color: #e5e7eb; /* For Crosswind preflight */
   --accent: #6366f1;
   --accent2: #4f46e5;
+  /* soft lavender, matching Fathom's light scheme */
+  --bar-fill: rgba(99, 102, 241, 0.13);
 }
 
 /* ===== @stacksjs/components palette bridge ===== */
@@ -179,6 +183,25 @@ td.name, .cell-name {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
+}
+
+/* Fathom-style proportional row bars: panels set a per-row --bar percentage
+   (of the column max) on the name cell; this paints a soft rounded pill over
+   it. The fill is a translucent accent tint so text stays readable and the
+   same rule works in both themes (lavender on light, dim indigo on dark). */
+td.cell-name {
+  position: relative;
+}
+td.cell-name::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: var(--bar, 0%);
+  background: var(--bar-fill, rgba(99, 102, 241, 0.14));
+  border-radius: 6px;
+  pointer-events: none;
 }
 td.value, .cell-value {
   color: var(--text2);

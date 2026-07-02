@@ -32,6 +32,14 @@ onMount(() => {
   if (dashboard.siteId()) analytics.fetchSection('countries')
   window.refreshCountriesPanel = () => analytics.fetchSection('countries')
 })
+
+// Fathom-style proportional row bar: percent of the list max (min 2% so tiny
+// values still paint a sliver). Drives the td.cell-name::before pill width.
+function barPct(items, v) {
+  let max = 0
+  for (const it of (items || [])) max = Math.max(max, it.visitors || 0)
+  return max > 0 ? Math.max(2, Math.round(((v || 0) / max) * 100)) : 0
+}
 </script>
 
 <div class="panel">
@@ -51,7 +59,7 @@ onMount(() => {
     </thead>
     <tbody>
       <tr x-for="country in analytics.countries" @loading="analytics.loading()">
-        <td class="cell-name flex items-center gap-1.5">
+        <td class="cell-name flex items-center gap-1.5" x-style="'--bar: ' + barPct(analytics.countries(), country.visitors) + '%'">
           <span class="text-base">{{ country.flag ? country.flag : getFlag(country.name ? country.name : country.code) }}</span>
           <span>{{ country.name ? country.name : (country.code ? country.code : 'Unknown') }}</span>
         </td>
