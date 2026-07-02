@@ -6,6 +6,7 @@
  */
 
 import { createRouter } from '../src/router'
+import { setSocketIpResolver } from '../deploy/lambda-adapter'
 import { assignUnownedSites } from '../src/handlers/auth'
 import { bootstrapJobs } from '../src/jobs'
 import { startScheduler } from '../src/lib/scheduler'
@@ -33,4 +34,8 @@ if (process.env.ANALYTICS_ENABLE_JOBS === 'true') {
 
 const router = await createRouter()
 await router.serve({ port: PORT })
+// Resolve direct-connection client IPs from the socket (Bun server.requestIP)
+// so local/container visitors aren't all 'unknown'. Registered after serve()
+// — the router throws if the server isn't started yet.
+setSocketIpResolver(req => (router as { requestIP?: (r: Request) => { address?: string } | null }).requestIP?.(req)?.address)
 console.log(`\nts-analytics API running at http://localhost:${PORT}`)

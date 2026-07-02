@@ -196,12 +196,48 @@ export function getQueryParams(request: Request): Record<string, string> {
   return params
 }
 
+type SocketIpResolver = (request: Request) => string | undefined
+
+let socketIpResolver: SocketIpResolver | undefined
+
 /**
- * Get client IP from Lambda event
+ * Register how to resolve the raw socket address for direct connections —
+ * e.g. Bun's server.requestIP via the router. Non-Lambda runtimes (local dev,
+ * bare containers) have no Lambda event and no proxy headers, so without this
+ * every visitor's IP was 'unknown' (collapsing visitor hashes, rate-limit keys,
+ * and IP exclusions). The IP is used transiently (hashing/limits/geo) and is
+ * never stored — same privacy model as before.
+ */
+export function setSocketIpResolver(resolver: SocketIpResolver): void {
+  socketIpResolver = resolver
+}
+
+/**
+ * Get client IP: Lambda event → proxy/CDN headers → socket address.
  */
 export function getClientIP(request: Request): string {
   const event = getLambdaEvent(request)
-  return event?.requestContext?.http?.sourceIp || 'unknown'
+  const fromLambda = event?.requestContext?.http?.sourceIp
+  if (fromLambda)
+    return fromLambda
+  // Proxy / CDN headers (ALB, nginx, Cloudflare) — first XFF hop is the client.
+  const xff = request.headers.get('x-forwarded-for')
+  if (xff) {
+    const first = xff.split(',')[0].trim()
+    if (first)
+      return first
+  }
+  const real = request.headers.get('cf-connecting-ip') || request.headers.get('x-real-ip')
+  if (real)
+    return real
+  // Direct connection (local dev / bare container): the socket address.
+  try {
+    const ip = socketIpResolver?.(request)
+    if (ip)
+      return ip
+  }
+  catch {}
+  return 'unknown'
 }
 
 /**
