@@ -574,11 +574,9 @@ async function saveRetention(value: string): Promise<void> {
   settings.set({ ...settings(), retentionDays: days })
 }
 
-// Delete site (owner-only) — type-to-confirm with the site name (App ID fallback).
+// Delete site (owner-only). The button opens a modal that asks the user to
+// re-type the site name (App ID fallback) before the destructive action runs.
 const siteName = state<string>('')
-const deleteConfirm = state<string>('')
-const deleting = state<boolean>(false)
-const deleteError = state<string | null>(null)
 
 async function fetchSiteName(): Promise<void> {
   try {
@@ -593,36 +591,49 @@ async function fetchSiteName(): Promise<void> {
   }
 }
 
-// What the user must type to confirm — the site name, or the App ID if unnamed.
+// What the user must re-type to confirm — the site name, or the App ID if unnamed.
 function deleteChallenge(): string {
   return siteName() || siteId()
 }
 
-function canDelete(): boolean {
-  return !deleting() && deleteConfirm().trim() === deleteChallenge()
+function escHtml(s: string): string {
+  const map: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }
+  return s.replace(/[&<>"']/g, c => map[c] || c)
 }
 
-async function deleteSite(): Promise<void> {
-  if (!canDelete()) return
-  deleting.set(true)
-  deleteError.set(null)
-  try {
-    const res: Response = await fetch(apiUrl(''), { method: 'DELETE', credentials: 'include' })
-    if (!res.ok) {
-      const data: { error?: string } = await res.json().catch(() => ({}))
-      deleteError.set(data.error || 'Failed to delete site')
-      deleting.set(false)
-      return
-    }
-    // Deleted — suppress last-site restore and return to the project list.
-    try { sessionStorage.setItem('tsa:pickProject', '1') }
-    catch (_e) {}
-    window.location.href = '/'
-  }
-  catch (_e) {
-    deleteError.set('Failed to delete site')
-    deleting.set(false)
-  }
+function showDeleteModal(): void {
+  const challenge: string = deleteChallenge()
+  const c: string = escHtml(challenge)
+  Modal.open({
+    title: 'Delete this site',
+    size: 'sm',
+    submitText: 'Delete site',
+    content: `
+      <p class="text-sm text-muted mb-3" style="line-height:1.6">Permanently deletes <code class="text-text">${c}</code> and <strong class="text-text">all</strong> of its data — pageviews, sessions, events, errors, API keys. This can't be undone.</p>
+      <label class="text-xs font-medium text-muted mb-1 block">Type <code class="text-text">${c}</code> to confirm</label>
+      <input type="text" name="confirm" class="form-input" autocomplete="off" spellcheck="false" placeholder="${c}" />
+      <p id="delete-err" class="text-xs text-error mt-2"></p>
+    `,
+    onSubmit: async () => {
+      const typed: string = String(Modal.getFormData().confirm || '').trim()
+      const errEl: Element | null = document.querySelector('#delete-err')
+      if (typed !== challenge) {
+        if (errEl) errEl.textContent = `Type "${challenge}" exactly to confirm.`
+        throw new Error('confirmation mismatch') // keeps the modal open
+      }
+      const res: Response = await fetch(apiUrl(''), { method: 'DELETE', credentials: 'include' })
+      if (!res.ok) {
+        const data: { error?: string } = await res.json().catch(() => ({}))
+        if (errEl) errEl.textContent = data.error || 'Failed to delete site.'
+        throw new Error('delete failed')
+      }
+      Modal.close()
+      // Suppress last-site restore and return to the project list.
+      try { sessionStorage.setItem('tsa:pickProject', '1') }
+      catch (_e) {}
+      window.location.href = '/'
+    },
+  })
 }
 
 onMount(() => {
@@ -926,15 +937,7 @@ onMount(() => {
           <h4 class="panel-title text-error">Delete this site</h4>
         </div>
         <p class="text-xs text-muted mb-3">Permanently deletes <code class="text-text">{{ deleteChallenge() }}</code> and <strong class="text-text">all</strong> of its data — pageviews, sessions, events, errors, API keys. This can't be undone.</p>
-        <label class="text-xs font-medium text-muted mb-1 block">Type <code class="text-text">{{ deleteChallenge() }}</code> to confirm</label>
-        <input type="text" class="form-input max-w-[20rem] mb-3" x-value="deleteConfirm()" @input="deleteConfirm.set($event.target.value)" :placeholder="deleteChallenge()" autocomplete="off" spellcheck="false" />
-        <div class="flex items-center gap-3">
-          <button class="btn btn-danger" x-disabled="!canDelete()" @click="deleteSite()">
-            <span x-show="!deleting()">Delete site</span>
-            <span x-show="deleting()">Deleting…</span>
-          </button>
-          <span x-show="deleteError()" class="text-xs text-error">{{ deleteError() }}</span>
-        </div>
+        <button class="btn btn-danger" @click="showDeleteModal()">Delete site</button>
       </div>
   </div>
 </div>
