@@ -86,13 +86,18 @@ defineStore('analytics', () => {
       const data = await res.json()
       const items = data[config.key] || []
       const sliced = config.slice > 0 ? items.slice(0, config.slice) : items
-      // Precompute the Fathom-style bar width on each row: percentage
-      // DISTRIBUTION (the row's share of the list total, min 2%) — a lone row
-      // fills the column, and widths read as "share of traffic". Panels bind it
-      // via a plain x-style width, which only reliably sees item fields in loops.
-      let total = 0
-      for (const it of sliced) total += it.visitors || 0
-      for (const it of sliced) it._bar = total > 0 ? Math.max(2, Math.round(((it.visitors || 0) / total) * 100)) : 0
+      // Precompute the Fathom-style bar width on each row. Verified from
+      // Fathom's shipped bundle: main-panel bars encode the row's share of the
+      // SITE-WIDE total for the range (rowValue / headline visitors, capped at
+      // 100) — bars in a panel sum toward 100%. For visitor-partitioned
+      // dimensions (countries, browsers, …) the list sum equals that total, so
+      // it doubles as the fallback until the headline stats load. Bound via a
+      // plain x-style width (loops only reliably see item fields).
+      const siteTotal = Number(stats()?.people) || 0
+      let sum = 0
+      for (const it of sliced) sum += it.visitors || 0
+      const denom = siteTotal > 0 ? siteTotal : sum
+      for (const it of sliced) it._bar = denom > 0 ? Math.min(100, Math.max(2, Math.round(((it.visitors || 0) / denom) * 100))) : 0
       config.data.set(sliced)
       return sliced
     } catch (e) {
