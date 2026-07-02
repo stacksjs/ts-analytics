@@ -25,6 +25,22 @@ export function jsonResponse(body: unknown, statusCode = 200, headers: Record<st
 }
 
 /**
+ * 204 No Content with CORS — for the public collect / tracking endpoints, which
+ * every host site POSTs to cross-origin. Without Access-Control-Allow-Origin the
+ * browser blocks the beacon (and logs a CORS error) even though the write
+ * succeeded, so the bare `new Response(null, { status: 204 })` must not be used.
+ */
+export function noContentResponse(headers: Record<string, string> = {}): Response {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      ...headers,
+    },
+  })
+}
+
+/**
  * Create an HTML response
  */
 export function htmlResponse(body: string, statusCode = 200, headers: Record<string, string> = {}): Response {

@@ -26,7 +26,7 @@ import { checkAndRecordConversions } from '../lib/goals'
 import { getSession, setSession } from '../utils/cache'
 import { parseUserAgent, isBot } from '../utils/user-agent'
 import { getCountryFromHeaders, getCountryFromIP, getRegionFromHeaders, getCityFromHeaders, parseReferrerSource, isSpamReferrer, anonymizeIp } from '../utils/geolocation'
-import { jsonResponse, errorResponse } from '../utils/response'
+import { jsonResponse, errorResponse, noContentResponse } from '../utils/response'
 import { getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
 import { ensureSiteExists } from './misc'
 
@@ -147,7 +147,7 @@ catch {
     // Drop bot/crawler traffic and known referral-spam before any writes
     // (no site auto-create, no records).
     if (isBot(userAgent) || isSpamReferrer(payload.r)) {
-      return new Response(null, { status: 204 })
+      return noContentResponse()
     }
 
     // Ensure site exists (auto-create if first event)
@@ -168,14 +168,14 @@ catch {
     if (!rateLimitAllow(`collect:${ip}`, COLLECT_RATE_LIMIT_PER_MIN, 60_000)) {
       return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
         status: 429,
-        headers: { 'Content-Type': 'application/json', 'Retry-After': '60' },
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '60', 'Access-Control-Allow-Origin': '*' },
       })
     }
 
     // Honor configured IP/path exclusions (internal traffic, admin paths) (#159).
     const tracking = getConfig().tracking
     if (isExcluded(ip, parsedUrlForSite.pathname, tracking.excludedIps, tracking.excludedPaths)) {
-      return new Response(null, { status: 204 })
+      return noContentResponse()
     }
 
     const headers = getHeaders(request)
@@ -611,7 +611,7 @@ else if (payload.e === 'error') {
       })
     }
 
-    return new Response(null, { status: 204 })
+    return noContentResponse()
   }
 catch (error) {
     console.error('Collect error:', error)

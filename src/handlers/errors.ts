@@ -5,7 +5,7 @@
 import { generateId } from '../index'
 import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { parseDateRange } from '../utils/date'
-import { jsonResponse, errorResponse } from '../utils/response'
+import { jsonResponse, errorResponse, noContentResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
 import { categorizeError, getErrorSeverity, getErrorFingerprint, getErrorTrend, shouldIgnoreError } from '../utils/errors'
 import { rateLimitAllow } from '../lib/rate-limit'
@@ -283,25 +283,25 @@ export async function handleCollectError(request: Request, siteId: string, keyId
     if (!rateLimitAllow(`err:${keyId}`, ERROR_INGEST_LIMIT, 60_000)) {
       return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
         status: 429,
-        headers: { 'Content-Type': 'application/json', 'Retry-After': '60' },
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '60', 'Access-Control-Allow-Origin': '*' },
       })
     }
 
     const body = await request.json() as Record<string, any>
 
     if (!body.message) {
-      return new Response(null, { status: 400 })
+      return jsonResponse({ error: 'message is required' }, 400)
     }
 
     if (shouldIgnoreError(body.message, body.framework)) {
-      return new Response(null, { status: 204 })
+      return noContentResponse()
     }
 
     // Monthly per-project event quota (coarse cap; no-op unless configured).
     if (!(await recordEventWithinQuota(siteId))) {
       return new Response(JSON.stringify({ error: 'Monthly event quota exceeded' }), {
         status: 429,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       })
     }
 
@@ -483,7 +483,7 @@ catch (e) {
     // Fire-and-forget: evaluate error alerts (with cooldown)
     evaluateErrorAlertsThrottled(siteId).catch(() => {})
 
-    return new Response(null, { status: 204 })
+    return noContentResponse()
   }
 catch (error) {
     console.error('Collect error:', error)
