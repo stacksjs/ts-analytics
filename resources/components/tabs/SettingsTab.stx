@@ -607,8 +607,14 @@ function deleteChallenge(): string {
 }
 
 function escHtml(s: string): string {
-  const map: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }
-  return s.replace(/[&<>"']/g, c => map[c] || c)
+  // Build the angle brackets via char codes (60 = less-than, 62 = greater-than)
+  // so no lone bracket literal appears in the source: stx's function-scope
+  // scanner treats a lone `<` as a tag open and drops every function defined
+  // after it — which is what made showDeleteModal "not defined" in its handler.
+  const lt: string = String.fromCharCode(60)
+  const gt: string = String.fromCharCode(62)
+  const map: Record<string, string> = { '&': '&amp;', [lt]: '&lt;', [gt]: '&gt;', '"': '&quot;', '\'': '&#39;' }
+  return s.replace(new RegExp('[&' + lt + gt + '"\']', 'g'), c => map[c] || c)
 }
 
 function showDeleteModal(): void {
