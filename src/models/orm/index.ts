@@ -490,6 +490,8 @@ export class Session extends Model {
     endedAt?: Date | string
     duration?: number
     isBounce?: boolean
+    /** Backfill the country only when the session doesn't have one yet. */
+    countryIfAbsent?: string
   }): Promise<void> {
     const setParts: string[] = []
     const addParts: string[] = []
@@ -515,6 +517,13 @@ export class Session extends Model {
       field('duration', 'du', updates.duration, 'SET')
     if (updates.isBounce !== undefined)
       field('isBounce', 'bo', updates.isBounce, 'SET')
+    if (updates.countryIfAbsent) {
+      // Sessions created before geo resolved (old tracker, event-first sessions)
+      // pick up the country from a later pageview instead of staying countryless.
+      names['#co'] = 'country'
+      values[':co'] = marshallValue(updates.countryIfAbsent)
+      setParts.push('#co = if_not_exists(#co, :co)')
+    }
 
     const clauses: string[] = []
     if (setParts.length > 0)

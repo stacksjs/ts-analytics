@@ -297,6 +297,7 @@ catch (e) {
           endedAt: timestamp,
           duration: session.duration,
           isBounce: false,
+          countryIfAbsent: country,
         })
       }
 else {
@@ -332,6 +333,7 @@ else {
             endedAt: timestamp,
             duration: 0,
             isBounce: false,
+            countryIfAbsent: country,
           })
         }
       }

@@ -500,12 +500,14 @@ export async function handleGetCountries(request: Request, siteId: string): Prom
       return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
     })
 
-    // Aggregate by country
+    // Aggregate by country. Sessions without a resolved country (pre-geo data,
+    // clients with no timezone/headers) are omitted rather than reported as an
+    // "Unknown" bucket.
     const countryStats: Record<string, Set<string>> = {}
     for (const s of sessions) {
-      const country = s.country || 'Unknown'
-      if (!countryStats[country]) countryStats[country] = new Set()
-      countryStats[country].add(s.visitorId)
+      if (!s.country) continue
+      if (!countryStats[s.country]) countryStats[s.country] = new Set()
+      countryStats[s.country].add(s.visitorId)
     }
 
     const countries = Object.entries(countryStats)
