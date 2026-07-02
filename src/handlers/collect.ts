@@ -26,6 +26,7 @@ import { checkAndRecordConversions } from '../lib/goals'
 import { getSession, setSession } from '../utils/cache'
 import { parseUserAgent, isBot } from '../utils/user-agent'
 import { getCountryFromHeaders, getCountryFromIP, getRegionFromHeaders, getCityFromHeaders, parseReferrerSource, isSpamReferrer, anonymizeIp } from '../utils/geolocation'
+import { getCountryFromTimezone } from '../utils/timezone-country'
 import { jsonResponse, errorResponse, noContentResponse } from '../utils/response'
 import { getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
 import { ensureSiteExists } from './misc'
@@ -243,6 +244,11 @@ catch (e) {
       const referrerSource = parseReferrerSource(payload.r)
 
       let country = getCountryFromHeaders(headers)
+      // Fathom-privacy fallback: derive the country from the browser timezone
+      // the tracker sends (`tz`). No IP is used and nothing goes to a third
+      // party; the raw timezone is discarded — only the country is stored.
+      if (!country)
+        country = getCountryFromTimezone(payload.tz)
       // Only fall back to a third-party geo lookup when geolocation is enabled
       // (off by default) and send an anonymized IP per config (#144).
       if (!country && getConfig().privacy.collectGeolocation) {

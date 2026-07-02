@@ -891,10 +891,11 @@ export function generateMinimalTrackingScript(config: Pick<TrackingScriptConfig,
   }
   parts.push('var sid=sessionStorage.getItem(\'sa_s\')||Math.random().toString(36).slice(2);')
   parts.push('sessionStorage.setItem(\'sa_s\',sid);')
+  parts.push('var tz=\'\';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone||\'\'}catch(_e){}')
   parts.push('navigator.sendBeacon(e,JSON.stringify({')
   parts.push('s:s,sid:sid,e:\'pageview\',')
   parts.push('u:location.href,r:document.referrer,t:document.title,')
-  parts.push('sw:screen.width,sh:screen.height')
+  parts.push('sw:screen.width,sh:screen.height,tz:tz')
   parts.push('}));')
   parts.push('})();')
   return parts.join('\n')

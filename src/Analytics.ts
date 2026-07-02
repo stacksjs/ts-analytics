@@ -3270,12 +3270,16 @@ catch (e){}}
     }
   }
 catch (e){}
+  // Coarse timezone for privacy-first country stats: the server maps it to a
+  // country and discards it — no IP geolocation, no third parties.
+  var tzn='';try{tzn=Intl.DateTimeFormat().resolvedOptions().timeZone||''}
+catch (e){}
   function t(e,p,b){
     var body=JSON.stringify({
       s:site,sid:sid,e:e,p:p||{},
       u:location.href,r:d.referrer,t:d.title,
       sw:screen.width,sh:screen.height,
-      br:br
+      br:br,tz:tzn
     });
     if(b&&n.sendBeacon){try{if(n.sendBeacon(api+'${endpoint}',new Blob([body],{type:'application/json'})))return;}catch(_e){}}
     var x=new XMLHttpRequest();
