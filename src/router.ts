@@ -45,6 +45,7 @@ const _STEALTH_PATHS = {
   referrers: 'sources',
   devices: 'clients',
   browsers: 'agents',
+  os: 'platform',
   countries: 'geo',
   regions: 'area',
   cities: 'locale',
@@ -202,6 +203,7 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/sites/{siteId}/referrers', (req: any) => withReadCache(req, 'referrers', 60_000, () => stats.handleGetReferrers(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/devices', (req: any) => withReadCache(req, 'devices', 60_000, () => stats.handleGetDevices(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/browsers', (req: any) => withReadCache(req, 'browsers', 60_000, () => stats.handleGetBrowsers(req, req.params.siteId)))
+  await router.get('/api/sites/{siteId}/os', (req: any) => withReadCache(req, 'os', 60_000, () => stats.handleGetOS(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/countries', (req: any) => withReadCache(req, 'countries', 60_000, () => stats.handleGetCountries(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/regions', (req: any) => withReadCache(req, 'regions', 60_000, () => stats.handleGetRegions(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/cities', (req: any) => withReadCache(req, 'cities', 60_000, () => stats.handleGetCities(req, req.params.siteId)))
@@ -374,6 +376,7 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/p/{siteId}/sources', (req: any) => stats.handleGetReferrers(req, req.params.siteId))
   await router.get('/api/p/{siteId}/clients', (req: any) => stats.handleGetDevices(req, req.params.siteId))
   await router.get('/api/p/{siteId}/agents', (req: any) => stats.handleGetBrowsers(req, req.params.siteId))
+  await router.get('/api/p/{siteId}/platform', (req: any) => stats.handleGetOS(req, req.params.siteId))
   await router.get('/api/p/{siteId}/geo', (req: any) => stats.handleGetCountries(req, req.params.siteId))
   await router.get('/api/p/{siteId}/area', (req: any) => stats.handleGetRegions(req, req.params.siteId))
   await router.get('/api/p/{siteId}/locale', (req: any) => stats.handleGetCities(req, req.params.siteId))

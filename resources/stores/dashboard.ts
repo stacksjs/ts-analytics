@@ -18,6 +18,7 @@ const STEALTH_MAP: Record<string, string> = {
   referrers: 'sources',
   devices: 'clients',
   browsers: 'agents',
+  os: 'platform',
   countries: 'geo',
   regions: 'area',
   cities: 'locale',

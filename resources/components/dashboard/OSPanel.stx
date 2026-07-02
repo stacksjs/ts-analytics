@@ -1,0 +1,50 @@
+<script client>
+/**
+ * OSPanel Component
+ * Displays operating-system breakdown with reactive data fetching
+ */
+const dashboard = useStore('dashboard')
+const analytics = useStore('analytics')
+
+function fmt(n) {
+  if (n === undefined || n === null) return '0'
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
+}
+
+onMount(() => {
+  if (dashboard.siteId()) analytics.fetchSection('os')
+  window.refreshOSPanel = () => analytics.fetchSection('os')
+})
+</script>
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <Icon name="monitor" size="16" class="text-muted" />
+      Operating Systems
+    </div>
+    <a href="#" @click.prevent="dashboard.navigateTo('os')" class="text-xs text-accent no-underline hover:underline">View all &rarr;</a>
+  </div>
+  <table class="w-full text-[0.8125rem]">
+    <thead>
+      <tr>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-left">OS</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-right">Visitors</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-right">%</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr x-for="o in analytics.os" @loading="analytics.loading()">
+        <td class="cell-name">{{ o.name ? o.name : 'Unknown' }}</td>
+        <td class="cell-value">{{ fmt(o.visitors) }}</td>
+        <td class="cell-value">{{ (o.percentage ? o.percentage : 0) + '%' }}</td>
+      </tr>
+      <tr @for-loading>
+        <td colspan="3" class="text-center text-muted py-4">Loading...</td>
+      </tr>
+      <tr @for-empty>
+        <td colspan="3" class="text-center text-muted py-4">No OS data</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

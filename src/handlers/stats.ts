@@ -425,6 +425,57 @@ catch (error) {
 }
 
 /**
+ * GET /api/sites/{siteId}/os — operating-system breakdown. Parsed server-side
+ * from the User-Agent at collect time (only the coarse OS name is stored).
+ */
+export async function handleGetOS(request: Request, siteId: string): Promise<Response> {
+  try {
+    const query = getQueryParams(request)
+    const { startDate, endDate } = parseDateRange(query)
+    const limit = Math.min(Number(query.limit) || 10, 100)
+
+    const result = await queryAllItems({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':prefix': { S: 'SESSION#' },
+      },
+    }) as { Items?: any[] }
+
+    const filters = parseFilters(query)
+    const sessions = (result.Items || []).map(unmarshall).filter(s => {
+      const sessionStart = new Date(s.startedAt)
+      return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
+    })
+
+    const osStats: Record<string, Set<string>> = {}
+    for (const s of sessions) {
+      const os = s.os || 'Unknown'
+      if (!osStats[os]) osStats[os] = new Set()
+      osStats[os].add(s.visitorId)
+    }
+
+    const totalVisitors = sessions.length > 0 ? new Set(sessions.map(s => s.visitorId)).size : 0
+
+    const os = Object.entries(osStats)
+      .map(([name, visitors]) => ({
+        name,
+        visitors: visitors.size,
+        percentage: totalVisitors > 0 ? Math.round((visitors.size / totalVisitors) * 100) : 0,
+      }))
+      .sort((a, b) => b.visitors - a.visitors)
+      .slice(0, limit)
+
+    return jsonResponse({ os })
+  }
+catch (error) {
+    console.error('OS error:', error)
+    return errorResponse('Failed to fetch operating systems')
+  }
+}
+
+/**
  * GET /api/sites/{siteId}/countries
  */
 export async function handleGetCountries(request: Request, siteId: string): Promise<Response> {

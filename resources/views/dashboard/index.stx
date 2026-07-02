@@ -21,10 +21,11 @@ Dashboard
     <referrers-panel />
   </div>
 
-  <!-- Row 2: Devices & Browsers -->
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <!-- Row 2: Devices, Browsers & Operating Systems -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
     <devices-panel />
     <browsers-panel />
+    <os-panel />
   </div>
 
   <!-- Row 3: Countries & Campaigns -->

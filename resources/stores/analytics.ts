@@ -43,6 +43,7 @@ defineStore('analytics', () => {
   const pages = state([])
   const referrers = state([])
   const browsers = state([])
+  const os = state([])
   const devices = state([])
   const countries = state([])
   const campaigns = state([])
@@ -59,6 +60,7 @@ defineStore('analytics', () => {
     pages: { data: pages, key: 'pages', slice: 10 },
     referrers: { data: referrers, key: 'referrers', slice: 10 },
     browsers: { data: browsers, key: 'browsers', slice: 0 },
+    os: { data: os, key: 'os', slice: 0 },
     devices: { data: devices, key: 'devices', slice: 0 },
     countries: { data: countries, key: 'countries', slice: 10 },
     campaigns: { data: campaigns, key: 'campaigns', slice: 10 },
@@ -223,6 +225,7 @@ defineStore('analytics', () => {
     pages,
     referrers,
     browsers,
+    os,
     devices,
     countries,
     campaigns,

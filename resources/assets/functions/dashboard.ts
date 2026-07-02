@@ -22,6 +22,7 @@ const STEALTH_MAP: Record<string, string> = {
   'referrers': 'sources',
   'devices': 'clients',
   'browsers': 'agents',
+  'os': 'platform',
   'countries': 'geo',
   'regions': 'area',
   'cities': 'locale',
@@ -214,6 +215,7 @@ function refreshAllPanels() {
   if (window.refreshReferrersPanel) window.refreshReferrersPanel()
   if (window.refreshDevicesPanel) window.refreshDevicesPanel()
   if (window.refreshBrowsersPanel) window.refreshBrowsersPanel()
+  if (window.refreshOSPanel) window.refreshOSPanel()
   if (window.refreshCountriesPanel) window.refreshCountriesPanel()
   if (window.refreshCampaignsPanel) window.refreshCampaignsPanel()
   if (window.refreshEventsPanel) window.refreshEventsPanel()
