@@ -30,6 +30,11 @@ export default {
 
   ssr: true,
 
+  // Verbose stx render/component/directive logging. stx quieted its logs (debug
+  // defaults to false), so this is off by default and opt-in per run:
+  //   STX_DEBUG=true bun serve.ts
+  debug: process.env.STX_DEBUG === 'true',
+
   router: {
     container: '#main-content',
     viewTransitions: true,
