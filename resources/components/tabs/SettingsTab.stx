@@ -24,6 +24,15 @@ const snippetCopied = state<boolean>(false)
 // instead of dumping every variant at once. Each renders from the site's App ID.
 const framework = state<string>('html')
 
+// Settings sub-tabs — group the many panels so the page isn't one long scroll.
+const settingsTab = state<string>('install')
+function settingsTabClass(id: string): string {
+  const base = 'py-2 px-3 text-[0.8125rem] font-medium transition-colors border-b-2 -mb-px'
+  return settingsTab() === id
+    ? `${base} border-accent text-text`
+    : `${base} border-transparent text-muted hover:text-text`
+}
+
 function apiBase(): string {
   return (window as { API_ENDPOINT?: string }).API_ENDPOINT || window.location.origin
 }
@@ -627,6 +636,16 @@ onMount(() => {
 <div class="col-span-full">
   <h3 class="text-base font-semibold text-text mb-6">Settings</h3>
 
+  <!-- Sub-tab navigation -->
+  <div class="flex gap-1 border-b border-border mb-6 flex-wrap">
+    <button type="button" x-class="settingsTabClass('install')" @click="settingsTab.set('install')">Installation</button>
+    <button type="button" x-class="settingsTabClass('access')" @click="settingsTab.set('access')">Access</button>
+    <button type="button" x-class="settingsTabClass('alerts')" @click="settingsTab.set('alerts')">Alerts &amp; Monitoring</button>
+    <button type="button" x-class="settingsTabClass('data')" @click="settingsTab.set('data')">Data</button>
+  </div>
+
+  <!-- Installation tab -->
+  <div x-show="settingsTab() === 'install'">
   <div x-show="!loading() && !error()" class="panel mb-4">
     <div class="panel-header">
       <h4 class="panel-title">Installation</h4>
@@ -725,6 +744,7 @@ onMount(() => {
       <p x-show="!dsn()" class="text-xs text-muted italic mt-2">Loading DSN…</p>
     </div>
   </div>
+  </div>
 
   <div x-show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
     <Spinner size="sm" color="primary" />
@@ -735,9 +755,8 @@ onMount(() => {
     {{ error() }}
   </div>
 
-  <div x-show="!loading() && !error()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="flex flex-col gap-4">
-
+  <!-- Access tab -->
+  <div x-show="!loading() && !error() && settingsTab() === 'access'" class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
       <div class="panel">
         <div class="panel-header">
           <h4 class="panel-title">API Key</h4>
@@ -766,63 +785,6 @@ onMount(() => {
 
       <div class="panel">
         <div class="panel-header">
-          <h4 class="panel-title">Alerts</h4>
-          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showAlertModal()">+ New Alert</button>
-        </div>
-        <p class="text-xs text-muted mb-3">Get notified when metrics exceed thresholds.</p>
-        <div class="flex flex-col gap-2">
-          <p x-show="settings().alerts.length === 0" class="text-xs text-muted italic">No alerts configured.</p>
-          <div x-for="alert in settings.alerts" class="flex justify-between items-center p-2 bg-bg rounded">
-            <div class="flex-1 min-w-0">
-              <div class="text-[0.8125rem] font-medium text-text">{{ alert.metric }}</div>
-              <div class="text-[0.6875rem] text-muted">{{ 'Threshold: ' + alert.threshold + ' → ' + alert.email }}</div>
-            </div>
-            <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteAlert(alert.id)" title="Delete">×</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <h4 class="panel-title">Email Reports</h4>
-          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showEmailReportModal()">+ Add Report</button>
-        </div>
-        <p class="text-xs text-muted mb-3">Schedule automated email reports.</p>
-        <div class="flex flex-col gap-2">
-          <p x-show="settings().emailReports.length === 0" class="text-xs text-muted italic">No email reports scheduled.</p>
-          <div x-for="report in settings.emailReports" class="flex justify-between items-center p-2 bg-bg rounded">
-            <div class="flex-1 min-w-0">
-              <div class="text-[0.8125rem] font-medium text-text">{{ report.email }}</div>
-              <div class="text-[0.6875rem] text-muted">{{ report.frequency }}</div>
-            </div>
-            <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteEmailReport(report.id)" title="Delete">×</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <h4 class="panel-title">Uptime Monitoring</h4>
-          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showUptimeModal()">+ Add Monitor</button>
-        </div>
-        <p class="text-xs text-muted mb-3">Monitor your site availability.</p>
-        <div class="flex flex-col gap-2">
-          <p x-show="settings().uptimeMonitors.length === 0" class="text-xs text-muted italic">No uptime monitors configured.</p>
-          <div x-for="monitor in settings.uptimeMonitors" class="flex justify-between items-center p-2 bg-bg rounded">
-            <div class="flex-1 min-w-0">
-              <code class="text-[0.6875rem] text-muted break-all">{{ monitor.url }}</code>
-              <div class="text-[0.6875rem] text-muted">{{ 'Every ' + monitor.interval + 'min • ' + (monitor.status || 'Pending') }}</div>
-            </div>
-            <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteUptimeMonitor(monitor.id)" title="Delete">×</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="flex flex-col gap-4">
-
-      <div class="panel">
-        <div class="panel-header">
           <h4 class="panel-title">Team Members</h4>
           <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showTeamModal()">+ Invite</button>
         </div>
@@ -835,6 +797,27 @@ onMount(() => {
               <div class="text-[0.6875rem] text-muted">{{ member.role }}</div>
             </div>
             <button class="icon-btn hover:bg-error/15 hover:text-error" @click="removeTeamMember(member.id)" title="Remove">×</button>
+          </div>
+        </div>
+      </div>
+  </div>
+
+  <!-- Alerts & Monitoring tab -->
+  <div x-show="!loading() && !error() && settingsTab() === 'alerts'" class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+      <div class="panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Alerts</h4>
+          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showAlertModal()">+ New Alert</button>
+        </div>
+        <p class="text-xs text-muted mb-3">Get notified when metrics exceed thresholds.</p>
+        <div class="flex flex-col gap-2">
+          <p x-show="settings().alerts.length === 0" class="text-xs text-muted italic">No alerts configured.</p>
+          <div x-for="alert in settings.alerts" class="flex justify-between items-center p-2 bg-bg rounded">
+            <div class="flex-1 min-w-0">
+              <div class="text-[0.8125rem] font-medium text-text">{{ alert.metric }}</div>
+              <div class="text-[0.6875rem] text-muted">{{ 'Threshold: ' + alert.threshold + ' → ' + alert.email }}</div>
+            </div>
+            <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteAlert(alert.id)" title="Delete">×</button>
           </div>
         </div>
       </div>
@@ -859,6 +842,24 @@ onMount(() => {
 
       <div class="panel">
         <div class="panel-header">
+          <h4 class="panel-title">Email Reports</h4>
+          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showEmailReportModal()">+ Add Report</button>
+        </div>
+        <p class="text-xs text-muted mb-3">Schedule automated email reports.</p>
+        <div class="flex flex-col gap-2">
+          <p x-show="settings().emailReports.length === 0" class="text-xs text-muted italic">No email reports scheduled.</p>
+          <div x-for="report in settings.emailReports" class="flex justify-between items-center p-2 bg-bg rounded">
+            <div class="flex-1 min-w-0">
+              <div class="text-[0.8125rem] font-medium text-text">{{ report.email }}</div>
+              <div class="text-[0.6875rem] text-muted">{{ report.frequency }}</div>
+            </div>
+            <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteEmailReport(report.id)" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
           <h4 class="panel-title">Performance Budgets</h4>
           <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showPerfBudgetModal()">+ Add Budget</button>
         </div>
@@ -875,6 +876,27 @@ onMount(() => {
         </div>
       </div>
 
+      <div class="panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Uptime Monitoring</h4>
+          <button class="btn btn-secondary text-[0.6875rem] py-1 px-2" @click="showUptimeModal()">+ Add Monitor</button>
+        </div>
+        <p class="text-xs text-muted mb-3">Monitor your site availability.</p>
+        <div class="flex flex-col gap-2">
+          <p x-show="settings().uptimeMonitors.length === 0" class="text-xs text-muted italic">No uptime monitors configured.</p>
+          <div x-for="monitor in settings.uptimeMonitors" class="flex justify-between items-center p-2 bg-bg rounded">
+            <div class="flex-1 min-w-0">
+              <code class="text-[0.6875rem] text-muted break-all">{{ monitor.url }}</code>
+              <div class="text-[0.6875rem] text-muted">{{ 'Every ' + monitor.interval + 'min • ' + (monitor.status || 'Pending') }}</div>
+            </div>
+            <button class="icon-btn hover:bg-error/15 hover:text-error" @click="deleteUptimeMonitor(monitor.id)" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+  </div>
+
+  <!-- Data tab -->
+  <div x-show="!loading() && !error() && settingsTab() === 'data'" class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
       <div class="panel">
         <div class="panel-header">
           <h4 class="panel-title">Data & Privacy</h4>
@@ -914,6 +936,5 @@ onMount(() => {
           <span x-show="deleteError()" class="text-xs text-error">{{ deleteError() }}</span>
         </div>
       </div>
-    </div>
   </div>
 </div>
