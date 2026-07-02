@@ -178,7 +178,11 @@ tbody td:last-child {
 /* Table Cell Types */
 td.name, .cell-name {
   color: var(--text);
-  max-width: 200px;
+  /* Absorb the table's remaining width (width:100% + max-width:0 keeps
+     ellipsis working) so proportional row bars span the real column — a fixed
+     max-width capped every bar at ~200px regardless of its percentage. */
+  width: 100%;
+  max-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -186,7 +190,7 @@ td.name, .cell-name {
 }
 
 /* Fathom-style proportional row bars: panels precompute each row's share of
-   the column max (item._bar) and bind it as the row-fill span's width. The
+   the list total (item._bar) and bind it as the row-fill span's width. The
    fill is a translucent accent tint so text stays readable and the same rule
    works in both themes (lavender on light, dim indigo on dark). */
 td.cell-name {

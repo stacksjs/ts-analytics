@@ -86,12 +86,13 @@ defineStore('analytics', () => {
       const data = await res.json()
       const items = data[config.key] || []
       const sliced = config.slice > 0 ? items.slice(0, config.slice) : items
-      // Precompute the Fathom-style bar width (% of the column max, min 2%) on
-      // each row — panels bind it via a plain x-style width, which only
-      // reliably sees item fields inside x-for loops.
-      let max = 0
-      for (const it of sliced) max = Math.max(max, it.visitors || 0)
-      for (const it of sliced) it._bar = max > 0 ? Math.max(2, Math.round(((it.visitors || 0) / max) * 100)) : 0
+      // Precompute the Fathom-style bar width on each row: percentage
+      // DISTRIBUTION (the row's share of the list total, min 2%) — a lone row
+      // fills the column, and widths read as "share of traffic". Panels bind it
+      // via a plain x-style width, which only reliably sees item fields in loops.
+      let total = 0
+      for (const it of sliced) total += it.visitors || 0
+      for (const it of sliced) it._bar = total > 0 ? Math.max(2, Math.round(((it.visitors || 0) / total) * 100)) : 0
       config.data.set(sliced)
       return sliced
     } catch (e) {

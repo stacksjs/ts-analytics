@@ -52,10 +52,12 @@ onMount(() => {
     </thead>
     <tbody>
       <tr x-for="country in analytics.countries" @loading="analytics.loading()">
-        <td class="cell-name flex items-center gap-1.5">
+        <td class="cell-name">
+          <span class="flex items-center gap-1.5">
           <span class="row-fill" x-style="'width: ' + (country._bar ? country._bar : 0) + '%'"></span>
           <span class="text-base">{{ country.flag ? country.flag : getFlag(country.name ? country.name : country.code) }}</span>
           <span>{{ country.name ? country.name : (country.code ? country.code : 'Unknown') }}</span>
+        </span>
         </td>
         <td class="cell-value">{{ fmt(country.visitors) }}</td>
       </tr>
