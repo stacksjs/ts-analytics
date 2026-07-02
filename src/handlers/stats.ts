@@ -364,7 +364,10 @@ export async function handleGetDevices(request: Request, siteId: string): Promis
       }))
       .sort((a, b) => b.visitors - a.visitors)
 
-    return jsonResponse({ deviceTypes, operatingSystems })
+    // `devices` is the canonical key (the analytics store's sectionMap and the
+    // detail page read data.devices — with only deviceTypes/operatingSystems the
+    // panel always showed "No device data"). Legacy keys kept for back-compat.
+    return jsonResponse({ devices: deviceTypes, deviceTypes, operatingSystems })
   }
 catch (error) {
     console.error('Devices error:', error)

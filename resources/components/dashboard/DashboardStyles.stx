@@ -223,4 +223,17 @@ td.value, .cell-value {
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Equal-height panel rows =====
+   stx wraps each component in a <div data-stx-scope> — that wrapper is the grid
+   item (stretched to the row height by default), but the .panel inside it only
+   wraps its content, so side-by-side cards rendered with different heights.
+   Make the wrapper a flex column and let the panel fill it. */
+#dashboard-panels .grid > [data-stx-scope] {
+  display: flex;
+  flex-direction: column;
+}
+#dashboard-panels .grid > [data-stx-scope] > .panel {
+  flex: 1 1 auto;
+}
 </style>
