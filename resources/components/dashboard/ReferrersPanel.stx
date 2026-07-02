@@ -22,6 +22,9 @@ function getHref(source) {
 }
 
 function getFaviconUrl(source) {
+  // x-show only CSS-hides the "Direct" anchor — its <img> src still evaluates
+  // and fires a request. Transparent pixel for anything that isn't a domain.
+  if (!source || !isExternalLink(source)) return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
   return `https://www.google.com/s2/favicons?domain=${getDomain(source)}&sz=16`
 }
 

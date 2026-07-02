@@ -32,6 +32,16 @@ function getHref(source: string): string {
 function getDomain(source: string): string {
   return source.replace(/^https?:\/\//, '').split('/')[0]
 }
+
+// x-show only CSS-hides the "Direct" anchor — its <img> src still evaluates and
+// fires a request (Google was asked for favicons?domain=Direct). Return a
+// transparent pixel for anything that isn't a real external domain.
+const TRANSPARENT_PX = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
+function getFaviconUrl(source: string): string {
+  if (!source || !isExternalLink(source)) return TRANSPARENT_PX
+  return `https://www.google.com/s2/favicons?domain=${getDomain(source)}&sz=16`
+}
 </script>
 
 <div class="overflow-x-auto">
@@ -52,7 +62,7 @@ function getDomain(source: string): string {
              rel="noopener"
              class="inline-flex items-center gap-1.5 hover:text-accent">
             <img
-              x-src="'https://www.google.com/s2/favicons?domain=' + getDomain(ref.source) + '&sz=16'"
+              x-src="getFaviconUrl(ref.source)"
               width="14"
               height="14"
               class="align-middle rounded-sm"
