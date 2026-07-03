@@ -3365,7 +3365,7 @@ catch (e){}
     : ''}
   if(d.readyState==='complete')pv();
   else w.addEventListener('load',pv);
-  w.fathom={track:function(n,v){t('event',{name:n,value:v});}};\n${webVitalsCode}${errorTrackingCode}
+  w.fathom={track:function(n,v,p){var o={};if(p)for(var k in p)o[k]=p[k];o.name=n;o.value=v;t('event',o);}};\n${webVitalsCode}${errorTrackingCode}
 })();
 </script>
 `.trim()

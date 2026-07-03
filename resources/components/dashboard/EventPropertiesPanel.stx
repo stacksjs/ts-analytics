@@ -91,6 +91,6 @@ effect(() => {
       <div class="text-[0.6875rem] text-muted text-right">{{ fmtNum(r.visitors) + ' visitors' }}</div>
     </div>
     <div @for-loading class="text-center text-muted py-4 text-[0.8125rem]">Loading...</div>
-    <div @for-empty class="text-center text-muted py-4 text-[0.8125rem]">No event properties tracked yet</div>
+    <div @for-empty class="text-center text-muted py-4 text-[0.8125rem]">No event properties tracked yet.<br /><code class="text-[0.75rem] text-text2">fathom.track('signup', 0, { plan: 'pro' })</code></div>
   </div>
 </div>
