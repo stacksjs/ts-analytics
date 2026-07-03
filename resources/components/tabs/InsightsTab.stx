@@ -40,6 +40,7 @@ async function fetchInsights(): Promise<void> {
       fetch(apiUrlWithDates('/insights')),
       fetch(apiUrlWithDates('/comparison')),
     ])
+    if (!insightsRes.ok || !comparisonRes.ok) throw new Error('Failed to load insights')
     const insightsData: { insights?: Insight[] } = await insightsRes.json()
     const comparisonData: ComparisonStats = await comparisonRes.json()
 
@@ -74,12 +75,12 @@ effect(() => {
   </div>
 
   <div x-show="!loading() && !error()">
-    <div x-show="comparisonStats()" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+    <div x-if="comparisonStats()" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
       <div class="stat-card text-center">
         <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().current.views | fmt }}</div>
         <div class="text-xs text-muted">Views This Period</div>
         <div x-show="comparisonStats().changes.views !== 0" x-class="changeClass(comparisonStats().changes.views)">
-          {{ comparisonStats().changes.views > 0 ? '+' : '' }}{{ comparisonStats().changes.views }}%
+          {{ comparisonStats().previous.views === 0 ? 'new' : ((comparisonStats().changes.views > 0 ? '+' : '') + comparisonStats().changes.views + '%') }}
         </div>
       </div>
       <div class="stat-card text-center">
@@ -90,7 +91,7 @@ effect(() => {
         <div class="text-2xl font-bold text-text mb-1">{{ comparisonStats().current.sessions }}</div>
         <div class="text-xs text-muted">Sessions</div>
         <div x-show="comparisonStats().changes.sessions !== 0" x-class="changeClass(comparisonStats().changes.sessions)">
-          {{ comparisonStats().changes.sessions > 0 ? '+' : '' }}{{ comparisonStats().changes.sessions }}%
+          {{ comparisonStats().previous.sessions === 0 ? 'new' : ((comparisonStats().changes.sessions > 0 ? '+' : '') + comparisonStats().changes.sessions + '%') }}
         </div>
       </div>
       <div class="stat-card text-center">
@@ -101,7 +102,7 @@ effect(() => {
 
     <div class="flex flex-col gap-3">
       <div x-show="insights().length === 0" class="empty-state">
-        No insights available yet. Check back when you have more data.
+        Collecting your baseline — insights appear as soon as there is enough data to compare.
       </div>
 
       <div x-for="insight in insights" class="panel flex gap-4 items-start">

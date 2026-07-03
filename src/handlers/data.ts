@@ -259,80 +259,219 @@ catch (error) {
 }
 
 /**
- * GET /api/sites/{siteId}/insights
+ * GET /api/sites/{siteId}/insights — auto-detected, plain-language findings:
+ * period-over-period traffic movement (with a first-traffic milestone instead
+ * of silence for young sites), top mover pages, top referrer share, busiest
+ * day, bounce-rate and mobile-share signals. Emits the Insight contract the
+ * tab renders: type ∈ {traffic,referrer,page,device,engagement} (icon) and
+ * severity ∈ {success,warning,error,info} (color).
  */
 export async function handleGetInsights(request: Request, siteId: string): Promise<Response> {
   try {
     const query = getQueryParams(request)
     const { startDate, endDate } = parseDateRange(query)
 
-    // Get current and previous period data
+    // Current and previous periods of equal length
     const duration = endDate.getTime() - startDate.getTime()
     const previousStartDate = new Date(startDate.getTime() - duration)
     const previousEndDate = new Date(startDate.getTime() - 1)
 
-    // Query sessions for both periods
-    const result = await dynamodb.query({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[] }
+    // Sessions (paginated — the old raw query silently truncated at ~1MB) and
+    // pageviews for both periods in one range query each.
+    const [sessionsResult, pageviewsResult] = await Promise.all([
+      queryAllItems({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+        ExpressionAttributeValues: {
+          ':pk': { S: `SITE#${siteId}` },
+          ':prefix': { S: 'SESSION#' },
+        },
+      }) as Promise<{ Items?: any[] }>,
+      queryAllItems({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+        ExpressionAttributeValues: {
+          ':pk': { S: `SITE#${siteId}` },
+          ':start': { S: `PAGEVIEW#${previousStartDate.toISOString()}` },
+          ':end': { S: `PAGEVIEW#${endDate.toISOString()}` },
+        },
+      }) as Promise<{ Items?: any[] }>,
+    ])
 
-    const allSessions = (result.Items || []).map(unmarshall)
-
-    const currentSessions = allSessions.filter(s => {
+    const allSessions = (sessionsResult.Items || []).map(unmarshall)
+    const currentSessions = allSessions.filter((s) => {
       const t = new Date(s.startedAt)
       return t >= startDate && t <= endDate
     })
-
-    const previousSessions = allSessions.filter(s => {
+    const previousSessions = allSessions.filter((s) => {
       const t = new Date(s.startedAt)
       return t >= previousStartDate && t <= previousEndDate
     })
 
-    // Generate insights
-    const insights: Array<{ type: string; title: string; description: string; metric?: string; change?: number }> = []
+    const pageviews = (pageviewsResult.Items || []).map(unmarshall)
+    const currentPvs = pageviews.filter(pv => new Date(pv.timestamp) >= startDate)
+    const previousPvs = pageviews.filter(pv => new Date(pv.timestamp) < startDate)
 
-    // Traffic change
+    const insights: Array<{ type: string, severity: string, title: string, description: string, metric?: string, change?: number }> = []
+
+    // ── Traffic movement (or a first-traffic milestone for young sites — the
+    // old previousTraffic>0 guard made the tab permanently empty for exactly
+    // the sites that look at it most)
     const currentTraffic = currentSessions.length
     const previousTraffic = previousSessions.length
     if (previousTraffic > 0) {
       const change = ((currentTraffic - previousTraffic) / previousTraffic) * 100
       if (Math.abs(change) > 10) {
         insights.push({
-          type: change > 0 ? 'positive' : 'negative',
+          type: 'traffic',
+          severity: change > 0 ? 'success' : 'warning',
           title: change > 0 ? 'Traffic Increase' : 'Traffic Decrease',
-          description: `Sessions ${change > 0 ? 'increased' : 'decreased'} by ${Math.abs(Math.round(change))}% compared to the previous period`,
+          description: `Sessions ${change > 0 ? 'increased' : 'decreased'} by ${Math.abs(Math.round(change))}% compared to the previous period (${currentTraffic} vs ${previousTraffic}).`,
           metric: 'sessions',
           change: Math.round(change),
         })
       }
     }
-
-    // Bounce rate insight
-    const currentBounces = currentSessions.filter(s => s.isBounce).length
-    const currentBounceRate = currentSessions.length > 0 ? (currentBounces / currentSessions.length) * 100 : 0
-    if (currentBounceRate > 70) {
+    else if (currentTraffic > 0) {
+      const visitors = new Set(currentSessions.map(s => s.visitorId)).size
       insights.push({
-        type: 'warning',
-        title: 'High Bounce Rate',
-        description: `Your bounce rate is ${Math.round(currentBounceRate)}%. Consider improving page load times or content relevance.`,
-        metric: 'bounceRate',
+        type: 'traffic',
+        severity: 'success',
+        title: 'Your Baseline Starts Now',
+        description: `${visitors} visitor${visitors === 1 ? '' : 's'} across ${currentTraffic} session${currentTraffic === 1 ? '' : 's'} this period — with no traffic in the one before, this becomes the baseline future periods compare against.`,
+        metric: 'sessions',
       })
     }
 
-    // Mobile traffic insight
+    // ── Top mover page (gainer vs previous period; falls back to the top page
+    // when there is no previous data)
+    const visitorsByPath = (pvs: any[]): Record<string, Set<string>> => {
+      const out: Record<string, Set<string>> = {}
+      for (const pv of pvs) {
+        const path = pv.path || '/'
+        if (!out[path]) out[path] = new Set()
+        out[path].add(pv.visitorId)
+      }
+      return out
+    }
+    const curPaths = visitorsByPath(currentPvs)
+    const prevPaths = visitorsByPath(previousPvs)
+    if (Object.keys(curPaths).length > 0) {
+      if (previousPvs.length > 0) {
+        let best: { path: string, delta: number, now: number } | null = null
+        for (const [path, set] of Object.entries(curPaths)) {
+          const delta = set.size - (prevPaths[path]?.size || 0)
+          if (!best || delta > best.delta) best = { path, delta, now: set.size }
+        }
+        if (best && best.delta >= 2) {
+          insights.push({
+            type: 'page',
+            severity: 'success',
+            title: 'Fastest-Growing Page',
+            description: `${best.path} gained ${best.delta} visitors vs the previous period (${best.now} this period).`,
+            metric: 'pageVisitors',
+            change: best.delta,
+          })
+        }
+      }
+      else {
+        const top = Object.entries(curPaths).sort((a, b) => b[1].size - a[1].size)[0]
+        insights.push({
+          type: 'page',
+          severity: 'info',
+          title: 'Top Page',
+          description: `${top[0]} is your most-visited page this period with ${top[1].size} visitor${top[1].size === 1 ? '' : 's'}.`,
+          metric: 'pageVisitors',
+        })
+      }
+    }
+
+    // ── Dominant referrer source
+    if (currentTraffic >= 5) {
+      const bySource: Record<string, number> = {}
+      for (const s of currentSessions) {
+        const src = s.referrerSource || 'Direct'
+        bySource[src] = (bySource[src] || 0) + 1
+      }
+      const top = Object.entries(bySource).sort((a, b) => b[1] - a[1])[0]
+      const share = Math.round((top[1] / currentTraffic) * 100)
+      if (share >= 50 && top[0] !== 'Direct') {
+        insights.push({
+          type: 'referrer',
+          severity: 'info',
+          title: 'Dominant Traffic Source',
+          description: `${share}% of your sessions come from ${top[0]} — a single source this concentrated is worth both nurturing and diversifying.`,
+          metric: 'referrerShare',
+          change: share,
+        })
+      }
+      else if (share >= 80 && top[0] === 'Direct') {
+        insights.push({
+          type: 'referrer',
+          severity: 'info',
+          title: 'Mostly Direct Traffic',
+          description: `${share}% of sessions arrive direct (no referrer). Campaign links with UTMs would reveal where these visitors actually come from.`,
+          metric: 'referrerShare',
+          change: share,
+        })
+      }
+    }
+
+    // ── Busiest day this period
+    if (currentTraffic >= 5) {
+      const byDay: Record<string, number> = {}
+      for (const s of currentSessions) {
+        const day = new Date(s.startedAt).toISOString().slice(0, 10)
+        byDay[day] = (byDay[day] || 0) + 1
+      }
+      const days = Object.entries(byDay)
+      if (days.length > 1) {
+        const [bestDay, bestCount] = days.sort((a, b) => b[1] - a[1])[0]
+        insights.push({
+          type: 'engagement',
+          severity: 'info',
+          title: 'Busiest Day',
+          description: `${new Date(`${bestDay}T00:00:00Z`).toUTCString().slice(0, 11)} was your busiest day this period with ${bestCount} sessions.`,
+          metric: 'sessions',
+        })
+      }
+    }
+
+    // ── Bounce rate (both directions)
+    const currentBounces = currentSessions.filter(s => s.isBounce).length
+    const currentBounceRate = currentTraffic > 0 ? (currentBounces / currentTraffic) * 100 : 0
+    if (currentBounceRate > 70 && currentTraffic >= 5) {
+      insights.push({
+        type: 'engagement',
+        severity: 'warning',
+        title: 'High Bounce Rate',
+        description: `Your bounce rate is ${Math.round(currentBounceRate)}%. Consider improving page load times or content relevance.`,
+        metric: 'bounceRate',
+        change: Math.round(currentBounceRate),
+      })
+    }
+    else if (currentBounceRate < 30 && currentTraffic >= 10) {
+      insights.push({
+        type: 'engagement',
+        severity: 'success',
+        title: 'Visitors Are Sticking Around',
+        description: `Only ${Math.round(currentBounceRate)}% of sessions bounce — most visitors view more than one page.`,
+        metric: 'bounceRate',
+        change: Math.round(currentBounceRate),
+      })
+    }
+
+    // ── Mobile share
     const mobileSession = currentSessions.filter(s => s.deviceType === 'mobile').length
-    const mobilePercent = currentSessions.length > 0 ? (mobileSession / currentSessions.length) * 100 : 0
+    const mobilePercent = currentTraffic > 0 ? (mobileSession / currentTraffic) * 100 : 0
     if (mobilePercent > 50) {
       insights.push({
-        type: 'info',
+        type: 'device',
+        severity: 'info',
         title: 'Mobile-First Traffic',
         description: `${Math.round(mobilePercent)}% of your traffic comes from mobile devices. Ensure your site is mobile-optimized.`,
         metric: 'mobilePercent',
+        change: Math.round(mobilePercent),
       })
     }
 
