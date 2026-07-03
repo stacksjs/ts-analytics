@@ -128,7 +128,21 @@ function filterDims(session: SessionType | null | undefined): Record<string, str
  */
 export async function handleCollect(request: Request): Promise<Response> {
   try {
-    const payload = await request.json() as Record<string, any>
+    // Reject oversized bodies before parsing (#173): a multi-MB payload both
+    // memory-amplifies and 500s against DynamoDB's 400KB item limit (losing
+    // the event). Legit beacons are <2KB.
+    const MAX_BODY_BYTES = 16 * 1024
+    const rawBody = await request.text()
+    if (rawBody.length > MAX_BODY_BYTES) {
+      return jsonResponse({ error: 'Payload too large' }, 413)
+    }
+    let payload: Record<string, any>
+    try {
+      payload = JSON.parse(rawBody) as Record<string, any>
+    }
+    catch {
+      return jsonResponse({ error: 'Invalid JSON' }, 400)
+    }
 
     if (!payload?.s || !payload?.e || !payload?.u) {
       return jsonResponse({ error: 'Missing required fields: s, e, u' }, 400)
@@ -260,7 +274,15 @@ catch (e) {
     if (payload.e === 'pageview') {
       const deviceInfo = parseUserAgent(userAgent)
       const browser = payload.br || deviceInfo.browser
-      const referrerSource = parseReferrerSource(payload.r)
+      // Self-referrals (SPA restores, same-site openers) are Direct traffic —
+      // don't let a site show up as its own top referrer.
+      let externalReferrer = typeof payload.r === 'string' ? payload.r.slice(0, 1024) : undefined
+      try {
+        if (externalReferrer && new URL(externalReferrer).hostname === parsedUrl.hostname)
+          externalReferrer = undefined
+      }
+      catch {}
+      const referrerSource = parseReferrerSource(externalReferrer)
 
       let country = getCountryFromHeaders(headers)
       // Fathom-privacy fallback: derive the country from the browser timezone
@@ -308,7 +330,7 @@ else {
           visitorId,
           entryPath: parsedUrl.pathname,
           exitPath: parsedUrl.pathname,
-          referrer: payload.r,
+          referrer: externalReferrer,
           referrerSource,
           ...extractUtm(parsedUrl),
           deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
@@ -349,8 +371,8 @@ else {
         sessionId,
         path: parsedUrl.pathname,
         hostname: parsedUrl.hostname,
-        title: payload.t,
-        referrer: payload.r,
+        title: typeof payload.t === 'string' ? payload.t.slice(0, 512) : payload.t,
+        referrer: externalReferrer,
         referrerSource,
         ...extractUtm(parsedUrl),
         deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
