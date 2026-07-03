@@ -3151,10 +3151,10 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
   function sendVital(name,value,rating){
     if(vitalsSent[name])return;
     vitalsSent[name]=true;
-    t('vitals',{metric:name,value:Math.round(value),rating:rating});
+    t('vitals',{metric:name,value:Math.round(value),rating:rating},true);
   }
   function getRating(name,value){
-    var thresholds={LCP:[2500,4000],FID:[100,300],CLS:[0.1,0.25],TTFB:[800,1800],INP:[200,500]};
+    var thresholds={LCP:[2500,4000],FID:[100,300],CLS:[0.1,0.25],FCP:[1800,3000],TTFB:[800,1800],INP:[200,500]};
     var t=thresholds[name]||[0,0];
     return value<=t[0]?'good':value<=t[1]?'needs-improvement':'poor';
   }
@@ -3166,6 +3166,13 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
         var last=entries[entries.length-1];
         if(last)sendVital('LCP',last.startTime,getRating('LCP',last.startTime));
       }).observe({type:'largest-contentful-paint',buffered:true});
+    }
+catch (e){}
+    // FCP - First Contentful Paint
+    try{
+      new PerformanceObserver(function(l){
+        for(var e of l.getEntries()){if(e.name==='first-contentful-paint')sendVital('FCP',e.startTime,getRating('FCP',e.startTime));}
+      }).observe({type:'paint',buffered:true});
     }
 catch (e){}
     // FID - First Input Delay

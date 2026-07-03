@@ -41,12 +41,16 @@ export async function handleGetVitals(request: Request, siteId: string): Promise
     for (const vital of vitals) {
       const metric = vital.metric || vital.name
       if (metrics[metric]) {
-        metrics[metric].values.push(vital.value)
+        // CLS travels x1000 on the wire (the tracker rounds values to ints,
+        // which would floor raw CLS to 0) — normalize back to the real
+        // unitless value at read time so percentiles/ratings are correct (#133).
+        const value = metric === 'CLS' ? (vital.value || 0) / 1000 : vital.value
+        metrics[metric].values.push(value)
         const path = vital.path || '/'
         if (!metrics[metric].paths[path]) {
           metrics[metric].paths[path] = []
         }
-        metrics[metric].paths[path].push(vital.value)
+        metrics[metric].paths[path].push(value)
       }
     }
 
@@ -73,14 +77,28 @@ export async function handleGetVitals(request: Request, siteId: string): Promise
       return 'poor'
     }
 
-    const summary = Object.entries(metrics).map(([name, data]) => ({
-      name,
-      p50: calculatePercentile(data.values, 50),
-      p75: calculatePercentile(data.values, 75),
-      p95: calculatePercentile(data.values, 95),
-      count: data.values.length,
-      rating: getRating(name, calculatePercentile(data.values, 75)),
-    }))
+    // Shape matches the Vital contract the tab binds (metric/samples/
+    // good/needsImprovement/poor, src/types/analytics.ts) — the old
+    // {name,count,rating} response left every card rendering "0 samples".
+    const summary = Object.entries(metrics).map(([name, data]) => {
+      const samples = data.values.length
+      const buckets = { 'good': 0, 'needs-improvement': 0, 'poor': 0 }
+      for (const v of data.values) buckets[getRating(name, v)]++
+      const pct = (n: number): number => samples > 0 ? Math.round((n / samples) * 100) : 0
+      return {
+        metric: name,
+        name,
+        p50: calculatePercentile(data.values, 50),
+        p75: calculatePercentile(data.values, 75),
+        p95: calculatePercentile(data.values, 95),
+        samples,
+        count: samples,
+        good: pct(buckets.good),
+        needsImprovement: pct(buckets['needs-improvement']),
+        poor: pct(buckets.poor),
+        rating: getRating(name, calculatePercentile(data.values, 75)),
+      }
+    })
 
     // Get worst performing pages
     const worstPages: Array<{ path: string; metric: string; p75: number; rating: string }> = []
@@ -138,7 +156,8 @@ export async function handleGetVitalsTrends(request: Request, siteId: string): P
     for (const vital of vitals) {
       const day = vital.timestamp.slice(0, 10)
       if (!dailyData[day]) dailyData[day] = []
-      dailyData[day].push(vital.value)
+      // CLS travels x1000 on the wire — normalize at read time (#133).
+      dailyData[day].push(metric === 'CLS' ? (vital.value || 0) / 1000 : vital.value)
     }
 
     const calculatePercentile = (arr: number[], p: number) => {
@@ -302,7 +321,9 @@ export async function handleCheckPerformanceBudgets(request: Request, siteId: st
       budgetId: string
       metric: string
       threshold: number
+      currentValue: number
       currentP75: number
+      exceededBy: number
       path: string
       violationCount: number
     }> = []
@@ -326,7 +347,9 @@ export async function handleCheckPerformanceBudgets(request: Request, siteId: st
 
       if (relevantVitals.length === 0) continue
 
-      const values = relevantVitals.map(v => v.value)
+      // CLS travels x1000 on the wire — normalize before comparing against
+      // user-entered unitless thresholds like 0.1 (#133).
+      const values = relevantVitals.map(v => budget.metric === 'CLS' ? (v.value || 0) / 1000 : v.value)
       const p75 = calculatePercentile(values, 75)
       const violatingValues = values.filter(v => v > budget.threshold)
 
@@ -335,7 +358,11 @@ export async function handleCheckPerformanceBudgets(request: Request, siteId: st
           budgetId: budget.id,
           metric: budget.metric,
           threshold: budget.threshold,
+          // currentValue/exceededBy are the BudgetViolation contract the tab
+          // renders; currentP75 kept for back-compat.
+          currentValue: p75,
           currentP75: p75,
+          exceededBy: Number((p75 - budget.threshold).toFixed(3)),
           path: budget.path || '*',
           violationCount: violatingValues.length,
         })
