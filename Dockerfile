@@ -14,6 +14,8 @@ EXPOSE 3001
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3001
+# Background jobs (rollups/alerts/digests) run in-process by default (#168)
+ENV ANALYTICS_ENABLE_JOBS=true
 
 # Run the server
 CMD ["bun", "run", "./server/index.ts"]

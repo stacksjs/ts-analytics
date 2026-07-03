@@ -572,46 +572,6 @@ export function generateSamTemplate(config: CloudFormationConfig = {}): Record<s
         },
       },
 
-      AggregationFunction: {
-        Type: 'AWS::Serverless::Function',
-        Properties: {
-          Handler: 'index.aggregationHandler',
-          CodeUri: './dist/lambda',
-          Description: 'Run analytics aggregation',
-          Timeout: 300,
-          MemorySize: 512,
-          Events: {
-            HourlySchedule: {
-              Type: 'Schedule',
-              Properties: {
-                Schedule: 'rate(1 hour)',
-                Input: '{"period": "hour"}',
-              },
-            },
-            DailySchedule: {
-              Type: 'Schedule',
-              Properties: {
-                Schedule: 'cron(0 0 * * ? *)',
-                Input: '{"period": "day"}',
-              },
-            },
-            MonthlySchedule: {
-              Type: 'Schedule',
-              Properties: {
-                Schedule: 'cron(0 0 1 * ? *)',
-                Input: '{"period": "month"}',
-              },
-            },
-          },
-          Policies: [
-            {
-              DynamoDBCrudPolicy: {
-                TableName: { Ref: 'AnalyticsTable' },
-              },
-            },
-          ],
-        },
-      },
     },
 
     Outputs: {

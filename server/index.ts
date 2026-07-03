@@ -24,10 +24,11 @@ console.log(`CORS: ${process.env.CORS_ORIGINS || '*'}`)
 // Assign unowned sites to admin (if ADMIN_EMAIL is set)
 await assignUnownedSites()
 
-// Register periodic jobs. The in-process scheduler runs only when
-// ANALYTICS_ENABLE_JOBS=true (otherwise drive it via POST /api/jobs/tick).
+// Register periodic jobs. The in-process scheduler now defaults ON for the
+// long-lived server (#168) — set ANALYTICS_ENABLE_JOBS=false to opt out and
+// drive jobs externally via POST /api/jobs/tick instead.
 bootstrapJobs()
-if (process.env.ANALYTICS_ENABLE_JOBS === 'true') {
+if (process.env.ANALYTICS_ENABLE_JOBS !== 'false') {
   startScheduler()
   console.log('Scheduler: in-process loop enabled')
 }

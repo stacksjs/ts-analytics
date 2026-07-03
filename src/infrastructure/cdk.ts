@@ -286,16 +286,10 @@ ${config.enableAggregation
     // Aggregation Scheduled Functions
     // ========================================================================
 
-    const aggregationFn = new lambda.Function(this, 'AggregationFunction', {
-      ...commonLambdaProps,
-      handler: 'index.aggregationHandler',
-      code: lambda.Code.fromAsset('${config.codePath}'),
-      description: 'Run analytics aggregation',
-      timeout: cdk.Duration.minutes(5),
-      memorySize: 512,
-    })
-
-    this.table.grantReadWriteData(aggregationFn)
+    // Background jobs (rollups/alerts) are driven by POST /api/jobs/tick on
+    // the API function via an EventBridge rule — there is no separate
+    // aggregation handler artifact (the old index.aggregationHandler never
+    // existed and broke deploys, #168).
 
     // Hourly aggregation
     new events.Rule(this, 'HourlyAggregation', {

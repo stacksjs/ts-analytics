@@ -89,6 +89,13 @@ const _STEALTH_PATHS = {
  * Create and configure the router with all routes
  */
 export async function createRouter(): Promise<Router> {
+  // Register background jobs on EVERY entrypoint (#168): the Lambda handler
+  // imports the router directly and never ran server/index.ts, so
+  // POST /api/jobs/tick iterated an empty jobs array in production — rollups,
+  // alerts, digests, and webhooks never ran. bootstrapJobs() is idempotent.
+  const { bootstrapJobs } = await import('./jobs')
+  bootstrapJobs()
+
   const router = new Router({
     // Automatically preserve siteId across all dashboard navigation
     queryPreservation: {

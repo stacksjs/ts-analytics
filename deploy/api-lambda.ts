@@ -19,6 +19,9 @@ const DOMAIN = process.env.API_DOMAIN || 'analytics.stacksjs.com'
 const STEALTH_DOMAIN = process.env.API_STEALTH_DOMAIN || 'a.stacksjs.com' // Less likely to be blocked
 const BASE_DOMAIN = process.env.BASE_DOMAIN || 'stacksjs.com'
 const TABLE_NAME = process.env.ANALYTICS_TABLE_NAME || 'ts-analytics'
+// Jobs tick secret (#168): stable per deploy — reuse the env value or derive one.
+import { randomBytes } from 'node:crypto'
+const JOBS_SECRET = process.env.ANALYTICS_JOBS_SECRET || randomBytes(24).toString('hex')
 const BUCKET_NAME = `${SERVICE_NAME}-deployment-${REGION}`
 
 async function deployLambdaAPI() {
@@ -323,8 +326,50 @@ catch {
               // Visitor-hash salt seed (#165): keeps hashes deterministic across
               // instances even before the shared SALT#DAY item exists.
               ...(process.env.ANALYTICS_SALT_SECRET ? { ANALYTICS_SALT_SECRET: process.env.ANALYTICS_SALT_SECRET } : {}),
+              // Jobs tick auth (#168) — the EventBridge rule below posts with this header.
+              ANALYTICS_JOBS_SECRET: JOBS_SECRET,
             },
           },
+        },
+      },
+
+      // Jobs tick schedule (#168): rollups/alerts/digests are driven by
+      // POST /api/jobs/tick. EventBridge invokes the SAME Lambda with a
+      // synthetic API-Gateway-v2 event so the normal request pipeline
+      // (lambda-adapter -> router) handles it — no separate handler artifact.
+      JobsTickRule: {
+        Type: 'AWS::Events::Rule',
+        Properties: {
+          Description: 'ts-analytics background jobs tick',
+          ScheduleExpression: 'rate(5 minutes)',
+          State: 'ENABLED',
+          Targets: [
+            {
+              Id: 'JobsTick',
+              Arn: { 'Fn::GetAtt': ['LambdaFunction', 'Arn'] },
+              Input: JSON.stringify({
+                version: '2.0',
+                routeKey: 'POST /api/jobs/tick',
+                rawPath: '/api/jobs/tick',
+                rawQueryString: '',
+                headers: { 'x-jobs-secret': JOBS_SECRET, 'content-type': 'application/json' },
+                requestContext: {
+                  http: { method: 'POST', path: '/api/jobs/tick', sourceIp: '127.0.0.1', protocol: 'HTTP/1.1' },
+                },
+                body: '',
+                isBase64Encoded: false,
+              }),
+            },
+          ],
+        },
+      },
+      JobsTickPermission: {
+        Type: 'AWS::Lambda::Permission',
+        Properties: {
+          FunctionName: { Ref: 'LambdaFunction' },
+          Action: 'lambda:InvokeFunction',
+          Principal: 'events.amazonaws.com',
+          SourceArn: { 'Fn::GetAtt': ['JobsTickRule', 'Arn'] },
         },
       },
 
