@@ -95,8 +95,20 @@ export async function handleGetStats(request: Request, siteId: string): Promise<
       return sessionStart >= rawWindowStart && sessionStart <= endDate && matchesFilters(s, filters)
     })
 
-    // Raw-window stats
-    const rawVisitors = new Set(pageviews.map((pv: any) => pv.visitorId)).size
+    // Raw-window stats. Uniques are counted PER UTC DAY to match the rolled
+    // days' semantics (#146): the raw window used to dedupe across its whole
+    // span, so a visitor spanning two raw days counted once there but twice
+    // after those days rolled up — the same historical query changed answers
+    // day to day. Per-day bucketing makes raw + rolled consistent (Fathom's
+    // "people = sum of daily uniques" semantics).
+    const rawDailyVisitors = new Map<string, Set<string>>()
+    for (const pv of pageviews) {
+      const day = String(pv.timestamp).slice(0, 10)
+      let set = rawDailyVisitors.get(day)
+      if (!set) { set = new Set(); rawDailyVisitors.set(day, set) }
+      set.add(pv.visitorId)
+    }
+    const rawVisitors = [...rawDailyVisitors.values()].reduce((sum, set) => sum + set.size, 0)
     const rawViews = pageviews.length
     const rawSessions = sessions.length
     const rawBounces = sessions.filter(s => s.isBounce).length
@@ -694,22 +706,25 @@ export async function handleGetTimeSeries(request: Request, siteId: string): Pro
 
     while (current <= end) {
       let key: string
+      // Advance in UTC (#136): keys are UTC ISO strings but the cursor used
+      // local-time setters — on non-UTC servers, DST transitions and offset
+      // drift skipped or duplicated buckets.
       if (period === 'minute') {
         const mins = Math.floor(current.getUTCMinutes() / 5) * 5
         key = `${current.toISOString().slice(0, 14)}${mins.toString().padStart(2, '0')}:00.000Z`
-        current.setMinutes(current.getMinutes() + 5)
+        current.setUTCMinutes(current.getUTCMinutes() + 5)
       }
 else if (period === 'hour') {
         key = `${current.toISOString().slice(0, 13)}:00:00.000Z`
-        current.setHours(current.getHours() + 1)
+        current.setUTCHours(current.getUTCHours() + 1)
       }
 else if (period === 'month') {
         key = `${current.toISOString().slice(0, 7)}-01T00:00:00.000Z`
-        current.setMonth(current.getMonth() + 1)
+        current.setUTCMonth(current.getUTCMonth() + 1)
       }
 else {
         key = `${current.toISOString().slice(0, 10)}T00:00:00.000Z`
-        current.setDate(current.getDate() + 1)
+        current.setUTCDate(current.getUTCDate() + 1)
       }
       if (!allBuckets.includes(key)) allBuckets.push(key)
     }
