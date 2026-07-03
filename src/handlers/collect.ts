@@ -210,9 +210,9 @@ catch {
     const timestamp = new Date()
     // Reject a missing/malformed client session id (would collapse to
     // SESSION#undefined / allow crafted keys); mint a server-side one (#147).
-    const sessionId = isValidSessionId(payload.sid) ? payload.sid : generateSessionId()
+    let sessionId = isValidSessionId(payload.sid) ? payload.sid : generateSessionId()
 
-    const sessionKey = `${payload.s}:${sessionId}`
+    let sessionKey = `${payload.s}:${sessionId}`
     let session = getSession(sessionKey)
 
     // Load session from DynamoDB if not in cache
@@ -235,6 +235,22 @@ catch {
       }
 catch (e) {
         console.log('[Collect] Failed to load session from DB:', e)
+      }
+    }
+
+    // Session timeout (#135): the client keeps its sessionStorage sid for the
+    // tab's whole life, so without a server-side idle cutoff a tab left open
+    // across days stays ONE session (skewing duration/bounce) and stale sids
+    // are replayable forever. Match Fathom's ~30-minute semantics: when the
+    // loaded session has been idle past the cutoff, mint a fresh server-side
+    // session id and treat this hit as a new session.
+    const SESSION_IDLE_MS = 30 * 60 * 1000
+    if (session) {
+      const lastActivity = new Date((session.endedAt || session.startedAt) as Date | string).getTime()
+      if (Number.isFinite(lastActivity) && Date.now() - lastActivity > SESSION_IDLE_MS) {
+        session = null
+        sessionId = generateSessionId()
+        sessionKey = `${payload.s}:${sessionId}`
       }
     }
 
