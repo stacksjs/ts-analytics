@@ -3,7 +3,7 @@
  */
 
 import { generateId } from '../index'
-import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
+import { dynamodb, TABLE_NAME, unmarshall, marshall, isConditionalCheckFailed } from '../lib/dynamodb'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse, noContentResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
@@ -349,7 +349,7 @@ export async function upsertErrorGroup(siteId: string, opts: {
     })
   }
 catch (e: any) {
-    if (!String(e?.name || e).includes('ConditionalCheckFailed')) console.error('Regression update failed:', e)
+    if (!isConditionalCheckFailed(e)) console.error('Regression update failed:', e)
   }
 }
 

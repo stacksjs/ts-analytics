@@ -36,6 +36,7 @@
  */
 
 import { Model, configureModels, DynamoDBClient, createClient } from 'bun-query-builder/dynamodb'
+import { isConditionalCheckFailed } from '../../lib/dynamodb'
 import type { DeviceType } from '../../types'
 import { getConfig, getTtlForEntity } from '../../config'
 
@@ -470,7 +471,7 @@ export class Session extends Model {
       return true
     }
     catch (e: any) {
-      if (e?.name === 'ConditionalCheckFailedException')
+      if (isConditionalCheckFailed(e))
         return false
       throw e
     }
@@ -552,7 +553,7 @@ export class Session extends Model {
     catch (e: any) {
       // Session vanished between read and write (expiry/race) — skip rather than
       // recreate a partial row missing entryPath/startedAt/dimensions.
-      if (e?.name === 'ConditionalCheckFailedException')
+      if (isConditionalCheckFailed(e))
         return
       throw e
     }

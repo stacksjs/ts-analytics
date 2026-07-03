@@ -320,6 +320,9 @@ catch {
             Variables: {
               ANALYTICS_TABLE_NAME: { Ref: 'TableName' },
               STEALTH_DOMAIN: STEALTH_DOMAIN,
+              // Visitor-hash salt seed (#165): keeps hashes deterministic across
+              // instances even before the shared SALT#DAY item exists.
+              ...(process.env.ANALYTICS_SALT_SECRET ? { ANALYTICS_SALT_SECRET: process.env.ANALYTICS_SALT_SECRET } : {}),
             },
           },
         },

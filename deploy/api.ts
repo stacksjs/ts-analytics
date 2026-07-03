@@ -231,6 +231,8 @@ CMD ["bun", "run", "./server/index.ts"]
                   { Name: 'AWS_REGION', Value: { Ref: 'AWS::Region' } },
                   { Name: 'PORT', Value: '3001' },
                   { Name: 'CORS_ORIGINS', Value: '*' },
+                  // Visitor-hash salt seed (#165)
+                  ...(process.env.ANALYTICS_SALT_SECRET ? [{ Name: 'ANALYTICS_SALT_SECRET', Value: process.env.ANALYTICS_SALT_SECRET }] : []),
                 ],
               },
             },

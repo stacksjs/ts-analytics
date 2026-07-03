@@ -341,4 +341,4 @@ export function determinePeriod(startDate: Date, endDate: Date): AggregationPeri
  * Secret-seeded so visitor hashes cannot be reproduced without the server
  * secret (#88) — see src/lib/salt.ts.
  */
-export { getDailySalt } from './lib/salt'
+export { getDailySalt, getSharedDailySalt } from './lib/salt'

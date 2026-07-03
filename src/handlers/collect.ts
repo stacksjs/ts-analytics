@@ -6,7 +6,7 @@ import {
   generateId,
   generateSessionId,
   hashVisitorId,
-  getDailySalt,
+  getSharedDailySalt,
   getConfig,
 } from '../index'
 import type { Session as SessionType } from '../../src/types'
@@ -190,7 +190,7 @@ catch {
     // The sqs-buffering library + deploy/sqs-consumer-handler.ts remain as
     // standalone opt-in infrastructure for spike-buffered pipelines.
     console.log(`[Collect] IP: ${ip}, UA: ${userAgent?.substring(0, 50)}...`)
-    const salt = getDailySalt()
+    const salt = await getSharedDailySalt()
     // When neither IP nor UA carries any signal, hashVisitorId would collapse
     // every such hit to one identical hash — under-counting uniques and letting a
     // client hide by omitting both. Use a per-hit anonymous id instead (#148).

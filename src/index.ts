@@ -169,6 +169,7 @@ export {
   generateId,
   generateSessionId,
   getDailySalt,
+  getSharedDailySalt,
   getPeriodStart,
   hashVisitorId,
   KeyPatterns,

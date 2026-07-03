@@ -26,6 +26,22 @@ export const dynamodb: ReturnType<typeof createClient> = createClient({ region: 
 export { marshall, unmarshall }
 
 /**
+ * Whether an error is a DynamoDB conditional-check failure. Matches BOTH the
+ * AWS SDK shape (name === 'ConditionalCheckFailedException') and the ts-cloud
+ * client's wrapped form (a generic Error whose message contains
+ * "The conditional request failed") — code that checked only e.name silently
+ * misclassified expected condition failures as real errors.
+ */
+export function isConditionalCheckFailed(e: unknown): boolean {
+  const err = e as { name?: string, message?: string } | null
+  return !!err && (
+    String(err.name || '').includes('ConditionalCheckFailed')
+    || /conditional request failed/i.test(String(err.message || err))
+  )
+}
+
+
+/**
  * Build a DynamoDB query expression for date range
  */
 export function buildDateRangeExpression(
