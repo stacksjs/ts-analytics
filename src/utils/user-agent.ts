@@ -64,11 +64,38 @@ else if (/ipad|tablet|playbook|silk/i.test(ua)) {
 }
 
 /**
- * Check if user agent is a bot
+ * Whether a user agent is a bot / non-human client (#166).
+ *
+ * Three signals, applied at ingestion so bots never pollute the numbers
+ * (Fathom-style):
+ * 1. A MISSING or unrecognizably short UA — real browsers always send one;
+ *    UA-less curl/scripts previously counted as human visitors.
+ * 2. Generic bot markers (bot/crawl/spider/preview...).
+ * 3. Known non-human client families: headless browsers, HTTP libraries,
+ *    monitoring agents, and AI scrapers.
  */
+const BOT_UA_PATTERN = new RegExp([
+  // generic markers
+  'bot|crawl|spider|slurp|preview|scan|probe|monitor(?:ing)?|checker|validator',
+  // headless / automation
+  'headless|phantomjs|puppeteer|playwright|selenium|webdriver|electron',
+  // http libraries & CLI clients
+  'curl|wget|python-requests|python-urllib|aiohttp|httpx|go-http-client|okhttp',
+  'java/|libwww|lwp::|php/|guzzle|axios|node-fetch|undici|bun/',
+  // feed/link expanders, previews, misc known agents
+  'facebookexternalhit|whatsapp|telegrambot|discordbot|slackbot|twitterbot',
+  'pingdom|uptimerobot|statuscake|newrelic|datadog|site24x7',
+  // AI scrapers
+  'gptbot|claudebot|ccbot|bytespider|amazonbot|anthropic|perplexity',
+].join('|'), 'i')
+
 export function isBot(ua: string): boolean {
-  if (!ua) return false
-  return /bot|crawl|spider|slurp|bingpreview|googlebot|baiduspider|yandexbot|duckduckbot/i.test(ua)
+  // No/garbage UA: every real browser sends a UA string. Treat absent or
+  // implausibly short values as non-human instead of counting them as
+  // visitors (previously `if (!ua) return false` let them ALL through).
+  if (!ua || ua === 'unknown' || ua.length < 12)
+    return true
+  return BOT_UA_PATTERN.test(ua)
 }
 
 /**
