@@ -6,12 +6,10 @@
  */
 
 import { generateTrackingScript, generateMinimalTrackingScript, getConfig } from '../index'
-import { generateErrorSdk } from '../error-sdk'
 import { htmlResponse, jsResponse } from '../utils/response'
 import { getQueryParams, getLambdaEvent } from '../../deploy/lambda-adapter'
 import { injectQueryPreservationScript } from '@stacksjs/bun-router'
 import { requireAuth } from './auth'
-import { getOrCreateIngestKey } from './api-keys'
 import path from 'node:path'
 import fs from 'node:fs'
 
@@ -326,7 +324,6 @@ export async function handleScript(request: Request): Promise<Response> {
 
   // Embed the project's ingest-only error key so captured errors go to the keyed
   // /errors/collect (Sentry-style), not the public /collect.
-  const errorIngestKey = minimal ? '' : await getOrCreateIngestKey(siteId).catch(() => '')
 
   // ?stealth=true → beacons go to the shorter /t path instead of /collect,
   // which generic blocklists target. Pair with a first-party proxy (#85).
@@ -337,7 +334,7 @@ export async function handleScript(request: Request): Promise<Response> {
   const honorDnt = getConfig().privacy.honorDnt
   let script = minimal
     ? generateMinimalTrackingScript({ siteId, apiEndpoint, honorDnt })
-    : generateTrackingScript({ siteId, apiEndpoint, honorDnt, trackLinkClicks: true, trackSpaRoutes: true, trackEngagement: true, errorIngestKey, stealthMode })
+    : generateTrackingScript({ siteId, apiEndpoint, honorDnt, trackLinkClicks: true, trackSpaRoutes: true, trackEngagement: true, stealthMode })
 
   // Raw-JS variant (for the `<script src=".../script.js">` one-liner): strip the
   // HTML comment + <script> wrapper so the response is loadable JavaScript. The
@@ -382,7 +379,6 @@ export function handleSharedScript(request: Request): Response {
     trackLinkClicks: true,
     trackSpaRoutes: true,
     trackEngagement: true,
-    errorIngestKey: '',
     stealthMode,
   })
     .replace(/^<!--[\s\S]*?-->\s*/, '')
@@ -392,9 +388,3 @@ export function handleSharedScript(request: Request): Response {
   return jsResponse(script)
 }
 
-/**
- * GET /sdk.js — the standalone error-tracking SDK (configure with TSA.init({dsn})).
- */
-export function handleErrorSdk(): Response {
-  return jsResponse(generateErrorSdk())
-}

@@ -65,43 +65,6 @@ export interface SessionDetail {
   events: SessionEvent[]
 }
 
-export interface ErrorItem {
-  errorId: string
-  fingerprint: string
-  message: string
-  count: number
-  severity: string
-  category: string
-  source: string
-  line: number
-  lastSeen: string
-  firstSeen: string
-  browsers: string[]
-}
-
-export interface ErrorStatusEntry {
-  status: string
-}
-
-export interface ErrorStatuses {
-  [fingerprint: string]: ErrorStatusEntry
-}
-
-export interface StatusCounts {
-  new: number
-  resolved: number
-  ignored: number
-  [key: string]: number
-}
-
-export interface SeverityCounts {
-  critical: number
-  high: number
-  medium: number
-  low: number
-  [key: string]: number
-}
-
 export interface Funnel {
   id: string
   name: string

@@ -31,7 +31,6 @@ const STEALTH_MAP: Record<string, string> = {
   'entry-exit': 'endpoints',
   live: 'now',
   heatmap: 'touch',
-  errors: 'issues',
   'errors/statuses': 'issues/states',
   'errors/status': 'issues/state',
   vitals: 'metrics',

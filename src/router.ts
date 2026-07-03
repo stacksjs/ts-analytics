@@ -13,7 +13,6 @@ import * as stats from './handlers/stats'
 import * as goals from './handlers/goals'
 import * as sessions from './handlers/sessions'
 import * as heatmaps from './handlers/heatmaps'
-import * as errors from './handlers/errors'
 import { withReadCache } from './handlers/lib/read-cache'
 import * as performance from './handlers/performance'
 import * as funnels from './handlers/funnels'
@@ -61,7 +60,6 @@ const _STEALTH_PATHS = {
   // Heatmaps
   heatmap: 'touch',
   // Errors
-  errors: 'issues',
   // Performance
   vitals: 'metrics',
   'vitals-trends': 'metrics-trends',
@@ -154,21 +152,9 @@ export async function createRouter(): Promise<Router> {
   // collect endpoint answers OPTIONS (#86).
   await router.post('/collect', collect.handleCollect)
   await router.post('/t', collect.handleCollect)
-  for (const path of ['/collect', '/t', '/p', '/errors/collect', '/issues/report']) {
+  for (const path of ['/collect', '/t', '/p']) {
     await router.options(path, (req: any) => preflightResponse(req))
   }
-
-  // Error collection (SDK endpoint with token auth)
-  await router.post('/errors/collect', async (req: any) => {
-    const auth = await apiKeys.handleValidateApiKey(req, 'error-tracking')
-    if (!auth.valid || !auth.siteId || !auth.keyId) {
-      return new Response(JSON.stringify({ error: 'Invalid or missing API key' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
-    return errors.handleCollectError(req, auth.siteId, auth.keyId)
-  })
 
   // Sites list and creation — account-scoped (#114). With enforcement on
   // (the default), no session → 401; the all-sites fallback only survives in
@@ -234,25 +220,6 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/sites/{siteId}/heatmap/scroll', (req: any) => heatmaps.handleGetHeatmapScroll(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/heatmap/pages', (req: any) => heatmaps.handleGetHeatmapPages(req, req.params.siteId))
 
-  // Errors
-  await router.get('/api/sites/{siteId}/errors', (req: any) => errors.handleGetErrors(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/errors/statuses', (req: any) => errors.handleGetErrorStatuses(req, req.params.siteId))
-  await router.post('/api/sites/{siteId}/errors/status', (req: any) => errors.handleUpdateErrorStatus(req, req.params.siteId))
-  await router.post('/api/sites/{siteId}/errors/assign', (req: any) => errors.handleAssignError(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/errors/timeseries', (req: any) => withReadCache(req, 'errors-timeseries', 60_000, () => errors.handleGetErrorTimeseries(req, req.params.siteId)))
-  await router.get('/api/sites/{siteId}/errors/comparison', (req: any) => withReadCache(req, 'errors-comparison', 60_000, () => errors.handleGetErrorComparison(req, req.params.siteId)))
-  await router.get('/api/sites/{siteId}/errors/groups', (req: any) => withReadCache(req, 'errors-groups', 60_000, () => errors.handleGetErrorGroups(req, req.params.siteId)))
-  await router.get('/api/sites/{siteId}/errors/detail', (req: any) => {
-    const id = new URL(req.url).searchParams.get('id') || ''
-    return errors.handleGetErrorDetail(req, req.params.siteId, id)
-  })
-  await router.get('/api/sites/{siteId}/errors/alerts', (req: any) => errors.handleGetErrorAlerts(req, req.params.siteId))
-  await router.post('/api/sites/{siteId}/errors/alerts', (req: any) => errors.handleCreateErrorAlert(req, req.params.siteId))
-  await router.post('/api/sites/{siteId}/errors/alerts/evaluate', (req: any) => errors.handleEvaluateErrorAlerts(req, req.params.siteId))
-  await router.post('/api/sites/{siteId}/sourcemaps', (req: any) => errors.handleUploadSourceMap(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/sourcemaps', (req: any) => errors.handleListSourceMaps(req, req.params.siteId))
-  await router.get('/api/sites/{siteId}/errors/{errorId}', (req: any) => errors.handleGetErrorDetail(req, req.params.siteId, req.params.errorId))
-
   // Performance & Vitals
   await router.get('/api/sites/{siteId}/vitals', (req: any) => performance.handleGetVitals(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/vitals-trends', (req: any) => performance.handleGetVitalsTrends(req, req.params.siteId))
@@ -288,8 +255,6 @@ export async function createRouter(): Promise<Router> {
   await router.delete('/api/sites/{siteId}/email-reports/{reportId}', (req: any) => alerts.handleDeleteEmailReport(req, req.params.siteId, req.params.reportId))
 
   // API Keys
-  await router.get('/api/sites/{siteId}/dsn', (req: any) => apiKeys.handleGetDsn(req, req.params.siteId))
-  await router.post('/api/sites/{siteId}/dsn/regenerate', (req: any) => apiKeys.handleRegenerateIngestKey(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/api-keys', (req: any) => apiKeys.handleGetApiKey(req, req.params.siteId))
   await router.post('/api/sites/{siteId}/api-keys/regenerate', (req: any) => apiKeys.handleRegenerateApiKey(req, req.params.siteId))
 
@@ -336,18 +301,6 @@ export async function createRouter(): Promise<Router> {
   // Collection endpoints (stealth)
   await router.post('/t', collect.handleCollect) // Already defined above, but /t is short
   await router.post('/p', collect.handleCollect) // Even shorter alias
-
-  // Issue collection (stealth for errors/collect)
-  await router.post('/issues/report', async (req: any) => {
-    const auth = await apiKeys.handleValidateApiKey(req, 'error-tracking')
-    if (!auth.valid || !auth.siteId || !auth.keyId) {
-      return new Response(JSON.stringify({ error: 'Invalid or missing API key' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
-    return errors.handleCollectError(req, auth.siteId, auth.keyId)
-  })
 
   // Sites list (stealth) — same account scoping as /api/sites (#114)
   await router.get('/api/projects', async (req: any) => {
@@ -408,10 +361,6 @@ export async function createRouter(): Promise<Router> {
   await router.get('/api/p/{siteId}/touch/list', (req: any) => heatmaps.handleGetHeatmapPages(req, req.params.siteId))
 
   // Errors (stealth)
-  await router.get('/api/p/{siteId}/issues', (req: any) => errors.handleGetErrors(req, req.params.siteId))
-  await router.get('/api/p/{siteId}/issues/states', (req: any) => errors.handleGetErrorStatuses(req, req.params.siteId))
-  await router.post('/api/p/{siteId}/issues/state', (req: any) => errors.handleUpdateErrorStatus(req, req.params.siteId))
-  await router.get('/api/p/{siteId}/issues/{errorId}', (req: any) => errors.handleGetErrorDetail(req, req.params.siteId, req.params.errorId))
 
   // Performance & Vitals (stealth)
   await router.get('/api/p/{siteId}/metrics', (req: any) => performance.handleGetVitals(req, req.params.siteId))
@@ -498,8 +447,6 @@ export async function createRouter(): Promise<Router> {
   await router.get('/script.js', (req: any) => {
     return import('./handlers/views').then(v => v.handleSharedScript(req))
   })
-  // Standalone error-tracking SDK (Sentry-style): configure with TSA.init({dsn}).
-  await router.get('/sdk.js', () => import('./handlers/views').then(v => v.handleErrorSdk()))
 
   return router
 }

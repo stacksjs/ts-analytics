@@ -38,7 +38,7 @@ const STEALTH_MAP: StealthMap = {
   referrers: 'sources', devices: 'clients', browsers: 'agents', countries: 'geo',
   regions: 'area', cities: 'locale', timeseries: 'series', events: 'actions',
   campaigns: 'promo', comparison: 'diff', sessions: 'visits', flow: 'journey',
-  live: 'now', heatmap: 'touch', errors: 'issues', vitals: 'metrics',
+  live: 'now', heatmap: 'touch', vitals: 'metrics',
   goals: 'targets', funnels: 'pipelines', annotations: 'notes', clicks: 'links', os: 'platform',
   engagement: 'dwell', 'event-properties': 'traits',
 }

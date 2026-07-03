@@ -1,6 +1,6 @@
 // API response types - inferred from dashboard fetch calls
 
-import type { Goal, AnalyticsEvent, Session, ErrorItem, ErrorStatuses, Funnel, Vital, BudgetViolation, FlowData, LiveActivity, Insight, ComparisonStats, Referrer, ApiKey, Alert, EmailReport, UptimeMonitor, TeamMember, Webhook, PerfBudget } from './analytics'
+import type { Goal, AnalyticsEvent, Session, Funnel, Vital, BudgetViolation, FlowData, LiveActivity, Insight, ComparisonStats, Referrer, ApiKey, Alert, EmailReport, UptimeMonitor, TeamMember, Webhook, PerfBudget } from './analytics'
 
 export interface GoalsResponse {
   goals?: Goal[]
@@ -12,14 +12,6 @@ export interface EventsResponse {
 
 export interface SessionsResponse {
   sessions?: Session[]
-}
-
-export interface ErrorsResponse {
-  errors?: ErrorItem[]
-}
-
-export interface ErrorStatusesResponse {
-  statuses?: ErrorStatuses
 }
 
 export interface FunnelsResponse {

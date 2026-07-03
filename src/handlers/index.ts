@@ -15,7 +15,6 @@ export * from './sessions'
 export * from './heatmaps'
 
 // Errors
-export * from './errors'
 
 // Performance & Vitals
 export * from './performance'

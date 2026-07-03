@@ -32,7 +32,6 @@ const TAB_TITLES: Record<string, string> = {
   funnels: 'Funnels',
   flow: 'User Flow',
   vitals: 'Web Vitals',
-  errors: 'Errors',
   insights: 'Insights',
   settings: 'Settings',
   account: 'Account',
@@ -48,7 +47,6 @@ const tabs: NavTab[] = [
   { id: 'engagement', label: 'Engagement', href: '/dashboard/engagement' },
   { id: 'event-properties', label: 'Event Properties', href: '/dashboard/event-properties' },
   { id: 'vitals', label: 'Web Vitals', href: '/dashboard/vitals' },
-  { id: 'errors', label: 'Errors', href: '/dashboard/errors' },
   { id: 'insights', label: 'Insights', href: '/dashboard/insights' },
 ]
 

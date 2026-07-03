@@ -38,9 +38,6 @@ const STEALTH_MAP: Record<string, string> = {
   // Heatmaps
   'heatmap': 'touch',
   // Errors
-  'errors': 'issues',
-  'errors/statuses': 'issues/states',
-  'errors/status': 'issues/state',
   // Performance
   'vitals': 'metrics',
   'vitals-trends': 'metrics-trends',
@@ -138,7 +135,7 @@ let stats = cachedStats || { realtime: 0, sessions: 0, people: 0, views: 0, avgT
 // Valid tab ids (used for URL validation; tab chrome lives in DashboardHeader).
 // 'account' is project-independent — listed so getTabFromUrl/switchTab don't
 // coerce its URL to /dashboard, but the bootstrap below skips its data fetch.
-const validTabs = ['dashboard', 'live', 'sessions', 'funnels', 'flow', 'vitals', 'errors', 'insights', 'settings', 'account']
+const validTabs = ['dashboard', 'live', 'sessions', 'funnels', 'flow', 'vitals', 'insights', 'settings', 'account']
 
 // Theme is owned by DashboardHeader (isDark state + data-theme effect + storage).
 
