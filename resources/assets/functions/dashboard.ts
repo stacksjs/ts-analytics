@@ -99,7 +99,7 @@ window.USE_STEALTH = USE_STEALTH
 
 let siteName = 'Analytics Dashboard'
 let siteId = SITE_ID
-let dateRange = '6h'
+let dateRange = '7d'
 let isLoading = false
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 

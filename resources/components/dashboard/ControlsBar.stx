@@ -4,7 +4,7 @@ import type { DateRange } from '../../types/dashboard'
 const dashboard = useStore('dashboard')
 const analytics = useStore('analytics')
 
-const activeRange = state<string>('6h')
+const activeRange = state<string>('7d')
 const showComparison = state<boolean>(false)
 const lastUpdated = state<string>('')
 const isRefreshing = state<boolean>(false)

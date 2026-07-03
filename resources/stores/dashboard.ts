@@ -82,7 +82,9 @@ defineStore('dashboard', () => {
   function apiEndpoint(): string {
     return window.ANALYTICS_API_ENDPOINT || window.API_ENDPOINT || window.location.origin
   }
-  const dateRange = state('6h')
+  // Default range: last 7 days (Fathom's default) — enough context to be
+  // meaningful on first open, without the cost of a 30d scan.
+  const dateRange = state('7d')
   const currentTab = state(tabFromPath())
 
   // Active dashboard filters (e.g. { country, device, browser }); appended to
