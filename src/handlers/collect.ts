@@ -187,7 +187,11 @@ catch {
     // bounce rates and session-derived breakdowns whenever it was enabled.
     // The sqs-buffering library + deploy/sqs-consumer-handler.ts remain as
     // standalone opt-in infrastructure for spike-buffered pipelines.
-    console.log(`[Collect] IP: ${ip}, UA: ${userAgent?.substring(0, 50)}...`)
+    // Raw IP+UA are PII — never stream them to production logs (the privacy
+    // docs promise the hash inputs are discarded). Opt in per run for local
+    // debugging only.
+    if (process.env.ANALYTICS_DEBUG === 'true')
+      console.log(`[Collect] IP: ${ip}, UA: ${userAgent?.substring(0, 50)}...`)
     const salt = await getSharedDailySalt()
     // When neither IP nor UA carries any signal, hashVisitorId would collapse
     // every such hit to one identical hash — under-counting uniques and letting a
