@@ -3218,6 +3218,9 @@ catch (e){}
 (function(){
   'use strict';
   var d=document,w=window,n=navigator,s=d.currentScript;
+  // Double-include guard (#138): a twice-pasted snippet doubled every view
+  // and collapsed bounce rate toward zero.
+  if(w.__tsa)return;w.__tsa=1;
   var site=s.dataset.site,api=s.dataset.api;
   if((!site||!api)&&s.src){try{var su=new URL(s.src);if(!api)api=su.origin;var sm=su.pathname.match(/\\/sites\\/([^/]+)\\/script/);if(!site&&sm)site=sm[1];}catch(_e){}}
   ${options.honorDnt ? 'if(n.doNotTrack==="1"||n.globalPrivacyControl===true)return;' : ''}
@@ -3264,7 +3267,7 @@ catch (e){}
     x.setRequestHeader('Content-Type','application/json');
     x.send(body);
   }
-  function pv(){t('pageview');}
+  function pv(){t('pageview',undefined,true);}
   ${options.trackHashChanges ? 'w.addEventListener(\'hashchange\',pv);' : ''}
   ${options.trackSpaRoutes
     ? `
