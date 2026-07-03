@@ -256,7 +256,6 @@ catch (e) {
       }
     }
 
-    const isNewSession = !session
 
     if (payload.e === 'pageview') {
       const deviceInfo = parseUserAgent(userAgent)
@@ -279,29 +278,11 @@ catch (e) {
       const region = getRegionFromHeaders(headers)
       const city = getCityFromHeaders(headers)
 
-      await PageViewModel.record({
-        id: generateId(),
-        siteId: payload.s,
-        visitorId,
-        sessionId,
-        path: parsedUrl.pathname,
-        hostname: parsedUrl.hostname,
-        title: payload.t,
-        referrer: payload.r,
-        referrerSource,
-        ...extractUtm(parsedUrl),
-        deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
-        browser,
-        os: deviceInfo.os,
-        country,
-        region,
-        city,
-        screenWidth: payload.sw,
-        screenHeight: payload.sh,
-        isUnique: isNewSession,
-        isBounce: isNewSession,
-        timestamp,
-      })
+      // Settle the session FIRST and derive the pageview's isUnique/isBounce
+      // from the actual outcome (#145): flags were previously persisted from
+      // the pre-write session read, so two concurrent first hits both stored
+      // isUnique=true — inflating entry-page uniques and bounce entries.
+      let wasNewSession = false
 
       if (session) {
         session.pageViewCount += 1
@@ -346,6 +327,7 @@ else {
         // Conditional create; if a concurrent request already created this
         // session, count this pageview atomically instead of clobbering it (#161).
         const created = await SessionModel.createIfAbsent(session)
+        wasNewSession = created
         if (!created) {
           await SessionModel.incrementMetrics(payload.s, sessionId, {
             incPageViews: 1,
@@ -359,6 +341,30 @@ else {
       }
 
       setSession(sessionKey, session)
+
+      await PageViewModel.record({
+        id: generateId(),
+        siteId: payload.s,
+        visitorId,
+        sessionId,
+        path: parsedUrl.pathname,
+        hostname: parsedUrl.hostname,
+        title: payload.t,
+        referrer: payload.r,
+        referrerSource,
+        ...extractUtm(parsedUrl),
+        deviceType: deviceInfo.deviceType as 'desktop' | 'mobile' | 'tablet' | 'unknown',
+        browser,
+        os: deviceInfo.os,
+        country,
+        region,
+        city,
+        screenWidth: payload.sw,
+        screenHeight: payload.sh,
+        isUnique: wasNewSession,
+        isBounce: wasNewSession,
+        timestamp,
+      })
 
       await checkAndRecordConversions(
         payload.s,
