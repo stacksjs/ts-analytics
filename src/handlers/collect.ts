@@ -148,7 +148,7 @@ catch {
     // Drop bot/crawler traffic and known referral-spam before any writes
     // (no site auto-create, no records).
     if (isBot(userAgent) || isSpamReferrer(payload.r)) {
-      return noContentResponse()
+      return noContentResponse(request)
     }
 
     // Ensure site exists (auto-create if first event)
@@ -176,7 +176,7 @@ catch {
     // Honor configured IP/path exclusions (internal traffic, admin paths) (#159).
     const tracking = getConfig().tracking
     if (isExcluded(ip, parsedUrlForSite.pathname, tracking.excludedIps, tracking.excludedPaths)) {
-      return noContentResponse()
+      return noContentResponse(request)
     }
 
     const headers = getHeaders(request)
@@ -619,7 +619,7 @@ else if (payload.e === 'error') {
       })
     }
 
-    return noContentResponse()
+    return noContentResponse(request)
   }
 catch (error) {
     console.error('Collect error:', error)

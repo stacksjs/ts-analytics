@@ -155,7 +155,7 @@ export async function createRouter(): Promise<Router> {
   await router.post('/collect', collect.handleCollect)
   await router.post('/t', collect.handleCollect)
   for (const path of ['/collect', '/t', '/p', '/errors/collect', '/issues/report']) {
-    await router.options(path, () => preflightResponse())
+    await router.options(path, (req: any) => preflightResponse(req))
   }
 
   // Error collection (SDK endpoint with token auth)

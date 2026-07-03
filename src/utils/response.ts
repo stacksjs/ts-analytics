@@ -30,11 +30,11 @@ export function jsonResponse(body: unknown, statusCode = 200, headers: Record<st
  * browser blocks the beacon (and logs a CORS error) even though the write
  * succeeded, so the bare `new Response(null, { status: 204 })` must not be used.
  */
-export function noContentResponse(headers: Record<string, string> = {}): Response {
+export function noContentResponse(request?: Request, headers: Record<string, string> = {}): Response {
   return new Response(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      ...corsOriginHeaders(request),
       ...headers,
     },
   })
@@ -70,18 +70,36 @@ export function jsResponse(body: string, headers: Record<string, string> = {}): 
 }
 
 /**
+ * CORS origin headers for the public collect endpoints. sendBeacon always
+ * sends with credentials mode 'include' (per spec), and credentialed CORS
+ * rejects the wildcard — so when the request carries an Origin, echo it and
+ * allow credentials; fall back to '*' otherwise.
+ */
+export function corsOriginHeaders(request?: Request): Record<string, string> {
+  const origin = request?.headers?.get?.('origin')
+  if (!origin)
+    return { 'Access-Control-Allow-Origin': '*' }
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Credentials': 'true',
+    'Vary': 'Origin',
+  }
+}
+
+/**
  * CORS preflight response for the public collect endpoints (#86).
  *
  * Cross-domain installs preflight every beacon: the tracker posts JSON
  * (non-simple content type) and the error SDK adds X-Analytics-Token, so the
  * browser sends OPTIONS first. Without this, preflights 404 and the browser
- * silently drops the POST.
+ * silently drops the POST. The origin is echoed (not wildcarded) because
+ * sendBeacon requests are always credentialed.
  */
-export function preflightResponse(): Response {
+export function preflightResponse(request?: Request): Response {
   return new Response(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      ...corsOriginHeaders(request),
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, X-Analytics-Token',
       'Access-Control-Max-Age': '86400',

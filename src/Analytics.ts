@@ -3281,7 +3281,7 @@ catch (e){}
       sw:screen.width,sh:screen.height,
       br:br,tz:tzn
     });
-    if(b&&n.sendBeacon){try{if(n.sendBeacon(api+'${endpoint}',new Blob([body],{type:'application/json'})))return;}catch(_e){}}
+    if(b&&n.sendBeacon){try{if(n.sendBeacon(api+'${endpoint}',body))return;}catch(_e){}}
     var x=new XMLHttpRequest();
     x.open('POST',api+'${endpoint}',true);
     x.setRequestHeader('Content-Type','application/json');

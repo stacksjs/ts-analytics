@@ -294,7 +294,7 @@ export async function handleCollectError(request: Request, siteId: string, keyId
     }
 
     if (shouldIgnoreError(body.message, body.framework)) {
-      return noContentResponse()
+      return noContentResponse(request)
     }
 
     // Monthly per-project event quota (coarse cap; no-op unless configured).
@@ -483,7 +483,7 @@ catch (e) {
     // Fire-and-forget: evaluate error alerts (with cooldown)
     evaluateErrorAlertsThrottled(siteId).catch(() => {})
 
-    return noContentResponse()
+    return noContentResponse(request)
   }
 catch (error) {
     console.error('Collect error:', error)
