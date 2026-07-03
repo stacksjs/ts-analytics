@@ -4,7 +4,7 @@
 
 import { generateId } from '../index'
 import { Goal, Conversion } from '../../src/models/orm'
-import { dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
+import { queryAllItems, dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { invalidateGoalCache } from '../utils/cache'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
@@ -163,16 +163,22 @@ export async function handleGetGoalStats(request: Request, siteId: string): Prom
 
     const goals = await Goal.forSite(siteId).get()
 
-    const sessionsResult = await dynamodb.query({
+    // Denominator: sessions IN THE REQUESTED RANGE (paginated). The old
+    // single-page COUNT was both truncated at 1MB and all-time, while the
+    // numerator (conversions) was date-bounded — conversion rates were
+    // meaningless on any site with history (#151 residual).
+    const sessionsResult = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${siteId}` },
         ':prefix': { S: 'SESSION#' },
       },
-      Select: 'COUNT',
-    }) as { Count?: number }
-    const totalSessions = sessionsResult.Count || 0
+    }) as { Items?: any[] }
+    const totalSessions = (sessionsResult.Items || []).map(unmarshall).filter((sess) => {
+      const t = new Date(sess.startedAt)
+      return t >= startDate && t <= endDate
+    }).length
 
     const goalStats = await Promise.all(goals.map(async (goal) => {
       const conversions = await Conversion.forGoal(siteId, goal.id)

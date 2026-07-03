@@ -2,7 +2,7 @@
  * Session handlers
  */
 
-import { dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
+import { queryAllItems, dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { parseDateRange, formatDuration } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
@@ -210,7 +210,7 @@ export async function handleGetUserFlow(request: Request, siteId: string): Promi
     const depth = Math.min(Number(query.depth) || 5, 10)
 
     // Query sessions
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
@@ -291,7 +291,7 @@ export async function handleGetEntryExitPages(request: Request, siteId: string):
     const { startDate, endDate } = parseDateRange(query)
     const limit = Math.min(Number(query.limit) || 10, 100)
 
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {

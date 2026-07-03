@@ -3,7 +3,7 @@
  */
 
 import { generateId } from '../index'
-import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
+import { queryAllItems, dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
@@ -48,7 +48,7 @@ catch (error) {
  */
 export async function handleGetFunnels(_request: Request, siteId: string): Promise<Response> {
   try {
-    const result = await dynamodb.query({
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
@@ -92,7 +92,7 @@ export async function handleGetFunnelAnalysis(request: Request, siteId: string, 
     const funnel = unmarshall(funnelResult.Items[0])
 
     // Get sessions for analysis
-    const sessionsResult = await dynamodb.query({
+    const sessionsResult = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
