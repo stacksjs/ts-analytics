@@ -275,6 +275,85 @@ catch (error) {
 }
 
 /**
+ * Upsert the ERROR_GROUP# rollup (+ resolved→open regression flip) for one
+ * error occurrence. Shared by BOTH ingest paths — the DSN SDK (/errors/collect)
+ * and the public snippet fallback (/collect e:'error') — because the Errors tab
+ * reads ERROR_GROUP# exclusively: an occurrence that skips this upsert is
+ * permanently invisible to the dashboard.
+ */
+export async function upsertErrorGroup(siteId: string, opts: {
+  fingerprint: string
+  message: string
+  category: string
+  browser?: string
+  release?: string
+  timestamp: Date
+}): Promise<void> {
+  const { fingerprint, message, category, timestamp } = opts
+  // Browser names accumulate as a string set so the issue list can read them
+  // off the rollup (#83) — low cardinality, so the item stays small.
+  const groupBrowser = String(opts.browser || '').slice(0, 50)
+  await dynamodb.updateItem({
+    TableName: TABLE_NAME,
+    Key: {
+      pk: { S: `SITE#${siteId}` },
+      sk: { S: `ERROR_GROUP#${fingerprint}` },
+    },
+    UpdateExpression: [
+      'SET #count = if_not_exists(#count, :zero) + :one',
+      'lastSeen = :now',
+      'firstSeen = if_not_exists(firstSeen, :now)',
+      'message = :msg',
+      'category = :cat',
+      'fingerprint = :fp',
+      'siteId = :sid',
+      'firstRelease = if_not_exists(firstRelease, :rel)',
+      'lastRelease = :rel',
+      '#status = if_not_exists(#status, :open)',
+    ].join(', ') + (groupBrowser ? ' ADD browsers :br' : ''),
+    ExpressionAttributeNames: {
+      '#count': 'count',
+      '#status': 'status',
+    },
+    ExpressionAttributeValues: {
+      ':zero': { N: '0' },
+      ':one': { N: '1' },
+      ':now': { S: timestamp.toISOString() },
+      ':msg': { S: message.slice(0, 500) },
+      ':cat': { S: category },
+      ':fp': { S: fingerprint },
+      ':sid': { S: siteId },
+      ':open': { S: 'open' },
+      ':rel': { S: opts.release || 'unknown' },
+      ...(groupBrowser ? { ':br': { SS: [groupBrowser] } } : {}),
+    },
+  })
+
+  // Auto-regression: a new occurrence of a *resolved* issue reopens it. The
+  // conditional update only fires when an ERROR_STATUS# record exists and is
+  // 'resolved'; otherwise ConditionalCheckFailed (expected) and we move on.
+  try {
+    await dynamodb.updateItem({
+      TableName: TABLE_NAME,
+      Key: { pk: { S: `SITE#${siteId}` }, sk: { S: `ERROR_STATUS#${fingerprint}` } },
+      UpdateExpression: 'SET #s = :open, regressed = :t, regressedAt = :now, regressedInRelease = :rel, updatedAt = :now',
+      ConditionExpression: '#s = :resolved',
+      ExpressionAttributeNames: { '#s': 'status' },
+      ExpressionAttributeValues: {
+        ':open': { S: 'open' },
+        ':resolved': { S: 'resolved' },
+        ':t': { BOOL: true },
+        ':now': { S: timestamp.toISOString() },
+        ':rel': { S: opts.release || 'unknown' },
+      },
+    })
+  }
+catch (e: any) {
+    if (!String(e?.name || e).includes('ConditionalCheckFailed')) console.error('Regression update failed:', e)
+  }
+}
+
+/**
  * POST /errors/collect
  * Receives enriched error reports from the client SDK.
  */
@@ -359,70 +438,14 @@ catch { return body.url || '' } })(),
       }),
     })
 
-    const groupKey = {
-      pk: { S: `SITE#${siteId}` },
-      sk: { S: `ERROR_GROUP#${fingerprint}` },
-    }
-
-    // Upsert error group with atomic counters. Browser names accumulate as a
-    // string set so the issue list can read them off the rollup (#83) — low
-    // cardinality, so the item stays small.
-    const groupBrowser = String(body.browser || '').slice(0, 50)
-    await dynamodb.updateItem({
-      TableName: TABLE_NAME,
-      Key: groupKey,
-      UpdateExpression: [
-        'SET #count = if_not_exists(#count, :zero) + :one',
-        'lastSeen = :now',
-        'firstSeen = if_not_exists(firstSeen, :now)',
-        'message = :msg',
-        'category = :cat',
-        'fingerprint = :fp',
-        'siteId = :sid',
-        'firstRelease = if_not_exists(firstRelease, :rel)',
-        'lastRelease = :rel',
-        '#status = if_not_exists(#status, :open)',
-      ].join(', ') + (groupBrowser ? ' ADD browsers :br' : ''),
-      ExpressionAttributeNames: {
-        '#count': 'count',
-        '#status': 'status',
-      },
-      ExpressionAttributeValues: {
-        ':zero': { N: '0' },
-        ':one': { N: '1' },
-        ':now': { S: timestamp.toISOString() },
-        ':msg': { S: String(body.message || '').slice(0, 500) },
-        ':cat': { S: category },
-        ':fp': { S: fingerprint },
-        ':sid': { S: siteId },
-        ':open': { S: 'open' },
-        ':rel': { S: body.release || 'unknown' },
-        ...(groupBrowser ? { ':br': { SS: [groupBrowser] } } : {}),
-      },
+    await upsertErrorGroup(siteId, {
+      fingerprint,
+      message: String(body.message || ''),
+      category,
+      browser: body.browser || '',
+      release: body.release || '',
+      timestamp,
     })
-
-    // Auto-regression: a new occurrence of a *resolved* issue reopens it. The
-    // conditional update only fires when an ERROR_STATUS# record exists and is
-    // 'resolved'; otherwise ConditionalCheckFailed (expected) and we move on.
-    try {
-      await dynamodb.updateItem({
-        TableName: TABLE_NAME,
-        Key: { pk: { S: `SITE#${siteId}` }, sk: { S: `ERROR_STATUS#${fingerprint}` } },
-        UpdateExpression: 'SET #s = :open, regressed = :t, regressedAt = :now, regressedInRelease = :rel, updatedAt = :now',
-        ConditionExpression: '#s = :resolved',
-        ExpressionAttributeNames: { '#s': 'status' },
-        ExpressionAttributeValues: {
-          ':open': { S: 'open' },
-          ':resolved': { S: 'resolved' },
-          ':t': { BOOL: true },
-          ':now': { S: timestamp.toISOString() },
-          ':rel': { S: body.release || 'unknown' },
-        },
-      })
-    }
-catch (e: any) {
-      if (!String(e?.name || e).includes('ConditionalCheckFailed')) console.error('Regression update failed:', e)
-    }
 
     // Fan out to any webhooks subscribed to error events (#92). Fire-and-forget
     // so webhook delivery never blocks ingest.
@@ -437,6 +460,10 @@ catch (e: any) {
     const env = body.environment || 'production'
     const browser = body.browser || 'Unknown'
     const os = body.os || 'Unknown'
+    const groupKey = {
+      pk: { S: `SITE#${siteId}` },
+      sk: { S: `ERROR_GROUP#${fingerprint}` },
+    }
 
     try {
       await dynamodb.updateItem({

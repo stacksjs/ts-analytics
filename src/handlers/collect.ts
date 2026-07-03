@@ -30,6 +30,8 @@ import { getCountryFromTimezone } from '../utils/timezone-country'
 import { jsonResponse, errorResponse, noContentResponse } from '../utils/response'
 import { getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
 import { ensureSiteExists } from './misc'
+import { upsertErrorGroup } from './errors'
+import { categorizeError, getErrorFingerprint } from '../utils/errors'
 
 /** Max ingest requests per minute per IP on /collect + /t (429 beyond this). */
 const COLLECT_RATE_LIMIT_PER_MIN = 1200
@@ -595,27 +597,47 @@ else if (payload.e === 'error') {
       const props = payload.p || {}
       const deviceInfo = parseUserAgent(userAgent)
       const browser = payload.br || deviceInfo.browser
+      // Fingerprint + categorize like the DSN path, and feed the ERROR_GROUP#
+      // issues model — the Errors tab reads ERROR_GROUP# exclusively, so
+      // snippet-reported errors were stored but permanently invisible to it.
+      const message = String(props.message || '').slice(0, 500)
+      const stack = String(props.stack || '').slice(0, 2000)
+      const fingerprint = getErrorFingerprint(message, stack)
+      const category = categorizeError(message)
+      const dateKey = timestamp.toISOString().slice(0, 10)
 
       await dynamodb.putItem({
         TableName: TABLE_NAME,
         Item: marshall({
           pk: `SITE#${payload.s}`,
           sk: `ERROR#${timestamp.toISOString()}#${generateId()}`,
+          gsi1pk: `SITE#${payload.s}#DATE#${dateKey}`,
+          gsi1sk: `ERROR#${fingerprint}`,
           siteId: payload.s,
           sessionId,
           visitorId,
           path: parsedUrl.pathname,
-          message: String(props.message || '').slice(0, 500),
+          message,
+          fingerprint,
+          category,
           source: props.source || '',
           line: props.line || 0,
           col: props.col || 0,
-          stack: String(props.stack || '').slice(0, 2000),
+          stack,
           deviceType: deviceInfo.deviceType,
           browser,
           os: deviceInfo.os,
           timestamp: timestamp.toISOString(),
           ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
         }),
+      })
+
+      await upsertErrorGroup(payload.s, {
+        fingerprint,
+        message,
+        category,
+        browser,
+        timestamp,
       })
     }
 
