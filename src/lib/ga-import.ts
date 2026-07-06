@@ -189,7 +189,7 @@ export function detectKind(headers: string[]): GaFileKind {
   return 'unknown'
 }
 
-interface DayAccumulator {
+export interface DayAccumulator {
   scalars: { views: number, visitors: number, sessions: number, bounces: number, totalDuration: number, events: number }
   hasTraffic: boolean
   pages: Record<string, { w: number, v: number, e: number }>
@@ -203,7 +203,7 @@ interface DayAccumulator {
   events: Record<string, { c: number, v: number, val: number }>
 }
 
-function dayAcc(days: Map<string, DayAccumulator>, day: string): DayAccumulator {
+export function dayAcc(days: Map<string, DayAccumulator>, day: string): DayAccumulator {
   let acc = days.get(day)
   if (!acc) {
     acc = {
@@ -351,13 +351,22 @@ function deriveScalars(acc: DayAccumulator): void {
   acc.scalars.events = Object.values(acc.events).reduce((sum, c) => sum + c.c, 0)
 }
 
-/** Write the parsed days into the rollup store. */
+/** Write the parsed CSV files into the rollup store. */
 export async function importGaData(siteId: string, files: Array<{ name: string, content: string }>): Promise<GaImportResult> {
   const { days, results } = buildDailyData(files)
+  const write = await writeImportedDays(siteId, days)
+  return { files: results, ...write }
+}
+
+/**
+ * Shared write phase for both import paths (CSV + Data API): collision policy,
+ * zero-fill, and batched rollup writes.
+ */
+export async function writeImportedDays(siteId: string, days: Map<string, DayAccumulator>): Promise<Omit<GaImportResult, 'files'>> {
   const today = new Date().toISOString().slice(0, 10)
   const importedDays = [...days.keys()].filter(d => d < today).sort()
   if (importedDays.length === 0)
-    return { files: results, daysWritten: 0, daysSkipped: [], zeroFilled: 0, span: null }
+    return { daysWritten: 0, daysSkipped: [], zeroFilled: 0, span: null }
 
   // Zero-fill from the span start through YESTERDAY so contiguous-prefix
   // reads never break between GA history and live tracking (#172).
@@ -454,7 +463,6 @@ export async function importGaData(siteId: string, files: Array<{ name: string, 
   }
 
   return {
-    files: results,
     daysWritten,
     daysSkipped,
     zeroFilled,

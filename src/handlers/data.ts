@@ -194,6 +194,42 @@ export async function handleGaImport(request: Request, siteId: string): Promise<
 }
 
 /**
+ * POST /api/sites/{siteId}/import/ga4-api — GA4 Data API import (#155
+ * Phase B). Body: { propertyId, serviceAccountKey, startDate?, endDate? }.
+ * The service-account key is used for this request only — never persisted.
+ */
+export async function handleGa4ApiImport(request: Request, siteId: string): Promise<Response> {
+  try {
+    let body: { propertyId?: string, serviceAccountKey?: { client_email?: string, private_key?: string }, startDate?: string, endDate?: string }
+    try {
+      body = await request.json() as typeof body
+    }
+    catch {
+      return jsonResponse({ error: 'Invalid JSON' }, 400)
+    }
+    if (!body.propertyId || !body.serviceAccountKey?.client_email || !body.serviceAccountKey?.private_key) {
+      return jsonResponse({ error: 'propertyId and serviceAccountKey (client_email, private_key) are required' }, 400)
+    }
+    const { importFromGa4Api } = await import('../lib/ga4-api')
+    const result = await importFromGa4Api(siteId, {
+      propertyId: body.propertyId,
+      serviceAccountKey: body.serviceAccountKey as { client_email: string, private_key: string },
+      startDate: body.startDate,
+      endDate: body.endDate,
+    })
+    return jsonResponse(result)
+  }
+  catch (error) {
+    // Surface Google-side failures (bad key, no property access) to the user —
+    // they're actionable, unlike a generic 500.
+    const message = (error as Error).message || 'Failed to import from GA4'
+    console.error('GA4 API import error:', message)
+    const status = /token exchange|runReport|propertyId/.test(message) ? 400 : 500
+    return jsonResponse({ error: message }, status)
+  }
+}
+
+/**
  * GET /api/sites/{siteId}/gdpr/export
  */
 export async function handleGdprExport(request: Request, siteId: string): Promise<Response> {

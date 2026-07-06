@@ -132,6 +132,55 @@ function gaFilesPicked(e: Event): void {
   gaImportStatus.set('')
 }
 
+// GA4 Data API import (#155 Phase B): property id + service-account JSON key
+// (read client-side, sent once, never persisted).
+const ga4PropertyId = state<string>('')
+const ga4Importing = state<boolean>(false)
+const ga4Status = state<string>('')
+const ga4KeyLoaded = state<boolean>(false)
+let ga4Key: { client_email?: string, private_key?: string } | null = null
+
+function ga4Ready(): boolean {
+  return ga4KeyLoaded() && ga4PropertyId().trim() !== ''
+}
+
+async function ga4KeyPicked(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement
+  const file = input.files && input.files[0]
+  if (!file) return
+  try {
+    ga4Key = JSON.parse(await file.text())
+    if (!ga4Key || !ga4Key.client_email || !ga4Key.private_key) throw new Error('not a service-account key')
+    ga4KeyLoaded.set(true)
+    ga4Status.set(`Key loaded: ${ga4Key.client_email}`)
+  } catch (_err: unknown) {
+    ga4Key = null
+    ga4KeyLoaded.set(false)
+    ga4Status.set('That file is not a Google service-account JSON key.')
+  }
+}
+
+async function runGa4ApiImport(): Promise<void> {
+  if (ga4Importing() || !ga4Ready() || !ga4Key) return
+  ga4Importing.set(true)
+  ga4Status.set('Pulling reports from Google…')
+  try {
+    const res: Response = await fetch(apiUrl('/import/ga4-api'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ propertyId: ga4PropertyId().trim(), serviceAccountKey: ga4Key }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Import failed')
+    const skipped = (data.daysSkipped || []).length
+    ga4Status.set(`Imported ${data.daysWritten} day${data.daysWritten === 1 ? '' : 's'} from GA4${skipped ? `, ${skipped} tracked day${skipped === 1 ? '' : 's'} preserved` : ''}.`)
+  } catch (e: unknown) {
+    ga4Status.set(`Import failed: ${(e as Error).message}`)
+  } finally {
+    ga4Importing.set(false)
+  }
+}
+
 function gaImportLabel(): string {
   if (gaImporting()) return 'Importing…'
   const n = gaFileCount()
@@ -910,6 +959,19 @@ effect(() => {
           <div class="flex gap-2 items-center">
             <button class="btn btn-primary" x-disabled="gaImporting() || gaFileCount() === 0" @click="runGaImport()">{{ gaImportLabel() }}</button>
             <span class="text-xs text-muted" x-show="gaImportStatus() !== ''">{{ gaImportStatus() }}</span>
+          </div>
+
+          <div class="border-t border-border pt-3 mt-1">
+            <div class="text-xs font-medium text-text mb-1">Automatic import (GA4 API)</div>
+            <p class="text-xs text-muted mb-2">Pulls full history directly from Google. Create a service account, grant its email <em>Viewer</em> on the GA4 property, and provide the JSON key — it's used once and never stored.</p>
+            <div class="flex flex-col gap-2">
+              <input type="text" class="form-input max-w-[16rem] text-xs" placeholder="GA4 property ID (e.g. 123456789)" x-value="ga4PropertyId()" @input="ga4PropertyId.set($event.target.value)" />
+              <input type="file" accept=".json,application/json" class="form-input text-xs" @change="ga4KeyPicked($event)" />
+              <div class="flex gap-2 items-center">
+                <button class="btn btn-primary" x-disabled="ga4Importing() || !ga4Ready()" @click="runGa4ApiImport()">{{ ga4Importing() ? 'Importing from GA4…' : 'Import from GA4 API' }}</button>
+                <span class="text-xs text-muted" x-show="ga4Status() !== ''">{{ ga4Status() }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -283,6 +283,7 @@ export async function createRouter(): Promise<Router> {
   await router.delete('/api/sites/{siteId}/team/{memberId}', (req: any) => team.handleRemoveTeamMember(req, req.params.siteId, req.params.memberId))
 
   // Data Export & Retention
+  await router.post('/api/sites/{siteId}/import/ga4-api', (req: any) => data.handleGa4ApiImport(req, req.params.siteId))
   await router.post('/api/sites/{siteId}/import/ga', (req: any) => data.handleGaImport(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/export', (req: any) => data.handleExport(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/retention', (req: any) => data.handleGetRetentionSettings(req, req.params.siteId))
