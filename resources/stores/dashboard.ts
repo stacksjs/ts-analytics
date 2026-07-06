@@ -31,8 +31,6 @@ const STEALTH_MAP: Record<string, string> = {
   'entry-exit': 'endpoints',
   live: 'now',
   heatmap: 'touch',
-  'errors/statuses': 'issues/states',
-  'errors/status': 'issues/state',
   vitals: 'metrics',
   'vitals-trends': 'metrics-trends',
   'performance-budgets': 'budgets',
@@ -72,6 +70,9 @@ defineStore('dashboard', () => {
 
   // Core state
   const siteId = state(urlParams.get('siteId') || '')
+  // Public share mode (#152): set by the /shared/{token} page.
+  const shareToken = state<string>('')
+  const sharePassword = state<string>('')
   const useStealth = state(window.ANALYTICS_STEALTH_MODE ?? (urlParams.get('stealth') === 'true'))
 
   // Resolve the API endpoint LAZILY at call time. The layout's
@@ -107,9 +108,16 @@ defineStore('dashboard', () => {
     return result.replace('/api/sites/', '/api/p/')
   }
 
-  // Build a full API URL for a site endpoint
+  // Build a full API URL for a site endpoint. On the public shared-dashboard
+  // page (#152) every request carries the share token — the server's auth
+  // guard accepts it for aggregate reads.
   function apiUrl(path: string): string {
-    return apiPath(`${apiEndpoint()}/api/sites/${siteId()}${path}`)
+    const base = apiPath(`${apiEndpoint()}/api/sites/${siteId()}${path}`)
+    const token = shareToken()
+    if (!token) return base
+    const sep = base.includes('?') ? '&' : '?'
+    const pw = sharePassword()
+    return `${base}${sep}share=${encodeURIComponent(token)}${pw ? `&share_pw=${encodeURIComponent(pw)}` : ''}`
   }
 
   // Date range as query params
@@ -199,6 +207,8 @@ defineStore('dashboard', () => {
 
   return {
     siteId,
+    shareToken,
+    sharePassword,
     apiEndpoint,
     useStealth,
     dateRange,

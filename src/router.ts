@@ -302,6 +302,8 @@ export async function createRouter(): Promise<Router> {
 
   // Share Links
   await router.post('/api/sites/{siteId}/share', (req: any) => sharing.handleCreateShareLink(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/share', (req: any) => sharing.handleListShareLinks(req, req.params.siteId))
+  await router.delete('/api/sites/{siteId}/share/{token}', (req: any) => sharing.handleRevokeShareLink(req, req.params.siteId, req.params.token))
 
   // ============================================
   // STEALTH ROUTES - Bypass content blockers
@@ -443,6 +445,8 @@ export async function createRouter(): Promise<Router> {
 
   // Share Links (stealth)
   await router.post('/api/p/{siteId}/link', (req: any) => sharing.handleCreateShareLink(req, req.params.siteId))
+  await router.get('/api/p/{siteId}/link', (req: any) => sharing.handleListShareLinks(req, req.params.siteId))
+  await router.delete('/api/p/{siteId}/link/{token}', (req: any) => sharing.handleRevokeShareLink(req, req.params.siteId, req.params.token))
 
   // Tracking script (generates embeddable JS for site owners)
   await router.get('/api/sites/{siteId}/script', (req: any) => {

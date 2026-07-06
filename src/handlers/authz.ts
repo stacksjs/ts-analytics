@@ -19,6 +19,22 @@ import { jsonResponse } from '../utils/response'
 const SITE_PATH = /^\/api\/(?:sites|p)\/([^/]+)\//
 const PUBLIC_SUFFIX = /\/(?:script|script\.js)$/
 
+/**
+ * Endpoints a share token may read (#152): aggregate reports only, canonical
+ * AND stealth names. Deliberately excludes sessions/flow (visitor-level),
+ * goals, and every management surface (api-keys/team/webhooks/...).
+ */
+const SHARE_READ_PATH = new RegExp(`/(?:${[
+  // canonical
+  'stats', 'timeseries', 'realtime', 'pages', 'referrers', 'devices',
+  'browsers', 'os', 'countries', 'regions', 'cities', 'campaigns', 'events',
+  'entry-exit', 'comparison', 'insights',
+  // stealth aliases (resources/stores/dashboard.ts STEALTH_MAP)
+  'summary', 'series', 'pulse', 'content', 'sources', 'clients', 'agents',
+  'platform', 'geo', 'area', 'locale', 'promo', 'actions', 'endpoints',
+  'diff', 'intel',
+].join('|')})(?:\\?|$)`)
+
 /** Whether the SITES record for `siteId` names `userId` as its owner. */
 async function ownsSite(userId: string, siteId: string): Promise<boolean> {
   try {
@@ -77,6 +93,24 @@ export async function siteAuthGuard(req: Request): Promise<Response | null> {
     const key = await handleValidateApiKey(req, 'read')
     if (key.valid && key.siteId === siteId)
       return null
+  }
+
+  // Shared-dashboard token (#152): grants anonymous READ access to the
+  // aggregate report endpoints only — never sessions, settings, keys, or any
+  // write. Token via header (the share page) or ?share= (simple embeds);
+  // password-protected links also require the matching ?share_pw=.
+  if (method === 'GET' || method === 'HEAD') {
+    const url = new URL(req.url)
+    const shareToken = req.headers.get('X-Share-Token') || url.searchParams.get('share') || ''
+    if (shareToken && SHARE_READ_PATH.test(path)) {
+      const { resolveShareToken } = await import('./sharing')
+      const link = await resolveShareToken(shareToken)
+      if (link && link.siteId === siteId) {
+        const pw = req.headers.get('X-Share-Password') || url.searchParams.get('share_pw') || ''
+        if (!link.password || link.password === pw)
+          return null
+      }
+    }
   }
 
   const session = await getSessionFromRequest(req)

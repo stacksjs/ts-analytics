@@ -1,0 +1,94 @@
+{{-- Public shared dashboard (#152) — read-only, token-scoped, no nav. --}}
+<script client>
+const dashboard = useStore('dashboard')
+
+const shareState = state<string>('loading') // loading | password | ready | invalid
+const siteName = state<string>('')
+const passwordInput = state<string>('')
+const passwordError = state<string>('')
+
+function shareTokenFromUrl(): string {
+  const m = window.location.pathname.match(/\/shared\/([\w-]+)/)
+  return m ? m[1] : ''
+}
+
+async function resolveShare(pw: string): Promise<void> {
+  const token = shareTokenFromUrl()
+  if (!token) { shareState.set('invalid'); return }
+  try {
+    const base = (window as { API_ENDPOINT?: string }).API_ENDPOINT || ''
+    const res: Response = await fetch(`${base}/api/share/${token}${pw ? `?password=${encodeURIComponent(pw)}` : ''}`)
+    const data = await res.json()
+    if (res.status === 401 && data.requiresPassword) {
+      shareState.set('password')
+      if (pw) passwordError.set('Wrong password.')
+      return
+    }
+    if (!res.ok || !data.valid) { shareState.set('invalid'); return }
+    siteName.set(data.siteName || data.siteId)
+    document.title = `${data.siteName || 'Shared dashboard'} - Analytics`
+    // Panels fetch through the store's apiUrl — give it the site + token so
+    // every request carries share credentials.
+    dashboard.sharePassword.set(pw)
+    dashboard.shareToken.set(token)
+    dashboard.siteId.set(data.siteId)
+    shareState.set('ready')
+  } catch (_e: unknown) {
+    shareState.set('invalid')
+  }
+}
+
+function submitPassword(): void {
+  passwordError.set('')
+  resolveShare(passwordInput())
+}
+
+onMount(() => {
+  resolveShare('')
+})
+</script>
+
+<div class="min-h-screen bg-bg text-text">
+  <header class="flex items-center justify-between py-3 px-6 bg-bg-2 border-b border-border">
+    <span class="font-semibold text-base">{{ siteName() || 'Shared dashboard' }}</span>
+    <span class="text-xs text-muted">Powered by ts-analytics</span>
+  </header>
+
+  <main class="p-6 max-w-[1400px] mx-auto w-full">
+    <div x-show="shareState() === 'loading'" class="text-center text-muted py-16">Loading shared dashboard…</div>
+
+    <div x-show="shareState() === 'invalid'" class="text-center py-16">
+      <h1 class="text-lg font-semibold mb-2">This link isn't valid</h1>
+      <p class="text-sm text-muted">The share link is unknown, expired, or has been revoked.</p>
+    </div>
+
+    <div x-show="shareState() === 'password'" class="max-w-sm mx-auto py-16">
+      <h1 class="text-lg font-semibold mb-3">This dashboard is password-protected</h1>
+      <input type="password" class="form-input mb-2" placeholder="Password"
+             x-value="passwordInput()" @input="passwordInput.set($event.target.value)"
+             @keydown.enter="submitPassword()" />
+      <p class="text-xs text-error mb-2" x-show="passwordError() !== ''">{{ passwordError() }}</p>
+      <button class="btn btn-primary w-full" @click="submitPassword()">View dashboard</button>
+    </div>
+
+    <div x-show="shareState() === 'ready'">
+      <controls-bar />
+      @include('dashboard/StatsRow')
+      @include('dashboard/ChartSection')
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-6">
+        <pages-panel />
+        <referrers-panel />
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <devices-panel />
+        <browsers-panel />
+        <os-panel />
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <countries-panel />
+        <campaigns-panel />
+      </div>
+    </div>
+  </main>
+</div>

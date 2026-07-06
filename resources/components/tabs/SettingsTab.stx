@@ -181,6 +181,64 @@ async function runGa4ApiImport(): Promise<void> {
   }
 }
 
+// Share links (#152): mint/list/revoke public read-only dashboard links.
+interface ShareLink { token: string, url: string, hasPassword: boolean, expiresAt: string | null, createdAt: string }
+const shareLinks = state<ShareLink[]>([])
+const shareCreating = state<boolean>(false)
+const shareStatus = state<string>('')
+const sharePw = state<string>('')
+
+function shareUrlFor(link: ShareLink): string {
+  return `${window.location.origin}/shared/${link.token}`
+}
+
+async function fetchShareLinks(): Promise<void> {
+  try {
+    const res: Response = await fetch(apiUrl('/share'))
+    if (!res.ok) return
+    const data = await res.json()
+    shareLinks.set(data.links || [])
+  } catch (_e: unknown) {}
+}
+
+async function createShareLink(): Promise<void> {
+  if (shareCreating()) return
+  shareCreating.set(true)
+  shareStatus.set('')
+  try {
+    const res: Response = await fetch(apiUrl('/share'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sharePw() ? { password: sharePw() } : {}),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to create link')
+    sharePw.set('')
+    shareStatus.set('Link created.')
+    await fetchShareLinks()
+  } catch (e: unknown) {
+    shareStatus.set(`Failed: ${(e as Error).message}`)
+  } finally {
+    shareCreating.set(false)
+  }
+}
+
+function copyShareLink(link: ShareLink): void {
+  navigator.clipboard.writeText(shareUrlFor(link))
+  shareStatus.set('Copied to clipboard.')
+}
+
+async function revokeShareLink(link: ShareLink): Promise<void> {
+  try {
+    const res: Response = await fetch(apiUrl(`/share/${link.token}`), { method: 'DELETE' })
+    if (!res.ok) throw new Error('Failed to revoke')
+    shareStatus.set('Link revoked.')
+    await fetchShareLinks()
+  } catch (e: unknown) {
+    shareStatus.set(`Failed: ${(e as Error).message}`)
+  }
+}
+
 function gaImportLabel(): string {
   if (gaImporting()) return 'Importing…'
   const n = gaFileCount()
@@ -314,6 +372,7 @@ function regenerateApiKey(): void {
       onSubmit: () => {
         Modal.close()
         fetchSettings()
+  fetchShareLinks()
       },
     })
   }
@@ -785,6 +844,27 @@ effect(() => {
 
   <!-- Access tab -->
   <div x-show="!loading() && !error() && settingsTab() === 'access'" class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+      <div class="panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Share dashboard</h4>
+        </div>
+        <p class="text-xs text-muted mb-3">Create a public, read-only link to this site's dashboard — aggregate reports only, no sessions or settings. Optionally protect it with a password.</p>
+        <div class="flex flex-col gap-2 mb-3">
+          <input type="password" class="form-input max-w-[16rem] text-xs" placeholder="Password (optional)" x-value="sharePw()" @input="sharePw.set($event.target.value)" />
+          <div class="flex gap-2 items-center">
+            <button class="btn btn-primary" x-disabled="shareCreating()" @click="createShareLink()">{{ shareCreating() ? 'Creating…' : 'Create share link' }}</button>
+            <span class="text-xs text-muted" x-show="shareStatus() !== ''">{{ shareStatus() }}</span>
+          </div>
+        </div>
+        <div x-show="shareLinks().length > 0" class="flex flex-col gap-2">
+          <div x-for="link in shareLinks()" class="flex gap-2 items-center text-xs border border-border rounded-md px-2 py-1.5">
+            <code class="flex-1 truncate text-text">{{ shareUrlFor(link) }}</code>
+            <span class="text-muted shrink-0" x-show="link.hasPassword">🔒</span>
+            <button class="btn btn-secondary py-0.5 px-2 shrink-0" @click="copyShareLink(link)">Copy</button>
+            <button class="btn btn-danger py-0.5 px-2 shrink-0" @click="revokeShareLink(link)">Revoke</button>
+          </div>
+        </div>
+      </div>
       <div class="panel">
         <div class="panel-header">
           <h4 class="panel-title">API Key</h4>
