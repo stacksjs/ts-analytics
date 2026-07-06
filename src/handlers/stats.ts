@@ -737,6 +737,73 @@ catch (error) {
 }
 
 /**
+ * GET /api/sites/{siteId}/screen-sizes — viewport-width breakdown (#139).
+ * Raw-window report (screen dimensions aren't rolled up): buckets pageview
+ * screenWidth into device-class ranges with unique visitors per bucket.
+ */
+export async function handleGetScreenSizes(request: Request, siteId: string): Promise<Response> {
+  try {
+    const query = getQueryParams(request)
+    const { startDate, endDate } = parseDateRange(query)
+
+    const result = await queryAllItems({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      ExpressionAttributeValues: {
+        ':pk': { S: `SITE#${siteId}` },
+        ':start': { S: `PAGEVIEW#${startDate.toISOString()}` },
+        ':end': { S: `PAGEVIEW#${endDate.toISOString()}~` },
+      },
+    })
+
+    const BUCKETS: Array<{ name: string, min: number, max: number }> = [
+      { name: 'Mobile (< 480px)', min: 0, max: 479 },
+      { name: 'Mobile L (480–767px)', min: 480, max: 767 },
+      { name: 'Tablet (768–991px)', min: 768, max: 991 },
+      { name: 'Laptop (992–1199px)', min: 992, max: 1199 },
+      { name: 'Desktop (1200–1919px)', min: 1200, max: 1919 },
+      { name: 'Large (≥ 1920px)', min: 1920, max: Infinity },
+    ]
+    const filters = parseFilters(query)
+    const visitorsByBucket = new Map<string, Set<string>>()
+    for (const raw of (result.Items || [])) {
+      const pv = unmarshall(raw)
+      if (!matchesFilters(pv, filters))
+        continue
+      const width = Number(pv.screenWidth)
+      if (!Number.isFinite(width) || width <= 0)
+        continue
+      const bucket = BUCKETS.find(b => width >= b.min && width <= b.max)
+      if (!bucket)
+        continue
+      let set = visitorsByBucket.get(bucket.name)
+      if (!set) {
+        set = new Set()
+        visitorsByBucket.set(bucket.name, set)
+      }
+      if (pv.visitorId)
+        set.add(pv.visitorId)
+    }
+
+    const total = [...visitorsByBucket.values()].reduce((sum, set) => sum + set.size, 0)
+    const screenSizes = BUCKETS
+      .map(b => ({
+        name: b.name,
+        visitors: visitorsByBucket.get(b.name)?.size || 0,
+        percentage: total > 0 ? Math.round(((visitorsByBucket.get(b.name)?.size || 0) / total) * 100) : 0,
+      }))
+      .filter(b => b.visitors > 0)
+      .sort((a, b) => b.visitors - a.visitors)
+
+    return jsonResponse({ screenSizes })
+  }
+  catch (error) {
+    console.error('Screen sizes error:', error)
+    return errorResponse('Failed to fetch screen sizes')
+  }
+}
+
+/**
  * GET /api/sites/{siteId}/timeseries
  */
 export async function handleGetTimeSeries(request: Request, siteId: string): Promise<Response> {

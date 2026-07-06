@@ -75,6 +75,9 @@ defineStore('dashboard', () => {
   const sharePassword = state<string>('')
   // Compare-with-previous-period overlay (#153), toggled by the ControlsBar.
   const showComparison = state<boolean>(false)
+  // Custom calendar range (#139): active when dateRange === 'custom'.
+  const customStart = state<string>('')
+  const customEnd = state<string>('')
   const useStealth = state(window.ANALYTICS_STEALTH_MODE ?? (urlParams.get('stealth') === 'true'))
 
   // Resolve the API endpoint LAZILY at call time. The layout's
@@ -133,6 +136,10 @@ defineStore('dashboard', () => {
       start = new Date(now.getTime() - parseInt(range) * 60 * 60 * 1000)
     } else if (range.endsWith('d')) {
       start = new Date(now.getTime() - parseInt(range) * 24 * 60 * 60 * 1000)
+    } else if (range === 'all' || range === 'custom') {
+      // Custom calendar + All time (#139) share the dateBounds derivation.
+      const bounds = dateBounds()
+      return `?startDate=${bounds.start}&endDate=${bounds.end}&period=day`
     } else {
       return ''
     }
@@ -185,7 +192,19 @@ defineStore('dashboard', () => {
       '30d': 30 * 24 * 60 * 60 * 1000,
       '90d': 90 * 24 * 60 * 60 * 1000,
     }
-    const span = spans[dateRange()] ?? spans['30d']
+    const range = dateRange()
+    // All time (#139): rollups make it as cheap as any other range.
+    if (range === 'all') {
+      return { start: '2015-01-01T00:00:00.000Z', end: now.toISOString() }
+    }
+    // Custom calendar range (#139): explicit start/end dates from the picker.
+    if (range === 'custom' && customStart()) {
+      const endIso = customEnd()
+        ? `${customEnd()}T23:59:59.999Z`
+        : now.toISOString()
+      return { start: `${customStart()}T00:00:00.000Z`, end: endIso }
+    }
+    const span = spans[range] ?? spans['30d']
     return { start: new Date(now.getTime() - span).toISOString(), end: now.toISOString() }
   }
 
@@ -202,6 +221,7 @@ defineStore('dashboard', () => {
     const range = dateRange()
     if (range === '1h') return 'minute'
     if (range === '6h' || range === '12h' || range === '24h') return 'hour'
+    if (range === 'all') return 'month'
     return 'day'
   }
 
@@ -235,6 +255,8 @@ defineStore('dashboard', () => {
     dateBounds,
     previousDateBounds,
     showComparison,
+    customStart,
+    customEnd,
     timeseriesPeriod,
     navigateTo,
   }

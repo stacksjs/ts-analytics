@@ -1,0 +1,69 @@
+<script client>
+/**
+ * ScreenSizesPanel Component (#139)
+ * Viewport-width breakdown from raw pageviews (last 30 days max — screen
+ * dimensions aren't in the long-term aggregates).
+ */
+const dashboard = useStore('dashboard')
+
+interface ScreenSize { name: string, visitors: number, percentage: number }
+const screenSizes = state<ScreenSize[]>([])
+const loading = state<boolean>(true)
+
+function fmt(n: number): string {
+  if (n === undefined || n === null) return '0'
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
+}
+
+async function fetchScreenSizes(): Promise<void> {
+  if (!dashboard.siteId()) { loading.set(false); return }
+  loading.set(true)
+  try {
+    const res: Response = await fetch(dashboard.apiUrlWithDates('/screen-sizes'))
+    const data = await res.json()
+    screenSizes.set(data.screenSizes || [])
+  } catch (_e: unknown) {
+    screenSizes.set([])
+  } finally {
+    loading.set(false)
+  }
+}
+
+// Reactive fetch: site restore on reload + range changes.
+effect(() => {
+  dashboard.siteId()
+  dashboard.dateRange()
+  fetchScreenSizes()
+})
+</script>
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <Icon name="monitor" size="16" class="text-muted" />
+      Screen Sizes
+    </div>
+  </div>
+  <table class="w-full text-[0.8125rem]">
+    <thead>
+      <tr>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-left">Size</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-right">Visitors</th>
+        <th class="py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted border-b border-border text-right">%</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr x-for="size in screenSizes" @loading="loading()">
+        <td class="cell-name"><span class="row-fill" x-style="'width: ' + (size.percentage ? size.percentage : 0) + '%'"></span>{{ size.name }}</td>
+        <td class="cell-value">{{ fmt(size.visitors) }}</td>
+        <td class="cell-value">{{ (size.percentage ? size.percentage : 0) + '%' }}</td>
+      </tr>
+      <tr @for-loading>
+        <td colspan="3" class="text-center text-muted py-4">Loading...</td>
+      </tr>
+      <tr @for-empty>
+        <td colspan="3" class="text-center text-muted py-4">No screen-size data</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

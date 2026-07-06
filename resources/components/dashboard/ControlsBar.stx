@@ -28,7 +28,20 @@ const ranges: DateRange[] = [
   { id: '7d', label: '7d' },
   { id: '30d', label: '30d' },
   { id: '90d', label: '90d' },
+  { id: 'all', label: 'All' },
+  { id: 'custom', label: 'Custom' },
 ]
+
+// Custom calendar range (#139): date inputs shown while 'custom' is active.
+// Effects that build URLs via dateParams()/dateBounds() read these signals
+// when the range is 'custom', so setting them re-triggers fetches directly.
+function customStartChanged(value: string): void {
+  dashboard.customStart.set(value)
+}
+
+function customEndChanged(value: string): void {
+  dashboard.customEnd.set(value)
+}
 
 function setRange(range: string): void {
   activeRange.set(range)
@@ -117,6 +130,11 @@ provide('controlsBar', {
 <div id="controls-bar" class="flex justify-between items-center py-3 px-6 bg-bg border-b border-border gap-4 flex-wrap max-sm:flex-col max-sm:items-stretch" x-show="dashboard.controlsVisible()">
   <div class="flex items-center gap-1 max-sm:justify-center">
     <button x-for="range in ranges" x-class="rangeBtnClass(range)" @click="setRange(range.id)">{{ range.label }}</button>
+    <span x-show="activeRange() === 'custom'" class="flex items-center gap-1 ml-2">
+      <input type="date" class="form-input py-0.5 px-1.5 text-xs w-[8.5rem]" x-value="dashboard.customStart()" @change="customStartChanged($event.target.value)" />
+      <span class="text-xs text-muted">to</span>
+      <input type="date" class="form-input py-0.5 px-1.5 text-xs w-[8.5rem]" x-value="dashboard.customEnd()" @change="customEndChanged($event.target.value)" />
+    </span>
     <span class="border-l border-border h-6 mx-2"></span>
     <button id="compare-btn" x-class="compareBtnClass()" @click="toggleComparison()" title="Compare with previous period">
       <Icon name="bar-chart-2" size="14" />

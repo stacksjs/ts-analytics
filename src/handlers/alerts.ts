@@ -200,14 +200,77 @@ export function digestDue(schedule: string, lastSentMs: number | null, now: numb
   return lastSentMs === null || now - lastSentMs >= period
 }
 
-async function countPageviews(siteId: string, startIso: string, endIso: string): Promise<number> {
-  const r = await dynamodb.query({
-    TableName: TABLE_NAME,
-    KeyConditionExpression: 'pk = :pk AND sk BETWEEN :s AND :e',
-    ExpressionAttributeValues: { ':pk': { S: `SITE#${siteId}` }, ':s': { S: `PAGEVIEW#${startIso}` }, ':e': { S: `PAGEVIEW#${endIso}` } },
-    Select: 'COUNT',
-  }) as { Count?: number }
-  return r.Count || 0
+/**
+ * Build the digest body from the report's CONFIGURED metrics (#139) — the
+ * old digest ignored them and sent a single pageview count regardless.
+ */
+export async function buildDigestText(siteId: string, siteName: string, startIso: string, endIso: string, metrics: string[], label: string): Promise<string> {
+  const { queryAllItems, querySessionItemsInRange } = await import('../lib/dynamodb')
+  const [pvRes, sessRes] = await Promise.all([
+    queryAllItems({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :s AND :e',
+      ExpressionAttributeValues: { ':pk': { S: `SITE#${siteId}` }, ':s': { S: `PAGEVIEW#${startIso}` }, ':e': { S: `PAGEVIEW#${endIso}~` } },
+    }),
+    querySessionItemsInRange(siteId, new Date(startIso), new Date(endIso)),
+  ])
+  const pageviews = (pvRes.Items || []).map(unmarshall)
+  const sessions = (sessRes.Items || []).map(unmarshall)
+
+  const wants = (m: string): boolean => metrics.length === 0 || metrics.includes(m)
+  const lines: string[] = [`Analytics summary for ${siteName} — last ${label}`, '']
+
+  // Daily-unique sums (the same semantics the dashboard reports).
+  const dailyVisitors = new Map<string, Set<string>>()
+  for (const pv of pageviews) {
+    const day = String(pv.timestamp).slice(0, 10)
+    let set = dailyVisitors.get(day)
+    if (!set) {
+      set = new Set()
+      dailyVisitors.set(day, set)
+    }
+    if (pv.visitorId)
+      set.add(pv.visitorId)
+  }
+  const visitors = [...dailyVisitors.values()].reduce((sum, set) => sum + set.size, 0)
+  if (wants('visitors'))
+    lines.push(`Visitors: ${visitors}`)
+  if (wants('pageviews'))
+    lines.push(`Pageviews: ${pageviews.length}`)
+  if (wants('sessions'))
+    lines.push(`Sessions: ${sessions.length}`)
+  if (wants('bounceRate')) {
+    const bounces = sessions.filter(x => x.isBounce).length
+    lines.push(`Bounce rate: ${sessions.length > 0 ? Math.round((bounces / sessions.length) * 100) : 0}%`)
+  }
+  if (wants('avgDuration')) {
+    const totalMs = sessions.reduce((sum, x) => sum + (x.activeTime > 0 ? x.activeTime : (x.duration || 0)), 0)
+    const avgS = sessions.length > 0 ? Math.round(totalMs / sessions.length / 1000) : 0
+    lines.push(`Avg time on site: ${Math.floor(avgS / 60)}:${String(avgS % 60).padStart(2, '0')}`)
+  }
+
+  if (wants('topPages') || metrics.length === 0) {
+    const byPath = new Map<string, number>()
+    for (const pv of pageviews) byPath.set(pv.path || '/', (byPath.get(pv.path || '/') || 0) + 1)
+    const top = [...byPath.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
+    if (top.length > 0) {
+      lines.push('', 'Top pages:')
+      for (const [path, count] of top) lines.push(`  ${path} — ${count} views`)
+    }
+  }
+  if (wants('topReferrers') || metrics.length === 0) {
+    const bySource = new Map<string, number>()
+    for (const sess of sessions) {
+      const source = sess.referrerSource || 'Direct'
+      bySource.set(source, (bySource.get(source) || 0) + 1)
+    }
+    const top = [...bySource.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
+    if (top.length > 0) {
+      lines.push('', 'Top sources:')
+      for (const [source, count] of top) lines.push(`  ${source} — ${count} sessions`)
+    }
+  }
+  return lines.join('\n')
 }
 
 /** Send every due email-report digest across all sites (scheduled job, #93/#90). */
@@ -244,12 +307,13 @@ export async function sendDueEmailDigests(): Promise<number> {
       const period = DIGEST_PERIOD_MS[report.schedule] ?? DIGEST_PERIOD_MS.weekly
       const sinceIso = new Date(now - period).toISOString()
       const label = report.schedule === 'daily' ? 'day' : report.schedule === 'monthly' ? 'month' : 'week'
-      const pv = await countPageviews(siteId, sinceIso, nowIso)
+      const metrics = Array.isArray(report.metrics) ? report.metrics : []
+      const text = await buildDigestText(siteId, site.name || siteId, sinceIso, nowIso, metrics, label)
 
       await sendEmail({
         to: report.email,
-        subject: `Your ${report.schedule} analytics report — ${siteId}`,
-        text: `Analytics summary for ${siteId}\n\n${pv} pageviews in the last ${label}.`,
+        subject: `Your ${report.schedule} analytics report — ${site.name || siteId}`,
+        text,
       })
       await dynamodb.updateItem({
         TableName: TABLE_NAME,

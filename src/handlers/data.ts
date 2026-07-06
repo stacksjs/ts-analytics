@@ -18,6 +18,54 @@ export async function handleExport(request: Request, siteId: string): Promise<Re
     const format = query.format || 'json'
     const dataType = query.type || 'pageviews'
 
+    // Aggregated report export (#139): ?report=pages|referrers|browsers|os|
+    // countries|devices|events|campaigns exports the REPORT rows (what the
+    // dashboard shows) instead of a raw event dump.
+    if (query.report) {
+      const stats = await import('./stats')
+      const REPORTS: Record<string, { handler: (r: Request, s: string) => Promise<Response>, key: string }> = {
+        pages: { handler: stats.handleGetPages, key: 'pages' },
+        referrers: { handler: stats.handleGetReferrers, key: 'referrers' },
+        browsers: { handler: stats.handleGetBrowsers, key: 'browsers' },
+        os: { handler: stats.handleGetOS, key: 'os' },
+        countries: { handler: stats.handleGetCountries, key: 'countries' },
+        devices: { handler: stats.handleGetDevices, key: 'devices' },
+        events: { handler: stats.handleGetEvents, key: 'events' },
+        campaigns: { handler: stats.handleGetCampaigns, key: 'campaigns' },
+        'screen-sizes': { handler: stats.handleGetScreenSizes, key: 'screenSizes' },
+      }
+      const report = REPORTS[query.report]
+      if (!report) {
+        return jsonResponse({ error: `Unknown report: ${query.report}` }, 400)
+      }
+      // Reuse the live handler (rolled+raw merge, filters, limits) at max limit.
+      const url = new URL(request.url)
+      url.searchParams.set('limit', '100')
+      const res = await report.handler(new Request(url.toString(), { headers: request.headers }), siteId)
+      if (!res.ok)
+        return res
+      const body = await res.json() as Record<string, any[]>
+      const rows = body[report.key] || []
+      if (format === 'csv') {
+        const headerSet = new Set<string>()
+        for (const row of rows) {
+          for (const k of Object.keys(row)) headerSet.add(k)
+        }
+        const headerList = [...headerSet]
+        const csv = [
+          headerList.join(','),
+          ...rows.map(row => headerList.map(k => row[k] === undefined ? '' : JSON.stringify(row[k])).join(',')),
+        ].join('\n')
+        return new Response(csv, {
+          headers: {
+            'Content-Type': 'text/csv',
+            'Content-Disposition': `attachment; filename="${siteId}-${query.report}-report.csv"`,
+          },
+        })
+      }
+      return jsonResponse({ data: rows, count: rows.length })
+    }
+
     // Every raw record type is exportable (#178) — clicks/engagement/vitals
     // were previously unreachable.
     const PREFIXES: Record<string, string> = {
