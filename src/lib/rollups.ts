@@ -126,7 +126,8 @@ export async function computeDayRollup(siteId: string, day: string): Promise<Day
       sessions++
       if (s.isBounce)
         bounces++
-      totalDuration += s.duration || 0
+      // Real engaged time when departure pings exist (#167), else wall-clock.
+      totalDuration += (s.activeTime > 0 ? s.activeTime : (s.duration || 0))
       events += s.eventCount || 0
     }
     lastKey = page.LastEvaluatedKey

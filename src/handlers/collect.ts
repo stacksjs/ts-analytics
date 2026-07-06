@@ -596,6 +596,16 @@ else if (payload.e === 'engagement') {
           ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
         }),
       })
+
+      // Fold real engaged time into the session (#167): avg time on site was
+      // last-hit-minus-first-hit, so every bounce counted as 0s. Departure
+      // pings carry the truth — accumulate it atomically on the session.
+      if (timeOnPage > 0 && session) {
+        await SessionModel.incrementMetrics(payload.s, sessionId, {
+          addActiveMs: Math.min(timeOnPage, 6 * 60 * 60) * 1000,
+          endedAt: timestamp,
+        })
+      }
     }
 else if (payload.e === 'hm_click') {
       const props = payload.p || {}

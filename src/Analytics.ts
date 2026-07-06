@@ -3277,12 +3277,13 @@ catch (e){}
     var p=location.pathname+location.search;
     if(p===lastPath)return;
     lastPath=p;
+    if(typeof engFlush!=='undefined'){engMax=0;engActive=0;engSent=false;engStart=Date.now();}
     pv();
   }
   var _ps=history.pushState;
-  history.pushState=function(){_ps.apply(this,arguments);spaPv();};
+  history.pushState=function(){if(typeof engFlush!=='undefined')engFlush();_ps.apply(this,arguments);spaPv();};
   var _rs=history.replaceState;
-  history.replaceState=function(){_rs.apply(this,arguments);spaPv();};
+  history.replaceState=function(){if(typeof engFlush!=='undefined')engFlush();_rs.apply(this,arguments);spaPv();};
   w.addEventListener('popstate',spaPv);`
     : ''}
   ${options.trackOutboundLinks
@@ -3325,14 +3326,16 @@ catch (e){}
     if(engThr)return;
     engThr=setTimeout(function(){engThr=null;engScroll();},250);
   },{passive:true});
+  function engAccum(){engActive+=Date.now()-engStart;engStart=Date.now();}
   function engFlush(){
-    if(engSent)return;
-    engSent=true;
-    if(d.visibilityState!=='hidden')engActive+=Date.now()-engStart;
-    t('engagement',{scrollDepth:engMax,timeOnPage:Math.round(engActive/1000)},true);
+    if(d.visibilityState!=='hidden')engAccum();
+    var secs=Math.round(engActive/1000);
+    if(secs<1&&engSent)return;
+    engSent=true;engActive=0;
+    t('engagement',{scrollDepth:engMax,timeOnPage:secs},true);
   }
   d.addEventListener('visibilitychange',function(){
-    if(d.visibilityState==='hidden'){engActive+=Date.now()-engStart;engFlush();}
+    if(d.visibilityState==='hidden'){engAccum();engFlush();}
     else{engStart=Date.now();}
   });
   w.addEventListener('pagehide',engFlush);`

@@ -112,7 +112,9 @@ export async function handleGetStats(request: Request, siteId: string): Promise<
     const rawViews = pageviews.length
     const rawSessions = sessions.length
     const rawBounces = sessions.filter(s => s.isBounce).length
-    const rawDuration = sessions.reduce((sum, s) => sum + (s.duration || 0), 0)
+    // Prefer real engaged time from departure pings (#167); fall back to the
+    // last-hit-minus-first-hit duration for sessions without pings.
+    const rawDuration = sessions.reduce((sum, s) => sum + (s.activeTime > 0 ? s.activeTime : (s.duration || 0)), 0)
     const rawEvents = sessions.reduce((sum, s) => sum + (s.eventCount || 0), 0)
 
     // Combine with rollup days. Note: `people` across rolled days sums daily

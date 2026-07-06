@@ -491,6 +491,8 @@ export class Session extends Model {
     endedAt?: Date | string
     duration?: number
     isBounce?: boolean
+    /** Accumulate real engaged time (ms) from departure pings (#167). */
+    addActiveMs?: number
     /** Backfill the country only when the session doesn't have one yet. */
     countryIfAbsent?: string
   }): Promise<void> {
@@ -518,6 +520,8 @@ export class Session extends Model {
       field('duration', 'du', updates.duration, 'SET')
     if (updates.isBounce !== undefined)
       field('isBounce', 'bo', updates.isBounce, 'SET')
+    if (updates.addActiveMs)
+      field('activeTime', 'at', updates.addActiveMs, 'ADD')
     if (updates.countryIfAbsent) {
       // Sessions created before geo resolved (old tracker, event-first sessions)
       // pick up the country from a later pageview instead of staying countryless.
