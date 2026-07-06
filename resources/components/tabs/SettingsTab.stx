@@ -372,7 +372,6 @@ function regenerateApiKey(): void {
       onSubmit: () => {
         Modal.close()
         fetchSettings()
-  fetchShareLinks()
       },
     })
   }
@@ -751,6 +750,7 @@ function showDeleteModal(): void {
 effect(() => {
   if (!siteId()) return
   fetchSettings()
+  fetchShareLinks()
   fetchSnippet()
   fetchSiteName()
 })
@@ -832,6 +832,10 @@ effect(() => {
       <pre class="bg-bg border border-border rounded-md p-3 text-[0.75rem] text-text overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed">{{ stealthSnippet() }}</pre>
     </div>
   </div>
+  </div>
+  <!-- /Installation tab (#129 regression: this close was eaten by the error-SDK
+       panel removal in 28a3a02, nesting every other sub-tab INSIDE Installation
+       — they rendered blank whenever another tab was selected) -->
 
   <div x-show="loading()" class="flex items-center justify-center gap-2 text-center text-muted p-8 bg-bg-2 border border-border rounded-lg">
     <Spinner size="sm" color="primary" />
@@ -1060,7 +1064,7 @@ effect(() => {
         <div class="panel-header">
           <h4 class="panel-title text-error">Delete this site</h4>
         </div>
-        <p class="text-xs text-muted mb-3">Permanently deletes <code class="text-text">{{ deleteChallenge() }}</code> and <strong class="text-text">all</strong> of its data — pageviews, sessions, events, errors, API keys. This can't be undone.</p>
+        <p class="text-xs text-muted mb-3">Permanently deletes <code class="text-text">{{ deleteChallenge() }}</code> and <strong class="text-text">all</strong> of its data — pageviews, sessions, events, API keys. This can't be undone.</p>
         <button class="btn btn-danger" @click="showDeleteModal()">Delete site</button>
       </div>
   </div>
