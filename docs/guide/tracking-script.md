@@ -388,3 +388,18 @@ writeFileSync('public/tracker.js', script)
 - [API Endpoints](/guide/api) - Set up the server-side API
 - [Dashboard Components](/guide/dashboard) - Display analytics data
 - [Privacy Features](/features/privacy) - Learn about privacy options
+
+## Versioning & caching
+
+The script embeds its build version (#179): read it from any live page via
+`window.__tsa`, and every beacon carries it as `v`, so the dashboard's ingest
+counters show exactly which tracker builds your visitors are running.
+
+`/script.js` is served with a 1-hour cache plus an `ETag` and
+`stale-while-revalidate` — browsers pick up new tracker builds on their next
+background revalidation. To force an immediate refresh for all visitors,
+cache-bust with a query string:
+
+```html
+<script defer data-site="YOUR_APP_ID" src="https://your-api.example.com/script.js?v=2"></script>
+```

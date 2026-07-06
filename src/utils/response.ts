@@ -55,18 +55,27 @@ export function htmlResponse(body: string, statusCode = 200, headers: Record<str
 }
 
 /**
- * Create a JavaScript response
+ * Create a JavaScript response.
+ *
+ * Carries an ETag (#179) so tracker updates roll out on the next
+ * revalidation instead of a hard 1-hour cache-expiry wait: pass the request
+ * and a matching If-None-Match short-circuits to 304.
+ * stale-while-revalidate keeps page loads fast while the check happens in
+ * the background. Cache-bust hard with a ?v= query when needed.
  */
-export function jsResponse(body: string, headers: Record<string, string> = {}): Response {
-  return new Response(body, {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/javascript',
-      'Cache-Control': 'public, max-age=3600',
-      'Access-Control-Allow-Origin': '*',
-      ...headers,
-    },
-  })
+export function jsResponse(body: string, headers: Record<string, string> = {}, request?: Request): Response {
+  const etag = `W/"${Bun.hash(body).toString(36)}"`
+  const baseHeaders = {
+    'Content-Type': 'application/javascript',
+    'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+    'Access-Control-Allow-Origin': '*',
+    'ETag': etag,
+    ...headers,
+  }
+  if (request?.headers.get('if-none-match') === etag) {
+    return new Response(null, { status: 304, headers: baseHeaders })
+  }
+  return new Response(body, { status: 200, headers: baseHeaders })
 }
 
 /**

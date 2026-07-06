@@ -347,7 +347,7 @@ export async function handleScript(request: Request): Promise<Response> {
       .replace(/\s*<\/script>\s*$/, '')
   }
 
-  return jsResponse(script)
+  return jsResponse(script, {}, request)
 }
 
 /**
@@ -385,6 +385,6 @@ export function handleSharedScript(request: Request): Response {
     .replace(/^<script[^>]*>\s*/, '')
     .replace(/\s*<\/script>\s*$/, '')
 
-  return jsResponse(script)
+  return jsResponse(script, {}, request)
 }
 

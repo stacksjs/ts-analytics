@@ -18,6 +18,7 @@
 // Import types from types.ts for internal use
 // Note: Some types are defined locally in this file and exported directly
 import type { AggregatedStats, AggregationPeriod, AnalyticsStoreOptions, CampaignStats, CustomEvent, DeviceStats, DeviceType, EventStats, GeoStats, Goal, GoalStats, GoalType, PageStats, PageView, RealtimeStats, ReferrerStats, Session, Site, SiteSettings } from './types'
+import { TRACKER_VERSION } from './version'
 
 // Re-export types from types.ts
 export type {
@@ -3218,9 +3219,9 @@ catch (e){}
 (function(){
   'use strict';
   var d=document,w=window,n=navigator,s=d.currentScript;
-  // Double-include guard (#138): a twice-pasted snippet doubled every view
-  // and collapsed bounce rate toward zero.
-  if(w.__tsa)return;w.__tsa=1;
+  // Double-include guard (#138) + version identity (#179): the guard value IS
+  // the tracker version, so support can read it off any live page.
+  if(w.__tsa)return;w.__tsa="${TRACKER_VERSION}";
   var site=s.dataset.site,api=s.dataset.api;
   if((!site||!api)&&s.src){try{var su=new URL(s.src);if(!api)api=su.origin;var sm=su.pathname.match(/\\/sites\\/([^/]+)\\/script/);if(!site&&sm)site=sm[1];}catch(_e){}}
   ${options.honorDnt ? 'if(n.doNotTrack==="1"||n.globalPrivacyControl===true)return;' : ''}
@@ -3259,7 +3260,7 @@ catch (e){}
       s:site,sid:sid,e:e,p:p||{},
       u:location.href,r:d.referrer,t:d.title,
       sw:screen.width,sh:screen.height,
-      br:br,tz:tzn,
+      br:br,tz:tzn,v:"${TRACKER_VERSION}",
       eid:Math.random().toString(36).slice(2)+Date.now().toString(36)
     });
     if(b&&n.sendBeacon){try{if(n.sendBeacon(api+'${endpoint}',body))return;}catch(_e){}}
