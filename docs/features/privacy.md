@@ -2,26 +2,56 @@
 title: Privacy First
 description: Privacy-focused analytics without compromising insights
 ---
-    ipAnonymization: 'full',    // No IP data stored
-    // or: 'partial',           // Last octet zeroed
-    // or: 'none',              // Full IP (not recommended)
+
+## How visitor IPs are handled
+
+Raw IPs are never stored on any analytics record. They are used transiently
+for two things and then discarded:
+
+1. **Visitor hashing** — the daily-rotating visitor id is a salted hash of
+   IP + user agent + hostname; the inputs are discarded after hashing, and the
+   salt rotates every UTC day, so ids cannot be linked across days.
+2. **Geolocation** (only when country can't be resolved from privacy-safe
+   sources first: CDN headers, then the browser timezone). What the geo lookup
+   sees is controlled by `privacy.ipAnonymization`:
+
+```ts
+{
+  privacy: {
+    ipAnonymization: 'partial', // Default: last octet zeroed before geo lookup
+    // or: 'full',              // IP never used for geo at all
+    // or: 'none',              // Full IP used for geo (not recommended)
   },
 }
 ```
 
-### Full Anonymization (Default)
+### Partial Anonymization (default)
 
 ```
 Original: 192.168.1.123
-Stored: (only used for hashing, then discarded)
+Used for geo lookup: 192.168.1.0 — then discarded, never stored
 ```
 
-### Partial Anonymization
+### Full Anonymization
 
-```
-Original: 192.168.1.123
-Stored: 192.168.1.0
-```
+The IP is used only for visitor hashing (then discarded); geolocation relies
+solely on CDN headers and the browser timezone.
+
+> Operational note: production never logs IPs or user agents. The one
+> diagnostic log line that includes them is emitted only when
+> `ANALYTICS_DEBUG=true` is set for local debugging.
+
+## Data retention
+
+- **Raw rows** (pageviews, sessions, events, clicks, engagement, vitals)
+  expire per your site's retention setting (Settings → Data), clamped by your
+  plan and stamped at write time — changing the setting affects rows written
+  after the change.
+- **Daily aggregates** (what the dashboard reads for history) are kept
+  indefinitely; they contain no visitor identifiers.
+- **GDPR endpoints**: `/gdpr/export` and `/gdpr/delete` cover every raw record
+  type for a visitor id. Because ids rotate daily, one id maps to roughly one
+  UTC day — that's the privacy design (no cross-day linkage exists to export).
 
 ## No Personal Data Collection
 

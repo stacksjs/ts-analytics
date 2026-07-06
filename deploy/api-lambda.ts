@@ -301,6 +301,16 @@ catch {
         },
       },
 
+      // Log group with bounded retention (#176): without an explicit group,
+      // Lambda auto-creates one that keeps logs FOREVER.
+      LambdaLogGroup: {
+        Type: 'AWS::Logs::LogGroup',
+        Properties: {
+          LogGroupName: `/aws/lambda/${SERVICE_NAME}`,
+          RetentionInDays: 30,
+        },
+      },
+
       // Lambda function (using Bun runtime via custom layer)
       LambdaFunction: {
         Type: 'AWS::Lambda::Function',
