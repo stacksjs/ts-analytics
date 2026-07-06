@@ -3259,7 +3259,8 @@ catch (e){}
       s:site,sid:sid,e:e,p:p||{},
       u:location.href,r:d.referrer,t:d.title,
       sw:screen.width,sh:screen.height,
-      br:br,tz:tzn
+      br:br,tz:tzn,
+      eid:Math.random().toString(36).slice(2)+Date.now().toString(36)
     });
     if(b&&n.sendBeacon){try{if(n.sendBeacon(api+'${endpoint}',body))return;}catch(_e){}}
     var x=new XMLHttpRequest();

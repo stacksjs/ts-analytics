@@ -20,7 +20,7 @@ import {
   HeatmapMovement,
   HeatmapScroll,
 } from '../../src/models/orm'
-import { dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
+import { dynamodb, TABLE_NAME, unmarshall, marshall, isConditionalCheckFailed } from '../lib/dynamodb'
 import { accountEventWithinQuota } from '../lib/plans'
 import { checkAndRecordConversions } from '../lib/goals'
 import { getSession, setSession } from '../utils/cache'
@@ -212,6 +212,30 @@ catch {
     const tracking = getConfig().tracking
     if (isExcluded(ip, parsedUrlForSite.pathname, tracking.excludedIps, tracking.excludedPaths)) {
       return noContentResponse(request)
+    }
+
+    // Idempotency (#169): the tracker mints a per-event id (eid); a replayed
+    // delivery (Lambda retry, network retransmit, SQS at-least-once) carries
+    // the same eid, so a conditional put on an EIDLOCK item lets exactly one
+    // delivery through. Fails OPEN on non-conditional errors — a DynamoDB
+    // hiccup must never drop events (degrades to today's at-least-once).
+    const eid = typeof payload.eid === 'string' && /^[\w-]{8,64}$/.test(payload.eid) ? payload.eid : null
+    if (eid) {
+      try {
+        await dynamodb.putItem({
+          TableName: TABLE_NAME,
+          Item: {
+            pk: { S: `SITE#${payload.s}` },
+            sk: { S: `EIDLOCK#${eid}` },
+            ttl: { N: String(Math.floor(Date.now() / 1000) + 24 * 60 * 60) },
+          },
+          ConditionExpression: 'attribute_not_exists(pk)',
+        })
+      }
+      catch (e) {
+        if (isConditionalCheckFailed(e))
+          return noContentResponse(request)
+      }
     }
 
     const headers = getHeaders(request)
