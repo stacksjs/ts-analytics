@@ -41,10 +41,10 @@ function setRange(range: string): void {
 }
 
 function toggleComparison(): void {
+  // Drive the shared store (#153) — the chart overlay and stat-card deltas
+  // react to it. (window.toggleComparison was a dead legacy-controller hook.)
   showComparison.update((v: boolean) => !v)
-  if (window.toggleComparison) {
-    window.toggleComparison()
-  }
+  dashboard.showComparison.set(showComparison())
 }
 
 async function refresh(): Promise<void> {

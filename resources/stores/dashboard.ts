@@ -73,6 +73,8 @@ defineStore('dashboard', () => {
   // Public share mode (#152): set by the /shared/{token} page.
   const shareToken = state<string>('')
   const sharePassword = state<string>('')
+  // Compare-with-previous-period overlay (#153), toggled by the ControlsBar.
+  const showComparison = state<boolean>(false)
   const useStealth = state(window.ANALYTICS_STEALTH_MODE ?? (urlParams.get('stealth') === 'true'))
 
   // Resolve the API endpoint LAZILY at call time. The layout's
@@ -187,6 +189,14 @@ defineStore('dashboard', () => {
     return { start: new Date(now.getTime() - span).toISOString(), end: now.toISOString() }
   }
 
+  // The window immediately before the current one, same duration (#153).
+  function previousDateBounds(): { start: string, end: string } {
+    const { start, end } = dateBounds()
+    const startMs = new Date(start).getTime()
+    const span = new Date(end).getTime() - startMs
+    return { start: new Date(startMs - span).toISOString(), end: new Date(startMs - 1).toISOString() }
+  }
+
   // Bucket granularity for the timeseries endpoint, derived from the range.
   function timeseriesPeriod(): string {
     const range = dateRange()
@@ -223,6 +233,8 @@ defineStore('dashboard', () => {
     setFilter,
     clearFilters,
     dateBounds,
+    previousDateBounds,
+    showComparison,
     timeseriesPeriod,
     navigateTo,
   }

@@ -37,6 +37,10 @@ defineStore('analytics', () => {
 
   // Chart data: pageviews-over-time series + annotation markers
   const timeSeries = state([])
+  // Previous-period overlay series + headline comparison (#153) — populated
+  // only while the Compare toggle is on.
+  const previousTimeSeries = state([])
+  const comparison = state(null)
   const annotations = state([])
 
   // Section data arrays (replaces scattered `const pages = state([])`, etc.)
@@ -190,19 +194,51 @@ defineStore('analytics', () => {
     if (!dashboard.siteId()) return
     const { start, end } = dashboard.dateBounds()
     const period = dashboard.timeseriesPeriod()
+    const compare = dashboard.showComparison()
     try {
-      const [tsRes, annRes] = await Promise.all([
+      const prevBounds = dashboard.previousDateBounds()
+      const [tsRes, annRes, prevRes] = await Promise.all([
         fetch(dashboard.apiUrl(`/timeseries?startDate=${start}&endDate=${end}&period=${period}`)).then(r => r.json()).catch(() => ({ timeSeries: [] })),
         fetch(dashboard.apiUrl(`/annotations?startDate=${start}&endDate=${end}`)).then(r => r.json()).catch(() => ({ annotations: [] })),
+        // Previous-period overlay (#153): fetched only while comparing.
+        compare
+          ? fetch(dashboard.apiUrl(`/timeseries?startDate=${prevBounds.start}&endDate=${prevBounds.end}&period=${period}`)).then(r => r.json()).catch(() => ({ timeSeries: [] }))
+          : Promise.resolve(null),
       ])
       timeSeries.set((tsRes.timeSeries || []).map(t => ({
         date: t.timestamp || t.date,
         views: t.views,
         visitors: t.visitors,
       })))
+      previousTimeSeries.set(prevRes
+        ? (prevRes.timeSeries || []).map(t => ({
+            date: t.timestamp || t.date,
+            views: t.views,
+            visitors: t.visitors,
+          }))
+        : [])
       annotations.set(annRes.annotations || [])
     } catch (e) {
       console.error('Failed to fetch timeseries:', e)
+    }
+  }
+
+  /**
+   * Headline comparison (current vs previous period) for the stat-card
+   * deltas (#153). Cleared when the toggle turns off.
+   */
+  async function fetchComparison() {
+    if (!dashboard.siteId() || !dashboard.showComparison()) {
+      comparison.set(null)
+      return
+    }
+    try {
+      const res = await fetch(dashboard.apiUrlWithDates('/comparison'))
+      if (!res.ok) throw new Error('comparison fetch failed')
+      comparison.set(await res.json())
+    } catch (e) {
+      console.error('Failed to fetch comparison:', e)
+      comparison.set(null)
     }
   }
 
@@ -230,6 +266,9 @@ defineStore('analytics', () => {
     stats,
     hasHistoricalData,
     timeSeries,
+    previousTimeSeries,
+    comparison,
+    fetchComparison,
     annotations,
     hydrateStatsFromCache,
     fetchStats,

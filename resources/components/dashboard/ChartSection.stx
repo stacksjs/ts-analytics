@@ -28,6 +28,7 @@ function renderChart() {
   if (!canvas) return
 
   const timeSeriesData = analytics.timeSeries()
+  const previousData = analytics.previousTimeSeries()
   const annotations = analytics.annotations()
   const dateRange = dashboard.dateRange()
 
@@ -57,7 +58,12 @@ function renderChart() {
   const pad = { top: 20, right: 20, bottom: 50, left: 50 }
   const w = logicalW - pad.left - pad.right
   const h = logicalH - pad.top - pad.bottom
-  const maxV = Math.max(...timeSeriesData.map(d => d.views || d.count || 0), 1)
+  // Shared scale with the previous-period overlay so the lines compare (#153).
+  const maxV = Math.max(
+    ...timeSeriesData.map(d => d.views || d.count || 0),
+    ...previousData.map(d => d.views || d.count || 0),
+    1,
+  )
   const xS = w / (timeSeriesData.length - 1 || 1)
   const yS = h / maxV
 
@@ -118,6 +124,23 @@ function renderChart() {
       ctx.moveTo(pad.left, y)
       ctx.lineTo(pad.left + w, y)
       ctx.stroke()
+    }
+
+    // Previous-period overlay (#153): dashed, muted, aligned by bucket index —
+    // bucket i of the current window lines up with bucket i of the previous.
+    if (previousData.length > 1) {
+      const pxS = w / (previousData.length - 1)
+      ctx.beginPath()
+      ctx.strokeStyle = colors.muted
+      ctx.lineWidth = 1.5
+      ctx.setLineDash([5, 4])
+      previousData.forEach((d, i) => {
+        const x = pad.left + i * pxS
+        const y = pad.top + h - (d.views || d.count || 0) * yS
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+      })
+      ctx.stroke()
+      ctx.setLineDash([])
     }
 
     ctx.beginPath()
@@ -304,15 +327,18 @@ async function addAnnotation() {
   }
 }
 
-// Refetch whenever the selected range changes (also fires once on mount).
+// Refetch whenever the selected range or the Compare toggle changes (also
+// fires once on mount).
 effect(() => {
   dashboard.dateRange()
+  dashboard.showComparison()
   analytics.fetchTimeSeries()
 })
 
 // Redraw whenever the data changes.
 effect(() => {
   analytics.timeSeries()
+  analytics.previousTimeSeries()
   analytics.annotations()
   scheduleRender()
 })
@@ -342,6 +368,10 @@ onMount(() => {
 <div class="panel relative mb-6">
   <div class="flex justify-between items-center mb-4">
     <div class="font-semibold text-sm text-text">{{ title }}</div>
+    <div class="flex items-center gap-1.5 text-xs text-muted" x-show="dashboard.showComparison()">
+      <span class="inline-block w-4 border-t border-dashed border-muted"></span>
+      Previous period
+    </div>
     <button @click="addAnnotation()" class="bg-bg-3 border border-border text-text-2 py-1 px-2 rounded flex items-center text-[0.6875rem] transition-all duration-150 cursor-pointer hover:bg-bg hover:text-text" title="Mark an event on the chart">
       <Icon name="plus" size="12" class="mr-1 inline-block align-middle" />
       Annotation

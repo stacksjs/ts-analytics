@@ -48,6 +48,37 @@ const stats: Stat[] = [
 ]
 
 const analytics = useStore('analytics')
+const dashboard = useStore('dashboard')
+
+// Compare-mode deltas (#153): map each card to its /comparison field.
+const CHANGE_FIELDS: Record<string, string> = {
+  sessions: 'sessions',
+  people: 'visitors',
+  views: 'views',
+  bounce: 'bounceRate',
+  avgtime: 'avgDuration',
+}
+
+function statChange(id: string): string {
+  const cmp = analytics.comparison()
+  const field = CHANGE_FIELDS[id]
+  if (!cmp || !field || !dashboard.showComparison()) return ''
+  const change = cmp.changes?.[field]
+  if (change === undefined || change === null) return ''
+  if (cmp.previous?.[field] === 0 && cmp.current?.[field] > 0) return 'new'
+  return `${change > 0 ? '+' : ''}${change}%`
+}
+
+function statChangeClass(id: string): string {
+  const cmp = analytics.comparison()
+  const field = CHANGE_FIELDS[id]
+  const change = cmp?.changes?.[field] ?? 0
+  // For bounce rate, up is bad.
+  const good = id === 'bounce' ? change < 0 : change > 0
+  const base = 'text-[0.6875rem] font-medium mt-0.5'
+  if (change === 0) return `${base} text-muted`
+  return good ? `${base} text-success` : `${base} text-error`
+}
 
 // Reactive values the cards display. Animated toward the store's stats so the
 // numbers count up on each update.
@@ -127,6 +158,13 @@ effect(() => {
     applyStats(s)
 })
 
+// Fetch/clear the headline comparison when the toggle or range changes (#153).
+effect(() => {
+  dashboard.showComparison()
+  dashboard.dateRange()
+  analytics.fetchComparison()
+})
+
 onMount(() => {
   analytics.hydrateStatsFromCache()
   analytics.fetchStats()
@@ -146,6 +184,7 @@ onMount(() => {
     </svg>
     <div class="text-2xl font-bold text-text leading-tight" x-text="statValue(stat.id)">—</div>
     <div class="text-xs text-text-2 mt-1 uppercase tracking-wide">{{ stat.label }}</div>
+    <div x-show="statChange(stat.id) !== ''" x-class="statChangeClass(stat.id)">{{ statChange(stat.id) }}</div>
   </div>
 </div>
 
