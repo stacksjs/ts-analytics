@@ -118,6 +118,51 @@ function copySnippet(): void {
 const verifying = state<boolean>(false)
 const verifyResult = state<string>('') // '' | 'pass' | 'fail'
 
+// GA4 CSV import (#155): read the picked files client-side, post them as
+// JSON, and surface the per-day result summary.
+const gaImporting = state<boolean>(false)
+const gaFileCount = state<number>(0)
+const gaImportStatus = state<string>('')
+let gaPicked: File[] = []
+
+function gaFilesPicked(e: Event): void {
+  const input = e.target as HTMLInputElement
+  gaPicked = Array.from(input.files || [])
+  gaFileCount.set(gaPicked.length)
+  gaImportStatus.set('')
+}
+
+function gaImportLabel(): string {
+  if (gaImporting()) return 'Importing…'
+  const n = gaFileCount()
+  return n > 0 ? `Import ${n} file${n === 1 ? '' : 's'}` : 'Import'
+}
+
+async function runGaImport(): Promise<void> {
+  if (gaImporting() || gaPicked.length === 0) return
+  gaImporting.set(true)
+  gaImportStatus.set('')
+  try {
+    const files = await Promise.all(gaPicked.map(async (f: File) => ({ name: f.name, content: await f.text() })))
+    const res: Response = await fetch(apiUrl('/import/ga'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Import failed')
+    const kinds = (data.files || []).map((f: { kind: string }) => f.kind).join(', ')
+    const skipped = (data.daysSkipped || []).length
+    gaImportStatus.set(`Imported ${data.daysWritten} day${data.daysWritten === 1 ? '' : 's'} (${kinds})${skipped ? `, ${skipped} tracked day${skipped === 1 ? '' : 's'} preserved` : ''}.`)
+    gaPicked = []
+    gaFileCount.set(0)
+  } catch (e: unknown) {
+    gaImportStatus.set(`Import failed: ${(e as Error).message}`)
+  } finally {
+    gaImporting.set(false)
+  }
+}
+
 async function verifyInstall(): Promise<void> {
   if (verifying() || !siteId()) return
   verifying.set(true)
@@ -565,7 +610,7 @@ function showDeleteModal(): void {
     size: 'sm',
     submitText: 'Delete site',
     content: `
-      <p class="text-sm text-muted mb-3" style="line-height:1.6">Permanently deletes <code class="text-text">${c}</code> and <strong class="text-text">all</strong> of its data — pageviews, sessions, events, errors, API keys. This can't be undone.</p>
+      <p class="text-sm text-muted mb-3" style="line-height:1.6">Permanently deletes <code class="text-text">${c}</code> and <strong class="text-text">all</strong> of its data — pageviews, sessions, events, API keys. This can't be undone.</p>
       <label class="text-xs font-medium text-muted mb-1 block">Type <code class="text-text">${c}</code> to confirm</label>
       <input type="text" name="confirm" class="form-input" autocomplete="off" spellcheck="false" placeholder="${c}" />
       <p id="delete-err" class="text-xs text-error mt-2"></p>
@@ -851,6 +896,20 @@ effect(() => {
           <div class="flex gap-2 items-center">
             <button class="btn btn-secondary" @click="gdprExport()">Export Data (GDPR)</button>
             <button class="btn btn-danger" @click="gdprDelete()">Delete Visitor Data</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h4 class="panel-title">Import from Google Analytics</h4>
+        </div>
+        <p class="text-xs text-muted mb-3">Backfill history from GA4 CSV exports (add a <strong class="text-text">Date</strong> column to each report). Traffic, Pages, Sources, Devices, Browsers, OS and Geo reports are detected automatically. Days already tracked here are never overwritten.</p>
+        <div class="flex flex-col gap-2">
+          <input id="ga-import-files" type="file" accept=".csv,text/csv" multiple class="form-input text-xs" @change="gaFilesPicked($event)" />
+          <div class="flex gap-2 items-center">
+            <button class="btn btn-primary" x-disabled="gaImporting() || gaFileCount() === 0" @click="runGaImport()">{{ gaImportLabel() }}</button>
+            <span class="text-xs text-muted" x-show="gaImportStatus() !== ''">{{ gaImportStatus() }}</span>
           </div>
         </div>
       </div>

@@ -158,6 +158,42 @@ catch (error) {
 }
 
 /**
+ * POST /api/sites/{siteId}/import/ga — GA4 CSV import (#155 Phase A).
+ * Body: { files: [{ name, content }] } — CSVs exported from GA4 with a Date
+ * column. Writes day rollups directly (never fabricates raw events, never
+ * overwrites tracked days); see src/lib/ga-import.ts for format detection.
+ */
+export async function handleGaImport(request: Request, siteId: string): Promise<Response> {
+  try {
+    const MAX_IMPORT_BYTES = 15 * 1024 * 1024
+    const raw = await request.text()
+    if (raw.length > MAX_IMPORT_BYTES) {
+      return jsonResponse({ error: 'Import too large (15MB max per request)' }, 413)
+    }
+    let body: { files?: Array<{ name?: string, content?: string }> }
+    try {
+      body = JSON.parse(raw)
+    }
+    catch {
+      return jsonResponse({ error: 'Invalid JSON' }, 400)
+    }
+    const files = (body.files || [])
+      .filter(f => typeof f?.content === 'string' && f.content.length > 0)
+      .map(f => ({ name: String(f.name || 'upload.csv'), content: f.content as string }))
+    if (files.length === 0) {
+      return jsonResponse({ error: 'No CSV files provided' }, 400)
+    }
+    const { importGaData } = await import('../lib/ga-import')
+    const result = await importGaData(siteId, files)
+    return jsonResponse(result)
+  }
+  catch (error) {
+    console.error('GA import error:', error)
+    return errorResponse('Failed to import GA data')
+  }
+}
+
+/**
  * GET /api/sites/{siteId}/gdpr/export
  */
 export async function handleGdprExport(request: Request, siteId: string): Promise<Response> {

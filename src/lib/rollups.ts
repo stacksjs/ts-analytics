@@ -189,6 +189,18 @@ export async function ensureDayRollups(siteId: string, daysBack = 3): Promise<nu
   if (recompute.size === 0)
     return 0
 
+  // Imported history (#155) must survive the trailing-window recompute: GA
+  // days predate live tracking, so recomputing them from (empty) raw rows
+  // would replace real history with zeros.
+  const guardDays = [...recompute].sort()
+  const existing = await readDayRollups(siteId, guardDays[0], guardDays[guardDays.length - 1])
+  for (const [day, rollup] of existing) {
+    if ((rollup as { source?: string }).source === 'ga-import')
+      recompute.delete(day)
+  }
+  if (recompute.size === 0)
+    return 0
+
   let written = 0
   for (const day of [...recompute].sort()) {
     const rollup = await computeDayRollup(siteId, day)
