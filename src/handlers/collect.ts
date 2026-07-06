@@ -30,6 +30,7 @@ import { getCountryFromTimezone } from '../utils/timezone-country'
 import { jsonResponse, errorResponse, noContentResponse } from '../utils/response'
 import { getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
 import { ensureSiteExists } from './misc'
+import { recordIngest } from '../lib/ingest-counters'
 
 /** Max ingest requests per minute per IP on /collect + /t (429 beyond this). */
 const COLLECT_RATE_LIMIT_PER_MIN = 1200
@@ -145,6 +146,8 @@ export async function handleCollect(request: Request): Promise<Response> {
     }
 
     if (!payload?.s || !payload?.e || !payload?.u) {
+      if (typeof payload?.s === 'string')
+        recordIngest(payload.s, 'invalid')
       return jsonResponse({ error: 'Missing required fields: s, e, u' }, 400)
     }
 
@@ -162,6 +165,7 @@ catch {
     // Drop bot/crawler traffic and known referral-spam before any writes
     // (no site auto-create, no records).
     if (isBot(userAgent) || isSpamReferrer(payload.r)) {
+      recordIngest(payload.s, 'bot')
       return noContentResponse(request)
     }
 
@@ -170,6 +174,7 @@ catch {
     if (!site) {
       // Unknown site and auto-provisioning disabled — drop silently (a 4xx
       // would only help someone probing for valid ids).
+      recordIngest(payload.s, 'firewall')
       return noContentResponse(request)
     }
 
@@ -185,14 +190,17 @@ catch {
         const h = host.replace(/^www\./, '')
         return h === dom || h.endsWith(`.${dom}`)
       })
-      if (!allowed)
+      if (!allowed) {
+        recordIngest(payload.s, 'firewall')
         return noContentResponse(request)
+      }
     }
 
     // Account plan quota (#62): events across all of an owner's projects count
     // against the owner's monthly plan limit. Unowned (auto-created) sites and
     // quota errors fail open — a billing glitch never drops events.
     if (site?.ownerId && !(await accountEventWithinQuota(site.ownerId))) {
+      recordIngest(payload.s, 'quota')
       return jsonResponse({ error: 'Monthly event quota exceeded for this account' }, 429)
     }
 
@@ -202,6 +210,7 @@ catch {
     // (#158). Deliberately generous (20/s) so heavy SPA usage and shared NAT
     // aren't throttled while single-source floods are. In-memory per process.
     if (!rateLimitAllow(`collect:${ip}`, COLLECT_RATE_LIMIT_PER_MIN, 60_000)) {
+      recordIngest(payload.s, 'rate_limited')
       return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
         status: 429,
         headers: { 'Content-Type': 'application/json', 'Retry-After': '60', 'Access-Control-Allow-Origin': '*' },
@@ -211,6 +220,7 @@ catch {
     // Honor configured IP/path exclusions (internal traffic, admin paths) (#159).
     const tracking = getConfig().tracking
     if (isExcluded(ip, parsedUrlForSite.pathname, tracking.excludedIps, tracking.excludedPaths)) {
+      recordIngest(payload.s, 'excluded')
       return noContentResponse(request)
     }
 
@@ -233,12 +243,18 @@ catch {
         })
       }
       catch (e) {
-        if (isConditionalCheckFailed(e))
+        if (isConditionalCheckFailed(e)) {
+          recordIngest(payload.s, 'dedup')
           return noContentResponse(request)
+        }
       }
     }
 
     const headers = getHeaders(request)
+
+    // Accepted for processing — count it (with the tracker version when the
+    // beacon carries one, #179) so ingest drops are measurable (#175).
+    recordIngest(payload.s, 'collected', typeof payload.v === 'string' ? payload.v : undefined)
 
     // Ingest is cleanly direct (#97). The old SQS "fast path" was removed: it
     // intercepted every event type but coerced clicks/engagement/vitals into

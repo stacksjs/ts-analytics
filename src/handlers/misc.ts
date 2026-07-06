@@ -13,10 +13,43 @@ import { generateId } from '../index'
 import { generateAppId } from '../lib/crypto-random'
 
 /**
- * GET /health
+ * GET /health — probes DynamoDB with a cheap getItem (#175). A static "ok"
+ * kept App Runner routing traffic to instances whose table access was broken.
  */
 export async function handleHealth(_request: Request): Promise<Response> {
-  return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() })
+  const started = Date.now()
+  try {
+    await dynamodb.getItem({
+      TableName: TABLE_NAME,
+      Key: { pk: { S: 'SITES' }, sk: { S: 'SITE#__health__' } },
+    })
+    return jsonResponse({ status: 'ok', db: 'ok', dbLatencyMs: Date.now() - started, timestamp: new Date().toISOString() })
+  }
+  catch (e) {
+    return jsonResponse({ status: 'degraded', db: 'error', error: (e as Error).message, timestamp: new Date().toISOString() }, 503)
+  }
+}
+
+/**
+ * GET /api/sites/{siteId}/ingest-counters — hourly beacon outcomes (#175):
+ * collected vs dropped (bot/firewall/dedup/invalid/rate_limited/excluded/
+ * quota) plus tracker-version counts (v_*, #179). The ops view that makes a
+ * silent ingest failure (CORS, firewall misconfig, broken tracker rollout)
+ * visible as a drop in `collected` with the reason right next to it.
+ */
+export async function handleGetIngestCounters(request: Request, siteId: string): Promise<Response> {
+  try {
+    const query = getQueryParams(request)
+    const hours = Math.min(Math.max(Number(query.hours) || 48, 1), 24 * 14)
+    const { readIngestCounters, flushIngestCounters } = await import('../lib/ingest-counters')
+    await flushIngestCounters() // include this instance's buffered tail
+    const counters = await readIngestCounters(siteId, hours)
+    return jsonResponse({ counters, hours })
+  }
+  catch (error) {
+    console.error('Ingest counters error:', error)
+    return errorResponse('Failed to fetch ingest counters')
+  }
 }
 
 /**

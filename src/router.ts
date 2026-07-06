@@ -192,6 +192,7 @@ export async function createRouter(): Promise<Router> {
   // Stats & Analytics
   await router.get('/api/sites/{siteId}/stats', (req: any) => withReadCache(req, 'stats', 30_000, () => stats.handleGetStats(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/realtime', (req: any) => stats.handleGetRealtime(req, req.params.siteId))
+  await router.get('/api/sites/{siteId}/ingest-counters', (req: any) => misc.handleGetIngestCounters(req, req.params.siteId))
   await router.get('/api/sites/{siteId}/pages', (req: any) => withReadCache(req, 'pages', 60_000, () => stats.handleGetPages(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/referrers', (req: any) => withReadCache(req, 'referrers', 60_000, () => stats.handleGetReferrers(req, req.params.siteId)))
   await router.get('/api/sites/{siteId}/devices', (req: any) => withReadCache(req, 'devices', 60_000, () => stats.handleGetDevices(req, req.params.siteId)))
