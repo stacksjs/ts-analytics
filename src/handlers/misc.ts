@@ -109,7 +109,7 @@ export async function handleCreateSite(request: Request, ownerId?: string): Prom
     // Auto-generate the first API key
     const keyId = generateId()
     const apiKey = generateApiKey()
-    const permissions = ['read', 'error-tracking']
+    const permissions = ['read']
 
     await dynamodb.putItem({
       TableName: TABLE_NAME,
@@ -217,6 +217,16 @@ export async function ensureSiteExists(siteId: string, hostname?: string, ownerI
     }
 
     if (!existing.Item) {
+      // Ingress firewall (#170): site ids are public in the tag, so open
+      // auto-provisioning lets anyone spray junk site ids as a write-cost
+      // attack. Auto-create stays on for dev convenience but is OFF in
+      // production unless explicitly enabled.
+      const autoCreate = process.env.ANALYTICS_AUTO_CREATE_SITES
+        ? process.env.ANALYTICS_AUTO_CREATE_SITES === 'true'
+        : process.env.NODE_ENV !== 'production'
+      if (!autoCreate)
+        return null
+
       const now = new Date().toISOString()
       const domains = hostname ? [hostname] : []
 

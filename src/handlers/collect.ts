@@ -165,8 +165,29 @@ catch {
       return noContentResponse(request)
     }
 
-    // Ensure site exists (auto-create if first event)
+    // Ensure site exists (auto-create if first event; gated in production, #170)
     const site = await ensureSiteExists(payload.s, parsedUrlForSite.hostname)
+    if (!site) {
+      // Unknown site and auto-provisioning disabled — drop silently (a 4xx
+      // would only help someone probing for valid ids).
+      return noContentResponse(request)
+    }
+
+    // Domain firewall (#170): when the site has domains configured, only
+    // accept events whose page hostname matches (exact, subdomain, or '*').
+    // An empty domains list keeps the open behavior for unconfigured sites.
+    const allowedDomains: string[] = Array.isArray(site.domains) ? site.domains.filter(Boolean) : []
+    if (allowedDomains.length > 0) {
+      const host = parsedUrlForSite.hostname.toLowerCase()
+      const allowed = allowedDomains.some((d: string) => {
+        const dom = String(d).toLowerCase().replace(/^www\./, '')
+        if (dom === '*') return true
+        const h = host.replace(/^www\./, '')
+        return h === dom || h.endsWith(`.${dom}`)
+      })
+      if (!allowed)
+        return noContentResponse(request)
+    }
 
     // Account plan quota (#62): events across all of an owner's projects count
     // against the owner's monthly plan limit. Unowned (auto-created) sites and
