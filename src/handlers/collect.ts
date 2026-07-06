@@ -31,6 +31,7 @@ import { jsonResponse, errorResponse, noContentResponse } from '../utils/respons
 import { getClientIP, getUserAgent, getHeaders } from '../../deploy/lambda-adapter'
 import { ensureSiteExists } from './misc'
 import { recordIngest } from '../lib/ingest-counters'
+import { ensureSiteRetentionLoaded, rawTtlForSite } from '../lib/site-retention'
 
 /** Max ingest requests per minute per IP on /collect + /t (429 beyond this). */
 const COLLECT_RATE_LIMIT_PER_MIN = 1200
@@ -255,6 +256,10 @@ catch {
     // Accepted for processing — count it (with the tracker version when the
     // beacon carries one, #179) so ingest drops are measurable (#175).
     recordIngest(payload.s, 'collected', typeof payload.v === 'string' ? payload.v : undefined)
+
+    // Per-site retention (#178): cached 5-min read so every raw write below
+    // stamps the site's configured TTL instead of the global default.
+    await ensureSiteRetentionLoaded(payload.s)
 
     // Ingest is cleanly direct (#97). The old SQS "fast path" was removed: it
     // intercepted every event type but coerced clicks/engagement/vitals into
@@ -571,7 +576,7 @@ else if (payload.e === 'click') {
           text: String(props.text || '').slice(0, 200),
           timestamp: timestamp.toISOString(),
           _et: 'LinkClick',
-          ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
+          ttl: rawTtlForSite(payload.s),
         }),
       })
 
@@ -609,7 +614,7 @@ else if (payload.e === 'engagement') {
           timeOnPage,
           timestamp: timestamp.toISOString(),
           _et: 'Engagement',
-          ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
+          ttl: rawTtlForSite(payload.s),
         }),
       })
 
@@ -706,7 +711,7 @@ else if (payload.e === 'vitals') {
           deviceType: deviceInfo.deviceType,
           browser,
           timestamp: timestamp.toISOString(),
-          ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
+          ttl: rawTtlForSite(payload.s),
         }),
       })
     }

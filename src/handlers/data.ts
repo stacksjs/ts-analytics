@@ -18,37 +18,43 @@ export async function handleExport(request: Request, siteId: string): Promise<Re
     const format = query.format || 'json'
     const dataType = query.type || 'pageviews'
 
-    let items: any[] = []
-    let prefix: string
-
-    switch (dataType) {
-      case 'sessions':
-        prefix = 'SESSION#'
-        break
-      case 'events':
-        prefix = 'EVENT#'
-        break
-      case 'pageviews':
-      default:
-        prefix = 'PAGEVIEW#'
+    // Every raw record type is exportable (#178) — clicks/engagement/vitals
+    // were previously unreachable.
+    const PREFIXES: Record<string, string> = {
+      pageviews: 'PAGEVIEW#',
+      sessions: 'SESSION#',
+      events: 'EVENT#',
+      clicks: 'CLICK#',
+      engagement: 'ENGAGEMENT#',
+      vitals: 'VITAL#',
     }
+    const prefix = PREFIXES[dataType] || 'PAGEVIEW#'
 
-    const result = await dynamodb.query({
+    // Paginated (#178): the old single-page query silently truncated the
+    // export at ~1MB while looking complete.
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${siteId}` },
         ':start': { S: `${prefix}${startDate.toISOString()}` },
-        ':end': { S: `${prefix}${endDate.toISOString()}` },
+        ':end': { S: `${prefix}${endDate.toISOString()}~` },
       },
-      Limit: 10000,
-    }) as { Items?: any[] }
+    })
 
-    items = (result.Items || []).map(unmarshall)
+    const items = (result.Items || []).map(unmarshall)
 
     if (format === 'csv') {
-      const headers = items.length > 0 ? Object.keys(items[0]).join(',') : ''
-      const rows = items.map(item => Object.values(item).map(v => JSON.stringify(v)).join(','))
+      // Header = the UNION of keys across all rows (#178): rows vary by
+      // optional fields (utm, country, …), so first-row headers dropped
+      // whole columns from everything after it.
+      const headerSet = new Set<string>()
+      for (const item of items) {
+        for (const k of Object.keys(item)) headerSet.add(k)
+      }
+      const headerList = [...headerSet].sort()
+      const headers = headerList.join(',')
+      const rows = items.map(item => headerList.map(k => item[k] === undefined ? '' : JSON.stringify(item[k])).join(','))
       const csv = [headers, ...rows].join('\n')
 
       return new Response(csv, {
@@ -177,10 +183,15 @@ export async function handleGdprExport(request: Request, siteId: string): Promis
         ':visitorId': { S: visitorId },
       },
     })
-    const [pageviews, sessions, events] = await Promise.all([
+    // ALL visitorId-carrying record types (#178) — the old export omitted
+    // clicks, engagement, and web-vitals rows entirely.
+    const [pageviews, sessions, events, clicks, engagement, vitals] = await Promise.all([
       byPrefix('PAGEVIEW#'),
       byPrefix('SESSION#'),
       byPrefix('EVENT#'),
+      byPrefix('CLICK#'),
+      byPrefix('ENGAGEMENT#'),
+      byPrefix('VITAL#'),
     ])
 
     return jsonResponse({
@@ -189,7 +200,15 @@ export async function handleGdprExport(request: Request, siteId: string): Promis
         pageviews: (pageviews.Items || []).map(unmarshall),
         sessions: (sessions.Items || []).map(unmarshall),
         events: (events.Items || []).map(unmarshall),
+        clicks: (clicks.Items || []).map(unmarshall),
+        engagement: (engagement.Items || []).map(unmarshall),
+        vitals: (vitals.Items || []).map(unmarshall),
       },
+      // Honest scope (#178): visitor ids rotate with the daily salt, so one id
+      // covers roughly ONE UTC day of activity. A full subject-access request
+      // needs the id from each day involved (there is no cross-day linkage —
+      // that's the privacy design, not a gap in the export).
+      note: 'Visitor ids rotate daily; this export covers the ~one UTC day this id maps to.',
       exportedAt: new Date().toISOString(),
     })
   }
@@ -249,6 +268,9 @@ catch (e) {
       success: true,
       visitorId,
       deletedCount,
+      // Same daily-rotation scope as the export (#178): deleting this id
+      // removes ~one UTC day of rows; other days used different ids.
+      note: 'Visitor ids rotate daily; this delete covers the ~one UTC day this id maps to.',
       deletedAt: new Date().toISOString(),
     })
   }

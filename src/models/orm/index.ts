@@ -39,6 +39,7 @@ import { Model, configureModels, DynamoDBClient, createClient } from 'bun-query-
 import { isConditionalCheckFailed } from '../../lib/ddb-errors'
 import type { DeviceType } from '../../types'
 import { getConfig, getTtlForEntity } from '../../config'
+import { rawTtlForSite } from '../../lib/site-retention'
 
 // ============================================================================
 // Configuration
@@ -186,7 +187,7 @@ export class PageView extends Model {
       _et: 'PageView',
       // Raw-event TTL so visitor-hash/path/referrer/geo/UTM rows expire per the
       // configured retention instead of living forever (#143).
-      ttl: getTtlForEntity(getConfig(), 'raw'),
+      ttl: rawTtlForSite(data.siteId),
     }
 
     const client = ormClient()
@@ -400,7 +401,7 @@ export class Session extends Model {
       startedAt: startedAtIso,
       endedAt: data.endedAt instanceof Date ? data.endedAt.toISOString() : data.endedAt,
       _et: 'Session',
-      ttl: getTtlForEntity(getConfig(), 'raw'),
+      ttl: rawTtlForSite(data.siteId),
     }
 
     const client = ormClient()
@@ -472,7 +473,7 @@ export class Session extends Model {
       startedAt: startedAtIso,
       endedAt: data.endedAt instanceof Date ? data.endedAt.toISOString() : data.endedAt,
       _et: 'Session',
-      ttl: getTtlForEntity(getConfig(), 'raw'),
+      ttl: rawTtlForSite(data.siteId),
     }
     const client = ormClient()
     try {
@@ -717,7 +718,7 @@ export class CustomEvent extends Model {
       gsi1sk: `EVENT#${data.name}`,
       timestamp: timestamp.toISOString(),
       _et: 'CustomEvent',
-      ttl: getTtlForEntity(getConfig(), 'raw'),
+      ttl: rawTtlForSite(data.siteId),
     }
 
     // Serialize properties as JSON string
