@@ -40,6 +40,33 @@
 <script>window.ANALYTICS_API_ENDPOINT = {{ $env.STX_PUBLIC_API_ENDPOINT || '' }};</script>
 
 <script>
+  // Split-domain credentialed fetches (#118): when the API lives on a
+  // different origin, every dashboard fetch to it must send the session
+  // cookie (credentials: 'include') — the browser default (same-origin)
+  // silently drops it and the dashboard fails open. Wrapping fetch here
+  // covers every panel/store call without touching each call site; explicit
+  // credentials options are respected.
+  (function() {
+    var api = window.ANALYTICS_API_ENDPOINT || '';
+    if (!api) return;
+    var apiOrigin;
+    try { apiOrigin = new URL(api).origin; } catch (e) { return; }
+    if (apiOrigin === window.location.origin) return;
+    var origFetch = window.fetch.bind(window);
+    window.fetch = function(input, init) {
+      try {
+        var url = typeof input === 'string' ? input : (input && input.url) || '';
+        if (url.indexOf(apiOrigin) === 0 && (!init || init.credentials === undefined)) {
+          init = init || {};
+          init.credentials = 'include';
+        }
+      } catch (e) {}
+      return origFetch(input, init);
+    };
+  })();
+</script>
+
+<script>
   // Account-first session gate (#115): the dashboard never renders without a
   // signed-in user. A 401 from /api/auth/me redirects to /login — unless the
   // server reports enforcement is off (ANALYTICS_REQUIRE_AUTH=false installs).

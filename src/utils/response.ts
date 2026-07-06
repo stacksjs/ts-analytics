@@ -147,3 +147,34 @@ export function legacyResponse(body: unknown, statusCode = 200, headers: Record<
     body: typeof body === 'string' ? body : JSON.stringify(body),
   }
 }
+
+/**
+ * Split-domain credentialed CORS (#118).
+ *
+ * When the dashboard runs on a DIFFERENT origin than the API
+ * (STX_PUBLIC_API_ENDPOINT), its credentialed fetches need the API to echo the
+ * request Origin with Access-Control-Allow-Credentials — browsers forbid the
+ * wildcard with credentials. The allowlist comes from CORS_ORIGINS
+ * (comma-separated origins). Unset = same-origin installs (the dev proxy,
+ * #116) — no echo, wildcard responses stay as-is.
+ */
+export function allowedCorsOrigins(): string[] {
+  return (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim().replace(/\/$/, ''))
+    .filter(o => o.length > 0 && o !== '*')
+}
+
+/** The echoed CORS headers for an allowlisted Origin, or null. */
+export function credentialedCorsHeaders(request: Request): Record<string, string> | null {
+  const origin = request.headers.get('origin')
+  if (!origin)
+    return null
+  if (!allowedCorsOrigins().includes(origin.replace(/\/$/, '')))
+    return null
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Credentials': 'true',
+    'Vary': 'Origin',
+  }
+}

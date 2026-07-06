@@ -6,7 +6,7 @@
  */
 
 import { Router } from '@stacksjs/bun-router'
-import { preflightResponse } from './utils/response'
+import { preflightResponse, credentialedCorsHeaders, allowedCorsOrigins } from './utils/response'
 
 // Import handlers
 import * as stats from './handlers/stats'
@@ -109,11 +109,61 @@ export async function createRouter(): Promise<Router> {
   // Disable auto file-based routing (all routes are registered explicitly)
   router._fileRoutesInitialized = true
 
+  // Split-domain credentialed CORS (#118): when CORS_ORIGINS allowlists the
+  // dashboard origin, /api/* responses echo it with Allow-Credentials (the
+  // wildcard is forbidden for credentialed fetches), OPTIONS preflights are
+  // answered, and state-changing /api/* requests from any OTHER browser
+  // origin are rejected (CSRF gate — SameSite=None cookies would otherwise
+  // ride along; non-browser clients send no Origin and are unaffected).
+  await router.use(async (req: any, next: () => Promise<Response>) => {
+    const path = new URL(req.url).pathname
+    if (!path.startsWith('/api/'))
+      return next()
+    const cors = credentialedCorsHeaders(req)
+    const origin = req.headers.get('origin')
+    if (req.method === 'OPTIONS' && cors) {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          ...cors,
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Analytics-Token, X-Share-Token, X-Share-Password',
+          'Access-Control-Max-Age': '86400',
+        },
+      })
+    }
+    if (!cors && origin && allowedCorsOrigins().length > 0
+      && req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+      return new Response(JSON.stringify({ error: 'Origin not allowed' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+    }
+    const res = await next()
+    if (!cors)
+      return res
+    const headers = new Headers(res.headers)
+    headers.set('Access-Control-Allow-Origin', cors['Access-Control-Allow-Origin'])
+    headers.set('Access-Control-Allow-Credentials', 'true')
+    headers.append('Vary', 'Origin')
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
+  })
+
   // Global authorization: gate every /api/sites/{id}/* + /api/p/{id}/* route on
   // project membership (no-op unless ANALYTICS_REQUIRE_AUTH=true). See handlers/authz.
   await router.use(async (req: any, next: () => Promise<Response>) => {
     const denied = await authz.siteAuthGuard(req)
     return denied || next()
+  })
+
+  // Catch-all preflight (#118): bun-router answers unmatched OPTIONS with a
+  // built-in wildcard BEFORE middleware runs, which breaks credentialed
+  // preflights. An explicit '*' OPTIONS route routes them through normal
+  // dispatch: allowlisted /api/* origins get the credentialed grant (via the
+  // middleware above), other /api/* origins get a bare 204 (browser fails
+  // the preflight), and public paths keep the origin-echo behavior.
+  await router.options('*', (req: any) => {
+    const path = new URL(req.url).pathname
+    if (path.startsWith('/api/'))
+      return new Response(null, { status: 204 })
+    return preflightResponse(req)
   })
 
   // Health check

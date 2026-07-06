@@ -89,8 +89,19 @@ export function validateCredentials(email: string, password: string): string | n
 
 const SESSION_MAX_AGE = SESSION_TTL_DAYS * 86400
 
-/** Build the session Set-Cookie header (Secure in production). */
+/**
+ * Build the session Set-Cookie header (Secure in production).
+ *
+ * Split-domain installs (#118, CORS_ORIGINS set) need SameSite=None so the
+ * browser sends the cookie on cross-origin fetches from the dashboard —
+ * which requires Secure (HTTPS), so split-domain is HTTPS-only by
+ * construction. The router's origin allowlist + CSRF gate compensate for
+ * what Lax protection is given up.
+ */
 export function sessionCookie(token: string, maxAge: number = SESSION_MAX_AGE): string {
+  const splitDomain = !!(process.env.CORS_ORIGINS || '').trim()
+  if (splitDomain)
+    return `${SESSION_COOKIE}=${token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=${maxAge}`
   const secure = process.env.NODE_ENV === 'production' ? ' Secure;' : ''
   return `${SESSION_COOKIE}=${token}; HttpOnly;${secure} SameSite=Lax; Path=/; Max-Age=${maxAge}`
 }
