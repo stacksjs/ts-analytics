@@ -51,6 +51,27 @@ export async function handleInviteTeamMember(request: Request, siteId: string): 
     if (existingUser) await addMembership(existingUser.userId, siteId, body.role)
     else await addPendingInvite(body.email, siteId, body.role)
 
+    // Tell the invitee (#129) — invites previously created silently. Best
+    // effort: mail trouble must not fail the invite itself.
+    try {
+      const { sendEmail } = await import('../lib/email')
+      const appUrl = (process.env.APP_URL || '').replace(/\/$/, '')
+      await sendEmail({
+        to: body.email,
+        subject: `You've been invited to an analytics dashboard (${siteId})`,
+        text: [
+          `You've been invited as ${body.role} on the analytics dashboard for ${siteId}.`,
+          existingUser
+            ? `Your existing account already has access — sign in to view it.`
+            : `Sign up with this email address to accept the invite.`,
+          appUrl ? `\n${appUrl}/login` : '',
+        ].filter(Boolean).join('\n'),
+      })
+    }
+    catch (e) {
+      console.error('Invite email failed:', (e as Error).message)
+    }
+
     return jsonResponse({ member }, 201)
   }
 catch (error) {

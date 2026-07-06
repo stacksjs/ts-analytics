@@ -3127,8 +3127,6 @@ export interface TrackingScriptOptions {
   trackSpaRoutes?: boolean
   /** Whether to track engagement (max scroll depth + active time on page), flushed on page-leave */
   trackEngagement?: boolean
-  /** Custom domain for script (optional) */
-  customDomain?: string
   /** Use stealth mode (shorter endpoint paths, less identifiable) */
   stealthMode?: boolean
   /** Whether to track Core Web Vitals (LCP, FID, CLS, TTFB, INP) */

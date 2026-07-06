@@ -206,8 +206,6 @@ export interface SiteSettings {
   trackUtmParams: boolean
   /** Whether to track device type */
   trackDeviceType: boolean
-  /** Custom domain for tracking script */
-  customDomain?: string
   /** Public dashboard enabled */
   publicDashboard: boolean
   /** Public dashboard password (hashed) */

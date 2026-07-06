@@ -70,7 +70,9 @@ export function authRequired(): boolean {
  */
 export function requiredRole(method: string, path: string): Role {
   if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return 'viewer'
-  if (/\/(?:team|members)(?:\/|$)/.test(path)) return 'admin'
+  // Member management AND credential rotation are admin actions (#129) —
+  // an editor must not be able to rotate the site's API keys.
+  if (/\/(?:team|members|api-keys|tokens)(?:\/|$)/.test(path)) return 'admin'
   return 'editor'
 }
 

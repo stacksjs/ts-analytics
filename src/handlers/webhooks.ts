@@ -148,7 +148,21 @@ export async function enqueueWebhookEvent(siteId: string, eventType: string, pay
 
 async function deliverOne(d: any): Promise<boolean> {
   try {
-    const body: string = d.payload || '{}'
+    let body: string = d.payload || '{}'
+    // Native Slack incoming-webhooks (#129): Slack requires {text: ...} and
+    // rejects arbitrary JSON — reshape the event into a readable message so
+    // pointing a webhook at hooks.slack.com just works.
+    if (/hooks\.slack\.com\//.test(String(d.url || ''))) {
+      try {
+        const evt = JSON.parse(body)
+        const fields = Object.entries(evt)
+          .filter(([k]) => !['event', 'siteId'].includes(k))
+          .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+          .join('\n')
+        body = JSON.stringify({ text: `*${d.eventType || evt.event || 'analytics event'}* — ${evt.siteId || ''}\n${fields}` })
+      }
+      catch {}
+    }
     const sig = createHmac('sha256', String(d.secret || '')).update(body).digest('hex')
     const res = await fetch(d.url, {
       method: 'POST',

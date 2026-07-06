@@ -75,10 +75,11 @@ export async function handleGetStats(request: Request, siteId: string): Promise<
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${siteId}` },
         ':start': { S: `PAGEVIEW#${realtimeCutoff.toISOString()}` },
-        ':end': { S: 'PAGEVIEW#Z' },
+        ':end': { S: 'PAGEVIEW#~' },
       },
     }) as { Items?: any[] }
-    const realtimePageviews = (realtimeResult.Items || []).map(unmarshall)
+    // Realtime honors the active filters like every other number (#129).
+    const realtimePageviews = (realtimeResult.Items || []).map(unmarshall).filter((pv: any) => matchesFilters(pv, filters))
     const realtimeVisitors = new Set(realtimePageviews.map(pv => pv.visitorId)).size
 
     const pageviews = (pageviewsResult.Items || []).map(unmarshall).filter((pv: any) => matchesFilters(pv, filters))
@@ -154,11 +155,12 @@ export async function handleGetRealtime(request: Request, siteId: string): Promi
       ExpressionAttributeValues: {
         ':pk': { S: `SITE#${siteId}` },
         ':start': { S: `PAGEVIEW#${cutoff.toISOString()}` },
-        ':end': { S: 'PAGEVIEW#Z' },
+        ':end': { S: 'PAGEVIEW#~' },
       },
     }) as { Items?: any[] }
 
-    const pageviews = (result.Items || []).map(unmarshall)
+    const filters = parseFilters(getQueryParams(request))
+    const pageviews = (result.Items || []).map(unmarshall).filter((pv: any) => matchesFilters(pv, filters))
     const uniqueVisitors = new Set(pageviews.map(pv => pv.visitorId)).size
 
     // Get active pages
@@ -1283,8 +1285,10 @@ export async function handleGetComparison(request: Request, siteId: string): Pro
 
     // Calculate the comparison period (same duration, immediately before)
     const duration = endDate.getTime() - startDate.getTime()
+    // Previous window is exactly [start - duration, start - 1ms] (#129): the
+    // old derivation shifted the whole window back an extra millisecond.
     const comparisonEndDate = new Date(startDate.getTime() - 1)
-    const comparisonStartDate = new Date(comparisonEndDate.getTime() - duration)
+    const comparisonStartDate = new Date(startDate.getTime() - duration)
 
     // One filter parse + TWO queries over the combined span (#137) — the
     // old shape re-parsed filters and re-queried per period (4 queries).
