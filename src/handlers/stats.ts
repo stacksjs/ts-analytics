@@ -1219,25 +1219,32 @@ export async function handleGetComparison(request: Request, siteId: string): Pro
     const comparisonEndDate = new Date(startDate.getTime() - 1)
     const comparisonStartDate = new Date(comparisonEndDate.getTime() - duration)
 
-    // Helper to get stats for a period
-    async function getStatsForPeriod(start: Date, end: Date) {
-      const pageviewsResult = await queryAllItems({
+    // One filter parse + TWO queries over the combined span (#137) — the
+    // old shape re-parsed filters and re-queried per period (4 queries).
+    const filters = parseFilters(query)
+    const [pageviewsResult, sessionsResult] = await Promise.all([
+      queryAllItems({
         TableName: TABLE_NAME,
         KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
         ExpressionAttributeValues: {
           ':pk': { S: `SITE#${siteId}` },
-          ':start': { S: `PAGEVIEW#${start.toISOString()}` },
-          ':end': { S: `PAGEVIEW#${end.toISOString()}` },
+          ':start': { S: `PAGEVIEW#${comparisonStartDate.toISOString()}` },
+          ':end': { S: `PAGEVIEW#${endDate.toISOString()}` },
         },
-      }) as { Items?: any[] }
+      }) as Promise<{ Items?: any[] }>,
+      querySessionItemsInRange(siteId, comparisonStartDate, endDate) as Promise<{ Items?: any[] }>,
+    ])
+    const allPageviews = (pageviewsResult.Items || []).map(unmarshall).filter((pv: any) => matchesFilters(pv, filters))
+    const allSessions = (sessionsResult.Items || []).map(unmarshall).filter(s => matchesFilters(s, filters))
 
-      const sessionsResult = await querySessionItemsInRange(siteId, start, end) as { Items?: any[] }
-
-      const filters = parseFilters(query)
-      const pageviews = (pageviewsResult.Items || []).map(unmarshall).filter((pv: any) => matchesFilters(pv, filters))
-      const sessions = (sessionsResult.Items || []).map(unmarshall).filter(s => {
-        const sessionStart = new Date(s.startedAt)
-        return sessionStart >= start && sessionStart <= end && matchesFilters(s, filters)
+    function getStatsForPeriod(start: Date, end: Date) {
+      const pageviews = allPageviews.filter((pv: any) => {
+        const t = new Date(pv.timestamp)
+        return t >= start && t <= end
+      })
+      const sessions = allSessions.filter((s) => {
+        const t = new Date(s.startedAt)
+        return t >= start && t <= end
       })
 
       const uniqueVisitors = new Set(pageviews.map((pv: any) => pv.visitorId)).size
@@ -1245,7 +1252,8 @@ export async function handleGetComparison(request: Request, siteId: string): Pro
       const totalSessions = sessions.length
       const bounces = sessions.filter(s => s.isBounce).length
       const bounceRate = totalSessions > 0 ? Math.round((bounces / totalSessions) * 100) : 0
-      const totalDuration = sessions.reduce((sum, s) => sum + (s.duration || 0), 0)
+      // Real engaged time when departure pings exist (#167), else wall-clock.
+      const totalDuration = sessions.reduce((sum, s) => sum + (s.activeTime > 0 ? s.activeTime : (s.duration || 0)), 0)
       const avgDuration = totalSessions > 0 ? Math.round(totalDuration / totalSessions) : 0
 
       return {
@@ -1257,10 +1265,8 @@ export async function handleGetComparison(request: Request, siteId: string): Pro
       }
     }
 
-    const [currentStats, previousStats] = await Promise.all([
-      getStatsForPeriod(startDate, endDate),
-      getStatsForPeriod(comparisonStartDate, comparisonEndDate),
-    ])
+    const currentStats = getStatsForPeriod(startDate, endDate)
+    const previousStats = getStatsForPeriod(comparisonStartDate, comparisonEndDate)
 
     // Calculate percentage changes
     const calcChange = (current: number, previous: number) => {

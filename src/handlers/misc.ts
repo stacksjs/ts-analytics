@@ -303,6 +303,13 @@ catch (error) {
  */
 export async function handleGetSites(_request: Request, ownerId?: string): Promise<Response> {
   try {
+    // #131: with auth enforcement off AND no session, the fallback below
+    // lists EVERY tenant's sites. That's the intended kiosk/dev behavior,
+    // but in production it turns one misconfiguration into total exposure —
+    // hard-gate it there (mirrors the #170 auto-provisioning gate).
+    if (!ownerId && process.env.NODE_ENV === 'production' && process.env.ANALYTICS_OPEN_SITES_LIST !== 'true') {
+      return jsonResponse({ sites: [] })
+    }
     // Dedupe by site sort-key across owned + member-shared projects.
     const bySk = new Map<string, any>()
 

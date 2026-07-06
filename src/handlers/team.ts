@@ -86,13 +86,38 @@ catch (error) {
 /**
  * DELETE /api/sites/{siteId}/team/{memberId}
  */
-export async function handleRemoveTeamMember(_request: Request, siteId: string, memberId: string): Promise<Response> {
+export async function handleRemoveTeamMember(request: Request, siteId: string, memberId: string): Promise<Response> {
   try {
     // Load the record first so we can revoke the linked project membership.
     const got = await dynamodb.getItem({
       TableName: TABLE_NAME,
       Key: { pk: { S: `SITE#${siteId}` }, sk: { S: `TEAM#${memberId}` } },
     })
+
+    // Rank rules (#157): the guard already requires admin+ for team writes,
+    // but an admin must not be able to remove the OWNER or peer admins —
+    // that's an authorization bypass (team takeover). Owner removal is never
+    // allowed here (transfer ownership instead); removing an admin requires
+    // the owner. Self-removal (leaving the team) is always allowed except
+    // for the owner.
+    if (got.Item) {
+      const target = unmarshall(got.Item)
+      const targetRole = String(target.role || 'viewer')
+      const { getSessionFromRequest } = await import('./auth')
+      const session = await getSessionFromRequest(request)
+      const isSelf = !!session && target.userId === session.userId
+      if (targetRole === 'owner') {
+        return jsonResponse({ error: 'The owner cannot be removed. Transfer ownership first.' }, 403)
+      }
+      if (targetRole === 'admin' && !isSelf && session) {
+        const { getMembership } = await import('../lib/membership')
+        const requesterRole = await getMembership(session.userId, siteId)
+        if (requesterRole !== 'owner') {
+          return jsonResponse({ error: 'Only the owner can remove an admin.' }, 403)
+        }
+      }
+    }
+
     if (got.Item) {
       const m = unmarshall(got.Item)
       if (m.userId) await removeMembership(m.userId, siteId)
