@@ -381,11 +381,18 @@ export class Session extends Model {
    * Create or update a session
    */
   static async upsert(data: SessionData): Promise<Session> {
+    const startedAtIso = data.startedAt instanceof Date ? data.startedAt.toISOString() : data.startedAt
     const item = {
       ...data,
       pk: `SITE#${data.siteId}`,
       sk: `SESSION#${data.id}`,
-      startedAt: data.startedAt instanceof Date ? data.startedAt.toISOString() : data.startedAt,
+      // Time-keyed index entry (#171): sessions are id-keyed in the main
+      // table, so every date-ranged read had to scan the whole partition.
+      // GSI1 gives an O(range) query: gsi1pk = SITE#{id}#SESSIONS,
+      // gsi1sk = startedAt ISO (+id tiebreak).
+      gsi1pk: `SITE#${data.siteId}#SESSIONS`,
+      gsi1sk: `${startedAtIso}#${data.id}`,
+      startedAt: startedAtIso,
       endedAt: data.endedAt instanceof Date ? data.endedAt.toISOString() : data.endedAt,
       _et: 'Session',
       ttl: getTtlForEntity(getConfig(), 'raw'),
@@ -450,11 +457,18 @@ export class Session extends Model {
    * atomic increment instead of overwriting its counts (#161).
    */
   static async createIfAbsent(data: SessionData): Promise<boolean> {
+    const startedAtIso = data.startedAt instanceof Date ? data.startedAt.toISOString() : data.startedAt
     const item = {
       ...data,
       pk: `SITE#${data.siteId}`,
       sk: `SESSION#${data.id}`,
-      startedAt: data.startedAt instanceof Date ? data.startedAt.toISOString() : data.startedAt,
+      // Time-keyed index entry (#171): sessions are id-keyed in the main
+      // table, so every date-ranged read had to scan the whole partition.
+      // GSI1 gives an O(range) query: gsi1pk = SITE#{id}#SESSIONS,
+      // gsi1sk = startedAt ISO (+id tiebreak).
+      gsi1pk: `SITE#${data.siteId}#SESSIONS`,
+      gsi1sk: `${startedAtIso}#${data.id}`,
+      startedAt: startedAtIso,
       endedAt: data.endedAt instanceof Date ? data.endedAt.toISOString() : data.endedAt,
       _et: 'Session',
       ttl: getTtlForEntity(getConfig(), 'raw'),

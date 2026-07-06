@@ -3,7 +3,7 @@
  */
 
 import { generateId } from '../index'
-import { queryAllItems, dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
+import { querySessionItemsInRange, queryAllItems, dynamodb, TABLE_NAME, unmarshall, marshall } from '../lib/dynamodb'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
@@ -92,14 +92,7 @@ export async function handleGetFunnelAnalysis(request: Request, siteId: string, 
     const funnel = unmarshall(funnelResult.Items[0])
 
     // Get sessions for analysis
-    const sessionsResult = await queryAllItems({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[] }
+    const sessionsResult = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
 
     const sessions = (sessionsResult.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)

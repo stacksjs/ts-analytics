@@ -2,7 +2,7 @@
  * Data export, GDPR, and retention handlers
  */
 
-import { dynamodb, TABLE_NAME, unmarshall, marshall, queryAllItems } from '../lib/dynamodb'
+import { querySessionItemsInRange, dynamodb, TABLE_NAME, unmarshall, marshall, queryAllItems } from '../lib/dynamodb'
 import { parseDateRange } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
@@ -279,14 +279,7 @@ export async function handleGetInsights(request: Request, siteId: string): Promi
     // Sessions (paginated — the old raw query silently truncated at ~1MB) and
     // pageviews for both periods in one range query each.
     const [sessionsResult, pageviewsResult] = await Promise.all([
-      queryAllItems({
-        TableName: TABLE_NAME,
-        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-        ExpressionAttributeValues: {
-          ':pk': { S: `SITE#${siteId}` },
-          ':prefix': { S: 'SESSION#' },
-        },
-      }) as Promise<{ Items?: any[] }>,
+      querySessionItemsInRange(siteId, previousStartDate, endDate) as Promise<{ Items?: any[] }>,
       queryAllItems({
         TableName: TABLE_NAME,
         KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',

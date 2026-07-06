@@ -2,7 +2,7 @@
  * Statistics handlers
  */
 
-import { queryAllItems, TABLE_NAME, unmarshall } from '../lib/dynamodb'
+import { querySessionItemsInRange, queryAllItems, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { parseDateRange, formatDuration } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { countryCodeOf, countryFlagEmoji, getReferrerSourceChannel } from '../utils/geolocation'
@@ -62,17 +62,9 @@ export async function handleGetStats(request: Request, siteId: string): Promise<
         }) as { Items?: any[], Count?: number }
       : { Items: [] }
 
-    // Query sessions for the raw window (sessions are id-keyed, so this scans
-    // SESSION# items; the rollup prefix above keeps this to the live window)
+    // Query sessions for the raw window via the time-keyed GSI entry (#171).
     const sessionsResult = rawWindowStart <= endDate
-      ? await queryAllItems({
-          TableName: TABLE_NAME,
-          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-          ExpressionAttributeValues: {
-            ':pk': { S: `SITE#${siteId}` },
-            ':prefix': { S: 'SESSION#' },
-          },
-        }) as { Items?: any[], Count?: number }
+      ? await querySessionItemsInRange(siteId, rawWindowStart, endDate) as { Items?: any[], Count?: number }
       : { Items: [] }
 
     // Query realtime visitors (last 2 minutes)
@@ -261,14 +253,7 @@ export async function handleGetReferrers(request: Request, siteId: string): Prom
     const limit = Math.min(Number(query.limit) || 10, 100)
 
     // Query sessions
-    const result = await queryAllItems({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[] }
+    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
 
     const filters = parseFilters(query)
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
@@ -330,14 +315,7 @@ export async function handleGetDevices(request: Request, siteId: string): Promis
     const { startDate, endDate } = parseDateRange(query)
 
     // Query sessions
-    const result = await queryAllItems({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[] }
+    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
 
     const filters = parseFilters(query)
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
@@ -399,14 +377,7 @@ export async function handleGetBrowsers(request: Request, siteId: string): Promi
     const limit = Math.min(Number(query.limit) || 10, 100)
 
     // Query sessions
-    const result = await queryAllItems({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[] }
+    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
 
     const filters = parseFilters(query)
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
@@ -451,14 +422,7 @@ export async function handleGetOS(request: Request, siteId: string): Promise<Res
     const { startDate, endDate } = parseDateRange(query)
     const limit = Math.min(Number(query.limit) || 10, 100)
 
-    const result = await queryAllItems({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[] }
+    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
 
     const filters = parseFilters(query)
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
@@ -502,14 +466,7 @@ export async function handleGetCountries(request: Request, siteId: string): Prom
     const limit = Math.min(Number(query.limit) || 10, 100)
 
     // Query sessions
-    const result = await queryAllItems({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[] }
+    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
 
     const filters = parseFilters(query)
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
@@ -556,14 +513,7 @@ export async function handleGetRegions(request: Request, siteId: string): Promis
     const filters = parseFilters(query)
 
     // Query sessions
-    const result = await queryAllItems({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[] }
+    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
 
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
@@ -608,14 +558,7 @@ export async function handleGetCities(request: Request, siteId: string): Promise
     const filters = parseFilters(query)
 
     // Query sessions
-    const result = await queryAllItems({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[] }
+    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
 
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
@@ -1066,14 +1009,7 @@ export async function handleGetCampaigns(request: Request, siteId: string): Prom
     const limit = Math.min(Number(query.limit) || 10, 100)
 
     // Query sessions with UTM data
-    const result = await queryAllItems({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[] }
+    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
 
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
@@ -1135,14 +1071,7 @@ export async function handleGetComparison(request: Request, siteId: string): Pro
         },
       }) as { Items?: any[] }
 
-      const sessionsResult = await queryAllItems({
-        TableName: TABLE_NAME,
-        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-        ExpressionAttributeValues: {
-          ':pk': { S: `SITE#${siteId}` },
-          ':prefix': { S: 'SESSION#' },
-        },
-      }) as { Items?: any[] }
+      const sessionsResult = await querySessionItemsInRange(siteId, start, end) as { Items?: any[] }
 
       const filters = parseFilters(query)
       const pageviews = (pageviewsResult.Items || []).map(unmarshall).filter((pv: any) => matchesFilters(pv, filters))

@@ -117,6 +117,30 @@ export async function paginatedQuery<T>(
 }
 
 /**
+ * All sessions for a site whose startedAt falls in [startDate, endDate],
+ * via the time-keyed GSI entry (#171) — replaces the full-partition
+ * begins_with(sk, SESSION#) scans that silently truncated at scale. Returns
+ * marshalled Items (same shape as queryAllItems) so call sites keep their
+ * existing unmarshall + filter pipelines.
+ */
+export async function querySessionItemsInRange(
+  siteId: string,
+  startDate: Date,
+  endDate: Date,
+): Promise<{ Items: any[], Count: number }> {
+  return queryAllItems({
+    TableName: TABLE_NAME,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'gsi1pk = :pk AND gsi1sk BETWEEN :start AND :end',
+    ExpressionAttributeValues: {
+      ':pk': { S: `SITE#${siteId}#SESSIONS` },
+      ':start': { S: startDate.toISOString() },
+      ':end': { S: `${endDate.toISOString()}~` },
+    },
+  })
+}
+
+/**
  * Query every page of a key condition and return the raw (still-marshalled)
  * items. Drop-in for `dynamodb.query(...)` at call sites that read `.Items` and
  * `.map(unmarshall)` themselves, but it no longer silently truncates at

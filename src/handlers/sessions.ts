@@ -2,7 +2,7 @@
  * Session handlers
  */
 
-import { queryAllItems, dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
+import { querySessionItemsInRange, queryAllItems, dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { parseDateRange, formatDuration } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
@@ -17,17 +17,20 @@ export async function handleGetSessions(request: Request, siteId: string): Promi
     const limit = Math.min(Number(query.limit) || 50, 200)
     const filter = query.filter || ''
 
-    const result = await dynamodb.query({
+    // Time-keyed GSI query (#171): date-bounded and startedAt-DESC ordered
+    // (the raw sk is random-id order, so "recent" was arbitrary before).
+    const result = await queryAllItems({
       TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'gsi1pk = :pk AND gsi1sk BETWEEN :start AND :end',
       ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':start': { S: `SESSION#` },
-        ':end': { S: `SESSION#~` },
+        ':pk': { S: `SITE#${siteId}#SESSIONS` },
+        ':start': { S: startDate.toISOString() },
+        ':end': { S: `${endDate.toISOString()}~` },
       },
       ScanIndexForward: false,
       Limit: limit * 2,
-    }) as { Items?: any[] }
+    }, limit * 2) as { Items?: any[] }
 
     let sessions = (result.Items || []).map(unmarshall).filter((s: any) => {
       const sessionTime = new Date(s.startedAt || s.endedAt || s.timestamp)
@@ -111,36 +114,41 @@ export async function handleGetSessionDetail(request: Request, siteId: string, s
 
     const session = unmarshall(sessionResult.Items[0])
 
+    // The session timeline was PERMANENTLY EMPTY (#171): these queries used
+    // gsi1pk = SESSION#{id}, but pageviews/events write DATE-keyed gsi1pk
+    // values — the key could never match (and the index name was the wrong
+    // case). Query the session's own time window on the main table instead
+    // and filter by sessionId.
+    const windowStart = typeof session.startedAt === 'string' ? session.startedAt : new Date(session.startedAt).toISOString()
+    const windowEnd = session.endedAt
+      ? (typeof session.endedAt === 'string' ? session.endedAt : new Date(session.endedAt).toISOString())
+      : new Date().toISOString()
+
+    const itemsInWindow = async (prefix: string): Promise<any[]> => {
+      const res = await queryAllItems({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+        ExpressionAttributeValues: {
+          ':pk': { S: `SITE#${siteId}` },
+          ':start': { S: `${prefix}${windowStart}` },
+          ':end': { S: `${prefix}${windowEnd}~` },
+        },
+      })
+      return (res.Items || []).map(unmarshall)
+        .filter(item => item.sessionId === sessionId)
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    }
+
     // Get pageviews for this session
     let pageviews: any[] = []
     if (includePageviews) {
-      const pvResult = await dynamodb.query({
-        TableName: TABLE_NAME,
-        IndexName: 'gsi1',
-        KeyConditionExpression: 'gsi1pk = :pk',
-        ExpressionAttributeValues: {
-          ':pk': { S: `SESSION#${sessionId}` },
-        },
-      }) as { Items?: any[] }
-      pageviews = (pvResult.Items || []).map(unmarshall)
-        .filter(item => item.sk?.startsWith('PAGEVIEW#'))
-        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      pageviews = await itemsInWindow('PAGEVIEW#')
     }
 
     // Get events for this session
     let events: any[] = []
     if (includeEvents) {
-      const eventResult = await dynamodb.query({
-        TableName: TABLE_NAME,
-        IndexName: 'gsi1',
-        KeyConditionExpression: 'gsi1pk = :pk',
-        ExpressionAttributeValues: {
-          ':pk': { S: `SESSION#${sessionId}` },
-        },
-      }) as { Items?: any[] }
-      events = (eventResult.Items || []).map(unmarshall)
-        .filter(item => item.sk?.startsWith('EVENT#'))
-        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      events = await itemsInWindow('EVENT#')
     }
 
     // Build timeline of all activities
@@ -210,14 +218,7 @@ export async function handleGetUserFlow(request: Request, siteId: string): Promi
     const depth = Math.min(Number(query.depth) || 5, 10)
 
     // Query sessions
-    const result = await queryAllItems({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[] }
+    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
 
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
@@ -291,14 +292,7 @@ export async function handleGetEntryExitPages(request: Request, siteId: string):
     const { startDate, endDate } = parseDateRange(query)
     const limit = Math.min(Number(query.limit) || 10, 100)
 
-    const result = await queryAllItems({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-    }) as { Items?: any[] }
+    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
 
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)

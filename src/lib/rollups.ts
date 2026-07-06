@@ -15,7 +15,7 @@
  * A day with no traffic still gets a zero rollup so it reads as covered —
  * otherwise empty days would be re-scanned forever.
  */
-import { dynamodb, TABLE_NAME, marshall, unmarshall } from './dynamodb'
+import { querySessionItemsInRange, dynamodb, TABLE_NAME, marshall, unmarshall } from './dynamodb'
 
 export interface DayRollup {
   day: string // YYYY-MM-DD
@@ -100,24 +100,16 @@ export async function computeDayRollup(siteId: string, day: string): Promise<Day
     lastKey = page.LastEvaluatedKey
   } while (lastKey)
 
-  // Sessions are id-keyed (not time-keyed) so this scans the partition's
-  // SESSION# items — bounded by their 90-day TTL, and it runs once per day in
-  // the rollup job rather than on every dashboard query.
   let sessions = 0
   let bounces = 0
   let totalDuration = 0
   let events = 0
-  lastKey = undefined
-  do {
-    const page = await dynamodb.query({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':prefix': { S: 'SESSION#' },
-      },
-      ExclusiveStartKey: lastKey,
-    }) as { Items?: any[], LastEvaluatedKey?: Record<string, any> }
+  // Day-bounded via the time-keyed GSI entry (#171): the rollup job used to
+  // scan EVERY session per site per recomputed day.
+  const dayStart = new Date(`${day}T00:00:00.000Z`)
+  const dayEnd = new Date(`${day}T23:59:59.999Z`)
+  {
+    const page = await querySessionItemsInRange(siteId, dayStart, dayEnd)
     for (const raw of (page.Items || [])) {
       const s = unmarshall(raw)
       const startedDay = typeof s.startedAt === 'string' ? s.startedAt.slice(0, 10) : ''
@@ -130,8 +122,7 @@ export async function computeDayRollup(siteId: string, day: string): Promise<Day
       totalDuration += (s.activeTime > 0 ? s.activeTime : (s.duration || 0))
       events += s.eventCount || 0
     }
-    lastKey = page.LastEvaluatedKey
-  } while (lastKey)
+  }
 
   return { day, views, visitors: visitors.size, sessions, bounces, totalDuration, events }
 }
