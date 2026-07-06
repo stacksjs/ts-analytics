@@ -30,6 +30,17 @@ function dispatchGoal(action, e) {
   const id = e.currentTarget.getAttribute('data-goal-id') || ''
   window.dispatchEvent(new CustomEvent('goal-action', { detail: { id, action } }))
 }
+
+// Plain-call wrappers: an arrow function inside a @click attribute contains
+// '>' which stx's tag parser treats as the tag terminator, silently
+// truncating the handler (same bug as the header avatar menu).
+function editGoal(e) {
+  dispatchGoal('edit', e)
+}
+
+function deleteGoal(e) {
+  dispatchGoal('delete', e)
+}
 </script>
 
 <tr>
@@ -40,8 +51,8 @@ function dispatchGoal(action, e) {
   <td class="text-right">{{ conversions | fmt }}</td>
   <td class="text-right">{{ value }}</td>
   <td class="flex gap-2 justify-end">
-    <button class="py-1 px-2 text-xs rounded border-none cursor-pointer bg-bg-3 text-text hover:bg-accent hover:text-white edit-btn" data-goal-id="{{ goalId }}" @click="(e) => dispatchGoal('edit', e)">Edit</button>
-    <button class="py-1 px-2 text-xs rounded border-none cursor-pointer bg-transparent text-muted delete-btn" data-goal-id="{{ goalId }}" @click="(e) => dispatchGoal('delete', e)">Delete</button>
+    <button class="py-1 px-2 text-xs rounded border-none cursor-pointer bg-bg-3 text-text hover:bg-accent hover:text-white edit-btn" data-goal-id="{{ goalId }}" @click="editGoal($event)">Edit</button>
+    <button class="py-1 px-2 text-xs rounded border-none cursor-pointer bg-transparent text-muted delete-btn" data-goal-id="{{ goalId }}" @click="deleteGoal($event)">Delete</button>
   </td>
 </tr>
 </template>

@@ -63,6 +63,29 @@ function toggleTheme(): void {
   // The data-theme effect repaints; ChartSection redraws via its data-theme observer.
 }
 
+// Avatar dropdown: identity, theme switcher, account, sign out.
+const userMenuOpen = state<boolean>(false)
+
+// Named handler — an arrow function inside the @click attribute ('v => !v')
+// contains '>' which stx's tag parser treats as the tag terminator, silently
+// truncating the attribute; every other handler in the codebase is a plain
+// call for the same reason.
+function toggleUserMenu(): void {
+  userMenuOpen.update((v: boolean) => !v)
+}
+
+function setTheme(dark: boolean): void {
+  isDark.set(dark)
+  localStorage.setItem('ts-analytics-theme', dark ? 'dark' : 'light')
+}
+
+function themeChipClass(dark: boolean): string {
+  const base = 'inline-flex items-center gap-1 text-[0.6875rem] font-medium py-1 px-2 rounded-md cursor-pointer border-none transition-all duration-150'
+  return isDark() === dark
+    ? `${base} bg-accent text-white shadow-sm`
+    : `${base} bg-transparent text-muted hover:text-text hover:bg-bg-3`
+}
+
 // Named handleBack (not goBack) to avoid shadowing stx's injected goBack global.
 function handleBack(): void {
   // Return to the projects / site list. Clear the source-of-truth siteId so
@@ -135,9 +158,27 @@ onMount(() => {
   window.addEventListener('stx:navigate', syncFromUrl)
   window.addEventListener('popstate', syncFromUrl)
 
+  // Close the avatar menu on outside click (capture phase — the stx router
+  // stops propagation on bubbled clicks), Escape, or SPA navigation.
+  const closeOnOutside = (e: Event): void => {
+    if (!userMenuOpen()) return
+    const menu = document.getElementById('user-menu')
+    if (menu && !menu.contains(e.target as Node)) userMenuOpen.set(false)
+  }
+  const closeOnEscape = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape') userMenuOpen.set(false)
+  }
+  const closeMenu = (): void => userMenuOpen.set(false)
+  document.addEventListener('click', closeOnOutside, true)
+  document.addEventListener('keydown', closeOnEscape)
+  window.addEventListener('stx:navigate', closeMenu)
+
   return () => {
     window.removeEventListener('stx:navigate', syncFromUrl)
     window.removeEventListener('popstate', syncFromUrl)
+    document.removeEventListener('click', closeOnOutside, true)
+    document.removeEventListener('keydown', closeOnEscape)
+    window.removeEventListener('stx:navigate', closeMenu)
   }
 })
 
@@ -176,19 +217,47 @@ provide('dashboardHeader', {
        data-stx-prefetch>
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
     </a>
-    <button id="theme-toggle" class="icon-btn" @click="toggleTheme()" title="Toggle dark/light mode">
-      <Icon name="moon" size="20" id="moon-icon" x-show="isDark()" />
-      <Icon name="sun" size="20" id="sun-icon" x-show="!isDark()" />
-    </button>
-    <a x-href="'/dashboard/account'" x-show="userEmail()" class="flex items-center gap-1.5 icon-btn no-underline" title="Account settings" data-stx-prefetch>
-      <Icon name="user" size="18" />
-      <span class="text-xs text-muted max-w-[160px] truncate hidden md:inline">{{ userEmail() }}</span>
-    </a>
-    <form method="POST" action="/logout" class="inline">
-      <button type="submit" class="icon-btn hover:text-error" title="Logout">
-        <Icon name="log-out" size="20" />
+    <div id="user-menu" class="relative">
+      <button class="w-8 h-8 rounded-full bg-bg-3 border border-border text-muted inline-flex items-center justify-center cursor-pointer transition-all duration-150 hover:text-text hover:border-accent/60 hover:shadow-[0_0_0_3px_rgba(132,107,255,0.15)]"
+              @click="toggleUserMenu()" title="Account" aria-haspopup="menu">
+        <Icon name="user" size="16" />
       </button>
-    </form>
+
+      <div x-show="userMenuOpen()" class="absolute right-0 top-full mt-2 w-60 bg-bg-2 border border-border rounded-xl shadow-2xl p-1.5 z-50">
+        <div class="px-2.5 pt-2 pb-2.5 border-b border-border mb-1.5">
+          <div class="text-[0.6875rem] uppercase tracking-wide text-muted mb-0.5">Signed in as</div>
+          <div class="text-[0.8125rem] font-medium text-text truncate">{{ userEmail() || 'Guest' }}</div>
+        </div>
+
+        <div class="flex items-center justify-between px-2.5 py-1.5 mb-1">
+          <span class="text-xs text-muted">Theme</span>
+          <div class="inline-flex bg-bg rounded-lg border border-border p-0.5 gap-0.5">
+            <button x-class="themeChipClass(false)" @click="setTheme(false)" title="Light mode">
+              <Icon name="sun" size="14" />
+              Light
+            </button>
+            <button x-class="themeChipClass(true)" @click="setTheme(true)" title="Dark mode">
+              <Icon name="moon" size="14" />
+              Dark
+            </button>
+          </div>
+        </div>
+
+        <a x-href="'/dashboard/account'" class="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[0.8125rem] text-text-2 no-underline transition-colors duration-150 hover:bg-bg-3 hover:text-text" data-stx-prefetch @click="userMenuOpen.set(false)">
+          <Icon name="user" size="15" />
+          Account settings
+        </a>
+
+        <div class="border-t border-border my-1.5"></div>
+
+        <form method="POST" action="/logout" class="block">
+          <button type="submit" class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[0.8125rem] text-text-2 bg-transparent border-none cursor-pointer text-left transition-colors duration-150 hover:bg-error/10 hover:text-error">
+            <Icon name="log-out" size="15" />
+            Sign out
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 </header>
 
