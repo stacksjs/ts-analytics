@@ -101,7 +101,9 @@ describe('Analytics Infrastructure', () => {
       expect(resources).toHaveProperty('AnalyticsTable')
       expect(resources).toHaveProperty('CollectFunction')
       expect(resources).toHaveProperty('StatsFunction')
-      expect(resources).toHaveProperty('AggregationFunction')
+      // Jobs run via POST /api/jobs/tick on the API function (#168) — there is
+      // no separate aggregation Lambda artifact.
+      expect(resources).not.toHaveProperty('AggregationFunction')
     })
 
     it('should include API Gateway', () => {
@@ -111,15 +113,6 @@ describe('Analytics Infrastructure', () => {
       expect(resources).toHaveProperty('AnalyticsApi')
     })
 
-    it('should include scheduled aggregation', () => {
-      const template = generateSamTemplate()
-      const resources = template.Resources as Record<string, { Properties?: { Events?: Record<string, unknown> } }>
-      const aggFn = resources.AggregationFunction
-
-      expect(aggFn.Properties?.Events).toHaveProperty('HourlySchedule')
-      expect(aggFn.Properties?.Events).toHaveProperty('DailySchedule')
-      expect(aggFn.Properties?.Events).toHaveProperty('MonthlySchedule')
-    })
   })
 
   describe('CDK Code Generation', () => {
@@ -139,7 +132,8 @@ describe('Analytics Infrastructure', () => {
       expect(code).toContain('new lambda.Function')
       expect(code).toContain('CollectFunction')
       expect(code).toContain('StatsFunction')
-      expect(code).toContain('AggregationFunction')
+      // The phantom aggregation Lambda was removed (#168) — its handler never existed.
+      expect(code).not.toContain('new lambda.Function(this, \'AggregationFunction\'')
     })
 
     it('should include API Gateway routes', () => {

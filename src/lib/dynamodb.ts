@@ -12,15 +12,22 @@ import {
 // Configuration
 export const TABLE_NAME: string = process.env.ANALYTICS_TABLE_NAME || 'ts-analytics'
 export const REGION: string = process.env.AWS_REGION || 'us-east-1'
+/**
+ * Optional endpoint override (#177): point every DynamoDB client at a local
+ * instance (DynamoDB Local, or the in-process fake the test harness starts)
+ * instead of AWS. Unset in production.
+ */
+export const DYNAMODB_ENDPOINT: string | undefined = process.env.ANALYTICS_DYNAMODB_ENDPOINT || undefined
 
 // Configure analytics models on module load
 configureAnalytics({
   tableName: TABLE_NAME,
   region: REGION,
+  ...(DYNAMODB_ENDPOINT ? { endpoint: DYNAMODB_ENDPOINT } : {}),
 })
 
 // Create native DynamoDB client for direct queries (used in dashboard handlers)
-export const dynamodb: ReturnType<typeof createClient> = createClient({ region: REGION })
+export const dynamodb: ReturnType<typeof createClient> = createClient({ region: REGION, ...(DYNAMODB_ENDPOINT ? { endpoint: DYNAMODB_ENDPOINT } : {}) })
 
 // Re-export marshalling utilities
 export { marshall, unmarshall }
@@ -32,13 +39,7 @@ export { marshall, unmarshall }
  * "The conditional request failed") — code that checked only e.name silently
  * misclassified expected condition failures as real errors.
  */
-export function isConditionalCheckFailed(e: unknown): boolean {
-  const err = e as { name?: string, message?: string } | null
-  return !!err && (
-    String(err.name || '').includes('ConditionalCheckFailed')
-    || /conditional request failed/i.test(String(err.message || err))
-  )
-}
+export { isConditionalCheckFailed } from './ddb-errors'
 
 
 /**

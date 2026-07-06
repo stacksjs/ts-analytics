@@ -36,7 +36,7 @@
  */
 
 import { Model, configureModels, DynamoDBClient, createClient } from 'bun-query-builder/dynamodb'
-import { isConditionalCheckFailed } from '../../lib/dynamodb'
+import { isConditionalCheckFailed } from '../../lib/ddb-errors'
 import type { DeviceType } from '../../types'
 import { getConfig, getTtlForEntity } from '../../config'
 
@@ -64,6 +64,19 @@ export interface AnalyticsConfig {
     secretAccessKey: string
     sessionToken?: string
   }
+}
+
+/**
+ * Shared client factory for model statics — honors the local-endpoint
+ * override (ANALYTICS_DYNAMODB_ENDPOINT, #177) that the plain
+ * createClient({region}) call sites bypassed.
+ */
+function ormClient(): ReturnType<typeof createClient> {
+  const endpoint = process.env.ANALYTICS_DYNAMODB_ENDPOINT || undefined
+  return createClient({
+    region: process.env.AWS_REGION || 'us-east-1',
+    ...(endpoint ? { endpoint } : {}),
+  })
 }
 
 /**
@@ -176,9 +189,7 @@ export class PageView extends Model {
       ttl: getTtlForEntity(getConfig(), 'raw'),
     }
 
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     await client.putItem({
       TableName: getTableName(),
@@ -251,9 +262,7 @@ class PageViewQueryBuilder {
   }
 
   async get(): Promise<PageView[]> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const startKey = this.startDate
       ? `PAGEVIEW#${this.startDate.toISOString()}`
@@ -278,9 +287,7 @@ class PageViewQueryBuilder {
   }
 
   async count(): Promise<number> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const startKey = this.startDate
       ? `PAGEVIEW#${this.startDate.toISOString()}`
@@ -354,9 +361,7 @@ export class Session extends Model {
    * Find a session by site and session ID
    */
   static async findByKey(siteId: string, sessionId: string): Promise<Session | null> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const result = await client.getItem({
       TableName: getTableName(),
@@ -398,9 +403,7 @@ export class Session extends Model {
       ttl: getTtlForEntity(getConfig(), 'raw'),
     }
 
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     await client.putItem({
       TableName: getTableName(),
@@ -414,9 +417,7 @@ export class Session extends Model {
    * Update session metrics
    */
   async updateMetrics(updates: Partial<Pick<Session, 'exitPath' | 'pageViewCount' | 'eventCount' | 'isBounce' | 'duration' | 'endedAt'>>): Promise<this> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const setParts: string[] = []
     const exprNames: Record<string, string> = {}
@@ -473,9 +474,7 @@ export class Session extends Model {
       _et: 'Session',
       ttl: getTtlForEntity(getConfig(), 'raw'),
     }
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
     try {
       await client.putItem({
         TableName: getTableName(),
@@ -552,9 +551,7 @@ export class Session extends Model {
     if (clauses.length === 0)
       return
 
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
     try {
       await client.updateItem({
         TableName: getTableName(),
@@ -633,9 +630,7 @@ class SessionQueryBuilder {
   }
 
   async get(): Promise<Session[]> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const result = await client.query({
       TableName: getTableName(),
@@ -730,9 +725,7 @@ export class CustomEvent extends Model {
       item.properties = JSON.stringify(data.properties)
     }
 
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     await client.putItem({
       TableName: getTableName(),
@@ -799,9 +792,7 @@ class EventQueryBuilder {
   }
 
   async get(): Promise<CustomEvent[]> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const startKey = this.startDate
       ? `EVENT#${this.startDate.toISOString()}`
@@ -1003,9 +994,7 @@ export class HeatmapClick extends Model {
       _et: 'HeatmapClick',
     }
 
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     await client.putItem({
       TableName: getTableName(),
@@ -1073,9 +1062,7 @@ class HeatmapClickQueryBuilder {
   }
 
   async get(): Promise<HeatmapClick[]> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     // If path is specified, use GSI
     if (this._path) {
@@ -1240,9 +1227,7 @@ export class HeatmapMovement extends Model {
       _et: 'HeatmapMovement',
     }
 
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     await client.putItem({
       TableName: getTableName(),
@@ -1298,9 +1283,7 @@ class HeatmapMovementQueryBuilder {
   }
 
   async get(): Promise<HeatmapMovement[]> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const result = await client.query({
       TableName: getTableName(),
@@ -1400,9 +1383,7 @@ export class HeatmapScroll extends Model {
       _et: 'HeatmapScroll',
     }
 
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     await client.putItem({
       TableName: getTableName(),
@@ -1419,9 +1400,7 @@ export class HeatmapScroll extends Model {
     const timestamp = data.timestamp instanceof Date ? data.timestamp : new Date(data.timestamp || Date.now())
     const encodedPath = encodeURIComponent(data.path)
 
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     // Check if exists
     const pk = `SITE#${data.siteId}`
@@ -1519,9 +1498,7 @@ class HeatmapScrollQueryBuilder {
   }
 
   async get(): Promise<HeatmapScroll[]> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const result = await client.query({
       TableName: getTableName(),
@@ -1671,9 +1648,7 @@ export class Goal extends Model {
       _et: 'Goal',
     }
 
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     await client.putItem({
       TableName: getTableName(),
@@ -1687,9 +1662,7 @@ export class Goal extends Model {
    * Find a goal by ID
    */
   static async findById(siteId: string, goalId: string): Promise<Goal | null> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const result = await client.getItem({
       TableName: getTableName(),
@@ -1707,9 +1680,7 @@ export class Goal extends Model {
    * Update a goal
    */
   static async update(siteId: string, goalId: string, data: Partial<GoalData>): Promise<Goal> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const updates: string[] = []
     const exprNames: Record<string, string> = {}
@@ -1757,9 +1728,7 @@ export class Goal extends Model {
    * Delete a goal
    */
   static async delete(siteId: string, goalId: string): Promise<void> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     await client.deleteItem({
       TableName: getTableName(),
@@ -1805,9 +1774,7 @@ class GoalQueryBuilder {
   }
 
   async get(): Promise<Goal[]> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const result = await client.query({
       TableName: getTableName(),
@@ -1911,9 +1878,7 @@ export class Conversion extends Model {
       _et: 'Conversion',
     }
 
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     await client.putItem({
       TableName: getTableName(),
@@ -1967,9 +1932,7 @@ class ConversionQueryBuilder {
   }
 
   async get(): Promise<Conversion[]> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     // Query using GSI1 for goal-specific conversions
     const startKey = this.startDate
@@ -1996,9 +1959,7 @@ class ConversionQueryBuilder {
   }
 
   async count(): Promise<number> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const startKey = this.startDate
       ? `CONVERSION#${this.startDate.toISOString()}`
@@ -2049,9 +2010,7 @@ class ConversionSiteQueryBuilder {
   }
 
   async get(): Promise<Conversion[]> {
-    const client = createClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-    })
+    const client = ormClient()
 
     const startKey = this.startDate
       ? `CONVERSION#${this.startDate.toISOString()}`
