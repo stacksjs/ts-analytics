@@ -3,6 +3,7 @@
  */
 
 import { querySessionItemsInRange, queryAllItems, dynamodb, TABLE_NAME, unmarshall } from '../lib/dynamodb'
+import { readDimRollupPrefix } from '../lib/rollups'
 import { parseDateRange, formatDuration } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { getQueryParams } from '../../deploy/lambda-adapter'
@@ -292,7 +293,12 @@ export async function handleGetEntryExitPages(request: Request, siteId: string):
     const { startDate, endDate } = parseDateRange(query)
     const limit = Math.min(Number(query.limit) || 10, 100)
 
-    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
+    // Rolled prefix (#172): settled days from ROLLUP#DIMS survive the raw TTL.
+    const { days: rolled, rawWindowStart } = await readDimRollupPrefix(siteId, startDate, endDate)
+
+    const result = rawWindowStart <= endDate
+      ? await querySessionItemsInRange(siteId, rawWindowStart, endDate) as { Items?: any[] }
+      : { Items: [] }
 
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
@@ -303,19 +309,34 @@ export async function handleGetEntryExitPages(request: Request, siteId: string):
     const exitStats: Record<string, { sessions: number }> = {}
 
     for (const session of sessions) {
-      if (session.entryPage) {
-        if (!entryStats[session.entryPage]) {
-          entryStats[session.entryPage] = { sessions: 0, bounces: 0 }
+      // Sessions store entryPath/exitPath — this handler read the nonexistent
+      // entryPage/exitPage fields, so the report was ALWAYS empty (#172 audit).
+      if (session.entryPath) {
+        if (!entryStats[session.entryPath]) {
+          entryStats[session.entryPath] = { sessions: 0, bounces: 0 }
         }
-        entryStats[session.entryPage].sessions++
-        if (session.isBounce) entryStats[session.entryPage].bounces++
+        entryStats[session.entryPath].sessions++
+        if (session.isBounce) entryStats[session.entryPath].bounces++
       }
 
-      if (session.exitPage) {
-        if (!exitStats[session.exitPage]) {
-          exitStats[session.exitPage] = { sessions: 0 }
+      if (session.exitPath) {
+        if (!exitStats[session.exitPath]) {
+          exitStats[session.exitPath] = { sessions: 0 }
         }
-        exitStats[session.exitPage].sessions++
+        exitStats[session.exitPath].sessions++
+      }
+    }
+
+    // Merge the rolled prefix.
+    for (const dayR of rolled) {
+      for (const [path, cell] of Object.entries(dayR.entries || {})) {
+        const e = (entryStats[path] ||= { sessions: 0, bounces: 0 })
+        e.sessions += cell.s
+        e.bounces += cell.b
+      }
+      for (const [path, cell] of Object.entries(dayR.exits || {})) {
+        const x = (exitStats[path] ||= { sessions: 0 })
+        x.sessions += cell.s
       }
     }
 

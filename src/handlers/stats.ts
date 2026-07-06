@@ -2,13 +2,13 @@
  * Statistics handlers
  */
 
-import { querySessionItemsInRange, queryAllItems, TABLE_NAME, unmarshall } from '../lib/dynamodb'
+import { dynamodb, querySessionItemsInRange, queryAllItems, TABLE_NAME, unmarshall } from '../lib/dynamodb'
 import { parseDateRange, formatDuration } from '../utils/date'
 import { jsonResponse, errorResponse } from '../utils/response'
 import { countryCodeOf, countryFlagEmoji, getReferrerSourceChannel } from '../utils/geolocation'
 import { parseFilters, matchesFilters, hasFilters } from '../utils/filters'
 import { getQueryParams } from '../../deploy/lambda-adapter'
-import { readDayRollups, fullyCoveredDays, isSettledDay } from '../lib/rollups'
+import { readDimRollupPrefix, type DayDimRollup, readDayRollups, fullyCoveredDays, isSettledDay } from '../lib/rollups'
 
 /**
  * GET /api/sites/{siteId}/stats
@@ -198,21 +198,36 @@ export async function handleGetPages(request: Request, siteId: string): Promise<
     const { startDate, endDate } = parseDateRange(query)
     const limit = Math.min(Number(query.limit) || 10, 100)
 
-    // Query pageviews
-    const result = await queryAllItems({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SITE#${siteId}` },
-        ':start': { S: `PAGEVIEW#${startDate.toISOString()}` },
-        ':end': { S: `PAGEVIEW#${endDate.toISOString()}` },
-      },
-    }) as { Items?: any[] }
+    // Rolled prefix (#172): settled days come from ROLLUP#DIMS items — they
+    // survive the raw TTL, so this report works beyond 30 days ("All Time").
+    const { days: rolled, rawWindowStart } = await readDimRollupPrefix(siteId, startDate, endDate)
+
+    // Query raw pageviews only for the live tail
+    const result = rawWindowStart <= endDate
+      ? await queryAllItems({
+          TableName: TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+          ExpressionAttributeValues: {
+            ':pk': { S: `SITE#${siteId}` },
+            ':start': { S: `PAGEVIEW#${rawWindowStart.toISOString()}` },
+            ':end': { S: `PAGEVIEW#${endDate.toISOString()}` },
+          },
+        }) as { Items?: any[] }
+      : { Items: [] }
 
     const pageviews = (result.Items || []).map(unmarshall)
 
-    // Get the hostname from the first pageview
-    const siteHostname = pageviews.length > 0 ? pageviews[0].hostname : null
+    // Hostname for building page links: first raw pageview, else the site's
+    // configured domain (a fully rolled-up range has no raw rows to read).
+    let siteHostname = pageviews.length > 0 ? pageviews[0].hostname : null
+    if (!siteHostname) {
+      const siteRes = await dynamodb.getItem({
+        TableName: TABLE_NAME,
+        Key: { pk: { S: 'SITES' }, sk: { S: `SITE#${siteId}` } },
+      }).catch(() => null)
+      const site = siteRes?.Item ? unmarshall(siteRes.Item) : null
+      siteHostname = Array.isArray(site?.domains) && site.domains.length > 0 ? site.domains[0] : null
+    }
 
     // Aggregate by path
     const pageStats: Record<string, { views: number; visitors: Set<string>; entries: number }> = {}
@@ -225,11 +240,25 @@ export async function handleGetPages(request: Request, siteId: string): Promise<
       if (pv.isUnique) pageStats[pv.path].entries++
     }
 
-    const pages = Object.entries(pageStats)
+    // Merge the rolled prefix. Visitors sum daily uniques (Fathom semantics,
+    // consistent with the scalar rollups, #146).
+    const merged: Record<string, { views: number, visitors: number, entries: number }> = {}
+    for (const [path, stats] of Object.entries(pageStats))
+      merged[path] = { views: stats.views, visitors: stats.visitors.size, entries: stats.entries }
+    for (const dayR of rolled) {
+      for (const [path, cell] of Object.entries(dayR.pages || {})) {
+        const m = (merged[path] ||= { views: 0, visitors: 0, entries: 0 })
+        m.views += cell.w
+        m.visitors += cell.v
+        m.entries += cell.e
+      }
+    }
+
+    const pages = Object.entries(merged)
       .map(([path, stats]) => ({
         path,
         views: stats.views,
-        visitors: stats.visitors.size,
+        visitors: stats.visitors,
         entries: stats.entries,
       }))
       .sort((a, b) => b.views - a.views)
@@ -252,18 +281,26 @@ export async function handleGetReferrers(request: Request, siteId: string): Prom
     const { startDate, endDate } = parseDateRange(query)
     const limit = Math.min(Number(query.limit) || 10, 100)
 
-    // Query sessions
-    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
-
     const filters = parseFilters(query)
+    // Rolled prefix (#172): settled days come from ROLLUP#DIMS items — they
+    // survive the raw TTL, so this report works beyond 30 days ("All Time").
+    // Filtered queries can't be answered from aggregates and stay raw-only.
+    const { days: rolled, rawWindowStart } = hasFilters(filters)
+      ? { days: [] as DayDimRollup[], rawWindowStart: startDate }
+      : await readDimRollupPrefix(siteId, startDate, endDate)
+
+    // Query sessions for the live tail
+    const result = rawWindowStart <= endDate
+      ? await querySessionItemsInRange(siteId, rawWindowStart, endDate) as { Items?: any[] }
+      : { Items: [] }
+
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
       return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
     })
 
-    // Aggregate by referrer source, plus a higher-level channel rollup
+    // Aggregate by referrer source (channels derive from the merged sources).
     const referrerStats: Record<string, { visitors: Set<string>; views: number }> = {}
-    const channelStats: Record<string, { visitors: Set<string>; views: number }> = {}
     for (const s of sessions) {
       const source = s.referrerSource || 'Direct'
       if (!referrerStats[source]) {
@@ -271,29 +308,41 @@ export async function handleGetReferrers(request: Request, siteId: string): Prom
       }
       referrerStats[source].visitors.add(s.visitorId)
       referrerStats[source].views += s.pageViewCount || 1
-
-      const channel = getReferrerSourceChannel(source)
-      if (!channelStats[channel]) {
-        channelStats[channel] = { visitors: new Set(), views: 0 }
-      }
-      channelStats[channel].visitors.add(s.visitorId)
-      channelStats[channel].views += s.pageViewCount || 1
     }
 
-    const referrers = Object.entries(referrerStats)
+    // Merge the rolled prefix (daily-unique sums, #146 semantics).
+    const merged: Record<string, { visitors: number, views: number }> = {}
+    for (const [source, stats] of Object.entries(referrerStats))
+      merged[source] = { visitors: stats.visitors.size, views: stats.views }
+    for (const dayR of rolled) {
+      for (const [source, cell] of Object.entries(dayR.sources || {})) {
+        const m = (merged[source] ||= { visitors: 0, views: 0 })
+        m.visitors += cell.v
+        m.views += cell.w
+      }
+    }
+    const mergedChannels: Record<string, { visitors: number, views: number }> = {}
+    for (const [source, stats] of Object.entries(merged)) {
+      const channel = getReferrerSourceChannel(source)
+      const m = (mergedChannels[channel] ||= { visitors: 0, views: 0 })
+      m.visitors += stats.visitors
+      m.views += stats.views
+    }
+
+    const referrers = Object.entries(merged)
       .map(([source, stats]) => ({
         source,
         channel: getReferrerSourceChannel(source),
-        visitors: stats.visitors.size,
+        visitors: stats.visitors,
         views: stats.views,
       }))
       .sort((a, b) => b.visitors - a.visitors)
       .slice(0, limit)
 
-    const byChannel = Object.entries(channelStats)
+    const byChannel = Object.entries(mergedChannels)
       .map(([channel, stats]) => ({
         channel,
-        visitors: stats.visitors.size,
+        visitors: stats.visitors,
         views: stats.views,
       }))
       .sort((a, b) => b.visitors - a.visitors)
@@ -314,10 +363,17 @@ export async function handleGetDevices(request: Request, siteId: string): Promis
     const query = getQueryParams(request)
     const { startDate, endDate } = parseDateRange(query)
 
-    // Query sessions
-    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
-
     const filters = parseFilters(query)
+    // Rolled prefix (#172): settled days from ROLLUP#DIMS survive the raw TTL.
+    // Filtered queries stay raw-only.
+    const { days: rolled, rawWindowStart } = hasFilters(filters)
+      ? { days: [] as DayDimRollup[], rawWindowStart: startDate }
+      : await readDimRollupPrefix(siteId, startDate, endDate)
+
+    const result = rawWindowStart <= endDate
+      ? await querySessionItemsInRange(siteId, rawWindowStart, endDate) as { Items?: any[] }
+      : { Items: [] }
+
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
       return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
@@ -338,21 +394,34 @@ export async function handleGetDevices(request: Request, siteId: string): Promis
       osStats[os].add(s.visitorId)
     }
 
-    const totalVisitors = sessions.length > 0 ? new Set(sessions.map(s => s.visitorId)).size : 0
+    // Merge the rolled prefix (daily-unique sums); percentages come from the
+    // merged dimension totals.
+    const mergedDevices: Record<string, number> = {}
+    for (const [type, visitors] of Object.entries(deviceStats)) mergedDevices[type] = visitors.size
+    const mergedOs: Record<string, number> = {}
+    for (const [name, visitors] of Object.entries(osStats)) mergedOs[name] = visitors.size
+    for (const dayR of rolled) {
+      for (const [type, cell] of Object.entries(dayR.devices || {}))
+        mergedDevices[type] = (mergedDevices[type] || 0) + cell.v
+      for (const [name, cell] of Object.entries(dayR.os || {}))
+        mergedOs[name] = (mergedOs[name] || 0) + cell.v
+    }
+    const totalVisitors = Object.values(mergedDevices).reduce((a, b) => a + b, 0)
 
-    const deviceTypes = Object.entries(deviceStats)
+    const deviceTypes = Object.entries(mergedDevices)
       .map(([type, visitors]) => ({
         type: type.charAt(0).toUpperCase() + type.slice(1),
-        visitors: visitors.size,
-        percentage: totalVisitors > 0 ? Math.round((visitors.size / totalVisitors) * 100) : 0,
+        visitors,
+        percentage: totalVisitors > 0 ? Math.round((visitors / totalVisitors) * 100) : 0,
       }))
       .sort((a, b) => b.visitors - a.visitors)
 
-    const operatingSystems = Object.entries(osStats)
+    const osTotal = Object.values(mergedOs).reduce((a, b) => a + b, 0)
+    const operatingSystems = Object.entries(mergedOs)
       .map(([name, visitors]) => ({
         name,
-        visitors: visitors.size,
-        percentage: totalVisitors > 0 ? Math.round((visitors.size / totalVisitors) * 100) : 0,
+        visitors,
+        percentage: osTotal > 0 ? Math.round((visitors / osTotal) * 100) : 0,
       }))
       .sort((a, b) => b.visitors - a.visitors)
 
@@ -376,10 +445,17 @@ export async function handleGetBrowsers(request: Request, siteId: string): Promi
     const { startDate, endDate } = parseDateRange(query)
     const limit = Math.min(Number(query.limit) || 10, 100)
 
-    // Query sessions
-    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
-
     const filters = parseFilters(query)
+    // Rolled prefix (#172): settled days from ROLLUP#DIMS survive the raw TTL.
+    // Filtered queries stay raw-only.
+    const { days: rolled, rawWindowStart } = hasFilters(filters)
+      ? { days: [] as DayDimRollup[], rawWindowStart: startDate }
+      : await readDimRollupPrefix(siteId, startDate, endDate)
+
+    const result = rawWindowStart <= endDate
+      ? await querySessionItemsInRange(siteId, rawWindowStart, endDate) as { Items?: any[] }
+      : { Items: [] }
+
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
       return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
@@ -393,13 +469,20 @@ export async function handleGetBrowsers(request: Request, siteId: string): Promi
       browserStats[browser].add(s.visitorId)
     }
 
-    const totalVisitors = sessions.length > 0 ? new Set(sessions.map(s => s.visitorId)).size : 0
+    // Merge the rolled prefix (daily-unique sums).
+    const merged: Record<string, number> = {}
+    for (const [name, visitors] of Object.entries(browserStats)) merged[name] = visitors.size
+    for (const dayR of rolled) {
+      for (const [name, cell] of Object.entries(dayR.browsers || {}))
+        merged[name] = (merged[name] || 0) + cell.v
+    }
+    const totalVisitors = Object.values(merged).reduce((a, b) => a + b, 0)
 
-    const browsers = Object.entries(browserStats)
+    const browsers = Object.entries(merged)
       .map(([name, visitors]) => ({
         name,
-        visitors: visitors.size,
-        percentage: totalVisitors > 0 ? Math.round((visitors.size / totalVisitors) * 100) : 0,
+        visitors,
+        percentage: totalVisitors > 0 ? Math.round((visitors / totalVisitors) * 100) : 0,
       }))
       .sort((a, b) => b.visitors - a.visitors)
       .slice(0, limit)
@@ -422,9 +505,17 @@ export async function handleGetOS(request: Request, siteId: string): Promise<Res
     const { startDate, endDate } = parseDateRange(query)
     const limit = Math.min(Number(query.limit) || 10, 100)
 
-    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
-
     const filters = parseFilters(query)
+    // Rolled prefix (#172): settled days from ROLLUP#DIMS survive the raw TTL.
+    // Filtered queries stay raw-only.
+    const { days: rolled, rawWindowStart } = hasFilters(filters)
+      ? { days: [] as DayDimRollup[], rawWindowStart: startDate }
+      : await readDimRollupPrefix(siteId, startDate, endDate)
+
+    const result = rawWindowStart <= endDate
+      ? await querySessionItemsInRange(siteId, rawWindowStart, endDate) as { Items?: any[] }
+      : { Items: [] }
+
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
       return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
@@ -437,13 +528,20 @@ export async function handleGetOS(request: Request, siteId: string): Promise<Res
       osStats[os].add(s.visitorId)
     }
 
-    const totalVisitors = sessions.length > 0 ? new Set(sessions.map(s => s.visitorId)).size : 0
+    // Merge the rolled prefix (daily-unique sums).
+    const merged: Record<string, number> = {}
+    for (const [name, visitors] of Object.entries(osStats)) merged[name] = visitors.size
+    for (const dayR of rolled) {
+      for (const [name, cell] of Object.entries(dayR.os || {}))
+        merged[name] = (merged[name] || 0) + cell.v
+    }
+    const totalVisitors = Object.values(merged).reduce((a, b) => a + b, 0)
 
-    const os = Object.entries(osStats)
+    const os = Object.entries(merged)
       .map(([name, visitors]) => ({
         name,
-        visitors: visitors.size,
-        percentage: totalVisitors > 0 ? Math.round((visitors.size / totalVisitors) * 100) : 0,
+        visitors,
+        percentage: totalVisitors > 0 ? Math.round((visitors / totalVisitors) * 100) : 0,
       }))
       .sort((a, b) => b.visitors - a.visitors)
       .slice(0, limit)
@@ -465,10 +563,17 @@ export async function handleGetCountries(request: Request, siteId: string): Prom
     const { startDate, endDate } = parseDateRange(query)
     const limit = Math.min(Number(query.limit) || 10, 100)
 
-    // Query sessions
-    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
-
     const filters = parseFilters(query)
+    // Rolled prefix (#172): settled days from ROLLUP#DIMS survive the raw TTL.
+    // Filtered queries stay raw-only.
+    const { days: rolled, rawWindowStart } = hasFilters(filters)
+      ? { days: [] as DayDimRollup[], rawWindowStart: startDate }
+      : await readDimRollupPrefix(siteId, startDate, endDate)
+
+    const result = rawWindowStart <= endDate
+      ? await querySessionItemsInRange(siteId, rawWindowStart, endDate) as { Items?: any[] }
+      : { Items: [] }
+
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
       return sessionStart >= startDate && sessionStart <= endDate && matchesFilters(s, filters)
@@ -484,12 +589,20 @@ export async function handleGetCountries(request: Request, siteId: string): Prom
       countryStats[s.country].add(s.visitorId)
     }
 
-    const countries = Object.entries(countryStats)
+    // Merge the rolled prefix (daily-unique sums).
+    const merged: Record<string, number> = {}
+    for (const [name, visitors] of Object.entries(countryStats)) merged[name] = visitors.size
+    for (const dayR of rolled) {
+      for (const [name, cell] of Object.entries(dayR.countries || {}))
+        merged[name] = (merged[name] || 0) + cell.v
+    }
+
+    const countries = Object.entries(merged)
       .map(([name, visitors]) => {
         // Emoji flag from the ISO code (Fathom/GA-style) — stored values are
         // display names (reverse-mapped) or bare ISO codes.
         const code = countryCodeOf(name) || ''
-        return { name, code, flag: code ? countryFlagEmoji(code) : '', visitors: visitors.size }
+        return { name, code, flag: code ? countryFlagEmoji(code) : '', visitors }
       })
       .sort((a, b) => b.visitors - a.visitors)
       .slice(0, limit)
@@ -512,8 +625,15 @@ export async function handleGetRegions(request: Request, siteId: string): Promis
     const limit = Math.min(Number(query.limit) || 10, 100)
     const filters = parseFilters(query)
 
-    // Query sessions
-    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
+    // Rolled prefix (#172): settled days from ROLLUP#DIMS survive the raw TTL.
+    // Filtered queries stay raw-only.
+    const { days: rolled, rawWindowStart } = hasFilters(filters)
+      ? { days: [] as DayDimRollup[], rawWindowStart: startDate }
+      : await readDimRollupPrefix(siteId, startDate, endDate)
+
+    const result = rawWindowStart <= endDate
+      ? await querySessionItemsInRange(siteId, rawWindowStart, endDate) as { Items?: any[] }
+      : { Items: [] }
 
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
@@ -531,10 +651,18 @@ export async function handleGetRegions(request: Request, siteId: string): Promis
       regionStats[key].visitors.add(s.visitorId)
     }
 
-    const regions = Object.entries(regionStats)
-      .map(([key, data]) => {
-        const region = key.split(':')[1]
-        return { name: region, country: data.country, visitors: data.visitors.size }
+    // Merge the rolled prefix (composite `${country}:${region}` keys).
+    const merged: Record<string, number> = {}
+    for (const [key, data] of Object.entries(regionStats)) merged[key] = data.visitors.size
+    for (const dayR of rolled) {
+      for (const [key, cell] of Object.entries(dayR.regions || {}))
+        merged[key] = (merged[key] || 0) + cell.v
+    }
+
+    const regions = Object.entries(merged)
+      .map(([key, visitors]) => {
+        const [country, region] = key.split(':')
+        return { name: region, country, visitors }
       })
       .sort((a, b) => b.visitors - a.visitors)
       .slice(0, limit)
@@ -557,8 +685,15 @@ export async function handleGetCities(request: Request, siteId: string): Promise
     const limit = Math.min(Number(query.limit) || 10, 100)
     const filters = parseFilters(query)
 
-    // Query sessions
-    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
+    // Rolled prefix (#172): settled days from ROLLUP#DIMS survive the raw TTL.
+    // Filtered queries stay raw-only.
+    const { days: rolled, rawWindowStart } = hasFilters(filters)
+      ? { days: [] as DayDimRollup[], rawWindowStart: startDate }
+      : await readDimRollupPrefix(siteId, startDate, endDate)
+
+    const result = rawWindowStart <= endDate
+      ? await querySessionItemsInRange(siteId, rawWindowStart, endDate) as { Items?: any[] }
+      : { Items: [] }
 
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
@@ -577,10 +712,18 @@ export async function handleGetCities(request: Request, siteId: string): Promise
       cityStats[key].visitors.add(s.visitorId)
     }
 
-    const cities = Object.entries(cityStats)
-      .map(([key, data]) => {
-        const city = key.split(':')[2]
-        return { name: city, country: data.country, region: data.region, visitors: data.visitors.size }
+    // Merge the rolled prefix (composite `${country}:${region}:${city}` keys).
+    const merged: Record<string, number> = {}
+    for (const [key, data] of Object.entries(cityStats)) merged[key] = data.visitors.size
+    for (const dayR of rolled) {
+      for (const [key, cell] of Object.entries(dayR.cities || {}))
+        merged[key] = (merged[key] || 0) + cell.v
+    }
+
+    const cities = Object.entries(merged)
+      .map(([key, visitors]) => {
+        const [country, region, city] = key.split(':')
+        return { name: city, country, region, visitors }
       })
       .sort((a, b) => b.visitors - a.visitors)
       .slice(0, limit)
@@ -1008,8 +1151,13 @@ export async function handleGetCampaigns(request: Request, siteId: string): Prom
     const { startDate, endDate } = parseDateRange(query)
     const limit = Math.min(Number(query.limit) || 10, 100)
 
-    // Query sessions with UTM data
-    const result = await querySessionItemsInRange(siteId, startDate, endDate) as { Items?: any[] }
+    // Rolled prefix (#172): settled days from ROLLUP#DIMS survive the raw TTL.
+    const { days: rolled, rawWindowStart } = await readDimRollupPrefix(siteId, startDate, endDate)
+
+    // Query sessions with UTM data for the live tail
+    const result = rawWindowStart <= endDate
+      ? await querySessionItemsInRange(siteId, rawWindowStart, endDate) as { Items?: any[] }
+      : { Items: [] }
 
     const sessions = (result.Items || []).map(unmarshall).filter(s => {
       const sessionStart = new Date(s.startedAt)
@@ -1027,10 +1175,22 @@ export async function handleGetCampaigns(request: Request, siteId: string): Prom
       campaignStats[campaign].sessions++
     }
 
-    const campaigns = Object.entries(campaignStats)
+    // Merge the rolled prefix (daily-unique sums).
+    const merged: Record<string, { visitors: number, sessions: number, source: string, medium: string }> = {}
+    for (const [name, stats] of Object.entries(campaignStats))
+      merged[name] = { visitors: stats.visitors.size, sessions: stats.sessions, source: stats.source, medium: stats.medium }
+    for (const dayR of rolled) {
+      for (const [name, cell] of Object.entries(dayR.campaigns || {})) {
+        const m = (merged[name] ||= { visitors: 0, sessions: 0, source: cell.src, medium: cell.med })
+        m.visitors += cell.v
+        m.sessions += cell.s
+      }
+    }
+
+    const campaigns = Object.entries(merged)
       .map(([name, stats]) => ({
         name,
-        visitors: stats.visitors.size,
+        visitors: stats.visitors,
         sessions: stats.sessions,
         source: stats.source,
         medium: stats.medium,
