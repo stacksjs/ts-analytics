@@ -38,12 +38,56 @@
 </script>
 
 <script>
-  // Dead-binding canary (moustache deep-dive): after every SPA navigation,
-  // assert (1) no literal {{ }} left in DOM text and (2) every data-stx-scope
-  // element has a registered scope. Logs loudly with a fingerprint so field
-  // occurrences are diagnosable even when unreproducible. Dev-only.
+  // Dead-binding canary v2 (moustache deep-dive): captures FORENSICS at the
+  // moment bindings die — router/stx console lines since the last nav, the
+  // dead scope's registration + script state — so a field repro hands us the
+  // mechanism directly. Dev-only.
   (function(){
     if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+    var buffer = [];
+    ['log','warn','error','debug','info'].forEach(function(k){
+      var orig = console[k] && console[k].bind(console);
+      if (!orig) return;
+      console[k] = function(){
+        try {
+          var msg = Array.prototype.map.call(arguments, String).join(' ');
+          if (/router|stx|script|scope|swap|dedup|fragment/i.test(msg) && msg.indexOf('[canary]') === -1) {
+            buffer.push(k + ': ' + msg.slice(0, 180));
+            if (buffer.length > 40) buffer.shift();
+          }
+        } catch (e) {}
+        orig.apply(null, arguments);
+      };
+    });
+    window.addEventListener('error', function(e){
+      buffer.push('ONERROR: ' + e.message + ' @ ' + (e.filename || '').split('/').pop() + ':' + e.lineno);
+    });
+    function forensics() {
+      try {
+        var el = document.getElementById('chart');
+        var scopeEl = el ? el.closest('[data-stx-scope]') : null;
+        var id = scopeEl ? scopeEl.getAttribute('data-stx-scope') : '(no chart scope el)';
+        var scopes = (window.stx && window.stx._scopes) || {};
+        var sv = scopes[id];
+        var scripts = scopeEl ? scopeEl.querySelectorAll('script').length : -1;
+        var containerScope = null;
+        try {
+          var main = document.querySelector('main') || document.getElementById('main-content');
+          containerScope = main && main.__stx_scope ? 'SET' : 'unset';
+        } catch (e2) {}
+        return JSON.stringify({
+          chartScopeId: id,
+          registered: !!sv,
+          mounted: sv ? !!sv.__mounted : null,
+          titleType: sv ? typeof sv.title : null,
+          scopeKeyCount: sv ? Object.keys(sv).length : null,
+          scriptsInScope: scripts,
+          containerScopeFlag: containerScope,
+          totalScopes: Object.keys(scopes).length,
+          build: (window.__stxBuild || 'n/a'),
+        });
+      } catch (e) { return 'forensics failed: ' + e.message; }
+    }
     function check(trigger) {
       setTimeout(function(){
         try {
@@ -64,12 +108,15 @@
             console.error('[canary] dead bindings after ' + trigger
               + ' | literal moustaches: ' + (moustaches.join(' ') || 'none')
               + ' | unregistered scopes: ' + (dead.join(',') || 'none')
-              + ' | path: ' + location.pathname);
+              + ' | path: ' + location.pathname
+              + '\n[canary] forensics: ' + forensics()
+              + '\n[canary] console since nav:\n' + (buffer.join('\n') || '(nothing captured)'));
           }
+          buffer = [];
         } catch (e) {}
       }, 800);
     }
-    window.addEventListener('stx:navigate', function(){ check('spa-nav'); });
+    window.addEventListener('stx:navigate', function(){ buffer = []; check('spa-nav'); });
     window.addEventListener('load', function(){ check('load'); });
   })();
 </script>
