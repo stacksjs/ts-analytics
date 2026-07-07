@@ -1,11 +1,7 @@
 <script client>
-import type { DateRange } from '../../types/dashboard'
-
 const dashboard = useStore('dashboard')
 const analytics = useStore('analytics')
 
-const activeRange = state<string>('7d')
-const showComparison = state<boolean>(false)
 const lastUpdated = state<string>('')
 const isRefreshing = state<boolean>(false)
 
@@ -19,46 +15,6 @@ function realtimeLabel(): string {
 effect(() => {
   if (analytics.stats()) lastUpdated.set(`Updated ${new Date().toLocaleTimeString()}`)
 })
-
-const ranges: DateRange[] = [
-  { id: '1h', label: '1h' },
-  { id: '6h', label: '6h' },
-  { id: '12h', label: '12h' },
-  { id: '24h', label: '24h' },
-  { id: '7d', label: '7d' },
-  { id: '30d', label: '30d' },
-  { id: '90d', label: '90d' },
-  { id: 'all', label: 'All' },
-  { id: 'custom', label: 'Custom' },
-]
-
-// Custom calendar range (#139): date inputs shown while 'custom' is active.
-// Effects that build URLs via dateParams()/dateBounds() read these signals
-// when the range is 'custom', so setting them re-triggers fetches directly.
-function customStartChanged(value: string): void {
-  dashboard.customStart.set(value)
-}
-
-function customEndChanged(value: string): void {
-  dashboard.customEnd.set(value)
-}
-
-function setRange(range: string): void {
-  activeRange.set(range)
-  // Keep the store in sync so store-driven fetches (chart, panels) use the
-  // selected range, then let the legacy controller refresh its own pieces.
-  dashboard.dateRange.set(range)
-  if (window.setDateRange) {
-    window.setDateRange(range)
-  }
-}
-
-function toggleComparison(): void {
-  // Drive the shared store (#153) — the chart overlay and stat-card deltas
-  // react to it. (window.toggleComparison was a dead legacy-controller hook.)
-  showComparison.update((v: boolean) => !v)
-  dashboard.showComparison.set(showComparison())
-}
 
 async function refresh(): Promise<void> {
   if (isRefreshing()) return
@@ -84,44 +40,20 @@ function exportData(format: string): void {
   }
 }
 
-function rangeBtnClass(range: DateRange): string {
-  return activeRange() === range.id ? 'date-range-btn date-range-btn-active' : 'date-range-btn'
-}
-
-function compareBtnClass(): string {
-  const base = 'date-range-btn flex items-center gap-1 text-[0.6875rem] py-1 px-2'
-  return showComparison() ? `${base} date-range-btn-active` : base
-}
-
 function refreshBtnClass(): string {
   return isRefreshing() ? 'icon-btn spinning' : 'icon-btn'
 }
 
 onMount(() => {
-  window.controlsSetDateRange = (range: string) => activeRange.set(range)
-  window.controlsBar = {
-    setRange,
-    toggleComparison,
-    refresh,
-    exportData,
-    activeRange: () => activeRange(),
-    showComparison: () => showComparison(),
-    isRefreshing: () => isRefreshing(),
-  }
-
+  // Legacy deep-links (?range=7d style bootstrapping via window.dateRange).
   if (window.dateRange) {
-    activeRange.set(window.dateRange)
     dashboard.dateRange.set(window.dateRange)
   }
 })
 
 provide('controlsBar', {
-  activeRange,
-  showComparison,
   lastUpdated,
   isRefreshing,
-  setRange,
-  toggleComparison,
   refresh,
   exportData,
 })

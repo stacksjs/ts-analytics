@@ -30,7 +30,9 @@ function renderChart() {
   const timeSeriesData = analytics.timeSeries()
   const previousData = analytics.previousTimeSeries()
   const annotations = analytics.annotations()
-  const dateRange = dashboard.dateRange()
+  // Axis-label granularity keys on the chart's bucket period — the store owns
+  // range semantics; token strings must not be re-interpreted here.
+  const bucketPeriod = dashboard.timeseriesPeriod()
 
   const styles = getComputedStyle(document.documentElement)
   const colors = {
@@ -78,18 +80,21 @@ function renderChart() {
     const date = new Date(dateStr)
     if (isNaN(date.getTime())) return String(dateStr)
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    if (dateRange === '1h' || dateRange === '6h' || dateRange === '12h') {
+    if (bucketPeriod === 'minute') {
       const hr = date.getHours()
       const m = date.getMinutes()
       const ampm = hr >= 12 ? 'pm' : 'am'
       const h12 = hr % 12 || 12
       return `${h12}:${m < 10 ? '0' : ''}${m}${ampm}`
     }
-    else if (dateRange === '24h') {
+    else if (bucketPeriod === 'hour') {
       const hr = date.getHours()
       const ampm = hr >= 12 ? 'pm' : 'am'
       const h12 = hr % 12 || 12
       return `${h12}${ampm}`
+    }
+    else if (bucketPeriod === 'month') {
+      return `${months[date.getMonth()]} ${date.getFullYear()}`
     }
     return `${months[date.getMonth()]} ${date.getDate()}`
   }
@@ -105,7 +110,7 @@ function renderChart() {
     const h12 = hr % 12 || 12
     const timeStr = `${h12}:${m < 10 ? '0' : ''}${m}${ampm}`
     const dateStr2 = `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
-    if (dateRange === '1h' || dateRange === '6h' || dateRange === '12h' || dateRange === '24h') {
+    if (bucketPeriod === 'minute' || bucketPeriod === 'hour') {
       return `${dateStr2} at ${timeStr}`
     }
     return dateStr2

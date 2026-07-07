@@ -36,44 +36,12 @@ const rightDays = state<DayCell[]>([])
 const leftLabel = state<string>('')
 const rightLabel = state<string>('')
 
-const PRESETS: Array<{ id: string, label: string }> = [
-  { id: 'today', label: 'Today' },
-  { id: 'yesterday', label: 'Yesterday' },
-  { id: '7d', label: 'Last 7 Days' },
-  { id: '30d', label: 'Last 30 Days' },
-  { id: '90d', label: 'Last 90 Days' },
-  { id: '365d', label: 'Last 365 Days' },
-  { id: 'this-month', label: 'This Month' },
-  { id: 'last-month', label: 'Last Month' },
-  { id: 'this-year', label: 'This Year' },
-  { id: 'last-year', label: 'Last Year' },
-  { id: 'all', label: 'All Time' },
-]
+// Range semantics (presets, labels, bounds) live in the dashboard store —
+// this component is pure presentation: the rail renders store.rangePresets,
+// the trigger renders store.triggerLabel, and selections call
+// store.applyPreset / store.applyCustomRange.
+const PRESETS = dashboard.rangePresets()
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-function presetLabel(): string {
-  const range = dashboard.dateRange()
-  const hit = PRESETS.find(function (p) { return p.id === range })
-  if (hit) return hit.label
-  if (range === 'custom') return 'Custom'
-  return range // 1h/6h/12h/24h legacy tokens
-}
-
-function fmtShort(iso: string): string {
-  const d = new Date(iso)
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}`
-}
-
-function fmtFull(iso: string): string {
-  const d = new Date(iso)
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
-}
-
-function triggerLabel(): string {
-  const bounds = dashboard.dateBounds()
-  if (dashboard.dateRange() === 'all') return 'All Time'
-  return `${presetLabel()}: ${fmtShort(bounds.start)} to ${fmtFull(bounds.end)}`
-}
 
 function presetClass(id: string): string {
   const base = 'w-full text-left px-3 py-1.5 rounded-lg text-[0.8125rem] cursor-pointer border-none transition-colors duration-150'
@@ -169,7 +137,7 @@ function stepForward(): void {
 }
 
 function pickPreset(id: string): void {
-  dashboard.dateRange.set(id)
+  dashboard.applyPreset(id)
   closePicker()
 }
 
@@ -193,9 +161,7 @@ function pickDay(ts: number): void {
     const dd = String(d.getDate()).padStart(2, '0')
     return `${d.getFullYear()}-${mm}-${dd}`
   }
-  dashboard.customStart.set(iso(start))
-  dashboard.customEnd.set(iso(end))
-  dashboard.dateRange.set('custom')
+  dashboard.applyCustomRange(iso(start), iso(end))
   closePicker()
 }
 
@@ -228,7 +194,7 @@ onMount(function () {
 <div id="date-range-picker" class="relative flex items-center gap-3">
   <button class="inline-flex items-center gap-2 py-1.5 px-3 bg-bg-2 border border-border rounded-lg text-[0.8125rem] text-text cursor-pointer transition-all duration-150 hover:border-muted" @click="togglePicker()">
     <Icon name="calendar" size="15" class="text-muted" />
-    {{ triggerLabel() }}
+    {{ dashboard.triggerLabel() }}
     <Icon name="chevron-down" size="14" class="text-muted" />
   </button>
 

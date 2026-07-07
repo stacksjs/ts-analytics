@@ -127,26 +127,9 @@ defineStore('dashboard', () => {
 
   // Date range as query params
   function dateParams(): string {
-    const range = dateRange()
-    if (!range) return ''
-    const now = new Date()
-    let start: Date
-
-    if (range.endsWith('h')) {
-      start = new Date(now.getTime() - parseInt(range) * 60 * 60 * 1000)
-    } else if (range.endsWith('d')) {
-      start = new Date(now.getTime() - parseInt(range) * 24 * 60 * 60 * 1000)
-    } else if (['all', 'custom', 'today', 'yesterday', '365d', 'this-month', 'last-month', 'this-year', 'last-year'].includes(range)) {
-      // Calendar presets + custom + all-time share the dateBounds derivation.
-      const bounds = dateBounds()
-      return `?startDate=${bounds.start}&endDate=${bounds.end}&period=${timeseriesPeriod()}`
-    } else {
-      return ''
-    }
-
-    // The API's parseDateRange reads startDate/endDate — `start`/`end` were
-    // silently ignored, so store-driven fetches always got the default 30 days.
-    return `?startDate=${start.toISOString()}&endDate=${now.toISOString()}&period=${range}`
+    if (!dateRange()) return ''
+    const bounds = dateBounds()
+    return `?startDate=${bounds.start}&endDate=${bounds.end}&period=${timeseriesPeriod()}`
   }
 
   // Active filters as query params (e.g. &country=US&device=mobile)
@@ -181,62 +164,105 @@ defineStore('dashboard', () => {
 
   // Absolute start/end ISO bounds for the current range. Used by endpoints that
   // read startDate/endDate (e.g. /timeseries, /annotations) rather than start/end.
+  /**
+   * SINGLE SOURCE OF TRUTH for every date range the dashboard understands.
+   * Each preset owns its label (picker rail), chart bucket granularity, and
+   * bounds derivation. dateBounds / timeseriesPeriod / dateParams /
+   * triggerLabel are all thin lookups into this table — never re-derive
+   * range semantics anywhere else.
+   */
+  interface RangePreset {
+    id: string
+    label: string
+    period: 'minute' | 'hour' | 'day' | 'month'
+    /** Hidden from the picker rail (legacy deep-link tokens). */
+    legacy?: boolean
+    bounds: (now: Date) => { start: Date, end: Date }
+  }
+
+  const startOfDay = (d: Date): Date => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const hoursBack = (now: Date, h: number) => ({ start: new Date(now.getTime() - h * 36e5), end: now })
+  const daysBack = (now: Date, d: number) => ({ start: new Date(now.getTime() - d * 864e5), end: now })
+
+  const RANGE_PRESETS: RangePreset[] = [
+    { id: 'today', label: 'Today', period: 'hour', bounds: now => ({ start: startOfDay(now), end: now }) },
+    { id: 'yesterday', label: 'Yesterday', period: 'hour', bounds: (now) => {
+      const y = new Date(now.getTime() - 864e5)
+      return { start: startOfDay(y), end: new Date(startOfDay(now).getTime() - 1) }
+    } },
+    { id: '7d', label: 'Last 7 Days', period: 'day', bounds: now => daysBack(now, 7) },
+    { id: '30d', label: 'Last 30 Days', period: 'day', bounds: now => daysBack(now, 30) },
+    { id: '90d', label: 'Last 90 Days', period: 'day', bounds: now => daysBack(now, 90) },
+    { id: '365d', label: 'Last 365 Days', period: 'month', bounds: now => daysBack(now, 365) },
+    { id: 'this-month', label: 'This Month', period: 'day', bounds: now => ({ start: new Date(now.getFullYear(), now.getMonth(), 1), end: now }) },
+    { id: 'last-month', label: 'Last Month', period: 'day', bounds: now => ({
+      start: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+      end: new Date(new Date(now.getFullYear(), now.getMonth(), 1).getTime() - 1),
+    }) },
+    { id: 'this-year', label: 'This Year', period: 'month', bounds: now => ({ start: new Date(now.getFullYear(), 0, 1), end: now }) },
+    { id: 'last-year', label: 'Last Year', period: 'month', bounds: now => ({
+      start: new Date(now.getFullYear() - 1, 0, 1),
+      end: new Date(new Date(now.getFullYear(), 0, 1).getTime() - 1),
+    }) },
+    { id: 'all', label: 'All Time', period: 'month', bounds: now => ({ start: new Date('2015-01-01T00:00:00.000Z'), end: now }) },
+    // Legacy deep-link tokens (old preset row / bookmarks) — resolvable, not shown.
+    { id: '1h', label: 'Last hour', period: 'minute', legacy: true, bounds: now => hoursBack(now, 1) },
+    { id: '6h', label: 'Last 6 hours', period: 'hour', legacy: true, bounds: now => hoursBack(now, 6) },
+    { id: '12h', label: 'Last 12 hours', period: 'hour', legacy: true, bounds: now => hoursBack(now, 12) },
+    { id: '24h', label: 'Last 24 hours', period: 'hour', legacy: true, bounds: now => hoursBack(now, 24) },
+  ]
+
+  function presetFor(id: string): RangePreset | undefined {
+    return RANGE_PRESETS.find(preset => preset.id === id)
+  }
+
+  /** Presets for the picker rail (legacy tokens excluded). */
+  function rangePresets(): Array<{ id: string, label: string }> {
+    return RANGE_PRESETS.filter(preset => !preset.legacy).map(preset => ({ id: preset.id, label: preset.label }))
+  }
+
   function dateBounds(): { start: string, end: string } {
     const now = new Date()
-    const spans: Record<string, number> = {
-      '1h': 60 * 60 * 1000,
-      '6h': 6 * 60 * 60 * 1000,
-      '12h': 12 * 60 * 60 * 1000,
-      '24h': 24 * 60 * 60 * 1000,
-      '7d': 7 * 24 * 60 * 60 * 1000,
-      '30d': 30 * 24 * 60 * 60 * 1000,
-      '90d': 90 * 24 * 60 * 60 * 1000,
-    }
     const range = dateRange()
-    // All time (#139): rollups make it as cheap as any other range.
-    if (range === 'all') {
-      return { start: '2015-01-01T00:00:00.000Z', end: now.toISOString() }
-    }
-    // Calendar presets (Fathom-style picker): computed against local time so
-    // "Today" means the user's today.
-    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
-    if (range === 'today') {
-      return { start: startOfDay(now).toISOString(), end: now.toISOString() }
-    }
-    if (range === 'yesterday') {
-      const y = new Date(now.getTime() - 864e5)
-      return { start: startOfDay(y).toISOString(), end: new Date(startOfDay(now).getTime() - 1).toISOString() }
-    }
-    if (range === '365d') {
-      return { start: new Date(now.getTime() - 365 * 864e5).toISOString(), end: now.toISOString() }
-    }
-    if (range === 'this-month') {
-      return { start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), end: now.toISOString() }
-    }
-    if (range === 'last-month') {
-      return {
-        start: new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString(),
-        end: new Date(new Date(now.getFullYear(), now.getMonth(), 1).getTime() - 1).toISOString(),
-      }
-    }
-    if (range === 'this-year') {
-      return { start: new Date(now.getFullYear(), 0, 1).toISOString(), end: now.toISOString() }
-    }
-    if (range === 'last-year') {
-      return {
-        start: new Date(now.getFullYear() - 1, 0, 1).toISOString(),
-        end: new Date(new Date(now.getFullYear(), 0, 1).getTime() - 1).toISOString(),
-      }
-    }
-    // Custom calendar range (#139): explicit start/end dates from the picker.
     if (range === 'custom' && customStart()) {
-      const endIso = customEnd()
-        ? `${customEnd()}T23:59:59.999Z`
-        : now.toISOString()
-      return { start: `${customStart()}T00:00:00.000Z`, end: endIso }
+      // Calendar picks are LOCAL days — anchor bounds to local midnights, not
+      // UTC (UTC anchoring shifted labels/data by the timezone offset).
+      const [sy, sm, sd] = customStart().split('-').map(Number)
+      const start = new Date(sy, sm - 1, sd)
+      let end = now
+      if (customEnd()) {
+        const [ey, em, ed] = customEnd().split('-').map(Number)
+        end = new Date(ey, em - 1, ed, 23, 59, 59, 999)
+      }
+      return { start: start.toISOString(), end: end.toISOString() }
     }
-    const span = spans[range] ?? spans['30d']
-    return { start: new Date(now.getTime() - span).toISOString(), end: now.toISOString() }
+    const preset = presetFor(range) ?? presetFor('30d')!
+    const bounds = preset.bounds(now)
+    return { start: bounds.start.toISOString(), end: bounds.end.toISOString() }
+  }
+
+  /** Human label for the current range, Fathom-style ("Last 7 Days: Jun 30 to Jul 7, 2026"). */
+  function triggerLabel(): string {
+    const range = dateRange()
+    if (range === 'all') return 'All Time'
+    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const bounds = dateBounds()
+    const s = new Date(bounds.start)
+    const e = new Date(bounds.end)
+    const name = range === 'custom' ? 'Custom' : (presetFor(range)?.label ?? range)
+    return `${name}: ${MONTHS[s.getMonth()]} ${s.getDate()} to ${MONTHS[e.getMonth()]} ${e.getDate()}, ${e.getFullYear()}`
+  }
+
+  /** Apply a preset from the picker rail. */
+  function applyPreset(id: string): void {
+    dateRange.set(id)
+  }
+
+  /** Apply a custom calendar range (ISO yyyy-mm-dd dates). */
+  function applyCustomRange(startIso: string, endIso: string): void {
+    customStart.set(startIso)
+    customEnd.set(endIso)
+    dateRange.set('custom')
   }
 
   // The window immediately before the current one, same duration (#153).
@@ -250,11 +276,8 @@ defineStore('dashboard', () => {
   // Bucket granularity for the timeseries endpoint, derived from the range.
   function timeseriesPeriod(): string {
     const range = dateRange()
-    if (range === '1h') return 'minute'
-    if (range === '6h' || range === '12h' || range === '24h') return 'hour'
-    if (range === 'today' || range === 'yesterday') return 'hour'
-    if (range === 'all' || range === '365d' || range === 'this-year' || range === 'last-year') return 'month'
-    return 'day'
+    if (range === 'custom') return 'day'
+    return presetFor(range)?.period ?? 'day'
   }
 
   // SPA navigation
@@ -285,6 +308,10 @@ defineStore('dashboard', () => {
     setFilter,
     clearFilters,
     dateBounds,
+    rangePresets,
+    triggerLabel,
+    applyPreset,
+    applyCustomRange,
     previousDateBounds,
     showComparison,
     customStart,
