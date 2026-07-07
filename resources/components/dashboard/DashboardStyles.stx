@@ -263,4 +263,85 @@ td.value, .cell-value {
 #dashboard-panels .grid > [data-stx-scope] > .panel {
   flex: 1 1 auto;
 }
+
+/* ===== Interactive hover/active layer (#hover-sweep) =====
+   Crosswind 0.2.x silently DROPS variant utilities (hover:/focus:/active:)
+   inside shortcut definitions — .btn-primary's hover:bg-accent-2 never
+   generated any CSS, so every shortcut-styled control was hover-dead. These
+   rules are the shortcuts' interactive states, hand-written where they're
+   guaranteed to ship. If crosswind fixes shortcut variants, these still win
+   nothing-breaks (same declarations). */
+
+.btn,
+.icon-btn,
+.date-range-btn,
+.tab-btn {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+.btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-primary:hover {
+  background: var(--accent2);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.btn-secondary:hover {
+  background: var(--bg);
+  border-color: var(--muted);
+  color: var(--text);
+}
+.btn-danger:hover {
+  filter: brightness(1.12);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--error) 30%, transparent);
+}
+
+.icon-btn:hover {
+  background: var(--bg3);
+  color: var(--text);
+}
+.icon-btn:active {
+  transform: scale(0.92);
+}
+
+.date-range-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+.date-range-btn:active {
+  transform: scale(0.97);
+}
+.date-range-btn-active:hover {
+  background: var(--accent2);
+  color: #fff;
+  border-color: var(--accent2);
+}
+
+.tab-btn:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg3) 60%, transparent);
+  border-radius: 6px 6px 0 0;
+}
+
+.filter-select:hover,
+.form-input:hover {
+  border-color: var(--muted);
+}
+
+.session-card:hover,
+.error-card:hover {
+  transform: translateY(-1px);
+}
+
+/* Table rows that navigate (detail views, panels) */
+tr[data-clickable]:hover,
+.clickable-row:hover {
+  background: var(--bg3);
+  cursor: pointer;
+}
 </style>

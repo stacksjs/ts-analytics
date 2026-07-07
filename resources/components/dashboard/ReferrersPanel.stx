@@ -1,4 +1,10 @@
 <script client>
+// Named handler: '>' inside an @-attribute silently kills the handler
+// (stacksjs/stx#1771), so no arrows in event attributes.
+function hideBrokenIcon(e) {
+  e.target.style.display = 'none'
+}
+
 /**
  * ReferrersPanel Component
  * Displays top referrers with reactive data fetching
@@ -92,7 +98,7 @@ onMount(() => {
               width="14"
               height="14"
               class="align-middle rounded-sm"
-              @error="e => e.target.style.display = 'none'"
+              @error="hideBrokenIcon($event)"
             />
             <span>{{ ref.source ? ref.source : 'Direct' }}</span>
             <Icon name="external-link" size="10" class="opacity-50" />
