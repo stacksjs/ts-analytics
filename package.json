@@ -75,7 +75,7 @@
   "dependencies": {
     "@cwcss/crosswind": "^0.2.6",
     "@stacksjs/bun-router": "^0.0.16",
-    "@stacksjs/components": "^0.2.72",
+    "@stacksjs/components": "^0.2.82",
     "@stacksjs/stx": "^0.2.82",
     "bun-plugin-stx": "^0.2.82",
     "bun-query-builder": "^0.1.38",
