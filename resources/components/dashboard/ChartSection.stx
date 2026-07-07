@@ -10,8 +10,6 @@
 const analytics = useStore('analytics')
 const dashboard = useStore('dashboard')
 
-const title = 'Pageviews Over Time'
-
 function hasData() {
   return analytics.timeSeries().length > 0
 }
@@ -372,7 +370,7 @@ onMount(() => {
 
 <div class="panel relative mb-6">
   <div class="flex justify-between items-center mb-4">
-    <div class="font-semibold text-sm text-text">{{ title }}</div>
+    <div class="font-semibold text-sm text-text">Pageviews Over Time</div>
     <div class="flex items-center gap-1.5 text-xs text-muted" x-show="dashboard.showComparison()">
       <span class="inline-block w-4 border-t border-dashed border-muted"></span>
       Previous period
