@@ -136,10 +136,10 @@ defineStore('dashboard', () => {
       start = new Date(now.getTime() - parseInt(range) * 60 * 60 * 1000)
     } else if (range.endsWith('d')) {
       start = new Date(now.getTime() - parseInt(range) * 24 * 60 * 60 * 1000)
-    } else if (range === 'all' || range === 'custom') {
-      // Custom calendar + All time (#139) share the dateBounds derivation.
+    } else if (['all', 'custom', 'today', 'yesterday', '365d', 'this-month', 'last-month', 'this-year', 'last-year'].includes(range)) {
+      // Calendar presets + custom + all-time share the dateBounds derivation.
       const bounds = dateBounds()
-      return `?startDate=${bounds.start}&endDate=${bounds.end}&period=day`
+      return `?startDate=${bounds.start}&endDate=${bounds.end}&period=${timeseriesPeriod()}`
     } else {
       return ''
     }
@@ -197,6 +197,37 @@ defineStore('dashboard', () => {
     if (range === 'all') {
       return { start: '2015-01-01T00:00:00.000Z', end: now.toISOString() }
     }
+    // Calendar presets (Fathom-style picker): computed against local time so
+    // "Today" means the user's today.
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    if (range === 'today') {
+      return { start: startOfDay(now).toISOString(), end: now.toISOString() }
+    }
+    if (range === 'yesterday') {
+      const y = new Date(now.getTime() - 864e5)
+      return { start: startOfDay(y).toISOString(), end: new Date(startOfDay(now).getTime() - 1).toISOString() }
+    }
+    if (range === '365d') {
+      return { start: new Date(now.getTime() - 365 * 864e5).toISOString(), end: now.toISOString() }
+    }
+    if (range === 'this-month') {
+      return { start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), end: now.toISOString() }
+    }
+    if (range === 'last-month') {
+      return {
+        start: new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString(),
+        end: new Date(new Date(now.getFullYear(), now.getMonth(), 1).getTime() - 1).toISOString(),
+      }
+    }
+    if (range === 'this-year') {
+      return { start: new Date(now.getFullYear(), 0, 1).toISOString(), end: now.toISOString() }
+    }
+    if (range === 'last-year') {
+      return {
+        start: new Date(now.getFullYear() - 1, 0, 1).toISOString(),
+        end: new Date(new Date(now.getFullYear(), 0, 1).getTime() - 1).toISOString(),
+      }
+    }
     // Custom calendar range (#139): explicit start/end dates from the picker.
     if (range === 'custom' && customStart()) {
       const endIso = customEnd()
@@ -221,7 +252,8 @@ defineStore('dashboard', () => {
     const range = dateRange()
     if (range === '1h') return 'minute'
     if (range === '6h' || range === '12h' || range === '24h') return 'hour'
-    if (range === 'all') return 'month'
+    if (range === 'today' || range === 'yesterday') return 'hour'
+    if (range === 'all' || range === '365d' || range === 'this-year' || range === 'last-year') return 'month'
     return 'day'
   }
 

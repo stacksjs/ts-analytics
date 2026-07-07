@@ -122,7 +122,13 @@ await ev(`(function(){
   });
   return 'hooked';
 })()`)
-await ev(`(function(){ var b = document.getElementById('compare-btn'); if (b) b.click(); })()`)
+await ev(`(function(){
+  var root = document.getElementById('date-range-picker');
+  if (!root) return;
+  var btns = root.querySelectorAll('button');
+  var cmp = Array.prototype.find.call(btns, function(b){ return b.textContent.indexOf('comparison') !== -1; });
+  if (cmp) cmp.click();
+})()`)
 await new Promise(r => setTimeout(r, 1200))
 
 async function assertScopesRegistered(label: string): Promise<void> {

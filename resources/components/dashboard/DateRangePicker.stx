@@ -1,0 +1,278 @@
+<script client>
+/**
+ * DateRangePicker — Fathom-style range control.
+ *
+ * Trigger shows "{Preset}: {Jul 1 to Jul 7, 2026}"; the popover has a preset
+ * rail (Today … All Time) and a dual-month calendar for custom ranges
+ * (click start, click end — applies on the second click). Future days are
+ * struck through. Drives dashboard.dateRange / customStart / customEnd, so
+ * every panel refetches reactively.
+ *
+ * Template hygiene (stx#1771): no '>' of any kind inside @-handler
+ * attributes — all handlers are plain calls; day cells carry their data.
+ */
+const dashboard = useStore('dashboard')
+
+const open = state<boolean>(false)
+
+// Calendar view state: the left month (right month = left + 1).
+const now = new Date()
+const viewYear = state<number>(now.getFullYear())
+const viewMonth = state<number>(now.getMonth() - 1) // left = previous month, right = current
+
+// Pending range selection (ms timestamps; 0 = unset).
+const pendingStart = state<number>(0)
+
+interface DayCell {
+  key: string
+  label: string
+  ts: number
+  inMonth: boolean
+  future: boolean
+  state: string // '' | 'in-range' | 'endpoint'
+}
+const leftDays = state<DayCell[]>([])
+const rightDays = state<DayCell[]>([])
+const leftLabel = state<string>('')
+const rightLabel = state<string>('')
+
+const PRESETS: Array<{ id: string, label: string }> = [
+  { id: 'today', label: 'Today' },
+  { id: 'yesterday', label: 'Yesterday' },
+  { id: '7d', label: 'Last 7 Days' },
+  { id: '30d', label: 'Last 30 Days' },
+  { id: '90d', label: 'Last 90 Days' },
+  { id: '365d', label: 'Last 365 Days' },
+  { id: 'this-month', label: 'This Month' },
+  { id: 'last-month', label: 'Last Month' },
+  { id: 'this-year', label: 'This Year' },
+  { id: 'last-year', label: 'Last Year' },
+  { id: 'all', label: 'All Time' },
+]
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function presetLabel(): string {
+  const range = dashboard.dateRange()
+  const hit = PRESETS.find(function (p) { return p.id === range })
+  if (hit) return hit.label
+  if (range === 'custom') return 'Custom'
+  return range // 1h/6h/12h/24h legacy tokens
+}
+
+function fmtShort(iso: string): string {
+  const d = new Date(iso)
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}`
+}
+
+function fmtFull(iso: string): string {
+  const d = new Date(iso)
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+}
+
+function triggerLabel(): string {
+  const bounds = dashboard.dateBounds()
+  if (dashboard.dateRange() === 'all') return 'All Time'
+  return `${presetLabel()}: ${fmtShort(bounds.start)} to ${fmtFull(bounds.end)}`
+}
+
+function presetClass(id: string): string {
+  const base = 'w-full text-left px-3 py-1.5 rounded-lg text-[0.8125rem] cursor-pointer border-none transition-colors duration-150'
+  return dashboard.dateRange() === id
+    ? `${base} bg-accent text-white font-medium`
+    : `${base} bg-transparent text-text-2 hover:bg-bg-3 hover:text-text`
+}
+
+function dayClass(cell: DayCell): string {
+  const base = 'h-9 inline-flex items-center justify-center text-[0.8125rem] cursor-pointer select-none transition-colors duration-100'
+  if (!cell.inMonth) return `${base} text-muted/40 pointer-events-none`
+  if (cell.future) return `${base} text-muted/50 line-through pointer-events-none`
+  if (cell.state === 'endpoint') return `${base} bg-accent text-white font-semibold rounded-lg`
+  if (cell.state === 'in-range') return `${base} bg-accent/15 text-text`
+  return `${base} text-text rounded-lg hover:bg-bg-3`
+}
+
+function currentRangeMs(): { start: number, end: number } {
+  const bounds = dashboard.dateBounds()
+  return { start: new Date(bounds.start).getTime(), end: new Date(bounds.end).getTime() }
+}
+
+function buildMonth(year: number, month: number): DayCell[] {
+  const cells: DayCell[] = []
+  const first = new Date(year, month, 1)
+  const startPad = first.getDay()
+  const todayEnd = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 23, 59, 59).getTime()
+  const sel = pendingStart() ? { start: pendingStart(), end: pendingStart() } : currentRangeMs()
+  const gridStart = new Date(year, month, 1 - startPad)
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i)
+    const ts = d.getTime()
+    const dayEnd = ts + 864e5 - 1
+    let cellState = ''
+    if (dayEnd >= sel.start && ts <= sel.end) cellState = 'in-range'
+    const startDay = new Date(sel.start)
+    const endDay = new Date(sel.end)
+    const sameDay = function (a: Date, b: Date) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate() }
+    if (sameDay(d, startDay) || sameDay(d, endDay)) cellState = 'endpoint'
+    cells.push({
+      key: `${year}-${month}-${i}`,
+      label: String(d.getDate()),
+      ts,
+      inMonth: d.getMonth() === month,
+      future: d.getTime() > todayEnd,
+      state: cellState,
+    })
+  }
+  return cells
+}
+
+function rebuild(): void {
+  const y = viewYear()
+  const m = viewMonth()
+  const left = new Date(y, m, 1)
+  const right = new Date(y, m + 1, 1)
+  leftLabel.set(`${MONTHS[left.getMonth()]} ${left.getFullYear()}`)
+  rightLabel.set(`${MONTHS[right.getMonth()]} ${right.getFullYear()}`)
+  leftDays.set(buildMonth(left.getFullYear(), left.getMonth()))
+  rightDays.set(buildMonth(right.getFullYear(), right.getMonth()))
+}
+
+function togglePicker(): void {
+  open.update(function (v: boolean) { return !v })
+  if (open()) {
+    // View the months containing the current range end.
+    const end = new Date(dashboard.dateBounds().end)
+    viewYear.set(end.getFullYear())
+    viewMonth.set(end.getMonth() - 1)
+    pendingStart.set(0)
+    rebuild()
+  }
+}
+
+function closePicker(): void {
+  open.set(false)
+  pendingStart.set(0)
+}
+
+function stepMonths(delta: number): void {
+  const d = new Date(viewYear(), viewMonth() + delta, 1)
+  viewYear.set(d.getFullYear())
+  viewMonth.set(d.getMonth())
+  rebuild()
+}
+
+function stepBack(): void {
+  stepMonths(-1)
+}
+
+function stepForward(): void {
+  stepMonths(1)
+}
+
+function pickPreset(id: string): void {
+  dashboard.dateRange.set(id)
+  closePicker()
+}
+
+function pickDay(ts: number): void {
+  if (!ts) return
+  if (!pendingStart()) {
+    pendingStart.set(ts)
+    rebuild()
+    return
+  }
+  let start = pendingStart()
+  let end = ts
+  if (end < start) {
+    const tmp = start
+    start = end
+    end = tmp
+  }
+  const iso = function (t: number) {
+    const d = new Date(t)
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    return `${d.getFullYear()}-${mm}-${dd}`
+  }
+  dashboard.customStart.set(iso(start))
+  dashboard.customEnd.set(iso(end))
+  dashboard.dateRange.set('custom')
+  closePicker()
+}
+
+function toggleCompare(): void {
+  dashboard.showComparison.update(function (v: boolean) { return !v })
+}
+
+function compareLabel(): string {
+  return dashboard.showComparison() ? '− Remove comparison' : '+ Add comparison'
+}
+
+onMount(function () {
+  const onOutside = function (e: Event): void {
+    if (!open()) return
+    const root = document.getElementById('date-range-picker')
+    if (root && !root.contains(e.target as Node)) closePicker()
+  }
+  const onEscape = function (e: KeyboardEvent): void {
+    if (e.key === 'Escape') closePicker()
+  }
+  document.addEventListener('click', onOutside, true)
+  document.addEventListener('keydown', onEscape)
+  return function () {
+    document.removeEventListener('click', onOutside, true)
+    document.removeEventListener('keydown', onEscape)
+  }
+})
+</script>
+
+<div id="date-range-picker" class="relative flex items-center gap-3">
+  <button class="inline-flex items-center gap-2 py-1.5 px-3 bg-bg-2 border border-border rounded-lg text-[0.8125rem] text-text cursor-pointer transition-all duration-150 hover:border-muted" @click="togglePicker()">
+    <Icon name="calendar" size="15" class="text-muted" />
+    {{ triggerLabel() }}
+    <Icon name="chevron-down" size="14" class="text-muted" />
+  </button>
+
+  <button class="bg-transparent border-none text-[0.8125rem] text-muted cursor-pointer transition-colors duration-150 hover:text-text" @click="toggleCompare()">{{ compareLabel() }}</button>
+
+  <div x-show="open()" class="absolute left-0 top-full mt-2 z-50 flex bg-bg-2 border border-border rounded-xl shadow-2xl overflow-hidden">
+    <!-- Preset rail -->
+    <div class="w-44 border-r border-border p-2 flex flex-col gap-0.5">
+      <button x-for="preset in PRESETS" x-class="presetClass(preset.id)" @click="pickPreset(preset.id)">{{ preset.label }}</button>
+    </div>
+
+    <!-- Dual-month calendar -->
+    <div class="p-4">
+      <div class="flex items-center justify-between mb-3">
+        <button class="icon-btn" @click="stepBack()" title="Previous month">
+          <Icon name="chevron-left" size="16" />
+        </button>
+        <div class="flex-1 grid grid-cols-2 text-center">
+          <span class="text-[0.8125rem] font-semibold text-text">{{ leftLabel() }}</span>
+          <span class="text-[0.8125rem] font-semibold text-text">{{ rightLabel() }}</span>
+        </div>
+        <button class="icon-btn" @click="stepForward()" title="Next month">
+          <Icon name="chevron-right" size="16" />
+        </button>
+      </div>
+      <div class="flex gap-6">
+        <div class="w-[16.5rem]">
+          <div class="grid grid-cols-7 text-center mb-1">
+            <span class="text-[0.6875rem] text-muted">Su</span><span class="text-[0.6875rem] text-muted">Mo</span><span class="text-[0.6875rem] text-muted">Tu</span><span class="text-[0.6875rem] text-muted">We</span><span class="text-[0.6875rem] text-muted">Th</span><span class="text-[0.6875rem] text-muted">Fr</span><span class="text-[0.6875rem] text-muted">Sa</span>
+          </div>
+          <div class="grid grid-cols-7">
+            <button x-for="cell in leftDays" x-class="dayClass(cell)" @click="pickDay(cell.ts)">{{ cell.label }}</button>
+          </div>
+        </div>
+        <div class="w-[16.5rem]">
+          <div class="grid grid-cols-7 text-center mb-1">
+            <span class="text-[0.6875rem] text-muted">Su</span><span class="text-[0.6875rem] text-muted">Mo</span><span class="text-[0.6875rem] text-muted">Tu</span><span class="text-[0.6875rem] text-muted">We</span><span class="text-[0.6875rem] text-muted">Th</span><span class="text-[0.6875rem] text-muted">Fr</span><span class="text-[0.6875rem] text-muted">Sa</span>
+          </div>
+          <div class="grid grid-cols-7">
+            <button x-for="cell in rightDays" x-class="dayClass(cell)" @click="pickDay(cell.ts)">{{ cell.label }}</button>
+          </div>
+        </div>
+      </div>
+      <p class="text-[0.6875rem] text-muted mt-3" x-show="pendingStart() !== 0">Now pick the end date…</p>
+    </div>
+  </div>
+</div>
