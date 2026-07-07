@@ -51,12 +51,15 @@ function presetClass(id: string): string {
 }
 
 function dayClass(cell: DayCell): string {
-  const base = 'h-9 inline-flex items-center justify-center text-[0.8125rem] cursor-pointer select-none transition-colors duration-100'
-  if (!cell.inMonth) return `${base} text-muted/40 pointer-events-none`
-  if (cell.future) return `${base} text-muted/50 line-through pointer-events-none`
-  if (cell.state === 'endpoint') return `${base} bg-accent text-white font-semibold rounded-lg`
-  if (cell.state === 'in-range') return `${base} bg-accent/15 text-text`
-  return `${base} text-text rounded-lg hover:bg-bg-3`
+  // Semantic classes styled in this component's <style> — crosswind renders
+  // opacity modifiers on var() colors (bg-accent/15) as SOLID, which painted
+  // the whole span saturated purple instead of Fathom's light tint.
+  const base = 'cal-day'
+  if (!cell.inMonth) return `${base} cal-out`
+  if (cell.future) return `${base} cal-future`
+  if (cell.state === 'endpoint') return `${base} cal-endpoint`
+  if (cell.state === 'in-range') return `${base} cal-inrange`
+  return `${base} cal-idle`
 }
 
 function currentRangeMs(): { start: number, end: number } {
@@ -242,3 +245,44 @@ onMount(function () {
     </div>
   </div>
 </div>
+
+<style>
+.cal-day {
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.1s ease, color 0.1s ease;
+  color: var(--text);
+}
+.cal-out {
+  color: color-mix(in srgb, var(--muted) 40%, transparent);
+  pointer-events: none;
+}
+.cal-future {
+  color: color-mix(in srgb, var(--muted) 55%, transparent);
+  text-decoration: line-through;
+  pointer-events: none;
+}
+.cal-idle {
+  border-radius: 8px;
+}
+.cal-idle:hover {
+  background: var(--bg3);
+}
+/* Fathom-style span: light tint interior, solid rounded endpoints. */
+.cal-inrange {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.cal-endpoint {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 8px;
+}
+</style>
