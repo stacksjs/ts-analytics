@@ -60,7 +60,11 @@ provide('controlsBar', {
 </script>
 
 <div id="controls-bar" class="flex justify-between items-center py-3 px-6 bg-bg border-b border-border gap-4 flex-wrap max-sm:flex-col max-sm:items-stretch" x-show="dashboard.controlsVisible()">
-  <div class="flex items-center gap-1 max-sm:justify-center">
+  <!-- Left-aligned: refresh at the far left, then the range picker. -->
+  <div class="flex items-center justify-start gap-2 mr-auto">
+    <button id="refresh-btn" x-class="refreshBtnClass()" @click="refresh()" title="Refresh data">
+      <Icon name="refresh-cw" size="16" />
+    </button>
     <date-range-picker />
   </div>
   <div class="flex items-center gap-3 max-sm:justify-between">
@@ -69,9 +73,6 @@ provide('controlsBar', {
       <span id="realtime-count">{{ realtimeLabel() }}</span>
     </div>
     <span id="last-updated" class="text-xs text-muted" x-show="lastUpdated()">{{ lastUpdated() }}</span>
-    <button id="refresh-btn" x-class="refreshBtnClass()" @click="refresh()" title="Refresh data">
-      <Icon name="refresh-cw" size="16" />
-    </button>
     <button class="icon-btn" @click="exportData('csv')" title="Export CSV">
       <Icon name="download" size="16" />
     </button>
