@@ -107,7 +107,43 @@ async function assertDomClean(label: string): Promise<void> {
     fail(`${label}: literal moustaches in DOM text: ${raw}`)
 }
 
+// Hook the console for the deep-dive fingerprint lines (dedup skip /
+// processElement skip) and toggle compare ON — the revisit-triggered class
+// (stx#1700 family) needs stateful sessions, which single-visit sweeps miss.
+await ev(`(function(){
+  window.__routerLogs = [];
+  ['log','warn','error'].forEach(function(k){
+    var o = console[k].bind(console);
+    console[k] = function(){
+      var msg = Array.prototype.join.call(arguments, ' ');
+      if (/skipping already-executed|SKIPPED processElement|\[canary\]/.test(msg)) window.__routerLogs.push(msg.slice(0, 160));
+      o.apply(null, arguments);
+    };
+  });
+  return 'hooked';
+})()`)
+await ev(`(function(){ var b = document.getElementById('compare-btn'); if (b) b.click(); })()`)
+await new Promise(r => setTimeout(r, 1200))
+
+async function assertScopesRegistered(label: string): Promise<void> {
+  const dead = await ev(`(function(){
+    var scopes = (window.stx && window.stx._scopes) || {};
+    var dead = [];
+    document.querySelectorAll('[data-stx-scope]').forEach(function(el){
+      var id = el.getAttribute('data-stx-scope');
+      if (id && !scopes[id]) dead.push(id);
+    });
+    return dead.slice(0, 5).join(',');
+  })()`)
+  if (dead)
+    fail(`${label}: data-stx-scope elements with no registered scope: ${dead}`)
+  const logs = await ev(`(window.__routerLogs || []).splice(0).join(" | ")`)
+  if (logs)
+    fail(`${label}: fingerprint console lines: ${logs}`)
+}
+
 await assertDomClean('hard load /dashboard')
+await assertScopesRegistered('hard load /dashboard')
 const chartTitle = await ev(`(function(){
   var els = document.querySelectorAll('.panel .font-semibold');
   for (var i = 0; i < els.length; i++) {
@@ -126,6 +162,7 @@ for (const tab of NAV_TABS) {
   })()`)
   await new Promise(r => setTimeout(r, 2200))
   await assertDomClean(`after SPA nav -> ${tab}`)
+  await assertScopesRegistered(`after SPA nav -> ${tab}`)
 }
 await ev(`history.back()`)
 await new Promise(r => setTimeout(r, 2200))

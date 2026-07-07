@@ -73,6 +73,10 @@ onMount(() => {
       <button class="btn btn-primary w-full" @click="submitPassword()">View dashboard</button>
     </div>
 
+    <!-- Components are ALWAYS included; only visibility is gated. Including
+         them inside x-show made their script initialization depend on
+         inclusion context — the dual-context fragility class from the
+         moustache deep-dive (includes must match dashboard/index.stx). -->
     <div x-show="shareState() === 'ready'">
       <controls-bar />
       @include('dashboard/StatsRow')

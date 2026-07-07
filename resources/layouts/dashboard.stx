@@ -37,6 +37,42 @@
   })();
 </script>
 
+<script>
+  // Dead-binding canary (moustache deep-dive): after every SPA navigation,
+  // assert (1) no literal {{ }} left in DOM text and (2) every data-stx-scope
+  // element has a registered scope. Logs loudly with a fingerprint so field
+  // occurrences are diagnosable even when unreproducible. Dev-only.
+  (function(){
+    if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+    function check(trigger) {
+      setTimeout(function(){
+        try {
+          var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          var moustaches = [];
+          while (w.nextNode()) {
+            var m = w.currentNode.textContent && w.currentNode.textContent.match(/\{\{[^}]*\}\}/);
+            if (m) moustaches.push(m[0]);
+            if (moustaches.length > 3) break;
+          }
+          var scopes = (window.stx && window.stx._scopes) || {};
+          var dead = [];
+          document.querySelectorAll('[data-stx-scope]').forEach(function(el){
+            var id = el.getAttribute('data-stx-scope');
+            if (id && !scopes[id]) dead.push(id);
+          });
+          if (moustaches.length || dead.length) {
+            console.error('[canary] dead bindings after ' + trigger
+              + ' | literal moustaches: ' + (moustaches.join(' ') || 'none')
+              + ' | unregistered scopes: ' + (dead.join(',') || 'none')
+              + ' | path: ' + location.pathname);
+          }
+        } catch (e) {}
+      }, 800);
+    }
+    window.addEventListener('stx:navigate', function(){ check('spa-nav'); });
+    window.addEventListener('load', function(){ check('load'); });
+  })();
+</script>
 <script>window.ANALYTICS_API_ENDPOINT = {{ $env.STX_PUBLIC_API_ENDPOINT || '' }};</script>
 
 <script>
