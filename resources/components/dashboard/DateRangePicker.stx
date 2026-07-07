@@ -22,6 +22,8 @@ const viewMonth = state<number>(now.getMonth() - 1) // left = previous month, ri
 
 // Pending range selection (ms timestamps; 0 = unset).
 const pendingStart = state<number>(0)
+// Hovered candidate end date while picking — previews the tentative span.
+const hoverTs = state<number>(0)
 
 interface DayCell {
   key: string
@@ -81,7 +83,12 @@ function buildMonth(year: number, month: number): DayCell[] {
   const first = new Date(year, month, 1)
   const startPad = first.getDay()
   const todayEnd = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 23, 59, 59).getTime()
-  const sel = pendingStart() ? { start: pendingStart(), end: pendingStart() } : currentRangeMs()
+  // While picking: preview start→hovered-day as the tentative range
+  // (standard date-picker behavior); before hover, just the start day.
+  let sel = pendingStart() ? { start: pendingStart(), end: pendingStart() } : currentRangeMs()
+  if (pendingStart() && hoverTs()) {
+    sel = { start: Math.min(pendingStart(), hoverTs()), end: Math.max(pendingStart(), hoverTs()) }
+  }
   const gridStart = new Date(year, month, 1 - startPad)
   for (let i = 0; i < 42; i++) {
     const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i)
@@ -131,6 +138,19 @@ function togglePicker(): void {
 function closePicker(): void {
   open.set(false)
   pendingStart.set(0)
+  hoverTs.set(0)
+}
+
+function previewDay(ts: number): void {
+  if (!pendingStart() || ts === hoverTs()) return
+  hoverTs.set(ts)
+  rebuild()
+}
+
+function clearPreview(): void {
+  if (!hoverTs()) return
+  hoverTs.set(0)
+  rebuild()
 }
 
 function stepMonths(delta: number): void {
@@ -157,6 +177,7 @@ function pickDay(ts: number): void {
   if (!ts) return
   if (!pendingStart()) {
     pendingStart.set(ts)
+    hoverTs.set(0)
     rebuild()
     return
   }
@@ -232,13 +253,13 @@ onMount(function () {
           <Icon name="chevron-right" size="16" />
         </button>
       </div>
-      <div class="flex gap-6">
+      <div class="flex gap-6" @mouseleave="clearPreview()">
         <div class="w-[16.5rem]">
           <div class="grid grid-cols-7 text-center mb-1">
             <span class="text-[0.6875rem] text-muted">Su</span><span class="text-[0.6875rem] text-muted">Mo</span><span class="text-[0.6875rem] text-muted">Tu</span><span class="text-[0.6875rem] text-muted">We</span><span class="text-[0.6875rem] text-muted">Th</span><span class="text-[0.6875rem] text-muted">Fr</span><span class="text-[0.6875rem] text-muted">Sa</span>
           </div>
           <div class="grid grid-cols-7">
-            <button x-for="cell in leftDays" x-class="dayClass(cell)" @click="pickDay(cell.ts)">{{ cell.label }}</button>
+            <button x-for="cell in leftDays" x-class="dayClass(cell)" @click="pickDay(cell.ts)" @mouseenter="previewDay(cell.ts)">{{ cell.label }}</button>
           </div>
         </div>
         <div class="w-[16.5rem]">
@@ -246,7 +267,7 @@ onMount(function () {
             <span class="text-[0.6875rem] text-muted">Su</span><span class="text-[0.6875rem] text-muted">Mo</span><span class="text-[0.6875rem] text-muted">Tu</span><span class="text-[0.6875rem] text-muted">We</span><span class="text-[0.6875rem] text-muted">Th</span><span class="text-[0.6875rem] text-muted">Fr</span><span class="text-[0.6875rem] text-muted">Sa</span>
           </div>
           <div class="grid grid-cols-7">
-            <button x-for="cell in rightDays" x-class="dayClass(cell)" @click="pickDay(cell.ts)">{{ cell.label }}</button>
+            <button x-for="cell in rightDays" x-class="dayClass(cell)" @click="pickDay(cell.ts)" @mouseenter="previewDay(cell.ts)">{{ cell.label }}</button>
           </div>
         </div>
       </div>
