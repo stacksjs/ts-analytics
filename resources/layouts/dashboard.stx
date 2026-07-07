@@ -93,7 +93,13 @@
         try {
           var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
           var moustaches = [];
+          var SKIP = { SCRIPT: 1, STYLE: 1, TEMPLATE: 1, NOSCRIPT: 1 };
           while (w.nextNode()) {
+            // Compiled scoped scripts embed binding expressions as strings —
+            // only user-visible text nodes count (script bodies false-fired
+            // the {{ dashboard.triggerLabel() }} report).
+            var p = w.currentNode.parentElement;
+            if (p && SKIP[p.tagName]) continue;
             var m = w.currentNode.textContent && w.currentNode.textContent.match(/\{\{[^}]*\}\}/);
             if (m) moustaches.push(m[0]);
             if (moustaches.length > 3) break;

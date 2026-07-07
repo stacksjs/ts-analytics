@@ -95,7 +95,12 @@ async function assertDomClean(label: string): Promise<void> {
   const raw = await ev(`(function(){
     var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     var hits = [];
+    var SKIP = { SCRIPT: 1, STYLE: 1, TEMPLATE: 1, NOSCRIPT: 1 };
     while (w.nextNode()) {
+      // Compiled scoped scripts embed binding expressions as strings — only
+      // text nodes RENDERED to users count as literal moustaches.
+      var parent = w.currentNode.parentElement;
+      if (parent && SKIP[parent.tagName]) continue;
       var t = w.currentNode.textContent;
       var m = t && t.match(/\\{\\{[^}]*\\}\\}/);
       if (m) hits.push(m[0]);
@@ -173,6 +178,16 @@ for (const tab of NAV_TABS) {
 await ev(`history.back()`)
 await new Promise(r => setTimeout(r, 2200))
 await assertDomClean('after history.back()')
+
+// Entry-page matrix: bundling differs per entry page (colliding component
+// consts get renamed differently), so a moustache can bind on /dashboard
+// entry yet stay literal on /dashboard/sessions entry — field-caught by the
+// canary. Hard-load several entries and assert each hydrates clean.
+for (const entry of ['/dashboard/sessions', '/dashboard/settings', '/shared/tok1234567890123']) {
+  await ev(`location.href = ${JSON.stringify(`http://localhost:${DASH_PORT}${entry}?siteId=PIPETEST1`)}`)
+  await new Promise(r => setTimeout(r, 3500))
+  await assertDomClean(`hard entry ${entry}`)
+}
 
 console.log(failures === 0 ? '  ✓ SPA walk clean' : `  ${failures} total failures`)
 

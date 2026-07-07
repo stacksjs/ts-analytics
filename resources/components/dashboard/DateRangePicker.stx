@@ -41,6 +41,15 @@ const rightLabel = state<string>('')
 // the trigger renders store.triggerLabel, and selections call
 // store.applyPreset / store.applyCustomRange.
 const PRESETS = dashboard.rangePresets()
+
+// Local wrapper for the trigger text: a member-call moustache
+// (dashboard.triggerLabel() in a text moustache) binds unreliably when several scoped
+// scripts bundle together and colliding `dashboard` consts get renamed —
+// caught by the canary as a literal moustache on /dashboard/sessions entry.
+// Local plain-call moustaches are the proven pattern everywhere else.
+function triggerText(): string {
+  return dashboard.triggerLabel()
+}
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 function presetClass(id: string): string {
@@ -197,7 +206,7 @@ onMount(function () {
 <div id="date-range-picker" class="relative flex items-center gap-3">
   <button class="inline-flex items-center gap-2 py-1.5 px-3 bg-bg-2 border border-border rounded-lg text-[0.8125rem] text-text cursor-pointer transition-all duration-150 hover:border-muted" @click="togglePicker()">
     <Icon name="calendar" size="15" class="text-muted" />
-    {{ dashboard.triggerLabel() }}
+    {{ triggerText() }}
     <Icon name="chevron-down" size="14" class="text-muted" />
   </button>
 
