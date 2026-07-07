@@ -116,6 +116,7 @@ export async function readIngestCounters(siteId: string, hours = 48): Promise<Ar
     },
   })
   return (res.Items || []).map(unmarshall).map((it: any) => {
+    // eslint-disable-next-line pickier/no-unused-vars -- pk/ttl destructured to exclude them from the rest spread
     const { pk, sk, ttl, ...counts } = it
     return { hour: String(sk).slice('INGEST#'.length), ...counts }
   })

@@ -14,6 +14,7 @@
  * Run: bun scripts/e2e-render-sweep.ts
  * Exits non-zero on any failure. Uses ports 4526/4527.
  */
+/* eslint-disable pickier/no-unused-vars -- browser-side JS embedded in evaluate() template literals trips the unused-args rule on code that runs in the WebView, not here */
 import { WebView } from 'bun'
 
 const API_PORT = 4526
