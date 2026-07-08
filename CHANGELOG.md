@@ -1,3 +1,19 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.2...v0.1.3)
+
+## 🚀 Features
+
+- **tracking**: restore dependency-free /tracking entry point ([76651b6](https://github.com/stacksjs/ts-analytics/commit/76651b6)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## 🧹 Chores
+
+- release v0.1.3 ([229e391](https://github.com/stacksjs/ts-analytics/commit/229e391)) _(by Chris <chrisbreuer93@gmail.com>)_
+- **deps**: refresh bun.lock to pick up pickier 0.1.37 ([e81ebd1](https://github.com/stacksjs/ts-analytics/commit/e81ebd1)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.1...v0.1.2)
 
 ## 🚀 Features
