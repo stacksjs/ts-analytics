@@ -364,3 +364,24 @@ export {
   lookupFromHeaders,
   lookupIP,
 } from './geolocation'
+
+// Reusable, backend-agnostic tracking + privacy primitives. These are the
+// building blocks a self-hosted analytics app (e.g. ghostanalytics) composes:
+// User-Agent parsing, bot filtering, cookieless visitor hashing, IP
+// anonymization, CDN geo-header extraction, and referrer classification. They
+// carry no DynamoDB/AWS coupling, so any storage backend can use them.
+export {
+  getBrowserFamily,
+  isBot,
+  type ParsedUserAgent,
+  parseUserAgent,
+} from './utils/user-agent'
+export {
+  anonymizeIp,
+  countryCodeOf,
+  countryFlagEmoji,
+  getCountryFromHeaders,
+  getRegionFromHeaders,
+  isSpamReferrer,
+  parseReferrerSource,
+} from './utils/geolocation'
