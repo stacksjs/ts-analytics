@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.6...v0.1.7)
+
+## 💥 Breaking Changes
+
+- feat!: publish as @ts-analytics/tracking under the @ts-analytics org ([7d1aa45](https://github.com/stacksjs/ts-analytics/commit/7d1aa45)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🧹 Chores
+
+- release v0.1.7 ([da2f73d](https://github.com/stacksjs/ts-analytics/commit/da2f73d)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.5...v0.1.6)
 
 ## 🤖 Continuous Integration
