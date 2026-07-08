@@ -79,4 +79,4 @@ for (const f of required) {
     process.exit(1)
   }
 }
-console.log(`[ts-analytics] library built → dist/ (${result.outputs.length} files; . + ./stx + ./nuxt entrypoints and their .d.ts present)`)
+console.log(`[ts-analytics] library built → dist/ (${result.outputs.length} files; . + ./tracking + ./stx + ./nuxt entrypoints and their .d.ts present)`)
