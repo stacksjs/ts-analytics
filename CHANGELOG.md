@@ -1,3 +1,14 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.3...v0.1.4)
+
+## 🧹 Chores
+
+- release v0.1.4 ([fee7677](https://github.com/stacksjs/ts-analytics/commit/fee7677)) _(by Chris <chrisbreuer93@gmail.com>)_
+- remove orphaned error-sdk (@stacksjs/error-tracker) ([b451ce5](https://github.com/stacksjs/ts-analytics/commit/b451ce5)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.2...v0.1.3)
 
 ## 🚀 Features
