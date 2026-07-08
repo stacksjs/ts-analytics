@@ -25,6 +25,7 @@ rmSync('./dist', { recursive: true, force: true })
 const result = await Bun.build({
   entrypoints: [
     './src/index.ts',
+    './src/tracking.ts',
     './src/integrations/stx.ts',
     './src/integrations/nuxt.ts',
     './src/integrations/runtime/use-ts-analytics.ts',
@@ -63,6 +64,8 @@ if (await Bun.file(nuxtDts).exists()) {
 const required = [
   './dist/index.js',
   './dist/index.d.ts',
+  './dist/tracking.js',
+  './dist/tracking.d.ts',
   './dist/integrations/stx.js',
   './dist/integrations/stx.d.ts',
   './dist/integrations/nuxt.js',

@@ -25,6 +25,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./tracking": {
+      "types": "./dist/tracking.d.ts",
+      "import": "./dist/tracking.js"
+    },
     "./stx": {
       "types": "./dist/integrations/stx.d.ts",
       "import": "./dist/integrations/stx.js"
