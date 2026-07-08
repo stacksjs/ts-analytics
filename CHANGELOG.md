@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.5...v0.1.6)
+
+## 🤖 Continuous Integration
+
+- **release**: use pantry action @main (matches the working publish setup) ([c5bd2db](https://github.com/stacksjs/ts-analytics/commit/c5bd2db)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🧹 Chores
+
+- release v0.1.6 ([2d0da27](https://github.com/stacksjs/ts-analytics/commit/2d0da27)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.4...v0.1.5)
 
 ## 🐛 Bug Fixes
