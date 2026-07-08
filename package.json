@@ -1,7 +1,7 @@
 {
   "name": "@stacksjs/ts-analytics",
   "type": "module",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "A privacy-first analytics toolkit for web applications.",
   "author": "Chris Breuer <chris@stacksjs.org>",
   "license": "MIT",

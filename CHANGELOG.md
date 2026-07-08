@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.4...v0.1.5)
+
+## 🐛 Bug Fixes
+
+- **publish**: set publishConfig.access to public ([9f98feb](https://github.com/stacksjs/ts-analytics/commit/9f98feb)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🧹 Chores
+
+- release v0.1.5 ([97b857c](https://github.com/stacksjs/ts-analytics/commit/97b857c)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.3...v0.1.4)
 
 ## 🧹 Chores
