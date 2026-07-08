@@ -1,5 +1,5 @@
 {
-  "name": "@stacksjs/ts-analytics",
+  "name": "@ts-analytics/tracking",
   "type": "module",
   "version": "0.1.6",
   "description": "A privacy-first analytics toolkit for web applications.",
@@ -25,12 +25,16 @@
   ],
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/tracking.d.ts",
+      "import": "./dist/tracking.js"
     },
     "./tracking": {
       "types": "./dist/tracking.d.ts",
       "import": "./dist/tracking.js"
+    },
+    "./analytics": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./stx": {
       "types": "./dist/integrations/stx.d.ts",
@@ -44,8 +48,8 @@
       "import": "./dist/*"
     }
   },
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "module": "./dist/tracking.js",
+  "types": "./dist/tracking.d.ts",
   "bin": {
     "analytics": "./bin/cli.ts"
   },
