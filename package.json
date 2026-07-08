@@ -5,6 +5,9 @@
   "description": "A privacy-first analytics toolkit for web applications.",
   "author": "Chris Breuer <chris@stacksjs.org>",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "homepage": "https://github.com/stacksjs/ts-analytics#readme",
   "repository": {
     "type": "git",
