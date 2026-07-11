@@ -1,7 +1,7 @@
 {
   "name": "@ts-analytics/tracking",
   "type": "module",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "A privacy-first analytics toolkit for web applications.",
   "author": "Chris Breuer <chris@stacksjs.org>",
   "license": "MIT",
@@ -33,8 +33,8 @@
       "import": "./dist/tracking.js"
     },
     "./analytics": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/Analytics.d.ts",
+      "import": "./dist/Analytics.js"
     },
     "./stx": {
       "types": "./dist/integrations/stx.d.ts",

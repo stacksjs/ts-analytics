@@ -17,6 +17,7 @@
  * from wiping the library and vice-versa. node_modules stays external.
  */
 import { rmSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { dts } from 'bun-plugin-dtsx'
 import stx from 'bun-plugin-stx'
 
@@ -25,6 +26,7 @@ rmSync('./dist', { recursive: true, force: true })
 const result = await Bun.build({
   entrypoints: [
     './src/index.ts',
+    './src/Analytics.ts',
     './src/tracking.ts',
     './src/integrations/stx.ts',
     './src/integrations/nuxt.ts',
@@ -48,6 +50,47 @@ if (!result.success) {
   process.exit(1)
 }
 
+// bun-plugin-dtsx currently truncates declarations for large object literals
+// and function types. Re-emit the complete public graph with the TypeScript 7
+// declaration writer so every published subpath is syntactically valid.
+const declarationResult = spawnSync('bunx', [
+  'tsc',
+  '--ignoreConfig',
+  'src/index.ts',
+  'src/Analytics.ts',
+  'src/tracking.ts',
+  'src/integrations/stx.ts',
+  'src/integrations/nuxt.ts',
+  'src/integrations/runtime/use-ts-analytics.ts',
+  '--target',
+  'esnext',
+  '--module',
+  'esnext',
+  '--moduleResolution',
+  'bundler',
+  '--lib',
+  'esnext,dom',
+  '--strict',
+  '--skipLibCheck',
+  '--declaration',
+  '--emitDeclarationOnly',
+  '--outDir',
+  'dist',
+  '--rootDir',
+  'src',
+  '--types',
+  'bun',
+  '--jsx',
+  'preserve',
+])
+
+if (declarationResult.status !== 0) {
+  console.error('[ts-analytics] TypeScript declaration emission failed')
+  console.error(declarationResult.stdout.toString())
+  console.error(declarationResult.stderr.toString())
+  process.exit(declarationResult.status ?? 1)
+}
+
 // bun-plugin-dtsx elides type-only imports from external packages, but the
 // emitted nuxt.d.ts still references `NuxtModule<…>` (the explicit type
 // isolatedDeclarations requires on the default export). Re-add the import so the
@@ -66,6 +109,8 @@ const required = [
   './dist/index.d.ts',
   './dist/tracking.js',
   './dist/tracking.d.ts',
+  './dist/Analytics.js',
+  './dist/Analytics.d.ts',
   './dist/integrations/stx.js',
   './dist/integrations/stx.d.ts',
   './dist/integrations/nuxt.js',
