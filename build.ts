@@ -17,7 +17,6 @@
  * from wiping the library and vice-versa. node_modules stays external.
  */
 import { rmSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
 import { dts } from 'bun-plugin-dtsx'
 import stx from 'bun-plugin-stx'
 
@@ -48,60 +47,6 @@ if (!result.success) {
   for (const log of result.logs)
     console.error(log)
   process.exit(1)
-}
-
-// bun-plugin-dtsx currently truncates declarations for large object literals
-// and function types. Re-emit the complete public graph with the TypeScript 7
-// declaration writer so every published subpath is syntactically valid.
-const declarationResult = spawnSync('bunx', [
-  'tsc',
-  '--ignoreConfig',
-  'src/index.ts',
-  'src/Analytics.ts',
-  'src/tracking.ts',
-  'src/integrations/stx.ts',
-  'src/integrations/nuxt.ts',
-  'src/integrations/runtime/use-ts-analytics.ts',
-  '--target',
-  'esnext',
-  '--module',
-  'esnext',
-  '--moduleResolution',
-  'bundler',
-  '--lib',
-  'esnext,dom',
-  '--strict',
-  '--skipLibCheck',
-  '--declaration',
-  '--emitDeclarationOnly',
-  '--outDir',
-  'dist',
-  '--rootDir',
-  'src',
-  '--types',
-  'bun',
-  '--jsx',
-  'preserve',
-])
-
-if (declarationResult.status !== 0) {
-  console.error('[ts-analytics] TypeScript declaration emission failed')
-  console.error(declarationResult.stdout.toString())
-  console.error(declarationResult.stderr.toString())
-  process.exit(declarationResult.status ?? 1)
-}
-
-// bun-plugin-dtsx elides type-only imports from external packages, but the
-// emitted nuxt.d.ts still references `NuxtModule<…>` (the explicit type
-// isolatedDeclarations requires on the default export). Re-add the import so the
-// declaration type-checks for consumers.
-const nuxtDts = './dist/integrations/nuxt.d.ts'
-if (await Bun.file(nuxtDts).exists()) {
-  const dts = await Bun.file(nuxtDts).text()
-  if (dts.includes('NuxtModule') && !/from ['"]@nuxt\/schema['"]/.test(dts)) {
-    await Bun.write(nuxtDts, `import type { NuxtModule } from '@nuxt/schema'\n${dts}`)
-    console.log('[ts-analytics] patched dist/integrations/nuxt.d.ts with the @nuxt/schema NuxtModule import')
-  }
 }
 
 const required = [
