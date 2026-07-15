@@ -55,8 +55,7 @@
   },
   "files": [
     "bin",
-    "dist",
-    "src"
+    "dist"
   ],
   "scripts": {
     "analytics": "bun ./bin/cli.ts",
