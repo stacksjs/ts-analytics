@@ -150,8 +150,26 @@ defineStore('dashboard', () => {
     filters.set(next)
   }
 
+  // Refetch the panels that don't reactively watch filters() themselves
+  // (Countries/OS/Browsers/Devices/Referrers, via their window.refresh* aliases).
+  // Reactive readers (e.g. ChannelsPanel's effect) already refresh off the
+  // filters() signal. This is the ONE seam coupling filters to the legacy
+  // controller — replace it with per-panel effects once that controller is gone.
+  function refreshFilteredPanels(): void {
+    if (window.refreshAllPanels) window.refreshAllPanels()
+  }
+
+  // Apply (or clear, when value is falsy) a filter AND refresh the non-reactive
+  // panels. Single entry point shared by the FiltersBar dropdowns, panel
+  // drill-down clicks, and chip removal, so all three apply filters identically.
+  function applyFilter(key: string, value: string): void {
+    setFilter(key, value)
+    refreshFilteredPanels()
+  }
+
   function clearFilters(): void {
     filters.set({})
+    refreshFilteredPanels()
   }
 
   // Build API URL with date + filter params included
@@ -306,6 +324,7 @@ defineStore('dashboard', () => {
     filters,
     filterParams,
     setFilter,
+    applyFilter,
     clearFilters,
     dateBounds,
     rangePresets,

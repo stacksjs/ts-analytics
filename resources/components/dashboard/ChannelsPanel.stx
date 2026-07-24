@@ -22,6 +22,14 @@ function pct(visitors) {
   return total > 0 ? Math.round((visitors / total) * 100) : 0
 }
 
+// Drill down: filter the whole dashboard by the clicked acquisition channel.
+// getReferrerSourceChannel maps stored sources (incl. empty → Direct) onto these
+// same channel names, so every channel row — Direct included — is matchable.
+function drill(channel) {
+  if (!channel) return
+  dashboard.applyFilter('channel', channel)
+}
+
 async function fetchChannels() {
   if (!dashboard.siteId()) {
     loading.set(false)
@@ -60,7 +68,7 @@ effect(() => {
   </div>
 
   <div class="flex flex-col gap-3">
-    <div x-for="ch in channels" @loading="loading()" class="flex flex-col gap-1">
+    <div x-for="ch in channels" @loading="loading()" class="flex flex-col gap-1 cursor-pointer rounded-md p-1 -m-1 transition-colors hover:bg-bg-3" title="Click to filter by this channel" @click="drill(ch.channel)">
       <div class="flex justify-between items-center">
         <span class="text-[0.8125rem] text-text font-medium">{{ ch.channel }}</span>
         <span class="text-xs text-muted shrink-0 ml-2">{{ pct(ch.visitors ? ch.visitors : 0) + '%' }}</span>

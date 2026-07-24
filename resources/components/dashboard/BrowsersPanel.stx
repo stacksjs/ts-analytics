@@ -11,6 +11,14 @@ function fmt(n) {
   return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
 }
 
+// Drill down: filter the whole dashboard by the clicked browser. The row name
+// is the stored browser value matchesFilters compares against; skip the
+// synthetic Unknown bucket, which has no stored value to match.
+function drill(value) {
+  if (!value || value === 'Unknown') return
+  dashboard.applyFilter('browser', value)
+}
+
 onMount(() => {
   if (dashboard.siteId()) analytics.fetchSection('browsers')
   window.refreshBrowsersPanel = () => analytics.fetchSection('browsers')
@@ -35,7 +43,7 @@ onMount(() => {
       </tr>
     </thead>
     <tbody>
-      <tr x-for="browser in analytics.browsers" @loading="analytics.loading()">
+      <tr x-for="browser in analytics.browsers" @loading="analytics.loading()" class="cursor-pointer transition-colors hover:bg-bg-3" title="Click to filter by this browser" @click="drill(browser.name)">
         <td class="cell-name"><span class="row-fill" x-style="'width: ' + (browser._bar ? browser._bar : 0) + '%'"></span>{{ browser.name ? browser.name : 'Unknown' }}</td>
         <td class="cell-value">{{ fmt(browser.visitors) }}</td>
         <td class="cell-value">{{ (browser.percentage ? browser.percentage : 0) + '%' }}</td>

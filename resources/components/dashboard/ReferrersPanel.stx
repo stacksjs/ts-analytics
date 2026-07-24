@@ -39,6 +39,14 @@ function fmt(n) {
   return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
 }
 
+// Drill down: filter the whole dashboard by the clicked referrer source. Skip
+// the synthetic Direct bucket — direct sessions store an empty referrerSource,
+// so there's no value for matchesFilters to match against.
+function drill(source) {
+  if (!source || source === 'Direct') return
+  dashboard.applyFilter('referrer', source)
+}
+
 async function fetchReferrers() {
   if (!dashboard.siteId()) {
     loading.set(false)
@@ -85,13 +93,14 @@ onMount(() => {
       </tr>
     </thead>
     <tbody>
-      <tr x-for="ref in referrers" @loading="loading()">
+      <tr x-for="ref in referrers" @loading="loading()" class="cursor-pointer transition-colors hover:bg-bg-3" @click="drill(ref.source)">
         <td class="cell-name">
           <span class="row-fill" x-style="'width: ' + (ref._bar ? ref._bar : 0) + '%'"></span>
           <a x-show="isExternalLink(ref.source ? ref.source : 'Direct')"
              x-href="getHref(ref.source)"
              target="_blank"
              rel="noopener"
+             @click.stop="true"
              class="inline-flex items-center gap-1.5 hover:text-accent">
             <img
               x-src="getFaviconUrl(ref.source)"

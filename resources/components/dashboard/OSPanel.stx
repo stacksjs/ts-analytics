@@ -11,6 +11,14 @@ function fmt(n) {
   return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n)
 }
 
+// Drill down: filter the whole dashboard by the clicked OS. The row name is the
+// stored os value matchesFilters compares against; skip the synthetic Unknown
+// bucket, which has no stored value to match.
+function drill(value) {
+  if (!value || value === 'Unknown') return
+  dashboard.applyFilter('os', value)
+}
+
 onMount(() => {
   if (dashboard.siteId()) analytics.fetchSection('os')
   window.refreshOSPanel = () => analytics.fetchSection('os')
@@ -35,7 +43,7 @@ onMount(() => {
       </tr>
     </thead>
     <tbody>
-      <tr x-for="o in analytics.os" @loading="analytics.loading()">
+      <tr x-for="o in analytics.os" @loading="analytics.loading()" class="cursor-pointer transition-colors hover:bg-bg-3" title="Click to filter by this OS" @click="drill(o.name)">
         <td class="cell-name"><span class="row-fill" x-style="'width: ' + (o._bar ? o._bar : 0) + '%'"></span>{{ o.name ? o.name : 'Unknown' }}</td>
         <td class="cell-value">{{ fmt(o.visitors) }}</td>
         <td class="cell-value">{{ (o.percentage ? o.percentage : 0) + '%' }}</td>

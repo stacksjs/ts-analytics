@@ -19,6 +19,41 @@ const devices = state<FilterOption[]>([
 ])
 const browsers = state<FilterOption[]>([])
 
+// Human labels for the active-filter chips. Covers every dimension the backend
+// matchesFilters understands, so chips can surface dims set by row drill-down
+// (os, referrer, channel, region, city, utm_*) — not just the three dropdowns.
+const FILTER_LABELS: Record<string, string> = {
+  country: 'Country',
+  region: 'Region',
+  city: 'City',
+  device: 'Device',
+  browser: 'Browser',
+  os: 'OS',
+  referrer: 'Referrer',
+  channel: 'Channel',
+  utm_source: 'Source',
+  utm_medium: 'Medium',
+  utm_campaign: 'Campaign',
+}
+
+// Active filters as a flat, display-ready list for the chips row.
+const activeFilters = derived(() =>
+  Object.entries(dashboard.filters()).map(([key, value]) => ({
+    key,
+    value,
+    label: FILTER_LABELS[key] || key,
+  }))
+)
+
+// Keep the dropdowns in sync with the store, so a country/device/browser filter
+// set by row drill-down (or cleared via a chip) is reflected in the selects too.
+effect(() => {
+  const f = dashboard.filters()
+  countryFilter.set(f.country || '')
+  deviceFilter.set(f.device || '')
+  browserFilter.set(f.browser || '')
+})
+
 function applyFilter(filterType: string, value: string): void {
   switch (filterType) {
     case 'country':
@@ -32,17 +67,9 @@ function applyFilter(filterType: string, value: string): void {
       break
   }
 
-  // Store-native filter: new reactive panels refetch via their filters() effect.
-  dashboard.setFilter(filterType, value)
-
-  // Legacy controller path: keeps the older {{ }}-based panels in sync.
-  if (window.applyFilter) {
-    window.applyFilter(filterType, value)
-  }
-
-  if (window.refreshAllPanels) {
-    window.refreshAllPanels()
-  }
+  // One shared path for dropdowns, drill-down, and chips: update the store
+  // filter and refresh the non-reactive panels.
+  dashboard.applyFilter(filterType, value)
 }
 
 function getFilterParams(): string {
@@ -105,6 +132,31 @@ onMount(() => {
     <option x-for="browser in browsers" x-value="browser.value">{{ browser.label }}</option>
     <option x-show="browsers().length === 0" value="">All Browsers</option>
   </select>
+
+  <!-- Active-filter chips: every active dimension (set via the dropdowns above
+       or by clicking a report row), each removable. A Clear-all appears once
+       more than one filter is active. -->
+  <div x-show="activeFilters().length > 0" class="flex items-center gap-2 flex-wrap w-full">
+    <span
+      x-for="chip in activeFilters"
+      class="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-bg-3 border border-border text-xs text-text"
+    >
+      <span class="text-muted">{{ chip.label }}:</span>
+      <span class="font-medium">{{ chip.value }}</span>
+      <button
+        type="button"
+        class="flex items-center justify-center w-4 h-4 rounded-full text-muted hover:text-text hover:bg-border leading-none"
+        aria-label="Remove filter"
+        @click="dashboard.applyFilter(chip.key, '')"
+      >&times;</button>
+    </span>
+    <button
+      x-show="activeFilters().length > 1"
+      type="button"
+      class="text-xs text-muted hover:text-accent underline"
+      @click="dashboard.clearFilters()"
+    >Clear all</button>
+  </div>
 </div>
 
 <style>
