@@ -4,5 +4,5 @@ description: Privacy-first analytics toolkit for web applications
 ---
 
 - [GitHub Repository](https://github.com/stacksjs/ts-analytics)
-- [Discord Community](https://discord.gg/stacksjs)
+- [Discord Community](https://stacksjs.com/discord)
 - [Report Issues](https://github.com/stacksjs/ts-analytics/issues)
