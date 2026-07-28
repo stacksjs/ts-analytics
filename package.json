@@ -1,7 +1,7 @@
 {
   "name": "@ts-analytics/tracking",
   "type": "module",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "A privacy-first analytics toolkit for web applications.",
   "author": "Chris Breuer <chris@stacksjs.org>",
   "license": "MIT",
