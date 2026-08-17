@@ -19,6 +19,35 @@
 import { rmSync } from 'node:fs'
 import { dts } from 'bun-plugin-dtsx'
 import stx from 'bun-plugin-stx'
+import pkg from './package.json'
+import { TRACKER_VERSION } from './src/version'
+
+/**
+ * Refuse to build a tracker that misreports its own version (#179).
+ *
+ * TRACKER_VERSION is stamped into every beacon so support can tell which build
+ * a site is running. `bumpx` bumps package.json and does not touch src/version.ts,
+ * so the two drift on every release unless something stops it.
+ *
+ * A test already asserted this — and it had been red since 0.1.1 while releases
+ * shipped past it, leaving every beacon in the field reporting 0.1.0. A red test
+ * is a report; this is a gate, and it sits at the last point before an artifact
+ * exists to publish.
+ *
+ * Imported from package.json here rather than in src/version.ts on purpose: this
+ * file is not published, so reading it costs nothing, whereas the same import in
+ * src inlines the whole manifest — devDependencies included — into the bundle.
+ */
+if (TRACKER_VERSION !== pkg.version) {
+  console.error(
+    `\n  Version mismatch — refusing to build.\n`
+    + `    package.json     ${pkg.version}\n`
+    + `    src/version.ts   ${TRACKER_VERSION}\n\n`
+    + `  TRACKER_VERSION ships in every beacon. Set it to ${pkg.version} in src/version.ts\n`
+    + `  and commit it alongside the version bump.\n`,
+  )
+  process.exit(1)
+}
 
 rmSync('./dist', { recursive: true, force: true })
 
