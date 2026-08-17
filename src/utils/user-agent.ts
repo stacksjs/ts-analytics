@@ -16,13 +16,25 @@ export function parseUserAgent(ua: string): ParsedUserAgent {
     return { deviceType: 'desktop', browser: 'Unknown', os: 'Unknown' }
   }
 
-  // Detect device type
+  // Detect device type.
+  //
+  // TABLETS ARE TESTED FIRST, and the order is the whole correctness argument:
+  // every tablet User-Agent also matches the mobile patterns below. An iPad
+  // sends "...(iPad; CPU OS 17_5 like Mac OS X)... Mobile/15E148", a Fire tablet
+  // sends "Silk" alongside "Android", and an Android tablet sends "Android".
+  // Testing mobile first made this branch unreachable for every real device --
+  // `tablet` was a value the parser could not return, so the bucket was
+  // permanently empty and its traffic sat in `mobile`.
+  //
+  // Android phones include the literal token "Mobile" in their UA and Android
+  // tablets do not. That absence is the only signal Android gives us, so it is
+  // what distinguishes the two.
   let deviceType: 'desktop' | 'mobile' | 'tablet' = 'desktop'
-  if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) {
-    deviceType = 'mobile'
-  }
-else if (/ipad|tablet|playbook|silk/i.test(ua)) {
+  if (/ipad|tablet|playbook|silk|kindle/i.test(ua) || (/android/i.test(ua) && !/mobile/i.test(ua))) {
     deviceType = 'tablet'
+  }
+  else if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) {
+    deviceType = 'mobile'
   }
 
   // Detect browser - order matters (more specific first)
@@ -49,16 +61,32 @@ else if (/ipad|tablet|playbook|silk/i.test(ua)) {
   else if (/trident|msie/i.test(ua)) browser = 'IE'
   else if (/bot|crawl|spider|slurp|bingpreview/i.test(ua)) browser = 'Bot'
 
-  // Detect OS
+  // Detect OS — most specific first, for the same reason as the device block.
+  //
+  // iOS BEFORE macOS: an iPhone or iPad reports "CPU iPhone OS 17_5 like Mac
+  // OS X". Testing /mac os x/ first matched that phrase and attributed every
+  // iOS visit to macOS, which left the iOS bucket permanently empty and
+  // inflated macOS by all of it.
+  //
+  // Android BEFORE Linux: Android UAs open with "(Linux; Android 14; ...)".
+  //
+  // Chrome OS is matched on a WORD BOUNDARY. "cros" unanchored is a substring of
+  // "microsoft", so an unbounded test would file Microsoft's own clients under
+  // Chrome OS.
   let os = 'Unknown'
-  if (/windows nt 10/i.test(ua)) os = 'Windows 10'
+  if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS'
+  else if (/android/i.test(ua)) os = 'Android'
+  else if (/\bcros\b/i.test(ua)) os = 'Chrome OS'
+  // Windows 11 is NOT detectable here: it reports "Windows NT 10.0" exactly as
+  // Windows 10 does, and telling them apart needs User-Agent Client Hints. This
+  // branch only catches a literal "Windows NT 11" that Microsoft has never
+  // shipped, and is kept so the value is never silently wrong rather than merely
+  // coarse.
   else if (/windows nt 11/i.test(ua)) os = 'Windows 11'
+  else if (/windows nt 10/i.test(ua)) os = 'Windows 10'
   else if (/windows/i.test(ua)) os = 'Windows'
   else if (/mac os x|macintosh/i.test(ua)) os = 'macOS'
-  else if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS'
-  else if (/android/i.test(ua)) os = 'Android'
   else if (/linux/i.test(ua)) os = 'Linux'
-  else if (/cros/i.test(ua)) os = 'Chrome OS'
 
   return { deviceType, browser, os }
 }
