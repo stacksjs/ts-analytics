@@ -1,3 +1,18 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.12...v0.1.13)
+
+## 🐞 Bug Fixes
+
+- **tracking**: tablets and iOS were unreachable in the User-Agent parser ([153324c](https://github.com/stacksjs/ts-analytics/commit/153324c)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **tracker**: every beacon has been reporting version 0.1.0 since 0.1.1 ([08b6183](https://github.com/stacksjs/ts-analytics/commit/08b6183)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## 🧹 Chores
+
+- release v0.1.13 _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.11...v0.1.12)
 
 ## 🚀 Features

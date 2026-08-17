@@ -21,4 +21,4 @@
  *
  * Bump this in the same commit as package.json.
  */
-export const TRACKER_VERSION: string = '0.1.12'
+export const TRACKER_VERSION: string = '0.1.13'
