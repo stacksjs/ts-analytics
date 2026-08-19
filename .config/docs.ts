@@ -1,7 +1,7 @@
-import type { BunPressConfig } from 'bunpress'
+import type { BunPressConfig } from '@stacksjs/bunpress'
 
 const config: BunPressConfig = {
-  name: 'ts-analytics',
+  title: 'ts-analytics',
   description: 'Privacy-first analytics toolkit for web applications',
   url: 'https://ts-analytics.stacksjs.com',
 
@@ -19,6 +19,11 @@ const config: BunPressConfig = {
   },
 
   themeConfig: {
+    socialLinks: [
+      { icon: 'github', link: 'https://github.com/stacksjs/ts-analytics' },
+      { icon: 'discord', link: 'https://discord.gg/stacksjs' },
+      { icon: 'twitter', link: 'https://twitter.com/stacksjs' },
+    ],
     colors: {
       primary: '#10b981', // Emerald green for analytics theme
     },
@@ -103,7 +108,7 @@ const config: BunPressConfig = {
     },
   ],
 
-  navbar: [
+  nav: [
     { text: 'Home', link: '/' },
     { text: 'Guide', link: '/guide/getting-started' },
     { text: 'Features', link: '/features/privacy' },
@@ -111,11 +116,6 @@ const config: BunPressConfig = {
     { text: 'GitHub', link: 'https://github.com/stacksjs/ts-analytics' },
   ],
 
-  socialLinks: [
-    { icon: 'github', link: 'https://github.com/stacksjs/ts-analytics' },
-    { icon: 'discord', link: 'https://discord.gg/stacksjs' },
-    { icon: 'twitter', link: 'https://twitter.com/stacksjs' },
-  ],
 }
 
 export default config
