@@ -46,7 +46,37 @@ type Props = Record<string, string | number | boolean>
 
 interface TrackerWindow {
   analyticshq?: (name: string, props?: Props) => void
-  fathom?: { track?: (name: string, value?: number, props?: Props) => void }
+  fathom?: {
+    track?: (name: string, value?: number, props?: Props) => void
+    /** Present only on the real Fathom global — see {@link isOurFathom}. */
+    trackEvent?: unknown
+    trackPageview?: unknown
+  }
+}
+
+/**
+ * Is `window.fathom` *ours*, or the actual Fathom Analytics script?
+ *
+ * The ts-analytics tracker publishes `window.fathom = { track }` and its
+ * comment calls that "Fathom-API compatible". It is not. Real Fathom
+ * (`cdn.usefathom.com/script.js`, which `fathom-client` loads) exposes
+ * `trackEvent`, `trackGoal`, `trackPageview`, `setSite`,
+ * `blockTrackingForMe`, `enableTrackingForMe` — and no `track` at all. The two
+ * are a name collision with different shapes, not two implementations of one
+ * API.
+ *
+ * That matters because apps really do run both. A client storefront in this
+ * codebase's orbit ships `nuxt-fathom` alongside our SDK, and without this
+ * check a page where our tracker failed to load but Fathom succeeded would
+ * quietly route the app's custom events to a competitor's collector — data
+ * leaving for a third party as the *failure* mode of our own SDK.
+ *
+ * Requiring `track` and rejecting `trackEvent` distinguishes them today. The
+ * rejection is the load-bearing half: `track` alone would start matching the
+ * moment Fathom shipped a method by that name.
+ */
+function isOurFathom(f: TrackerWindow['fathom']): boolean {
+  return typeof f?.track === 'function' && typeof f?.trackEvent !== 'function'
 }
 
 /** One queued call, held until a tracker exists. */
@@ -74,7 +104,7 @@ function resolveTracker(): TrackerWindow | null {
   if (typeof window === 'undefined')
     return null
   const w = window as unknown as TrackerWindow
-  if (typeof w.analyticshq === 'function' || typeof w.fathom?.track === 'function')
+  if (typeof w.analyticshq === 'function' || isOurFathom(w.fathom))
     return w
   return null
 }
@@ -90,7 +120,10 @@ function dispatch(w: TrackerWindow, [name, value, props]: Queued): void {
     w.analyticshq(name, merged)
     return
   }
-  w.fathom?.track?.(name, value, props)
+  // Guarded again rather than trusting the caller: dispatch() is reachable from
+  // drain(), where the global may have been replaced between queueing and flush.
+  if (isOurFathom(w.fathom))
+    w.fathom?.track?.(name, value, props)
 }
 
 function drain(): void {

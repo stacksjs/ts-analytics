@@ -181,6 +181,39 @@ describe('useTsAnalytics().track() reaches a real tracker', () => {
     expect(seen).toEqual(['analyticshq'])
   })
 
+  test('never dispatches to the REAL Fathom global', async () => {
+    // Apps really do run both: a client storefront in this codebase's orbit
+    // ships nuxt-fathom (which loads cdn.usefathom.com via fathom-client)
+    // alongside this SDK. Real Fathom exposes trackEvent/trackGoal/
+    // trackPageview and no `track`, so routing to it would send the app's
+    // events to a competitor's collector as OUR failure mode.
+    const fathomCalls: string[] = []
+    ;(globalThis as any).window = {
+      fathom: {
+        trackEvent: (n: string) => fathomCalls.push(n),
+        trackGoal: () => fathomCalls.push('goal'),
+        trackPageview: () => fathomCalls.push('pv'),
+      },
+    }
+
+    useTsAnalytics().track('checkout')
+    expect(fathomCalls).toEqual([])
+
+    // And it must not be treated as "a tracker arrived" by the queue either:
+    // the event stays pending for our own tracker rather than being consumed.
+    ;(globalThis as any).window.analyticshq = (n: string) => fathomCalls.push(`ours:${n}`)
+    await new Promise(r => setTimeout(r, 400))
+    expect(fathomCalls).toEqual(['ours:checkout'])
+  })
+
+  test('still dispatches to a fathom global that is ours (has track, no trackEvent)', () => {
+    const calls: any[] = []
+    ;(globalThis as any).window = { fathom: { track: (...a: any[]) => calls.push(a) } }
+
+    useTsAnalytics().track('signup')
+    expect(calls).toEqual([['signup', undefined, undefined]])
+  })
+
   test('is a no-op under SSR rather than throwing', () => {
     delete (globalThis as any).window
     expect(() => useTsAnalytics().track('signup')).not.toThrow()
