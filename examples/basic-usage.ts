@@ -237,7 +237,9 @@ async function setupBunServer(): Promise<void> {
     return { Items: [] }
   }
 
-  // Create the Bun router
+  // Create the Bun router. Consumed by the Bun.serve call below, which stays
+  // commented out so running this example does not bind a port.
+  // eslint-disable-next-line pickier/no-unused-vars
   const router = createBunRouter(api, executeCommand)
 
   // Start the server
