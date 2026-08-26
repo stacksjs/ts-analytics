@@ -1,3 +1,26 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.13...HEAD)
+
+## 🐛 Bug Fixes
+
+- **sdk**: never route custom events to the real Fathom global ([d8a6c66](https://github.com/stacksjs/ts-analytics/commit/d8a6c66)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **sdk**: stx and nuxt integrations collected nothing ([663d09f](https://github.com/stacksjs/ts-analytics/commit/663d09f)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **docs**: use the config keys bunpress actually has ([58da572](https://github.com/stacksjs/ts-analytics/commit/58da572)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 📚 Documentation
+
+- complete the @ts-analytics/tracking rename ([a701197](https://github.com/stacksjs/ts-analytics/commit/a701197)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## 🧹 Chores
+
+- **deps**: bunpress 0.2.13 ([62f29a2](https://github.com/stacksjs/ts-analytics/commit/62f29a2)) _(by Chris <chrisbreuer93@gmail.com>)_
+- **deps**: bun-router 0.0.20 -> 0.0.27 ([d080542](https://github.com/stacksjs/ts-analytics/commit/d080542)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#181](https://github.com/stacksjs/ts-analytics/issues/181))
+- **deps**: stx 0.2.82 -> 0.2.188, crosswind and better-dx ([357ad19](https://github.com/stacksjs/ts-analytics/commit/357ad19)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#181](https://github.com/stacksjs/ts-analytics/issues/181))
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.12...v0.1.13)
 
 ## 🐞 Bug Fixes
