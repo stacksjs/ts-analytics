@@ -4,7 +4,7 @@
  * ```ts
  * // nuxt.config.ts
  * export default defineNuxtConfig({
- *   modules: ['@stacksjs/ts-analytics/nuxt'],
+ *   modules: ['@ts-analytics/tracking/nuxt'],
  *   tsAnalytics: {
  *     appId: 'APP_ID',   // that's it — the endpoint is baked in (Fathom-style)
  *   },
@@ -25,26 +25,43 @@
  * tracker's global (`window.fathom`, Fathom-API compatible).
  *
  * Requires `@nuxt/kit` (provided by any Nuxt project; declared as an optional
- * peer so non-Nuxt consumers of @stacksjs/ts-analytics don't pull it in).
+ * peer so non-Nuxt consumers of @ts-analytics/tracking don't pull it in).
  */
 import type { Nuxt, NuxtModule } from '@nuxt/schema'
 import { addImports, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { resolveApiEndpoint, tsAnalytics, type TsAnalyticsOptions } from './stx'
 
 export interface TsAnalyticsNuxtOptions extends TsAnalyticsOptions {
-  /** Set false to skip injecting the tracker (e.g. in local dev). Default: true. */
+  /**
+   * Inject the tracker. **Defaults to `!nuxt.options.dev`** — on for `build`
+   * and `generate`, off under `nuxt dev`.
+   *
+   * The tracker applies no localhost filtering of its own: it reports
+   * `location.origin + location.pathname`, so with this on during development
+   * every hot reload lands in the same reports as production traffic, tagged
+   * with paths like `/` that are indistinguishable from the real thing. There
+   * is no way to separate it out afterwards short of deleting by date.
+   *
+   * Set `true` to force it on in dev (pointing `apiEndpoint` at a local
+   * collector), or `false` to disable it everywhere.
+   */
   enabled?: boolean
 }
 
 const tsAnalyticsNuxtModule: NuxtModule<TsAnalyticsNuxtOptions> = defineNuxtModule<TsAnalyticsNuxtOptions>({
   meta: {
-    name: '@stacksjs/ts-analytics',
+    // Must match the published package name: Nuxt keys module dedupe and its
+    // build-time module list off this, so a stale name lets the same module
+    // install twice under two specifiers and inject two tags.
+    name: '@ts-analytics/tracking',
     configKey: 'tsAnalytics',
     compatibility: { nuxt: '>=3.0.0' },
   },
-  defaults: { enabled: true } as Partial<TsAnalyticsNuxtOptions>,
+  // No `enabled` default here on purpose — a static default is indistinguishable
+  // from an explicit choice, and `enabled ?? !dev` below needs to see undefined.
   setup(options: TsAnalyticsNuxtOptions, nuxt: Nuxt) {
-    if (options.enabled === false)
+    const enabled = options.enabled ?? !nuxt.options.dev
+    if (!enabled)
       return
 
     // tsAnalytics() returns [] when appId is missing — so a half-configured env

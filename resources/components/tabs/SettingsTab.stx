@@ -57,20 +57,22 @@ function snippetFor(fw: string): string {
     return [
       '// nuxt.config.ts',
       'export default defineNuxtConfig({',
-      '  modules: [\'@stacksjs/ts-analytics/nuxt\'],',
+      '  modules: [\'@ts-analytics/tracking/nuxt\'],',
       '  tsAnalytics: { appId: \'' + id + '\' },',
       '})',
     ].join('\n')
   }
   if (fw === 'stx') {
+    // The `analytics` block, not `app.head.script`: stx's own analytics module
+    // renders this one (generateAnalyticsScript -> injectAnalytics, called on
+    // every render), whereas nothing in a current stx build reads head.script
+    // from config. The snippet we hand customers has to be the path that works.
     return [
-      '// stx.config.ts',
-      'import { tsAnalytics } from \'@stacksjs/ts-analytics/stx\'',
+      '// config/ui.ts (Stacks) — or stx.config.ts',
+      'import { tsAnalyticsStxConfig } from \'@ts-analytics/tracking/stx\'',
       '',
       'export default {',
-      '  app: { head: { script: [',
-      '    ...tsAnalytics({ appId: \'' + id + '\' }),',
-      '  ] } },',
+      '  analytics: tsAnalyticsStxConfig({ appId: \'' + id + '\' }),',
       '}',
     ].join('\n')
   }
@@ -805,8 +807,8 @@ effect(() => {
 
     <p class="text-xs text-muted mb-3">
       <span x-show="framework() === 'html'">Paste this into the <code class="text-text">&lt;head&gt;</code> of every page you want to track. No cookies, no consent banner — visitors are never personally identified.</span>
-      <span x-show="framework() === 'nuxt'">Install <code class="text-text">@stacksjs/ts-analytics</code>, then add the module to <code class="text-text">nuxt.config.ts</code> — the tracker loads on every page automatically.</span>
-      <span x-show="framework() === 'stx'">Install <code class="text-text">@stacksjs/ts-analytics</code>, then spread it into your stx config's <code class="text-text">app.head.script</code>. The endpoint is baked in.</span>
+      <span x-show="framework() === 'nuxt'">Install <code class="text-text">@ts-analytics/tracking</code>, then add the module to <code class="text-text">nuxt.config.ts</code> — the tracker loads on every page automatically.</span>
+      <span x-show="framework() === 'stx'">Install <code class="text-text">@ts-analytics/tracking</code>, then spread it into your stx config's <code class="text-text">app.head.script</code>. The endpoint is baked in.</span>
     </p>
 
     <div class="flex flex-wrap gap-1.5 mb-3">

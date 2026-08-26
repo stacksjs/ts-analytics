@@ -9,29 +9,39 @@
  * attribute and derives the collector endpoint from its own `src` origin, so
  * the only thing a host app supplies is the App ID + the API origin.
  *
- * Spread the result into your stx config's `app.head.script`:
+ * ## Use {@link tsAnalyticsStxConfig} — it is the path that renders
  *
  * ```ts
- * // config/stx.ts (Stacks)  — or  stx.config.ts
- * import { tsAnalytics } from '@stacksjs/ts-analytics/stx'
+ * // config/ui.ts (Stacks)  — or  stx.config.ts
+ * import { tsAnalyticsStxConfig } from '@ts-analytics/tracking/stx'
  *
  * export default {
- *   app: {
- *     head: {
- *       script: [
- *         ...tsAnalytics({ appId: 'my-app' }),   // endpoint is baked in
- *       ],
- *     },
- *   },
+ *   analytics: tsAnalyticsStxConfig({ appId: 'my-app' }),   // endpoint is baked in
  * }
  * ```
  *
- * **Why a head helper and not a `plugins: [...]` entry?** stx's plugin render
- * lifecycle hooks (`afterRender`) are not invoked by the dev/serve render
- * pipeline, and a plugin's `setup()` config mutation does not propagate to
- * rendering. The head config *is* read on every render, so this is the reliable
- * mechanism — and it mirrors what framework analytics modules do internally
- * (push a tag onto the document head).
+ * stx ships an analytics module of its own (`generateAnalyticsScript` /
+ * `injectAnalytics`), and `process.js` calls it on every render to place a tag
+ * before `</head>`. That is a real, exercised code path — it is how
+ * analyticshq.org tracks itself. So the integration's job is to hand stx a
+ * correct config block for its `custom` driver, not to emit a tag ourselves.
+ *
+ * We target `custom` rather than stx's own `self-hosted` driver deliberately.
+ * `self-hosted` exists and works, but it generates its own inline beacon with a
+ * different payload contract (`{s, sid, e, p, u, r, t, sw, sh}`, a client-minted
+ * session id) and exposes a third global, `window.stxAnalytics`. Our `/collect`
+ * accepts a different shape, and dogfooding means running the same artifact
+ * customers install rather than a lookalike.
+ *
+ * ## `tsAnalytics()` and `app.head.script`
+ *
+ * {@link tsAnalytics} predates the above and returns head-script entries for
+ * `app.head.script`. Its docblock used to call that "the reliable mechanism";
+ * that claim was never verified, and searching a current stx build turns up no
+ * reader for `app.head.script` at all — the only `head script` handling is the
+ * SPA swap runtime reconciling tags that already exist in the document. It is
+ * kept for non-stx callers (see {@link tsAnalyticsTag}) and for anyone already
+ * depending on it, but for an stx app reach for {@link tsAnalyticsStxConfig}.
  */
 
 /**
@@ -40,21 +50,34 @@
  * auto-provisions the site on its first event, so nothing else is needed.
  *
  * ```ts
- * import { generateAppId } from '@stacksjs/ts-analytics/stx'
+ * import { generateAppId } from '@ts-analytics/tracking/stx'
  * console.log(generateAppId()) // e.g. 'K7MN4PQR'
  * ```
  */
 export { generateAppId } from '../lib/crypto-random'
 
 /**
- * Default ts-analytics API origin — where `/script.js` is served and events are
- * collected. Baked in (Fathom-style) so host apps supply *only* an App ID.
+ * Default API origin — where `/script.js` is served and events are collected.
+ * Baked in (Fathom-style) so host apps supply *only* an App ID.
  *
  * Endpoint resolution order: an explicit `apiEndpoint` option → the
- * `TS_ANALYTICS_ENDPOINT` env var → this constant. Set this to your production
- * ts-analytics host so deployed apps need zero endpoint config.
+ * `TS_ANALYTICS_ENDPOINT` env var → this constant.
+ *
+ * ## This was `http://localhost:2027` in every release up to 0.1.13
+ *
+ * Which made the "supply only an appId, the endpoint is baked in" promise above
+ * false in exactly the case it was written for. A host app that configured only
+ * an App ID — the documented happy path — emitted
+ * `<script src="http://localhost:2027/script.js">`, and on any HTTPS site the
+ * browser refused it as mixed content before DNS was even consulted.
+ *
+ * Nothing threw. The tag was in the document, the console warning was one line
+ * in a page full of them, and the dashboard simply stayed empty — which reads
+ * like "no traffic yet" rather than "the SDK is pointed at your laptop". A test
+ * now pins this to an absolute https origin so a localhost default cannot ship
+ * again.
  */
-export const DEFAULT_API_ENDPOINT = 'http://localhost:2027'
+export const DEFAULT_API_ENDPOINT = 'https://analyticshq.org'
 
 /** Resolve the API origin from an explicit override, env, then the default. */
 export function resolveApiEndpoint(explicit?: string): string {
@@ -121,6 +144,60 @@ export function tsAnalytics(options: TsAnalyticsOptions): StxHeadScript[] {
       'data-site': appId,
     },
   ]
+}
+
+/**
+ * The `analytics` block of an stx/Stacks UI config, shaped for stx's `custom`
+ * driver — what {@link tsAnalyticsStxConfig} returns.
+ *
+ * Structural, not imported from `@stacksjs/types`: this package must stay
+ * installable in a plain stx app that has no Stacks dependency. It satisfies
+ * `AnalyticsConfig` where that type is in scope.
+ */
+export interface StxAnalyticsConfig {
+  /** stx returns '' from `generateAnalyticsScript` before reading anything else when false. */
+  enabled: boolean
+  driver: 'custom'
+  custom: {
+    scriptUrl: string
+    attributes: Record<string, string>
+  }
+}
+
+/**
+ * Build the stx `analytics` config block that injects the tracker.
+ *
+ * ```ts
+ * // config/ui.ts
+ * export default {
+ *   analytics: tsAnalyticsStxConfig({ appId: process.env.MY_SITE_ID }),
+ * }
+ * ```
+ *
+ * `enabled` follows the App ID: absent or blank means the block is inert, so a
+ * fresh checkout with no env var set never beacons at production. Pass
+ * `enabled: false` to force it off with an ID present (local development).
+ *
+ * Note there is no `defer` in `attributes` — stx's `generateCustomScript`
+ * appends one unconditionally, and declaring it here too renders the malformed
+ * `<script defer="" ... defer>`.
+ */
+export function tsAnalyticsStxConfig(
+  options: TsAnalyticsOptions & { enabled?: boolean },
+): StxAnalyticsConfig {
+  const appId = options?.appId?.trim() ?? ''
+  const origin = resolveApiEndpoint(options?.apiEndpoint)
+  const rawPath = options?.scriptPath ?? '/script.js'
+  const path = rawPath.startsWith('/') ? rawPath : `/${rawPath}`
+
+  return {
+    enabled: options?.enabled !== false && Boolean(appId) && Boolean(origin),
+    driver: 'custom',
+    custom: {
+      scriptUrl: `${origin}${path}${options?.stealth ? '?stealth=true' : ''}`,
+      attributes: { 'data-site': appId },
+    },
+  }
 }
 
 /**

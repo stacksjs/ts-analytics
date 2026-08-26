@@ -20,8 +20,13 @@ export {
 } from './cloudflare'
 
 export {
+  DEFAULT_API_ENDPOINT,
+  generateAppId,
+  resolveApiEndpoint,
+  type StxAnalyticsConfig,
   type StxHeadScript,
   tsAnalytics,
   type TsAnalyticsOptions,
+  tsAnalyticsStxConfig,
   tsAnalyticsTag,
 } from './stx'
