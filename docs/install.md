@@ -17,7 +17,7 @@ bunx analytics create-table --table-name AnalyticsTable --region us-east-1
 ### Option 2: Using CloudFormation
 
 ```typescript
-import { generateCloudFormationTemplate } from '@stacksjs/ts-analytics'
+import { generateCloudFormationTemplate } from '@ts-analytics/tracking'
 
 const template = generateCloudFormationTemplate({
   tableName: 'AnalyticsTable',
@@ -30,7 +30,7 @@ const template = generateCloudFormationTemplate({
 ### Option 3: Using CDK
 
 ```typescript
-import { generateCdkCode } from '@stacksjs/ts-analytics'
+import { generateCdkCode } from '@ts-analytics/tracking'
 
 const cdkCode = generateCdkCode({
   tableName: 'AnalyticsTable',
@@ -43,7 +43,7 @@ console.log(cdkCode)
 ### Option 4: Programmatically
 
 ```typescript
-import { createAnalyticsTable } from '@stacksjs/ts-analytics'
+import { createAnalyticsTable } from '@ts-analytics/tracking'
 import { DynamoDBClient, CreateTableCommand, DescribeTableCommand } from '@aws-sdk/client-dynamodb'
 
 const client = new DynamoDBClient({ region: 'us-east-1' })
@@ -59,7 +59,7 @@ await createAnalyticsTable(client, {
 Test your setup:
 
 ```typescript
-import { AnalyticsStore } from '@stacksjs/ts-analytics'
+import { AnalyticsStore } from '@ts-analytics/tracking'
 
 const store = new AnalyticsStore({
   tableName: 'AnalyticsTable',

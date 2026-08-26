@@ -171,7 +171,7 @@ const command = {
 The `AnalyticsStore` class abstracts these patterns:
 
 ```typescript
-import { AnalyticsStore, AnalyticsKeyPatterns } from '@stacksjs/ts-analytics'
+import { AnalyticsStore, AnalyticsKeyPatterns } from '@ts-analytics/tracking'
 
 const store = new AnalyticsStore({
   tableName: 'AnalyticsTable',
@@ -224,7 +224,7 @@ Raw Events (30 days) → Hourly Stats (90 days) → Daily Stats (2 years) → Mo
 ### Aggregation Process
 
 ```typescript
-import { AggregationPipeline, AnalyticsAggregator } from '@stacksjs/ts-analytics'
+import { AggregationPipeline, AnalyticsAggregator } from '@ts-analytics/tracking'
 
 const pipeline = new AggregationPipeline(store)
 const aggregator = new AnalyticsAggregator({ tableName: 'AnalyticsTable' })
@@ -284,7 +284,7 @@ import {
   generateAnalyticsSingleTableDesign,
   generateAccessPatternMatrix,
   generateAnalyticsDesignDoc,
-} from '@stacksjs/ts-analytics'
+} from '@ts-analytics/tracking'
 
 // Get the single-table design
 const design = generateAnalyticsSingleTableDesign()

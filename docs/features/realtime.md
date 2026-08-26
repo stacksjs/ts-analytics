@@ -64,7 +64,7 @@ Show currently viewed pages:
 Set up polling for real-time data:
 
 ```typescript
-import { createRealtimePoller } from '@stacksjs/ts-analytics'
+import { createRealtimePoller } from '@ts-analytics/tracking'
 import { onMounted, onUnmounted } from 'vue'
 
 const { data, isLoading, error, start, stop } = createRealtimePoller({
@@ -85,7 +85,7 @@ const currentVisitors = computed(() => data.value?.currentVisitors ?? 0)
 Fetch real-time data on demand:
 
 ```typescript
-import { fetchDashboardData } from '@stacksjs/ts-analytics'
+import { fetchDashboardData } from '@ts-analytics/tracking'
 
 const data = await fetchDashboardData(
   { baseUrl: '/api/analytics', siteId: 'my-site' },

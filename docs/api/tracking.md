@@ -16,7 +16,7 @@ const script = generateMinimalTrackingScript({
 Generate a Google Analytics 4-style script.
 
 ```typescript
-import { generateGA4StyleScript } from '@stacksjs/ts-analytics'
+import { generateGA4StyleScript } from '@ts-analytics/tracking'
 
 const script = generateGA4StyleScript({
   siteId: 'my-site',

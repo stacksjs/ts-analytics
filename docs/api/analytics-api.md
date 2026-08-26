@@ -168,7 +168,7 @@ interface CollectPayload {
 Create a Bun/Hono compatible router.
 
 ```typescript
-import { createBunRouter } from '@stacksjs/ts-analytics'
+import { createBunRouter } from '@ts-analytics/tracking'
 
 const router = createBunRouter(api, executeCommand)
 
@@ -183,7 +183,7 @@ Bun.serve({
 Create an AWS Lambda handler.
 
 ```typescript
-import { createLambdaHandler } from '@stacksjs/ts-analytics'
+import { createLambdaHandler } from '@ts-analytics/tracking'
 
 export const handler = createLambdaHandler(api, executeCommand)
 ```

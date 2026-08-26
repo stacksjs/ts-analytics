@@ -29,7 +29,7 @@ description: Configure ts-analytics for your needs
 Use environment variables to override configuration:
 
 ```typescript
-import { defineConfig, getConfig } from '@stacksjs/ts-analytics'
+import { defineConfig, getConfig } from '@ts-analytics/tracking'
 
 const config = defineConfig({
   table: {
@@ -51,7 +51,7 @@ export default config
 Configure the client-side tracking script:
 
 ```typescript
-import { generateFullTrackingScript } from '@stacksjs/ts-analytics'
+import { generateFullTrackingScript } from '@ts-analytics/tracking'
 
 const script = generateFullTrackingScript({
   // Required
@@ -87,7 +87,7 @@ const script = generateFullTrackingScript({
 Configure per-site settings:
 
 ```typescript
-import type { SiteSettings } from '@stacksjs/ts-analytics'
+import type { SiteSettings } from '@ts-analytics/tracking'
 
 const siteSettings: SiteSettings = {
   collectGeolocation: false,    // Geo IP lookup
@@ -106,7 +106,7 @@ const siteSettings: SiteSettings = {
 Configure the Analytics API:
 
 ```typescript
-import { AnalyticsAPI } from '@stacksjs/ts-analytics'
+import { AnalyticsAPI } from '@ts-analytics/tracking'
 
 const api = new AnalyticsAPI({
   tableName: 'AnalyticsTable',
@@ -122,7 +122,7 @@ const api = new AnalyticsAPI({
 Access the default configuration:
 
 ```typescript
-import { defaultConfig, defaultAnalyticsConfig } from '@stacksjs/ts-analytics'
+import { defaultConfig, defaultAnalyticsConfig } from '@ts-analytics/tracking'
 
 console.log(defaultConfig)
 // {
@@ -139,7 +139,7 @@ console.log(defaultConfig)
 Update configuration at runtime:
 
 ```typescript
-import { setConfig, getConfig, resetConfig } from '@stacksjs/ts-analytics'
+import { setConfig, getConfig, resetConfig } from '@ts-analytics/tracking'
 
 // Update config
 setConfig({

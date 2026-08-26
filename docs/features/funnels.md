@@ -2,7 +2,7 @@
 title: Funnel Analysis
 description: Analyze user journeys and conversion paths
 ---
-import { ecommerceCheckoutFunnel } from '@stacksjs/ts-analytics'
+import { ecommerceCheckoutFunnel } from '@ts-analytics/tracking'
 
 // Steps: Product View → Add to Cart → Cart → Checkout → Purchase
 ```
@@ -10,7 +10,7 @@ import { ecommerceCheckoutFunnel } from '@stacksjs/ts-analytics'
 ### SaaS Signup
 
 ```typescript
-import { saasSignupFunnel } from '@stacksjs/ts-analytics'
+import { saasSignupFunnel } from '@ts-analytics/tracking'
 
 // Steps: Landing → Signup → Email Verify → Onboarding → Activated
 ```
@@ -18,7 +18,7 @@ import { saasSignupFunnel } from '@stacksjs/ts-analytics'
 ### Content Engagement
 
 ```typescript
-import { contentEngagementFunnel } from '@stacksjs/ts-analytics'
+import { contentEngagementFunnel } from '@ts-analytics/tracking'
 
 // Steps: Article View → Scroll 50% → Scroll 100% → Share/Subscribe
 ```
@@ -28,7 +28,7 @@ import { contentEngagementFunnel } from '@stacksjs/ts-analytics'
 ### FunnelAnalyzer
 
 ```typescript
-import { FunnelAnalyzer } from '@stacksjs/ts-analytics'
+import { FunnelAnalyzer } from '@ts-analytics/tracking'
 
 const analyzer = new FunnelAnalyzer()
 
@@ -54,7 +54,7 @@ console.log(analysis)
 ### Calculate Drop-Off Rate
 
 ```typescript
-import { calculateDropOffRate } from '@stacksjs/ts-analytics'
+import { calculateDropOffRate } from '@ts-analytics/tracking'
 
 const dropOff = calculateDropOffRate(3500, 2800)
 // 0.20 (20% drop-off)
@@ -63,7 +63,7 @@ const dropOff = calculateDropOffRate(3500, 2800)
 ### Identify Drop-Off Points
 
 ```typescript
-import { identifyDropOffPoints } from '@stacksjs/ts-analytics'
+import { identifyDropOffPoints } from '@ts-analytics/tracking'
 
 const problems = identifyDropOffPoints(analysis, {
   threshold: 0.30, // Flag steps with >30% drop-off
@@ -175,7 +175,7 @@ const journeys = await Promise.all(
 ### Text Report
 
 ```typescript
-import { formatFunnelReport } from '@stacksjs/ts-analytics'
+import { formatFunnelReport } from '@ts-analytics/tracking'
 
 const report = formatFunnelReport(analysis)
 console.log(report)

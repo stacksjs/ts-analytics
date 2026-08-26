@@ -2,7 +2,7 @@
 title: Quick Start
 description: Get started with ts-analytics in minutes
 ---
-import { generateTrackingSnippet } from '@stacksjs/ts-analytics'
+import { generateTrackingSnippet } from '@ts-analytics/tracking'
 
 const snippet = generateTrackingSnippet({
   siteId: 'my-site-id',
@@ -21,7 +21,7 @@ const snippet = generateTrackingSnippet({
 ### Using Bun's Built-in Server
 
 ```typescript
-import { AnalyticsAPI, createBunRouter } from '@stacksjs/ts-analytics'
+import { AnalyticsAPI, createBunRouter } from '@ts-analytics/tracking'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 
 const client = new DynamoDBClient({ region: 'us-east-1' })
@@ -51,7 +51,7 @@ console.log('Analytics API running on <http://localhost:300>0')
 ### Using AWS Lambda
 
 ```typescript
-import { AnalyticsAPI, createLambdaHandler } from '@stacksjs/ts-analytics'
+import { AnalyticsAPI, createLambdaHandler } from '@ts-analytics/tracking'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 
 const client = new DynamoDBClient({ region: process.env.AWS_REGION })
@@ -89,7 +89,7 @@ sa('setProperty', 'plan', 'enterprise')
 ## 6. Query Analytics Data
 
 ```typescript
-import { AnalyticsQueryAPI } from '@stacksjs/ts-analytics'
+import { AnalyticsQueryAPI } from '@ts-analytics/tracking'
 
 const queryApi = new AnalyticsQueryAPI({
   tableName: 'my-analytics',
@@ -120,7 +120,7 @@ import {
   StatCard,
   TimeSeriesChart,
   TopList,
-} from '@stacksjs/ts-analytics'
+} from '@ts-analytics/tracking'
 </script>
 
 <template>
@@ -144,7 +144,7 @@ import {
   AnalyticsAPI,
   createBunRouter,
   generateTrackingScript
-} from '@stacksjs/ts-analytics'
+} from '@ts-analytics/tracking'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 
 const client = new DynamoDBClient({ region: 'us-east-1' })

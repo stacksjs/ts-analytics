@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Library build — emits the package's JS + declarations so `@stacksjs/ts-analytics`
+ * Library build — emits the package's JS + declarations so `@ts-analytics/tracking`
  * is importable (package.json's `module`/`exports`/`types` all point at ./dist).
  *
  * Builds the entrypoints so every export resolves:

@@ -253,7 +253,7 @@ Animated number transitions:
 Main analytics composable:
 
 ```typescript
-import { useAnalytics } from '@stacksjs/ts-analytics'
+import { useAnalytics } from '@ts-analytics/tracking'
 
 const {
   summary,
@@ -278,7 +278,7 @@ const {
 Create a custom composable:
 
 ```typescript
-import { createAnalyticsComposable } from '@stacksjs/ts-analytics'
+import { createAnalyticsComposable } from '@ts-analytics/tracking'
 
 const useMyAnalytics = createAnalyticsComposable({
   baseUrl: '/api/analytics',
@@ -295,7 +295,7 @@ const { summary, topPages, refresh } = useMyAnalytics()
 Poll for real-time data:
 
 ```typescript
-import { createRealtimePoller } from '@stacksjs/ts-analytics'
+import { createRealtimePoller } from '@ts-analytics/tracking'
 
 const { data, start, stop } = createRealtimePoller({
   baseUrl: '/api/analytics',
@@ -312,7 +312,7 @@ onUnmounted(() => stop())
 Fetch data directly:
 
 ```typescript
-import { fetchDashboardData } from '@stacksjs/ts-analytics'
+import { fetchDashboardData } from '@ts-analytics/tracking'
 
 const data = await fetchDashboardData(
   { baseUrl: '/api/analytics', siteId: 'my-site' },
@@ -325,7 +325,7 @@ const data = await fetchDashboardData(
 ### Built-in Themes
 
 ```typescript
-import { defaultTheme, darkTheme } from '@stacksjs/ts-analytics'
+import { defaultTheme, darkTheme } from '@ts-analytics/tracking'
 
 // Use in components
 <AnalyticsDashboard :theme="darkTheme" />
@@ -371,7 +371,7 @@ import {
   formatDuration,
   formatCompact,
   formatDate,
-} from '@stacksjs/ts-analytics'
+} from '@ts-analytics/tracking'
 
 formatNumber(12500)        // "12,500"
 formatPercentage(0.42)     // "42%"
@@ -387,7 +387,7 @@ import {
   getDateRangePreset,
   getDateRangeFromPreset,
   dateRangePresets,
-} from '@stacksjs/ts-analytics'
+} from '@ts-analytics/tracking'
 
 const range = getDateRangeFromPreset('30d')
 // { start: Date, end: Date }

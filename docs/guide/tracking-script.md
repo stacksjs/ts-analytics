@@ -12,7 +12,7 @@ description: Add analytics tracking to your website
 Embed the full script inline:
 
 ```typescript
-import { generateInlineTrackingScript } from '@stacksjs/ts-analytics'
+import { generateInlineTrackingScript } from '@ts-analytics/tracking'
 
 const script = generateInlineTrackingScript({
   siteId: 'my-site',
@@ -372,7 +372,7 @@ For SSR, generate the script at build time:
 ```typescript
 // build-tracking.ts
 import { writeFileSync } from 'fs'
-import { generateFullTrackingScript } from '@stacksjs/ts-analytics'
+import { generateFullTrackingScript } from '@ts-analytics/tracking'
 
 const script = generateFullTrackingScript({
   siteId: process.env.SITE*ID!,

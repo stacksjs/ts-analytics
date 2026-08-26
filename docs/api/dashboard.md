@@ -115,7 +115,7 @@ Real-time event stream.
 Main analytics composable.
 
 ```typescript
-import { useAnalytics } from '@stacksjs/ts-analytics'
+import { useAnalytics } from '@ts-analytics/tracking'
 
 const {
   summary,        // Ref<DashboardSummary>
@@ -140,7 +140,7 @@ const {
 Create a custom composable.
 
 ```typescript
-import { createAnalyticsComposable } from '@stacksjs/ts-analytics'
+import { createAnalyticsComposable } from '@ts-analytics/tracking'
 
 const useMyAnalytics = createAnalyticsComposable({
   baseUrl: '/api/analytics',
@@ -157,7 +157,7 @@ const { summary, topPages } = useMyAnalytics()
 Poll for real-time data.
 
 ```typescript
-import { createRealtimePoller } from '@stacksjs/ts-analytics'
+import { createRealtimePoller } from '@ts-analytics/tracking'
 
 const { data, isLoading, start, stop } = createRealtimePoller({
   baseUrl: '/api/analytics',
@@ -174,7 +174,7 @@ onUnmounted(() => stop())
 Fetch data directly.
 
 ```typescript
-import { fetchDashboardData } from '@stacksjs/ts-analytics'
+import { fetchDashboardData } from '@ts-analytics/tracking'
 
 const data = await fetchDashboardData(
   { baseUrl: '/api/analytics', siteId: 'my-site' },
@@ -194,7 +194,7 @@ import {
   formatCompact,
   formatDate,
   formatDateRange,
-} from '@stacksjs/ts-analytics'
+} from '@ts-analytics/tracking'
 
 formatNumber(12500)        // "12,500"
 formatPercentage(0.42)     // "42%"
@@ -210,7 +210,7 @@ import {
   getDateRangePreset,
   getDateRangeFromPreset,
   dateRangePresets,
-} from '@stacksjs/ts-analytics'
+} from '@ts-analytics/tracking'
 
 const range = getDateRangeFromPreset('30d')
 // { start: Date, end: Date }
@@ -226,7 +226,7 @@ import {
   calculateChange,
   calculatePercentageChange,
   calculateAxisTicks,
-} from '@stacksjs/ts-analytics'
+} from '@ts-analytics/tracking'
 
 calculateChange(100, 80)           // 0.25 (25% increase)
 calculatePercentageChange(0.5, 0.4) // 0.25 (25% increase)
@@ -297,13 +297,13 @@ interface DateRange {
 ### Default Theme
 
 ```typescript
-import { defaultTheme } from '@stacksjs/ts-analytics'
+import { defaultTheme } from '@ts-analytics/tracking'
 ```
 
 ### Dark Theme
 
 ```typescript
-import { darkTheme } from '@stacksjs/ts-analytics'
+import { darkTheme } from '@ts-analytics/tracking'
 ```
 
 ### Custom Theme

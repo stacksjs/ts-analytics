@@ -33,7 +33,7 @@ Track engaged sessions:
 Use GoalMatcher to check for conversions:
 
 ```typescript
-import { GoalMatcher } from '@stacksjs/ts-analytics'
+import { GoalMatcher } from '@ts-analytics/tracking'
 
 const goals = [
   {

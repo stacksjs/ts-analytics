@@ -54,7 +54,7 @@ generateFullTrackingScript({
 Analyze shopping behavior and checkout funnels:
 
 ```typescript
-import { ecommerceCheckoutFunnel, FunnelAnalyzer } from '@stacksjs/ts-analytics'
+import { ecommerceCheckoutFunnel, FunnelAnalyzer } from '@ts-analytics/tracking'
 
 const analyzer = new FunnelAnalyzer()
 const analysis = analyzer.analyze(ecommerceCheckoutFunnel, userJourneys)

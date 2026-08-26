@@ -2,7 +2,7 @@
 title: Framework Integrations
 description: Integrate ts-analytics with various frameworks
 ---
-import { AnalyticsAPI, createLambdaHandler } from '@stacksjs/ts-analytics'
+import { AnalyticsAPI, createLambdaHandler } from '@ts-analytics/tracking'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 
 const client = new DynamoDBClient({ region: process.env.AWS_REGION })
@@ -53,7 +53,7 @@ import {
   createAnalyticsHandler,
   createD1Adapter,
   type CloudflareEnv,
-} from '@stacksjs/ts-analytics'
+} from '@ts-analytics/tracking'
 
 export default {
   async fetch(request: Request, env: CloudflareEnv): Promise<Response> {
@@ -88,7 +88,7 @@ Use with Express:
 
 ```typescript
 import express from 'express'
-import { AnalyticsAPI } from '@stacksjs/ts-analytics'
+import { AnalyticsAPI } from '@ts-analytics/tracking'
 
 const app = express()
 app.use(express.json())
@@ -134,7 +134,7 @@ Use with Fastify:
 
 ```typescript
 import Fastify from 'fastify'
-import { AnalyticsAPI } from '@stacksjs/ts-analytics'
+import { AnalyticsAPI } from '@ts-analytics/tracking'
 
 const fastify = Fastify()
 const api = new AnalyticsAPI({ tableName: 'AnalyticsTable' })
@@ -168,7 +168,7 @@ import {
   createAnalyticsMiddleware,
   createDashboardActions,
   createServerTrackingMiddleware,
-} from '@stacksjs/ts-analytics'
+} from '@ts-analytics/tracking'
 
 // Create the driver
 const driver = await createAnalyticsDriver({
@@ -203,7 +203,7 @@ import {
   PageViewModel,
   SessionModel,
   GoalModel,
-} from '@stacksjs/ts-analytics'
+} from '@ts-analytics/tracking'
 
 // Register models with Stacks
 export default {
@@ -222,7 +222,7 @@ export default {
 
 ```typescript
 // app/api/analytics/collect/route.ts
-import { AnalyticsAPI } from '@stacksjs/ts-analytics'
+import { AnalyticsAPI } from '@ts-analytics/tracking'
 import { NextRequest, NextResponse } from 'next/server'
 
 const api = new AnalyticsAPI({ tableName: 'AnalyticsTable' })
@@ -278,7 +278,7 @@ export function middleware(request: NextRequest) {
 
 ```typescript
 // server/api/analytics/collect.post.ts
-import { AnalyticsAPI } from '@stacksjs/ts-analytics'
+import { AnalyticsAPI } from '@ts-analytics/tracking'
 
 const api = new AnalyticsAPI({ tableName: 'AnalyticsTable' })
 const ctx = api.createContext(executeCommand)
@@ -307,7 +307,7 @@ export default defineEventHandler(async (event) => {
 For any framework, implement the request/response mapping:
 
 ```typescript
-import { AnalyticsAPI, AnalyticsRequest, AnalyticsResponse } from '@stacksjs/ts-analytics'
+import { AnalyticsAPI, AnalyticsRequest, AnalyticsResponse } from '@ts-analytics/tracking'
 
 const api = new AnalyticsAPI({ tableName: 'AnalyticsTable' })
 const ctx = api.createContext(executeCommand)

@@ -82,7 +82,7 @@ bunx analytics seed --sites 3 --page-views 1000 --sessions 200 --days 30
 Or programmatically:
 
 ```typescript
-import { generateSeedData } from '@stacksjs/ts-analytics'
+import { generateSeedData } from '@ts-analytics/tracking'
 
 const seedData = generateSeedData({
   sites: 3,
@@ -165,7 +165,7 @@ const client = new DynamoDBClient({
 
 ```typescript
 import { describe, test, expect } from 'bun:test'
-import { AnalyticsStore, GoalMatcher } from '@stacksjs/ts-analytics'
+import { AnalyticsStore, GoalMatcher } from '@ts-analytics/tracking'
 
 describe('GoalMatcher', () => {
   test('matches exact pageview goal', () => {
@@ -190,7 +190,7 @@ describe('GoalMatcher', () => {
 ```typescript
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { createAnalyticsTable, AnalyticsStore } from '@stacksjs/ts-analytics'
+import { createAnalyticsTable, AnalyticsStore } from '@ts-analytics/tracking'
 
 describe('AnalyticsStore Integration', () => {
   let client: DynamoDBClient

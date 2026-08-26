@@ -29,7 +29,7 @@ export class AnalyticsStack extends cdk.Stack {
 Generate SAM templates:
 
 ```typescript
-import { generateSamTemplate, generateSamYaml } from '@stacksjs/ts-analytics'
+import { generateSamTemplate, generateSamYaml } from '@ts-analytics/tracking'
 
 const samTemplate = generateSamTemplate({
   tableName: 'AnalyticsTable',
@@ -55,7 +55,7 @@ sam deploy \
 Generate direct AWS CLI commands:
 
 ```typescript
-import { generateAwsCliCommands, generateAwsCliCommand } from '@stacksjs/ts-analytics'
+import { generateAwsCliCommands, generateAwsCliCommand } from '@ts-analytics/tracking'
 
 // Full setup commands
 const commands = generateAwsCliCommands({
@@ -93,7 +93,7 @@ aws dynamodb create-table \
 ### Create Table Programmatically
 
 ```typescript
-import { createAnalyticsTable } from '@stacksjs/ts-analytics'
+import { createAnalyticsTable } from '@ts-analytics/tracking'
 import { DynamoDBClient, CreateTableCommand, DescribeTableCommand } from '@aws-sdk/client-dynamodb'
 
 const client = new DynamoDBClient({ region: 'us-east-1' })
@@ -113,7 +113,7 @@ console.log('Table created:', result.TableDescription?.TableName)
 ### Check Table Status
 
 ```typescript
-import { checkTableStatus } from '@stacksjs/ts-analytics'
+import { checkTableStatus } from '@ts-analytics/tracking'
 
 const status = await checkTableStatus(client, 'AnalyticsTable')
 console.log('Table status:', status)
@@ -123,7 +123,7 @@ console.log('Table status:', status)
 ### Enable TTL
 
 ```typescript
-import { enableTtl } from '@stacksjs/ts-analytics'
+import { enableTtl } from '@ts-analytics/tracking'
 
 await enableTtl(client, 'AnalyticsTable', 'ttl')
 ```
@@ -138,7 +138,7 @@ import {
   createTimeBasedGsiMigration,
   createStreamsMigration,
   createPitrMigration,
-} from '@stacksjs/ts-analytics'
+} from '@ts-analytics/tracking'
 
 // Run all pending migrations
 const results = await runMigrations(client, 'AnalyticsTable', [
@@ -165,7 +165,7 @@ for (const result of results) {
 Print setup instructions:
 
 ```typescript
-import { printSetupInstructions } from '@stacksjs/ts-analytics'
+import { printSetupInstructions } from '@ts-analytics/tracking'
 
 printSetupInstructions({
   tableName: 'AnalyticsTable',
@@ -230,7 +230,7 @@ ts-analytics uses a single-table design for efficiency:
 ## Generate Design Documentation
 
 ```typescript
-import { generateAnalyticsDesignDoc } from '@stacksjs/ts-analytics'
+import { generateAnalyticsDesignDoc } from '@ts-analytics/tracking'
 
 const doc = generateAnalyticsDesignDoc()
 console.log(doc)
