@@ -1,5 +1,5 @@
 /**
- * SDK integration guardrails (stx + Nuxt).
+ * SDK integration guardrails (stx + Nuxt + Vue).
  *
  * Both integrations shipped broken through 0.1.13 in the same way: they emitted
  * something plausible, nothing threw, and the only symptom was a dashboard that
@@ -23,6 +23,7 @@ import {
   tsAnalyticsTag,
 } from '../src/integrations/stx'
 import { __resetTsAnalyticsQueue, useTsAnalytics } from '../src/integrations/runtime/use-ts-analytics'
+import { tsAnalyticsVue, useTsAnalytics as vueUseTsAnalytics } from '../src/integrations/vue'
 
 describe('the default endpoint is publicly reachable', () => {
   // The regression this exists for is specifically a localhost default, which is
@@ -265,6 +266,139 @@ describe('useTsAnalytics().track() reaches a real tracker', () => {
     ;(globalThis as any).window.analyticshq = (...a: any[]) => calls.push(a)
     track('trigger-immediate')
     expect(calls.length).toBeLessThanOrEqual(51)
+  })
+})
+
+/**
+ * The Vue plugin.
+ *
+ * `install()` is called with a stub rather than a real `createApp()`: the whole
+ * contract is what it puts on the page and what it registers, and a real app
+ * would drag in a DOM harness to assert the same two things.
+ */
+describe('the Vue plugin', () => {
+  const originalWindow = (globalThis as any).window
+  const originalDocument = (globalThis as any).document
+
+  function fakeDom() {
+    const head: any[] = []
+    ;(globalThis as any).document = {
+      head: { appendChild: (el: any) => head.push(el) },
+      createElement: () => ({ setAttribute(k: string, v: string) { (this as any)[k] = v } }),
+      querySelector: (sel: string) => head.find(e => sel.includes(e['data-site'])) ?? null,
+    }
+    ;(globalThis as any).CSS = { escape: (s: string) => s }
+    return head
+  }
+
+  function fakeApp() {
+    return { config: { globalProperties: {} as Record<string, any> }, provide() {} } as any
+  }
+
+  afterEach(() => {
+    if (originalWindow === undefined)
+      delete (globalThis as any).window
+    else (globalThis as any).window = originalWindow
+    if (originalDocument === undefined)
+      delete (globalThis as any).document
+    else (globalThis as any).document = originalDocument
+    __resetTsAnalyticsQueue()
+  })
+
+  test('injects a deferred tag at the production endpoint', () => {
+    const head = fakeDom()
+    tsAnalyticsVue.install(fakeApp(), { appId: 'VUE1234', enabled: true })
+
+    expect(head).toHaveLength(1)
+    expect(head[0].src).toBe(`${DEFAULT_API_ENDPOINT}/script.js`)
+    expect(head[0].defer).toBe(true)
+    expect(head[0]['data-site']).toBe('VUE1234')
+  })
+
+  test('does not add a second tag when the snippet is already in index.html', () => {
+    // Pasting the snippet into index.html is the better placement — it parses
+    // with the document instead of after the framework boots. Someone who did
+    // that and also installed the plugin must not double-count every pageview.
+    const head = fakeDom()
+    tsAnalyticsVue.install(fakeApp(), { appId: 'VUE1234', enabled: true })
+    tsAnalyticsVue.install(fakeApp(), { appId: 'VUE1234', enabled: true })
+
+    expect(head).toHaveLength(1)
+  })
+
+  test('injects nothing when disabled, but $tsAnalytics is still callable', () => {
+    // A component calling track() must not throw because analytics is off in
+    // this environment.
+    const head = fakeDom()
+    const app = fakeApp()
+    tsAnalyticsVue.install(app, { appId: 'VUE1234', enabled: false })
+
+    expect(head).toHaveLength(0)
+    expect(() => app.config.globalProperties.$tsAnalytics.track('e')).not.toThrow()
+  })
+
+  test('a missing appId warns and injects nothing, rather than a broken tag', () => {
+    const head = fakeDom()
+    const warn = console.warn
+    const seen: string[] = []
+    console.warn = (m: string) => seen.push(String(m))
+    try {
+      tsAnalyticsVue.install(fakeApp(), { appId: '', enabled: true } as any)
+    }
+    finally {
+      console.warn = warn
+    }
+    expect(head).toHaveLength(0)
+    expect(seen.join(' ')).toContain('appId')
+  })
+
+  test('honours apiEndpoint, scriptPath and stealth', () => {
+    const head = fakeDom()
+    tsAnalyticsVue.install(fakeApp(), {
+      appId: 'V2',
+      apiEndpoint: 'https://a.example.com/',
+      scriptPath: 'tr.js',
+      stealth: true,
+      enabled: true,
+    })
+    expect(head[0].src).toBe('https://a.example.com/tr.js?stealth=true')
+  })
+
+  test('useTsAnalytics() works without the plugin ever being installed', () => {
+    // It is not inject()-based on purpose, so it works in a Pinia store or a
+    // plain module where inject() would throw.
+    const calls: any[] = []
+    ;(globalThis as any).window = { analyticshq: (...a: any[]) => calls.push(a) }
+    vueUseTsAnalytics().track('signup', 3)
+    expect(calls).toEqual([['signup', { value: 3 }]])
+  })
+})
+
+/**
+ * One implementation, not one per framework.
+ *
+ * The `window.fathom` bug survived three releases because a single reader was
+ * wrong and nothing disagreed with it. Copying the dispatch logic per framework
+ * would recreate exactly that: two readers drifting apart silently, each needing
+ * to be found twice.
+ */
+describe('the framework integrations share one tracker implementation', () => {
+  test('Vue and Nuxt resolve to the same track function', () => {
+    expect(vueUseTsAnalytics().track).toBe(useTsAnalytics().track)
+  })
+
+  test('neither integration file reimplements the dispatch', async () => {
+    const [vueSrc, nuxtSrc] = await Promise.all([
+      Bun.file(new URL('../src/integrations/vue.ts', import.meta.url)).text(),
+      Bun.file(new URL('../src/integrations/runtime/use-ts-analytics.ts', import.meta.url)).text(),
+    ])
+    const code = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    for (const [name, src] of [['vue.ts', vueSrc], ['use-ts-analytics.ts', nuxtSrc]] as const) {
+      // The tells for a second copy: reaching for a tracker global directly, or
+      // redeclaring the Fathom guard.
+      expect({ name, reimplements: /window\s*\.\s*(analyticshq|fathom)|function isOurFathom/.test(code(src)) })
+        .toEqual({ name, reimplements: false })
+    }
   })
 })
 

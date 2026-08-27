@@ -8,187 +8,22 @@
  * track('signup', 0, { plan: 'pro' })  // custom properties
  * ```
  *
- * ## Why this dispatches instead of calling one global
+ * The behaviour lives in `./tracker` — which tracker global to reach for, how
+ * `value` maps onto each one, the queue that holds events fired before the
+ * deferred tag executes, and the guard that stops a real Fathom global from
+ * receiving this app's events. The Vue plugin exposes the same functions, so
+ * there is one implementation to fix rather than two to keep in step.
  *
- * Up to 0.1.13 this called `window.fathom.track(...)` through an optional chain.
- * The tracker served by analyticshq.org does not define `window.fathom` — it
- * defines `window.analyticshq`, a *function* rather than an object — so every
- * optional link resolved to `undefined` and `track()` returned having done
- * nothing at all. No throw, no warning, no network request: custom events from a
- * Nuxt app were dropped in full, and the only symptom was an empty Events report.
- *
- * There are genuinely two trackers with two shapes, and which one answers depends
- * on the host an app points at:
- *
- * | tracker                        | global                                  |
- * |--------------------------------|-----------------------------------------|
- * | analyticshq (`public/script.js`) | `analyticshq(name, props)`            |
- * | ts-analytics (`src/Analytics.ts`)| `fathom.track(name, value, props)`    |
- *
- * The signatures differ too, so a rename would not have been enough — the
- * analyticshq tracker has no `value` parameter. It carries revenue *inside*
- * props (`analyticshq('Purchase', { value: 19.99 })`, read at
- * `routes/analytics.ts:531` as `p.value ?? p.revenue ?? p.amount`), so this
- * folds `value` into props on that path and passes it positionally on the other.
- *
- * The public signature is unchanged, so existing call sites keep compiling —
- * they just start working.
+ * This file stays a separate entrypoint because Nuxt's `addImports` resolves it
+ * by path string, not by import.
  */
-export interface TsAnalyticsApi {
-  /**
-   * Track a custom event by name, with an optional numeric value and custom
-   * properties (Plausible-style) that appear under Event Properties.
-   */
-  track: (name: string, value?: number, props?: Record<string, string | number | boolean>) => void
-}
+import type { Props, TsAnalyticsApi } from './tracker'
+import { createTrackerApi } from './tracker'
 
-type Props = Record<string, string | number | boolean>
-
-interface TrackerWindow {
-  analyticshq?: (name: string, props?: Props) => void
-  fathom?: {
-    track?: (name: string, value?: number, props?: Props) => void
-    /** Present only on the real Fathom global — see {@link isOurFathom}. */
-    trackEvent?: unknown
-    trackPageview?: unknown
-  }
-}
-
-/**
- * Is `window.fathom` *ours*, or the actual Fathom Analytics script?
- *
- * The ts-analytics tracker publishes `window.fathom = { track }` and its
- * comment calls that "Fathom-API compatible". It is not. Real Fathom
- * (`cdn.usefathom.com/script.js`, which `fathom-client` loads) exposes
- * `trackEvent`, `trackGoal`, `trackPageview`, `setSite`,
- * `blockTrackingForMe`, `enableTrackingForMe` — and no `track` at all. The two
- * are a name collision with different shapes, not two implementations of one
- * API.
- *
- * That matters because apps really do run both. A client storefront in this
- * codebase's orbit ships `nuxt-fathom` alongside our SDK, and without this
- * check a page where our tracker failed to load but Fathom succeeded would
- * quietly route the app's custom events to a competitor's collector — data
- * leaving for a third party as the *failure* mode of our own SDK.
- *
- * Requiring `track` and rejecting `trackEvent` distinguishes them today. The
- * rejection is the load-bearing half: `track` alone would start matching the
- * moment Fathom shipped a method by that name.
- */
-function isOurFathom(f: TrackerWindow['fathom']): boolean {
-  return typeof f?.track === 'function' && typeof f?.trackEvent !== 'function'
-}
-
-/** One queued call, held until a tracker exists. */
-type Queued = [name: string, value: number | undefined, props: Props | undefined]
-
-/**
- * The tag is injected with `defer`, so it executes after the document parses —
- * later than a component's `onMounted`. An event fired on the landing page
- * therefore races the tracker and, before this queue, simply lost.
- *
- * Bounded on both axes: a page that fires hundreds of events into a tracker that
- * never arrives (blocked by a content blocker, wrong endpoint) must not grow an
- * unbounded array, and the poll must not run for the life of the tab.
- */
-const QUEUE_LIMIT = 50
-const POLL_MS = 250
-const GIVE_UP_MS = 10_000
-
-const queue: Queued[] = []
-let polling = false
-let waited = 0
-let warned = false
-
-function resolveTracker(): TrackerWindow | null {
-  if (typeof window === 'undefined')
-    return null
-  const w = window as unknown as TrackerWindow
-  if (typeof w.analyticshq === 'function' || isOurFathom(w.fathom))
-    return w
-  return null
-}
-
-/** Send now, assuming a tracker was already resolved. */
-function dispatch(w: TrackerWindow, [name, value, props]: Queued): void {
-  if (typeof w.analyticshq === 'function') {
-    // Value rides inside props for this tracker. Spread first so an explicit
-    // `props.value` set by the caller is not clobbered by a positional 0.
-    const merged: Props = { ...(props ?? {}) }
-    if (typeof value === 'number' && merged.value === undefined)
-      merged.value = value
-    w.analyticshq(name, merged)
-    return
-  }
-  // Guarded again rather than trusting the caller: dispatch() is reachable from
-  // drain(), where the global may have been replaced between queueing and flush.
-  if (isOurFathom(w.fathom))
-    w.fathom?.track?.(name, value, props)
-}
-
-function drain(): void {
-  const w = resolveTracker()
-  if (!w)
-    return
-  // Splice before dispatching: a tracker that throws must not replay the queue.
-  const pending = queue.splice(0, queue.length)
-  for (const call of pending) {
-    try {
-      dispatch(w, call)
-    }
-    catch {
-      // A single bad event must not strand the rest of the queue.
-    }
-  }
-}
-
-function poll(): void {
-  if (polling || typeof window === 'undefined')
-    return
-  polling = true
-  const timer = setInterval(() => {
-    waited += POLL_MS
-    if (resolveTracker()) {
-      clearInterval(timer)
-      polling = false
-      drain()
-      return
-    }
-    if (waited >= GIVE_UP_MS) {
-      clearInterval(timer)
-      polling = false
-      queue.length = 0
-      if (!warned && process.env.NODE_ENV !== 'production') {
-        warned = true
-        console.warn(
-          '[ts-analytics] no tracker global after 10s — dropped '
-          + 'queued events. Check that the module injected its <script> and that '
-          + '`apiEndpoint` points at a host serving /script.js.',
-        )
-      }
-    }
-  }, POLL_MS)
-  // Never hold the process open in a test runner or SSR-adjacent runtime.
-  ;(timer as unknown as { unref?: () => void }).unref?.()
-}
+export type { Props, TsAnalyticsApi } from './tracker'
 
 export function useTsAnalytics(): TsAnalyticsApi {
-  return {
-    track(name: string, value?: number, props?: Props): void {
-      if (typeof window === 'undefined')
-        return // SSR: the tracker only exists in the browser
-
-      const w = resolveTracker()
-      if (w) {
-        dispatch(w, [name, value, props])
-        return
-      }
-
-      if (queue.length < QUEUE_LIMIT)
-        queue.push([name, value, props])
-      poll()
-    },
-  }
+  return createTrackerApi()
 }
 
 /**
@@ -196,9 +31,4 @@ export function useTsAnalytics(): TsAnalyticsApi {
  *
  * @internal
  */
-export function __resetTsAnalyticsQueue(): void {
-  queue.length = 0
-  polling = false
-  waited = 0
-  warned = false
-}
+export { __resetTrackerState as __resetTsAnalyticsQueue } from './tracker'

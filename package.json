@@ -1,7 +1,7 @@
 {
   "name": "@ts-analytics/tracking",
   "type": "module",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "A privacy-first analytics toolkit for web applications.",
   "author": "Chris Breuer <chris@stacksjs.org>",
   "license": "MIT",
@@ -43,6 +43,10 @@
     "./nuxt": {
       "types": "./dist/integrations/nuxt.d.ts",
       "import": "./dist/integrations/nuxt.js"
+    },
+    "./vue": {
+      "types": "./dist/integrations/vue.d.ts",
+      "import": "./dist/integrations/vue.js"
     },
     "./*": {
       "import": "./dist/*"
@@ -98,17 +102,22 @@
     "@stacksjs/components": "^0.2.188",
     "@stacksjs/stx": "^0.2.188",
     "better-dx": "^0.2.23",
-    "bun-plugin-stx": "^0.2.188"
+    "bun-plugin-stx": "^0.2.188",
+    "vue": "^3.5.0"
   },
   "peerDependencies": {
     "@nuxt/kit": "^3.0.0",
-    "@nuxt/schema": "^3.0.0"
+    "@nuxt/schema": "^3.0.0",
+    "vue": "^3.0.0"
   },
   "peerDependenciesMeta": {
     "@nuxt/kit": {
       "optional": true
     },
     "@nuxt/schema": {
+      "optional": true
+    },
+    "vue": {
       "optional": true
     }
   },

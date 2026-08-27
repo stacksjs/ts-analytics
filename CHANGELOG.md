@@ -1,3 +1,13 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.14...HEAD)
+
+## 🐛 Bug Fixes
+
+- **lint**: unblock CI, red on main since 2026-08-17 ([290b9a8](https://github.com/stacksjs/ts-analytics/commit/290b9a8)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.13...HEAD)
 
 ## 🐛 Bug Fixes
