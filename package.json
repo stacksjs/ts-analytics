@@ -88,22 +88,22 @@
     "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "bun-query-builder": "^0.1.38",
-    "dynamodb-tooling": "^0.3.2",
-    "ts-countries": "^0.1.2"
+    "bun-query-builder": "^0.2.68",
+    "dynamodb-tooling": "^0.3.6",
+    "ts-countries": "^0.1.3"
   },
   "devDependencies": {
-    "@cwcss/crosswind": "^0.2.16",
+    "@cwcss/crosswind": "^0.2.19",
     "@iconify-json/heroicons": "^1.2.3",
     "@nuxt/kit": "^3.13.0",
     "@nuxt/schema": "^3.13.0",
-    "@stacksjs/bun-router": "^0.0.27",
-    "@stacksjs/bunpress": "^0.2.12",
-    "@stacksjs/components": "^0.2.188",
-    "@stacksjs/stx": "^0.2.188",
-    "better-dx": "^0.2.23",
-    "bun-plugin-stx": "^0.2.188",
-    "vue": "^3.5.0"
+    "@stacksjs/bun-router": "^0.1.11",
+    "@stacksjs/bunpress": "^0.2.14",
+    "@stacksjs/components": "^0.2.278",
+    "@stacksjs/stx": "^0.2.278",
+    "better-dx": "^0.2.25",
+    "bun-plugin-stx": "^0.2.278",
+    "vue": "^3.5.42"
   },
   "peerDependencies": {
     "@nuxt/kit": "^3.0.0",
