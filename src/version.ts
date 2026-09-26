@@ -19,6 +19,7 @@
  * the field reporting 0.1.0 — the exact "guessing at cache states" this constant
  * exists to prevent, except confidently wrong rather than merely absent.
  *
- * Bump this in the same commit as package.json.
+ * `bun run release` bumps this with package.json (bumpx 0.2.18 reads a typed
+ * constant; earlier versions skipped it, which is how v0.1.16 never shipped).
  */
-export const TRACKER_VERSION: string = '0.1.15'
+export const TRACKER_VERSION: string = '0.1.16'
