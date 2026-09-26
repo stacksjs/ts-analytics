@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.16...v0.1.17)
+
+## 🐛 Bug Fixes
+
+- **release**: bump TRACKER_VERSION with package.json ([4d44037](https://github.com/stacksjs/ts-analytics/commit/4d44037)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.1.17 ([9db1e07](https://github.com/stacksjs/ts-analytics/commit/9db1e07)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.15...v0.1.16)
 
 ## 🐛 Bug Fixes

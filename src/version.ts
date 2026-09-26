@@ -22,4 +22,4 @@
  * `bun run release` bumps this with package.json (bumpx 0.2.18 reads a typed
  * constant; earlier versions skipped it, which is how v0.1.16 never shipped).
  */
-export const TRACKER_VERSION: string = '0.1.16'
+export const TRACKER_VERSION: string = '0.1.17'
