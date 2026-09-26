@@ -88,7 +88,7 @@
     "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "bun-query-builder": "^0.1.38",
+    "bun-query-builder": "^0.3.0",
     "dynamodb-tooling": "^0.3.2",
     "ts-countries": "^0.1.2"
   },
