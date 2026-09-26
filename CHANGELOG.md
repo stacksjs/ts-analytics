@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.15...v0.1.16)
+
+## 🐛 Bug Fixes
+
+- **deps**: require bun-query-builder ^0.3.0, the line the Stacks ORM runs on ([cc12df4](https://github.com/stacksjs/ts-analytics/commit/cc12df4)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.1.16 ([76d2947](https://github.com/stacksjs/ts-analytics/commit/76d2947)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.14...HEAD)
 
 ## 🐛 Bug Fixes
