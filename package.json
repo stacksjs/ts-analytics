@@ -95,7 +95,7 @@
   "devDependencies": {
     "@cwcss/crosswind": "^0.2.16",
     "@iconify-json/heroicons": "^1.2.3",
-    "@nuxt/kit": "^3.13.0",
+    "@nuxt/kit": "^4.6.1",
     "@nuxt/schema": "^3.13.0",
     "@stacksjs/bun-router": "^0.0.27",
     "@stacksjs/bunpress": "^0.2.12",
