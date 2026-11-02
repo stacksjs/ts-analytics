@@ -97,6 +97,8 @@ export interface StxHeadScript {
 }
 
 export interface TsAnalyticsOptions {
+  /** Explicit opt-out, even with an App ID configured (for example in CI). */
+  enabled?: boolean
   /**
    * Your ts-analytics **App ID** — rendered as the tracker's `data-site`. A long,
    * unguessable random string (see {@link generateAppId}); the backend
@@ -122,10 +124,12 @@ export interface TsAnalyticsOptions {
  *
  * Returns an **array** (so it spreads cleanly into `app.head.script` and can
  * grow later — e.g. an error-tracking tag — without changing call sites).
- * Returns `[]` when `appId`/`apiEndpoint` are missing, so a half-configured
- * environment never injects a broken tag.
+ * Returns `[]` when explicitly disabled or when `appId`/`apiEndpoint` are
+ * missing, so disabled and half-configured environments emit no tracker.
  */
 export function tsAnalytics(options: TsAnalyticsOptions): StxHeadScript[] {
+  if (options?.enabled === false)
+    return []
   const appId = options?.appId?.trim()
   if (!appId)
     return []
@@ -183,7 +187,7 @@ export interface StxAnalyticsConfig {
  * `<script defer="" ... defer>`.
  */
 export function tsAnalyticsStxConfig(
-  options: TsAnalyticsOptions & { enabled?: boolean },
+  options: TsAnalyticsOptions,
 ): StxAnalyticsConfig {
   const appId = options?.appId?.trim() ?? ''
   const origin = resolveApiEndpoint(options?.apiEndpoint)

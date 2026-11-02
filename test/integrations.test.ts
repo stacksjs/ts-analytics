@@ -81,6 +81,12 @@ describe('tsAnalytics() head entries', () => {
     expect(tsAnalyticsTag({ appId: '' })).toBe('')
   })
 
+  test('explicitly disabling tracking emits no head script or raw tag with a configured app ID', () => {
+    expect(tsAnalytics({ appId: 'ABC12345', enabled: false })).toEqual([])
+    expect(tsAnalyticsTag({ appId: 'ABC12345', enabled: false })).toBe('')
+    expect(tsAnalytics({ appId: 'ABC12345', enabled: true })).toHaveLength(1)
+  })
+
   test('a scriptPath without a leading slash is still normalised', () => {
     const [entry] = tsAnalytics({ appId: 'A', scriptPath: 'tracker.js' })
     expect(entry.src).toBe(`${DEFAULT_API_ENDPOINT}/tracker.js`)
