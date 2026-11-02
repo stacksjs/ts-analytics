@@ -1,3 +1,18 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.18...v0.1.19)
+
+## 🐛 Bug Fixes
+
+- align tracker identity after the held release ([e660e83](https://github.com/stacksjs/ts-analytics/commit/e660e83)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.1.19 ([1cd9a5c](https://github.com/stacksjs/ts-analytics/commit/1cd9a5c)) _(by Chris <chrisbreuer93@gmail.com>)_
+- refresh shared release tooling from better-dx ([2b1a32d](https://github.com/stacksjs/ts-analytics/commit/2b1a32d)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.17...v0.1.18)
 
 ## 🐛 Bug Fixes
