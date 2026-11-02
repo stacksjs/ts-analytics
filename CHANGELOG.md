@@ -1,3 +1,19 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.17...v0.1.18)
+
+## 🐛 Bug Fixes
+
+- honor explicit analytics disable in head helpers ([666b341](https://github.com/stacksjs/ts-analytics/commit/666b341)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.1.18 ([7e15b10](https://github.com/stacksjs/ts-analytics/commit/7e15b10)) _(by Chris <chrisbreuer93@gmail.com>)_
+- run @stacksjs/logsmith, not the unrelated npm 'logsmith' ([ed01a9f](https://github.com/stacksjs/ts-analytics/commit/ed01a9f)) _(by Chris <chrisbreuer93@gmail.com>)_
+- release through @stacksjs/bumpx, not the unrelated npm 'bumpx' ([ff55bcb](https://github.com/stacksjs/ts-analytics/commit/ff55bcb)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.16...v0.1.17)
 
 ## 🐛 Bug Fixes
