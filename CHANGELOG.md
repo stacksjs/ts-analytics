@@ -1,3 +1,18 @@
+[Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.19...v0.2.0)
+
+## ✨ Features
+
+- add an app client and an explicit app-mode bypass for the bot filter ([74970af](https://github.com/stacksjs/ts-analytics/commit/74970af)) _(by Chris)_
+
+## 🔧 Chores
+
+- add `release:minor` script ([948784f](https://github.com/stacksjs/ts-analytics/commit/948784f)) _(by Chris)_
+- update deps ([b2ff2ff](https://github.com/stacksjs/ts-analytics/commit/b2ff2ff)) _(by Chris)_
+
+## Contributors
+
+- _Chris_
+
 [Compare changes](https://github.com/stacksjs/ts-analytics/compare/v0.1.18...v0.1.19)
 
 ## 🐛 Bug Fixes
