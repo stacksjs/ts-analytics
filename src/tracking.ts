@@ -10,11 +10,27 @@
  */
 
 export {
+  APP_CLIENT_TOKEN,
+  type BotCheckOptions,
   getBrowserFamily,
+  isAppClientUserAgent,
   isBot,
+  isBotRequest,
   type ParsedUserAgent,
   parseUserAgent,
 } from './utils/user-agent'
+
+// The event client for native and desktop apps: no DOM, no storage, `fetch`
+// only. Also importable on its own as `@ts-analytics/tracking/app`.
+export {
+  type AppClient,
+  type AppClientOptions,
+  type AppEventProperties,
+  type AppOs,
+  appUserAgent,
+  createAppClient,
+  isValidInstallId,
+} from './app-client'
 
 export {
   anonymizeIp,

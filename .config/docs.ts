@@ -57,6 +57,7 @@ const config: BunPressConfig = {
       text: 'Guide',
       items: [
         { text: 'Tracking Script', link: '/guide/tracking-script' },
+        { text: 'App Client', link: '/guide/app-client' },
         { text: 'API Endpoints', link: '/guide/api' },
         { text: 'Dashboard Components', link: '/guide/dashboard' },
         { text: 'Infrastructure', link: '/guide/infrastructure' },

@@ -174,5 +174,6 @@ Events sent to the API:
 ## See Also
 
 - [Tracking Script Guide](/guide/tracking-script) - Usage guide
+- [App Client](/guide/app-client) - `createAppClient` for native and desktop apps, and `isBotRequest`
 - [Privacy Features](/features/privacy) - Privacy configuration
 - [API Endpoints](/guide/api) - Collect endpoint

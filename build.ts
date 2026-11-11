@@ -8,6 +8,7 @@
  *   `./stx`  → dist/integrations/stx.js + dist/integrations/stx.d.ts   (the tsAnalytics() helper)
  *   `./nuxt` → dist/integrations/nuxt.js + dist/integrations/nuxt.d.ts (the Nuxt module)
  *   `./vue`  → dist/integrations/vue.js + dist/integrations/vue.d.ts   (the Vue 3 plugin)
+ *   `./app`  → dist/app-client.js + dist/app-client.d.ts               (createAppClient, for native and desktop apps)
  *
  * The Nuxt module's `useTsAnalytics()` composable is referenced by a runtime
  * path string (addImports → ./runtime/use-ts-analytics), not a static import, so
@@ -57,6 +58,7 @@ const result = await Bun.build({
     './src/index.ts',
     './src/Analytics.ts',
     './src/tracking.ts',
+    './src/app-client.ts',
     './src/integrations/stx.ts',
     './src/integrations/nuxt.ts',
     './src/integrations/vue.ts',
@@ -85,6 +87,8 @@ const required = [
   './dist/index.d.ts',
   './dist/tracking.js',
   './dist/tracking.d.ts',
+  './dist/app-client.js',
+  './dist/app-client.d.ts',
   './dist/Analytics.js',
   './dist/Analytics.d.ts',
   './dist/integrations/stx.js',
@@ -102,4 +106,4 @@ for (const f of required) {
     process.exit(1)
   }
 }
-console.log(`[ts-analytics] library built → dist/ (${result.outputs.length} files; . + ./tracking + ./stx + ./nuxt + ./vue entrypoints and their .d.ts present)`)
+console.log(`[ts-analytics] library built → dist/ (${result.outputs.length} files; . + ./tracking + ./app + ./stx + ./nuxt + ./vue entrypoints and their .d.ts present)`)

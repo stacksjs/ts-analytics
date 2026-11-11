@@ -127,6 +127,51 @@ export function isBot(ua: string): boolean {
 }
 
 /**
+ * The product token every `createAppClient` request carries in its User-Agent,
+ * e.g. `Fettler/1.4.2 (macOS 15.1) ts-analytics-app/0.1.20`.
+ */
+export const APP_CLIENT_TOKEN: string = 'ts-analytics-app'
+
+/**
+ * Does this User-Agent carry the app client's token?
+ *
+ * A LABEL, NOT A CREDENTIAL. Anyone can send this string, so it must never be
+ * the reason a request skips the bot filter. It exists so a server can log or
+ * count app traffic, and so an operator reading access logs can tell what a
+ * request was. The decision to skip the filter belongs to `isBotRequest`.
+ */
+export function isAppClientUserAgent(ua: string): boolean {
+  return typeof ua === 'string' && /(?:^|\s)ts-analytics-app\//i.test(ua)
+}
+
+/** What the server has already established about a request, apart from its User-Agent. */
+export interface BotCheckOptions {
+  /**
+   * True when the request declared an app client AND the site it is addressed
+   * to accepts app events. The server decides both from its own records.
+   * Setting this from anything the client sent on its own (a header, a body
+   * field, the User-Agent) hands every bot the way around the filter.
+   */
+  appMode?: boolean
+}
+
+/**
+ * The bot filter for one request, with an explicit way past it for app mode.
+ *
+ * Native and desktop apps talk HTTP through Bun, Node's undici, node-fetch or
+ * an Electron webview, and `isBot` is right to drop all four from a web site.
+ * A server that accepts app events calls this instead and passes
+ * `appMode: true` only for requests it has verified as described on
+ * `BotCheckOptions`. Without the option this is exactly `isBot`, which is
+ * unchanged.
+ */
+export function isBotRequest(ua: string, options: BotCheckOptions = {}): boolean {
+  if (options.appMode === true)
+    return false
+  return isBot(ua)
+}
+
+/**
  * Get browser family (simplifies browser name to family)
  */
 export function getBrowserFamily(browser: string): string {

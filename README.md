@@ -82,6 +82,34 @@ const script = generateTrackingScript({
 const html = `<html><head>${script}</head>...</html>`
 ```
 
+### Native and desktop apps
+
+An app has no page to put a script on, and its requests come from Bun, Node or
+Electron, which the bot filter drops. `createAppClient` is a `fetch`-only event
+client for that case. It never throws into your app, and sends nothing until you
+enable it:
+
+```typescript
+import { createAppClient } from '@ts-analytics/tracking/app'
+
+const analytics = createAppClient({
+  endpoint: 'https://analytics.example.com',
+  siteId: 'my-app',
+  installId: settings.installId, // a UUID your app generated and stored
+  appVersion: '1.4.2',
+  appName: 'Fettler',
+  enabled: settings.shareUsage,
+})
+
+await analytics.screen('Settings')
+await analytics.track('Export', { format: 'csv' })
+```
+
+The server has to accept these explicitly. `isBot` is unchanged; use
+`isBotRequest(ua, { appMode })` and pass `appMode: true` only for a request that
+declared an app on a site your own records say accepts them. See the
+[app client guide](docs/guide/app-client.md).
+
 ### 3. Create API Handlers
 
 ```typescript

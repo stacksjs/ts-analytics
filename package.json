@@ -32,6 +32,10 @@
       "types": "./dist/tracking.d.ts",
       "import": "./dist/tracking.js"
     },
+    "./app": {
+      "types": "./dist/app-client.d.ts",
+      "import": "./dist/app-client.js"
+    },
     "./analytics": {
       "types": "./dist/Analytics.d.ts",
       "import": "./dist/Analytics.js"
