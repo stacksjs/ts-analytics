@@ -100,7 +100,7 @@
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.3",
     "@nuxt/kit": "^3.21.11",
-    "@nuxt/schema": "^3.21.11",
+    "@nuxt/schema": "^4.6.4",
     "@stacksjs/bun-router": "^0.0.27",
     "@stacksjs/bunpress": "^0.2.31",
     "@stacksjs/components": "^0.2.853",
