@@ -99,7 +99,7 @@
   },
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.3",
-    "@nuxt/kit": "^3.21.11",
+    "@nuxt/kit": "^4.7.0",
     "@nuxt/schema": "^3.21.11",
     "@stacksjs/bun-router": "^0.0.27",
     "@stacksjs/bunpress": "^0.2.31",
