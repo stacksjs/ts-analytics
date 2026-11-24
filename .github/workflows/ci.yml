@@ -112,4 +112,4 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: pantry publish:commit '.' && pantry publish:commit './packages/error-sdk'
         env:
-          PANTRY_REGISTRY_TOKEN: ${{ secrets.PANTRY_TOKEN }}
+          PANTRY_TOKEN: ${{ secrets.PANTRY_TOKEN }}
